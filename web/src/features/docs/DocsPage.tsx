@@ -8,6 +8,7 @@ import { useActions, useBusy } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
 import { navigate, useRoute } from '@/lib/router';
 import { timeAgo } from '@/lib/util';
+import { ComponentGraph } from './ComponentGraph';
 import { Badge, Button, Callout, EmptyState, Skeleton, cx } from '@/components/ui';
 import { useFeedback } from '@/components/overlays';
 
@@ -153,8 +154,21 @@ function DocsSection({ docs, section }: { docs: ProjectDocs; section: string }) 
             {docs.context?.stack?.length ? <div><div className="xs muted">Stack</div><div>{docs.context.stack.join(', ')}</div></div> : null}
           </div>
           {docs.context?.goal_pursuit?.length ? (<><h2>Goals</h2><ul>{docs.context.goal_pursuit.map((g, i) => <li key={i}>{g}</li>)}</ul></>) : null}
-          <h2>Layers</h2>
-          <LayerMap components={docs.components ?? []} />
+          <h2>Components</h2>
+          <ComponentGraph components={docs.components ?? []} graph={docs.graph} onOpen={c => navigate('/docs/components', { path: c.path })} />
+          {docs.graph?.entry_points?.length ? (
+            <>
+              <h2>Where it starts</h2>
+              <ul className="entry-points">
+                {docs.graph.entry_points.map(e => (
+                  <li key={`${e.path}:${e.detail ?? ''}`}>
+                    <button type="button" className="link-btn mono xs" onClick={() => navigate('/code', { file: e.path })}>{e.path}</button>
+                    <span className="xs muted"> {entryLabel(e.kind, e.detail)}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
         </article>
       );
   }
@@ -166,39 +180,51 @@ function groupByLayer(components: DocsComponent[]): [string, DocsComponent[]][] 
   return [...map.entries()];
 }
 
-function LayerMap({ components }: { components: DocsComponent[] }) {
-  if (!components.length) return <p className="muted">No components documented yet.</p>;
-  return (
-    <div className="layers">
-      {groupByLayer(components).map(([layer, list]) => (
-        <div key={layer} className="layer">
-          <div className="layer-name">{layer}</div>
-          <div className="layer-items">
-            {list.map(c => (
-              <button key={c.name} type="button" className="layer-item" onClick={() => navigate('/docs/components', { name: c.name })} title={c.summary}>{c.name}</button>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+function entryLabel(kind: string, detail?: string): string {
+  if (kind === 'main') return detail ? `${detail} main` : 'main';
+  if (kind === 'script') return `script ${detail ?? ''}`.trim();
+  return detail ? `${kind} ${detail}` : kind;
 }
+
+const SUMMARY_SOURCES: Record<string, string> = {
+  module: 'Model summary of its files',
+  overview: 'From the project overview (model)',
+};
 
 function Components({ components }: { components: DocsComponent[] }) {
   const route = useRoute();
-  const focus = route.params.get('name');
+  const focus = route.params.get('path');
+  const byPath = new Map(components.map(c => [c.path, c]));
+  const chip = (path: string) => (
+    <button key={path} type="button" className="chip" onClick={() => navigate('/docs/components', { path })} title={path}>{byPath.get(path)?.name ?? path}</button>
+  );
   return (
     <article className="doc">
       <h1>Components</h1>
+      <p className="small muted">The directories of code, grouped so at most sixteen show; what each imports is read from the code.</p>
       {groupByLayer(components).map(([layer, list]) => (
         <section key={layer}>
           <h2>{layer}</h2>
           <div className="component-grid">
             {list.map(c => (
-              <div key={c.name} className={cx('doc-card', c.name === focus && 'is-focus')}>
-                <div className="row"><span className="strong grow">{c.name}</span>{c.path ? <span className="mono xs faint">{c.path}</span> : null}</div>
-                {c.summary ? <p className="small muted">{c.summary}</p> : null}
+              <div key={c.path} id={`component-${c.path}`} className={cx('doc-card', c.path === focus && 'is-focus')}>
+                <div className="row"><span className="strong grow">{c.name}</span><span className="mono xs faint">{c.path}</span></div>
+                <div className="xs muted">{[`${c.files ?? 0} files`, c.lines ? `${c.lines} lines` : '', (c.languages ?? []).join(', ')].filter(Boolean).join(' · ')}</div>
+                {c.summary ? (
+                  <>
+                    <p className="small">{c.summary}</p>
+                    {c.summary_source ? <div className="xs faint">{SUMMARY_SOURCES[c.summary_source] ?? 'Model-written'}</div> : null}
+                  </>
+                ) : <p className="small muted">No summary yet: an analysis run writes one from its files.</p>}
                 {c.responsibilities?.length ? <ul className="small">{c.responsibilities.slice(0, 4).map((r, i) => <li key={i}>{r}</li>)}</ul> : null}
+                {c.dependencies?.length ? <div className="chips"><span className="xs muted">Imports</span>{c.dependencies.map(chip)}</div> : null}
+                {c.used_by?.length ? <div className="chips"><span className="xs muted">Used by</span>{c.used_by.map(chip)}</div> : null}
+                {c.contracts?.length ? (
+                  <div className="chips">
+                    <span className="xs muted">Starts at</span>
+                    {c.contracts.map(e => <button key={e.name + e.summary} type="button" className="chip chip-file" onClick={() => navigate('/code', { file: e.name })} title={e.summary}>{e.name}</button>)}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
@@ -208,8 +234,9 @@ function Components({ components }: { components: DocsComponent[] }) {
   );
 }
 
-// The handbook's status is the project overview's: the model-written purpose,
-// architecture and flows. Analysis runs refresh the indexed sections only.
+// The docs' status is the project overview's: the model-written purpose,
+// architecture and flows. The components, their imports, entry points,
+// dependencies and runbook are read from the code on every visit.
 const DOCS_STATUS_TITLES: Record<string, string> = {
   unavailable: 'No project overview yet',
   failed: 'The project overview could not be written',
@@ -217,7 +244,7 @@ const DOCS_STATUS_TITLES: Record<string, string> = {
 };
 
 const DOCS_STATUS_DETAILS: Record<string, string> = {
-  unavailable: 'Sections below come from indexed facts only. The model-written overview of purpose, architecture and flows has not been written for this project.',
+  unavailable: 'The components, imports, entry points, dependencies and runbook below are read from the code. The model-written overview of purpose and flows has not been written for this project.',
   failed: 'Sections below come from indexed facts only. The analyze model did not return a usable overview.',
-  stale: 'The overview was written for an older version of the code; the indexed sections are current.',
+  stale: 'The model-written overview was written for an older version of the code; the components, imports and runbook are current.',
 };

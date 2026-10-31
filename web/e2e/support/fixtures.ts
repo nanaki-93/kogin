@@ -194,7 +194,18 @@ export const overview: Overview = {
   docs: {
     status: 'unavailable',
     context: { purpose: 'A local-first coding assistant.', goal_pursuit: ['Deterministic indexing'], topology: 'Loopback daemon', stack: ['Go', 'React'] },
-    components: [{ name: 'App service', layer: 'application', path: 'internal/app', summary: 'Workflow orchestration.' }],
+    components: [
+      { name: 'Daemon', layer: 'API / Transport Boundary', path: 'cmd/daemon', languages: ['Go'], files: 3, lines: 400, summary: '', responsibilities: [], contracts: [{ name: 'cmd/daemon/main.go', kind: 'main', summary: 'Go' }], dependencies: ['internal/api', 'internal/app'], used_by: [] },
+      { name: 'Api', layer: 'API / Transport Boundary', path: 'internal/api', languages: ['Go'], files: 40, lines: 6000, summary: 'Decodes local requests and maps errors.', summary_source: 'module', responsibilities: ['Request policy'], contracts: [], dependencies: ['internal/app'], used_by: ['cmd/daemon'] },
+      { name: 'App service', layer: 'Application / Orchestration', path: 'internal/app', languages: ['Go'], files: 320, lines: 50000, summary: 'Workflow orchestration.', summary_source: 'overview', responsibilities: [], contracts: [], dependencies: ['internal/project'], used_by: ['cmd/daemon', 'internal/api'] },
+      { name: 'Project', layer: 'Domain & Persistence', path: 'internal/project', languages: ['Go'], files: 80, lines: 12000, summary: '', responsibilities: [], contracts: [], dependencies: [], used_by: ['internal/app'] },
+      { name: 'Src', layer: 'Presentation Layer', path: 'web/src', languages: ['TypeScript'], files: 64, lines: 9000, summary: '', responsibilities: [], contracts: [], dependencies: [], used_by: [] },
+    ],
+    graph: {
+      edges: [{ from: 'cmd/daemon', to: 'internal/api', imports: 2 }, { from: 'cmd/daemon', to: 'internal/app', imports: 3 }, { from: 'internal/api', to: 'internal/app', imports: 40 }, { from: 'internal/app', to: 'internal/project', imports: 120 }],
+      entry_points: [{ path: 'cmd/daemon/main.go', kind: 'main', detail: 'Go' }, { path: 'web/package.json', kind: 'script', detail: 'dev: vite' }],
+      modules: 57,
+    },
     decisions: [{ title: 'Embed the Web UI in the daemon', category: 'Architecture', decision: 'Serve the built bundle from the binary.', tradeoff: 'Every UI change needs a rebuilt bundle.' }],
   },
 };

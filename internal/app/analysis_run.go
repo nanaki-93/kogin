@@ -693,7 +693,6 @@ func (s *Service) finishCompletedAnalysisRunLocked(ctx context.Context) {
 	} else {
 		refreshAnalysisSections(c.run)
 		c.run.Status = analysisFinishedStatus(c.run)
-		s.persistProjectDocs()
 	}
 	_ = s.saveAnalysisRunLocked(false) // Failure is retained and stops this worker.
 }

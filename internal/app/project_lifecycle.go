@@ -31,7 +31,6 @@ func (s *Service) ActivateProject(root string, analysis *project.Analysis) error
 		if err := s.manager.Set(root, analysis); err != nil {
 			return err
 		}
-		s.persistProjectDocs()
 		return nil
 	})
 }

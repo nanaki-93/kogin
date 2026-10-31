@@ -1786,47 +1786,80 @@
   gap: 10px;
 }
 
-.layers {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.layer {
-  display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  padding: 10px 12px;
+.component-graph {
+  margin: 8px 0 0;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
+  overflow-x: auto;
 }
 
-.layer-name {
-  color: var(--muted);
-  font-size: var(--text-sm);
+.component-graph svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.component-graph figcaption {
+  margin-top: 8px;
+}
+
+.graph-node {
+  cursor: pointer;
+  outline: none;
+}
+
+.graph-node rect {
+  fill: var(--surface-2);
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+.graph-node.is-active rect,
+.graph-node:focus-visible rect {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.graph-label {
+  fill: var(--text);
+  font-size: 13px;
   font-weight: 600;
 }
 
-.layer-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.graph-meta {
+  fill: var(--muted);
+  font-size: 11px;
 }
 
-.layer-item {
-  padding: 3px 9px;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  background: var(--surface-2);
-  color: var(--text-2);
-  font-size: var(--text-sm);
+.graph-edge {
+  fill: none;
+  stroke: var(--faint);
+  opacity: 0.8;
 }
 
-.layer-item:hover {
-  border-color: var(--accent);
-  color: var(--text);
+.graph-edge.is-active {
+  stroke: var(--accent);
+  opacity: 1;
+}
+
+.graph-edge.is-dim {
+  opacity: 0.25;
+}
+
+.graph-arrow {
+  fill: var(--faint);
+}
+
+.entry-points {
+  padding-left: 18px;
+}
+
+.doc-card .chips {
+  align-items: center;
+  margin-top: 6px;
 }
 
 .steps li + li {

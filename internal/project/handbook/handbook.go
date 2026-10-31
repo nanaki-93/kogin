@@ -1,17 +1,16 @@
 package handbook
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/project/insight"
+	"github.com/nanaki-93/mini-orca/v2/internal/project/projectmap"
 	"github.com/nanaki-93/mini-orca/v2/internal/project/symbols"
-	"github.com/nanaki-93/mini-orca/v2/internal/storage"
+	"github.com/nanaki-93/mini-orca/v2/internal/project/toolchain"
 	"github.com/nanaki-93/mini-orca/v2/internal/textutil"
 )
 
@@ -78,18 +77,16 @@ type Analysis struct {
 	Report          ProjectAnalysisReport `json:"report"`
 }
 
-const (
-	projectDocsSchemaVersion = "2"
-	projectDocsReportPath    = ".mini-orca/project-docs.json"
-)
+// projectDocsSchemaVersion 3: built from the project map on every read, no
+// longer stored.
+const projectDocsSchemaVersion = "3"
 
 // ProjectDocsContext describes C4 Level 1-2 system context, goal pursuit, and technology stack.
 type ProjectDocsContext struct {
-	Purpose             string   `json:"purpose"`
-	GoalPursuit         []string `json:"goal_pursuit,omitempty"`
-	Topology            string   `json:"topology"`
-	Stack               []string `json:"stack"`
-	ArchitectureDiagram string   `json:"architecture_diagram,omitempty"`
+	Purpose     string   `json:"purpose"`
+	GoalPursuit []string `json:"goal_pursuit,omitempty"`
+	Topology    string   `json:"topology"`
+	Stack       []string `json:"stack"`
 }
 
 // ProjectDocsDependency describes a primary runtime, library, or module dependency.
@@ -108,15 +105,27 @@ type ProjectDocsContract struct {
 	Summary string `json:"summary"`
 }
 
-// ProjectDocsComponent describes a C4 Level 3 bounded context or subsystem.
+// ProjectDocsComponent is one part of the project: a directory of code and
+// what is below it, as the project map groups it.
 type ProjectDocsComponent struct {
-	Name             string                `json:"name"`
-	Layer            string                `json:"layer"`
-	Path             string                `json:"path"`
-	Summary          string                `json:"summary"`
-	Responsibilities []string              `json:"responsibilities"`
-	Contracts        []ProjectDocsContract `json:"contracts"`
-	Dependencies     []string              `json:"dependencies"`
+	Name      string   `json:"name"`
+	Layer     string   `json:"layer"`
+	Path      string   `json:"path"`
+	Languages []string `json:"languages"`
+	Files     int      `json:"files"`
+	Lines     int      `json:"lines"`
+	// Summary and Responsibilities are model-written; SummarySource says
+	// whether they come from the module's own summary ("module") or the
+	// project overview ("overview"), and is empty when there are none.
+	Summary          string   `json:"summary"`
+	SummarySource    string   `json:"summary_source,omitempty"`
+	Responsibilities []string `json:"responsibilities"`
+	// Contracts are the component's entry points.
+	Contracts []ProjectDocsContract `json:"contracts"`
+	// Dependencies and UsedBy are the components this one imports and those
+	// that import it, resolved from the code.
+	Dependencies []string `json:"dependencies"`
+	UsedBy       []string `json:"used_by"`
 }
 
 // ProjectDocsScenarioStep describes one step in a behavioral runtime scenario.
@@ -173,23 +182,47 @@ type ProjectDocsReport struct {
 	Decisions       []ProjectDocsDecision     `json:"decisions"`
 	Runbook         []ProjectDocsRunbookItem  `json:"runbook"`
 	Glossary        []ProjectDocsGlossaryItem `json:"glossary"`
+	Graph           ProjectDocsGraph          `json:"graph"`
 	UpdatedAt       time.Time                 `json:"updated_at"`
 }
 
-// BuildProjectDocs synthesizes a language-agnostic engineering specification
-// from the project's analysis report and deterministic file index.
-func BuildProjectDocs(analysis Analysis, index *ProjectIndex) ProjectDocsReport {
+// ProjectDocsGraph is what the components diagram is drawn from: the
+// imports between components and where the programs start.
+type ProjectDocsGraph struct {
+	Edges       []projectmap.Edge       `json:"edges"`
+	EntryPoints []projectmap.EntryPoint `json:"entry_points"`
+	Modules     int                     `json:"modules"`
+	Truncated   bool                    `json:"truncated,omitempty"`
+}
+
+// DocsInputs are what the docs are built from.
+type DocsInputs struct {
+	Analysis Analysis
+	Map      projectmap.Map
+	// Profiles are how each subproject is tested and linted.
+	Profiles []toolchain.Profile
+	// Summaries are the model's module summaries, by component path.
+	Summaries map[string]ModuleSummary
+}
+
+// ModuleSummary is a model's summary of one component, written from the
+// summaries of its files.
+type ModuleSummary struct {
+	Path             string   `json:"path"`
+	Summary          string   `json:"summary"`
+	Responsibilities []string `json:"responsibilities"`
+}
+
+// BuildProjectDocs builds the project's docs: the parts and how they depend
+// on each other from the code, and what they are for from the model's
+// summaries when there are any.
+func BuildProjectDocs(in DocsInputs) ProjectDocsReport {
+	analysis := in.Analysis
 	status := analysis.Report.Status
 	if status == "" {
 		status = ProjectAnalysisStatusUnavailable
 	}
-	components := buildDocsComponents(analysis, index)
-	contextSpec := buildDocsContext(analysis, components)
-	dependencies := buildDocsDependencies(analysis, index, components)
-	scenarios := buildDocsScenarios(analysis)
-	decisions := buildDocsDecisions(analysis)
-	runbook := buildDocsRunbook(analysis, index)
-	glossary := buildDocsGlossary(analysis, components)
+	components, edges := buildMapComponents(in)
 	updatedAt := analysis.Report.GeneratedAt
 	if updatedAt.IsZero() {
 		updatedAt = analysis.AnalyzedAt
@@ -202,65 +235,16 @@ func BuildProjectDocs(analysis Analysis, index *ProjectIndex) ProjectDocsReport 
 		ProjectID:       analysis.ProjectID,
 		ProjectRevision: analysis.ProjectRevision,
 		Status:          status,
-		Context:         contextSpec,
-		Dependencies:    dependencies,
+		Context:         buildDocsContext(analysis, components),
+		Dependencies:    manifestDependencies(in.Map.Manifests),
 		Components:      components,
-		Scenarios:       scenarios,
-		Decisions:       decisions,
-		Runbook:         runbook,
-		Glossary:        glossary,
+		Scenarios:       buildDocsScenarios(analysis),
+		Decisions:       buildDocsDecisions(analysis),
+		Runbook:         buildRunbook(in.Profiles, in.Map.Manifests),
+		Glossary:        buildDocsGlossary(analysis, components),
+		Graph:           ProjectDocsGraph{Edges: edges, EntryPoints: in.Map.EntryPoints, Modules: len(in.Map.Modules), Truncated: in.Map.Truncated},
 		UpdatedAt:       updatedAt,
 	}
-}
-
-// StoreProjectDocsReport atomically persists the engineering specification under .mini-orca.
-func StoreProjectDocsReport(root string, report ProjectDocsReport) error {
-	if report.SchemaVersion == "" {
-		report.SchemaVersion = projectDocsSchemaVersion
-	}
-	if report.UpdatedAt.IsZero() {
-		report.UpdatedAt = time.Now().UTC()
-	}
-	path, err := storage.MetadataPath(root, projectDocsReportPath)
-	if err != nil {
-		return fmt.Errorf("store project docs report: %w", err)
-	}
-	data, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		return fmt.Errorf("encode project docs report: %w", err)
-	}
-	if err := storage.WriteFile(path, data, 0600); err != nil {
-		return fmt.Errorf("store project docs report: %w", err)
-	}
-	return nil
-}
-
-// LoadProjectDocsReport reads a stored engineering specification and marks it
-// stale when the project revision has changed. Version 1 included synthesized
-// relationships; callers rebuild that derived view from retained facts/reports.
-func LoadProjectDocsReport(root, projectID, projectRevision string) (*ProjectDocsReport, error) {
-	path, err := storage.MetadataPath(root, projectDocsReportPath)
-	if err != nil {
-		return nil, fmt.Errorf("read project docs report: %w", err)
-	}
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("read project docs report: %w", err)
-	}
-	var report ProjectDocsReport
-	if err := json.Unmarshal(data, &report); err != nil || report.SchemaVersion != projectDocsSchemaVersion || report.ProjectID == "" {
-		return nil, nil
-	}
-	if projectID != "" && report.ProjectID != projectID {
-		return nil, nil
-	}
-	if projectRevision != "" && report.ProjectRevision != projectRevision && report.Status == ProjectAnalysisStatusFresh {
-		report.Status = ProjectAnalysisStatusStale
-	}
-	return &report, nil
 }
 
 func buildDocsContext(analysis Analysis, components []ProjectDocsComponent) ProjectDocsContext {
@@ -275,25 +259,16 @@ func buildDocsContext(analysis Analysis, components []ProjectDocsComponent) Proj
 		purpose = "Model interpretation: " + purpose
 	}
 	arch := strings.TrimSpace(analysis.Report.Architecture)
-	diagram := ""
 	topology := arch
-	if isMermaidDiagram(arch) {
-		diagram = arch
-		topology = summarizeLayerTopology(components)
-	} else if topology == "" {
+	// A model's diagram is not shown: the components diagram is drawn from the code.
+	if isMermaidDiagram(arch) || topology == "" {
 		topology = summarizeLayerTopology(components)
 	} else {
 		topology = "Model interpretation (unverified): " + topology
 	}
 	stack := buildDocsStack(analysis)
 	goalPursuit := buildDocsGoalPursuit(analysis, components, topology)
-	return ProjectDocsContext{
-		Purpose:             purpose,
-		GoalPursuit:         goalPursuit,
-		Topology:            topology,
-		Stack:               stack,
-		ArchitectureDiagram: diagram,
-	}
+	return ProjectDocsContext{Purpose: purpose, GoalPursuit: goalPursuit, Topology: topology, Stack: stack}
 }
 
 func buildDocsGoalPursuit(analysis Analysis, components []ProjectDocsComponent, topology string) []string {
@@ -323,174 +298,6 @@ func buildDocsGoalPursuit(analysis Analysis, components []ProjectDocsComponent, 
 	return steps
 }
 
-func buildDocsDependencies(analysis Analysis, index *ProjectIndex, components []ProjectDocsComponent) []ProjectDocsDependency {
-	deps := make([]ProjectDocsDependency, 0, 8)
-	seen := make(map[string]bool)
-	add := func(dep ProjectDocsDependency) {
-		key := strings.ToLower(strings.TrimSpace(dep.Name))
-		if key == "" || seen[key] || len(deps) >= 12 {
-			return
-		}
-		seen[key] = true
-		deps = append(deps, dep)
-	}
-
-	if analysis.Path != "" {
-		for _, dep := range parseGoModDependencies(filepath.Join(analysis.Path, "go.mod")) {
-			add(dep)
-		}
-		for _, relPkg := range []string{"package.json", filepath.Join("desktop", "frontend", "package.json")} {
-			for _, dep := range parsePackageJSONDependencies(filepath.Join(analysis.Path, relPkg), relPkg) {
-				add(dep)
-			}
-		}
-	}
-
-	if analysis.Type != "" && analysis.Type != "unknown" {
-		source := analysis.BuildFile
-		if source == "" {
-			source = "repository root"
-		}
-		add(ProjectDocsDependency{
-			Name:    strings.ToUpper(analysis.Type[:1]) + analysis.Type[1:] + " Runtime & Toolchain",
-			Kind:    "Runtime",
-			Source:  source,
-			Summary: fmt.Sprintf("Primary build and execution environment (%s).", source),
-		})
-	}
-
-	for _, entry := range buildDocsStack(analysis) {
-		add(ProjectDocsDependency{
-			Name:    entry,
-			Kind:    "Language / Stack",
-			Source:  "project index",
-			Summary: "Indexed source language and toolchain footprint in the repository.",
-		})
-	}
-
-	for _, comp := range components {
-		for _, d := range comp.Dependencies {
-			add(ProjectDocsDependency{
-				Name:    d,
-				Kind:    "Indexed Import",
-				Source:  comp.Path,
-				Summary: fmt.Sprintf("Imported by %s (%s).", comp.Name, comp.Layer),
-			})
-		}
-	}
-
-	return deps
-}
-
-func readBoundedRegularFile(path string, maxBytes int64) ([]byte, bool) {
-	info, err := os.Lstat(path)
-	if err != nil || !info.Mode().IsRegular() || info.Size() > maxBytes {
-		return nil, false
-	}
-	data, err := os.ReadFile(path)
-	if err != nil || int64(len(data)) > maxBytes {
-		return nil, false
-	}
-	return data, true
-}
-
-func parseGoModDependencies(goModPath string) []ProjectDocsDependency {
-	data, ok := readBoundedRegularFile(goModPath, 512<<10)
-	if !ok {
-		return nil
-	}
-	var out []ProjectDocsDependency
-	inRequire := false
-	for _, rawLine := range strings.Split(string(data), "\n") {
-		line := strings.TrimSpace(rawLine)
-		if line == "" || strings.HasPrefix(line, "//") {
-			continue
-		}
-		if strings.HasPrefix(line, "go ") {
-			ver := strings.TrimSpace(strings.TrimPrefix(line, "go "))
-			out = append(out, ProjectDocsDependency{
-				Name:    "Go Standard Library & Runtime",
-				Kind:    "Runtime",
-				Version: "go " + ver,
-				Source:  "go.mod",
-				Summary: "Core Go runtime, concurrency primitives, HTTP/JSON, and standard packages.",
-			})
-			continue
-		}
-		if strings.HasPrefix(line, "require (") {
-			inRequire = true
-			continue
-		}
-		if inRequire && line == ")" {
-			inRequire = false
-			continue
-		}
-		if strings.Contains(line, "// indirect") {
-			continue
-		}
-		reqLine := ""
-		if strings.HasPrefix(line, "require ") {
-			reqLine = strings.TrimSpace(strings.TrimPrefix(line, "require "))
-		} else if inRequire {
-			reqLine = line
-		}
-		if reqLine != "" {
-			fields := strings.Fields(reqLine)
-			if len(fields) >= 2 {
-				out = append(out, ProjectDocsDependency{
-					Name:    fields[0],
-					Kind:    "Go Module",
-					Version: fields[1],
-					Source:  "go.mod",
-					Summary: fmt.Sprintf("Direct Go module dependency declared in go.mod (%s).", fields[1]),
-				})
-			}
-		}
-	}
-	return out
-}
-
-func parsePackageJSONDependencies(pkgPath, sourceLabel string) []ProjectDocsDependency {
-	data, ok := readBoundedRegularFile(pkgPath, 512<<10)
-	if !ok {
-		return nil
-	}
-	var parsed struct {
-		Dependencies    map[string]string `json:"dependencies"`
-		DevDependencies map[string]string `json:"devDependencies"`
-	}
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		return nil
-	}
-	names := make([]string, 0, len(parsed.Dependencies)+len(parsed.DevDependencies))
-	versions := make(map[string]string)
-	kinds := make(map[string]string)
-	for k, v := range parsed.Dependencies {
-		names = append(names, k)
-		versions[k] = v
-		kinds[k] = "NPM Package"
-	}
-	for k, v := range parsed.DevDependencies {
-		if _, exists := versions[k]; !exists {
-			names = append(names, k)
-			versions[k] = v
-			kinds[k] = "Dev / Build Tool"
-		}
-	}
-	sort.Strings(names)
-	out := make([]ProjectDocsDependency, 0, len(names))
-	for _, name := range names {
-		out = append(out, ProjectDocsDependency{
-			Name:    name,
-			Kind:    kinds[name],
-			Version: versions[name],
-			Source:  sourceLabel,
-			Summary: fmt.Sprintf("Frontend/Node package declared in %s.", sourceLabel),
-		})
-	}
-	return out
-}
-
 func isMermaidDiagram(text string) bool {
 	trimmed := strings.TrimSpace(text)
 	return strings.HasPrefix(trimmed, "flowchart ") ||
@@ -510,7 +317,7 @@ func summarizeLayerTopology(components []ProjectDocsComponent) string {
 			layers = append(layers, comp.Layer)
 		}
 	}
-	return fmt.Sprintf("Path-based grouping of %d source components: %s. Runtime boundaries and model diagrams are unverified.", len(components), strings.Join(layers, ", "))
+	return fmt.Sprintf("%d components grouped by directory, with their imports resolved from the code: %s.", len(components), strings.Join(layers, ", "))
 }
 
 func buildDocsStack(analysis Analysis) []ProjectDocsStackEntry {
@@ -546,47 +353,6 @@ func buildDocsStack(analysis Analysis) []ProjectDocsStackEntry {
 }
 
 type ProjectDocsStackEntry = string
-
-func buildDocsComponents(analysis Analysis, index *ProjectIndex) []ProjectDocsComponent {
-	byPath := make(map[string]*ProjectDocsComponent)
-	order := make([]string, 0, 12)
-	for _, raw := range analysis.Report.Components {
-		comp := parseReportComponent(raw)
-		if !componentPathInInventory(comp.Path, analysis.Files, index) {
-			continue
-		}
-		if _, exists := byPath[comp.Path]; !exists {
-			order = append(order, comp.Path)
-			c := comp
-			byPath[comp.Path] = &c
-		}
-	}
-	enrichComponentsFromIndex(index, byPath, &order)
-	result := make([]ProjectDocsComponent, 0, len(order))
-	for _, p := range order {
-		result = append(result, *byPath[p])
-	}
-	return result
-}
-
-func componentPathInInventory(path string, files []string, index *ProjectIndex) bool {
-	if path == "" || filepath.IsAbs(path) || filepath.ToSlash(filepath.Clean(path)) != path || path == "." || strings.HasPrefix(path, "../") {
-		return false
-	}
-	for _, file := range files {
-		if file == path || strings.HasPrefix(file, path+"/") {
-			return true
-		}
-	}
-	if index != nil {
-		for _, file := range index.Files {
-			if file.Path == path || strings.HasPrefix(file.Path, path+"/") {
-				return true
-			}
-		}
-	}
-	return false
-}
 
 func parseReportComponent(raw string) ProjectDocsComponent {
 	trimmed := strings.TrimSpace(raw)
@@ -676,83 +442,6 @@ func containsAnyToken(haystack string, tokens ...string) bool {
 	return false
 }
 
-func enrichComponentsFromIndex(index *ProjectIndex, byPath map[string]*ProjectDocsComponent, order *[]string) {
-	if index == nil {
-		return
-	}
-	groupFiles := make(map[string][]IndexFile)
-	groupOrder := make([]string, 0, 8)
-	for _, file := range index.Files {
-		if file.Binary || file.Language == "Text" {
-			continue
-		}
-		dir := subsystemDir(file.Path)
-		if _, exists := groupFiles[dir]; !exists {
-			groupOrder = append(groupOrder, dir)
-		}
-		groupFiles[dir] = append(groupFiles[dir], file)
-	}
-	for _, dir := range groupOrder {
-		files := groupFiles[dir]
-		comp, exists := byPath[dir]
-		if !exists && len(*order) < 12 {
-			name := humanizeComponentName(dir)
-			layer := classifyComponentLayer(dir, name)
-			summary := fmt.Sprintf("Indexed source group at %s (%d files). Layer classification is inferred from paths.", dir, len(files))
-			created := ProjectDocsComponent{
-				Name:             name,
-				Layer:            layer,
-				Path:             dir,
-				Summary:          summary,
-				Responsibilities: []string{summary},
-				Contracts:        []ProjectDocsContract{},
-				Dependencies:     []string{},
-			}
-			byPath[dir] = &created
-			*order = append(*order, dir)
-			comp = &created
-		}
-		if comp != nil {
-			appendIndexContracts(comp, files)
-		}
-	}
-}
-
-func subsystemDir(relPath string) string {
-	parts := strings.Split(filepath.ToSlash(relPath), "/")
-	if len(parts) == 1 {
-		return parts[0]
-	}
-	if (parts[0] == "internal" || parts[0] == "cmd" || parts[0] == "pkg" || parts[0] == "src" || parts[0] == "desktop") && len(parts) >= 2 {
-		return parts[0] + "/" + parts[1]
-	}
-	return parts[0]
-}
-
-func appendIndexContracts(comp *ProjectDocsComponent, files []IndexFile) {
-	for _, f := range files {
-		if len(comp.Responsibilities) < 4 {
-			role := fmt.Sprintf("Indexed %s (%s, %d lines)", filepath.Base(f.Path), f.Language, f.LineCount)
-			comp.Responsibilities = appendUniqueString(comp.Responsibilities, role)
-		}
-		for _, dependency := range f.Imports {
-			if len(comp.Dependencies) >= 16 {
-				break
-			}
-			comp.Dependencies = appendUniqueString(comp.Dependencies, dependency)
-		}
-	}
-}
-
-func appendUniqueString(slice []string, item string) []string {
-	for _, existing := range slice {
-		if existing == item {
-			return slice
-		}
-	}
-	return append(slice, item)
-}
-
 func buildDocsScenarios(analysis Analysis) []ProjectDocsScenario {
 	scenarios := make([]ProjectDocsScenario, 0, 4)
 	for i, flow := range analysis.Report.Flows {
@@ -836,61 +525,6 @@ func buildDocsDecisions(analysis Analysis) []ProjectDocsDecision {
 		}
 	}
 	return decisions
-}
-
-func buildDocsRunbook(analysis Analysis, index *ProjectIndex) []ProjectDocsRunbookItem {
-	hasFile := func(name string) bool {
-		if index != nil {
-			for _, f := range index.Files {
-				if f.Path == name {
-					return true
-				}
-			}
-		}
-		for _, p := range analysis.Files {
-			if p == name {
-				return true
-			}
-		}
-		return false
-	}
-	items := make([]ProjectDocsRunbookItem, 0, 4)
-	if hasFile("scripts/validate.sh") {
-		items = append(items, ProjectDocsRunbookItem{
-			Label:       "Full Validation Gate",
-			Command:     "./scripts/validate.sh",
-			Description: "Repository script found in the inventory; inspect its commands before running.",
-		})
-	}
-	switch analysis.Type {
-	case "go":
-		items = append(items, ProjectDocsRunbookItem{
-			Label:       "Go Package Tests",
-			Command:     "go test ./...",
-			Description: "Suggested Go test command; this report does not execute or verify it.",
-		})
-	case "node", "typescript", "javascript":
-		items = append(items, ProjectDocsRunbookItem{
-			Label:       "Frontend / Node Test Suite",
-			Command:     "npm test",
-			Description: "Suggested command; confirm that package.json defines a test script.",
-		})
-	case "python":
-		items = append(items, ProjectDocsRunbookItem{
-			Label:       "Python Unit Test Discovery",
-			Command:     "python3 -m unittest discover",
-			Description: "Suggested unittest discovery command; confirm the repository's test layout.",
-		})
-	default:
-		if len(items) == 0 {
-			items = append(items, ProjectDocsRunbookItem{
-				Label:       "Inspect Repository Status",
-				Command:     "git status --short",
-				Description: "Verifies working tree cleanliness before and after changes.",
-			})
-		}
-	}
-	return items
 }
 
 func buildDocsGlossary(analysis Analysis, components []ProjectDocsComponent) []ProjectDocsGlossaryItem {

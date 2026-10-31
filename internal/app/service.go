@@ -65,6 +65,7 @@ type Service struct {
 	worktrees                       map[string]*Service
 	owner                           *Service // The service that opened this worktree's; nil for the active project.
 	manager                         *project.Manager
+	projectMaps                     projectMapCache
 	discoverPiModels                func(context.Context, string) ([]llm.PiModel, error)
 	discoverAgyModels               func(context.Context, string) ([]llm.AgyModel, error)
 	discoverClaudeModels            func(context.Context, string) ([]llm.ClaudeModel, error)

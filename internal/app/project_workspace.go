@@ -104,35 +104,18 @@ func (s *Service) ProjectOverview() (*ProjectOverview, error) {
 	}, nil
 }
 
+// projectDocs builds the docs from the current files on every read, so they
+// follow the code; only the model-written parts can be stale.
 func (s *Service) projectDocs(analysis *project.Analysis, index *project.ProjectIndex) (*project.ProjectDocsReport, error) {
-	stored, err := project.LoadProjectDocsReport(s.manager.Root(), analysis.ProjectID, analysis.ProjectRevision)
-	if err != nil {
-		return nil, err
+	if index == nil {
+		return nil, fmt.Errorf("project docs need the project index")
 	}
-	if stored != nil && len(stored.Components) > 0 {
-		if stored.Status == project.ProjectAnalysisStatusFresh && project.VerifyProjectSources(context.Background(), s.manager.Root(), index) != nil {
-			stored.Status = project.ProjectAnalysisStatusStale
-		}
-		return stored, nil
-	}
-	built := project.BuildProjectDocs(*analysis, index)
-	return &built, nil
-}
-
-// persistProjectDocs rebuilds the handbook from the current index. Its status
-// is the project overview's: an analysis run does not write the overview, so
-// a completed run never makes the handbook fresh on its own.
-func (s *Service) persistProjectDocs() {
-	analysis, err := s.manager.Analysis()
-	if err != nil {
-		return
-	}
-	index, err := s.manager.Index()
-	if err != nil {
-		return
-	}
-	docs := project.BuildProjectDocs(*analysis, index)
-	_ = project.StoreProjectDocsReport(s.manager.Root(), docs)
+	docs := project.BuildProjectDocs(project.DocsInputs{
+		Analysis: *analysis,
+		Map:      s.projectMap(index),
+		Profiles: s.projectProfiles(s.manager.Root()),
+	})
+	return &docs, nil
 }
 
 // ListFindings returns sanitized persisted tool reports and fresh cached AI

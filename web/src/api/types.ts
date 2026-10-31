@@ -600,14 +600,31 @@ export interface FileSummary {
   generated_at?: string;
 }
 
+/** One part of the project: a directory of code, as the project map groups it. */
 export interface DocsComponent {
   name: string;
   layer?: string;
-  path?: string;
+  path: string;
+  languages?: string[];
+  files?: number;
+  lines?: number;
+  /** Model-written; summary_source says whether from the module's own summary or the project overview. */
   summary?: string;
+  summary_source?: 'module' | 'overview' | string;
   responsibilities?: string[];
-  contracts?: string[];
+  /** The component's entry points. */
+  contracts?: { name: string; kind: string; summary?: string }[];
+  /** Components this one imports, and those that import it, resolved from the code. */
   dependencies?: string[];
+  used_by?: string[];
+}
+
+/** What the components diagram is drawn from. */
+export interface DocsGraph {
+  edges: { from: string; to: string; imports: number }[];
+  entry_points: { path: string; kind: string; detail?: string }[];
+  modules: number;
+  truncated?: boolean;
 }
 
 export interface ProjectDocs {
@@ -619,6 +636,7 @@ export interface ProjectDocs {
   decisions?: { title: string; category?: string; decision?: string; tradeoff?: string }[];
   runbook?: { label: string; command: string; description?: string }[];
   glossary?: { term: string; definition: string }[];
+  graph?: DocsGraph;
   updated_at?: string;
 }
 

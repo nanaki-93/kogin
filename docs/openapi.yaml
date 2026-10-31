@@ -1861,26 +1861,98 @@ components:
         finding_counts: {$ref: '#/components/schemas/FindingCounts'}
     ProjectDocsReport:
       type: object
-      description: "Derived handbook composition. Version 2 anchors component paths and imports to inventory and labels model interpretations as advisory; missing scenario steps or guarantees are not synthesized. Legacy derived handbooks are rebuilt passively from retained reports and indexes."
-      required: [schema_version, project_id, project_revision, status, context, components, scenarios, decisions, runbook, glossary]
+      description: "The project's docs, built on every read from the project map (modules, imports resolved from the code, entry points, manifests), the subprojects' check commands and the model's summaries. Component paths, dependencies and entry points come from the code; summaries are model-written and say where they come from."
+      required: [schema_version, project_id, project_revision, status, context, components, scenarios, decisions, runbook, glossary, graph]
       properties:
-        schema_version: {type: string, enum: ['2']}
+        schema_version: {type: string, enum: ['3']}
         project_id: {type: string}
         project_revision: {type: string}
-        status: {type: string}
+        status: {type: string, description: "The model-written parts' freshness: the project overview's status."}
         context:
           type: object
           required: [purpose, topology, stack]
           properties:
             purpose: {type: string}
+            goal_pursuit: {type: array, items: {type: string}}
             topology: {type: string}
             stack: {type: array, items: {type: string}}
-            architecture_diagram: {type: string}
-        components: {type: array, items: {type: object}}
+        dependencies:
+          type: array
+          items:
+            type: object
+            required: [name, kind, summary]
+            properties:
+              name: {type: string}
+              kind: {type: string, description: "The ecosystem, such as Go module or npm package (development)"}
+              version: {type: string}
+              source: {type: string, description: The manifest that declares it}
+              summary: {type: string}
+        components:
+          type: array
+          maxItems: 16
+          items:
+            type: object
+            required: [name, layer, path, languages, files, lines, summary, responsibilities, contracts, dependencies, used_by]
+            properties:
+              name: {type: string}
+              layer: {type: string}
+              path: {type: string, description: "A directory of code; '.' is the project root. Small folders are folded into their parent so at most 16 components show."}
+              languages: {type: array, items: {type: string}}
+              files: {type: integer}
+              lines: {type: integer}
+              summary: {type: string}
+              summary_source: {type: string, enum: [module, overview], description: "module: the component's own summary from its files' summaries; overview: the project overview's model; absent: no summary yet."}
+              responsibilities: {type: array, items: {type: string}}
+              contracts:
+                type: array
+                description: The component's entry points.
+                items:
+                  type: object
+                  required: [name, kind, summary]
+                  properties:
+                    name: {type: string}
+                    kind: {type: string}
+                    summary: {type: string}
+              dependencies: {type: array, description: Components this one imports, resolved from the code., items: {type: string}}
+              used_by: {type: array, description: Components that import this one., items: {type: string}}
         scenarios: {type: array, items: {type: object}}
         decisions: {type: array, items: {type: object}}
-        runbook: {type: array, items: {type: object}}
+        runbook:
+          type: array
+          description: The subprojects' test and lint commands and the package scripts that build or start them.
+          items:
+            type: object
+            required: [label, command, description]
+            properties:
+              label: {type: string}
+              command: {type: string}
+              description: {type: string}
         glossary: {type: array, items: {type: object}}
+        graph:
+          type: object
+          description: What the components diagram is drawn from.
+          required: [edges, entry_points, modules]
+          properties:
+            edges:
+              type: array
+              items:
+                type: object
+                required: [from, to, imports]
+                properties:
+                  from: {type: string}
+                  to: {type: string}
+                  imports: {type: integer, description: Import statements from one component to the other}
+            entry_points:
+              type: array
+              items:
+                type: object
+                required: [path, kind]
+                properties:
+                  path: {type: string}
+                  kind: {type: string, description: "main, bin, package main or script"}
+                  detail: {type: string}
+            modules: {type: integer, description: Directories of code before folding}
+            truncated: {type: boolean}
         updated_at: {type: string}
     ProjectMetrics:
       type: object

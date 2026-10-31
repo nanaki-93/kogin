@@ -228,10 +228,26 @@ for (const theme of ['dark', 'light'] as const) {
 test('the handbook says when the project overview is missing and shows recorded decisions', async ({ page }) => {
   await page.goto('/#/docs/decisions');
   await expect(page.getByText('No project overview yet')).toBeVisible();
-  await expect(page.getByText(/Sections below come from indexed facts only/)).toBeVisible();
+  await expect(page.getByText(/below are read from the code/)).toBeVisible();
   const decision = page.locator('.doc-card', { hasText: 'Embed the Web UI in the daemon' });
   await expect(decision).toContainText('Architecture');
   await expect(decision).toContainText('Tradeoff: Every UI change needs a rebuilt bundle.');
+});
+
+test('the docs draw the components and their imports from the code', async ({ page }) => {
+  await page.goto('/#/docs/overview');
+  const diagram = page.getByRole('img', { name: '5 components and the imports between them' });
+  await expect(diagram).toBeVisible();
+  await expect(page.getByText('Drawn from the code')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'cmd/daemon/main.go' })).toBeVisible();
+  await diagram.getByRole('button', { name: /^App service, internal\/app/ }).click();
+  await expect(page).toHaveURL(/#\/docs\/components\?path=internal%2Fapp/);
+  const card = page.locator('.doc-card.is-focus');
+  await expect(card).toContainText('Workflow orchestration.');
+  await expect(card).toContainText('From the project overview (model)');
+  await expect(card).toContainText('Used by');
+  await card.getByRole('button', { name: 'Project' }).click();
+  await expect(page.locator('.doc-card.is-focus')).toContainText('internal/project');
 });
 
 test('usage lists what agents spent per task and the task shows its own spend', async ({ page }) => {
