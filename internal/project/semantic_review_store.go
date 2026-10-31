@@ -44,10 +44,14 @@ func (category FindingCategory) Valid() bool {
 
 // Finding is model-derived advice, not a deterministic project fact.
 type Finding struct {
-	Category           FindingCategory     `json:"category,omitempty"`
-	Severity           string              `json:"severity"`
-	Title              string              `json:"title,omitempty"`
-	Summary            string              `json:"summary"`
+	Category FindingCategory `json:"category,omitempty"`
+	Severity string          `json:"severity"`
+	Title    string          `json:"title,omitempty"`
+	Summary  string          `json:"summary"`
+	// StartLine and EndLine are where the risk is, found from the line the
+	// model copied; zero when it copied none that is in the file.
+	StartLine          int                 `json:"start_line,omitempty"`
+	EndLine            int                 `json:"end_line,omitempty"`
 	TaskSpec           *BugTaskSpec        `json:"task_spec,omitempty"`
 	EngineeringInsight *EngineeringInsight `json:"engineering_insight,omitempty"`
 }
@@ -179,6 +183,23 @@ func (c *FileAnalysisCache) Load(input FileAnalysisInput) (*FileAnalysis, error)
 	return cloneFileAnalysis(&analysis), nil
 }
 
+// normalizeStoredRisk checks a risk about to be stored and sanitizes its
+// task specification.
+func normalizeStoredRisk(risk *Finding) error {
+	if risk.Category != FindingCategoryUnclassified && !risk.Category.Valid() {
+		return fmt.Errorf("file analysis risk category is invalid")
+	}
+	if risk.StartLine < 0 || risk.EndLine < risk.StartLine || risk.StartLine == 0 && risk.EndLine != 0 {
+		return fmt.Errorf("file analysis risk lines are invalid")
+	}
+	risk.TaskSpec = SanitizeBugTaskSpec(risk.TaskSpec)
+	risk.EngineeringInsight = CloneEngineeringInsight(risk.EngineeringInsight)
+	if !validPersistedBugTaskSpec(risk.TaskSpec) {
+		return fmt.Errorf("file analysis task specification is invalid")
+	}
+	return nil
+}
+
 // Store atomically persists a source-free analysis whose cache key is derived
 // from its normalized project-relative path.
 func (c *FileAnalysisCache) Store(analysis FileAnalysis) error {
@@ -186,13 +207,8 @@ func (c *FileAnalysisCache) Store(analysis FileAnalysis) error {
 	defer c.mu.Unlock()
 	analysis = *cloneFileAnalysis(&analysis)
 	for index := range analysis.Risks {
-		if category := analysis.Risks[index].Category; category != FindingCategoryUnclassified && !category.Valid() {
-			return fmt.Errorf("file analysis risk category is invalid")
-		}
-		analysis.Risks[index].TaskSpec = SanitizeBugTaskSpec(analysis.Risks[index].TaskSpec)
-		analysis.Risks[index].EngineeringInsight = CloneEngineeringInsight(analysis.Risks[index].EngineeringInsight)
-		if !validPersistedBugTaskSpec(analysis.Risks[index].TaskSpec) {
-			return fmt.Errorf("file analysis task specification is invalid")
+		if err := normalizeStoredRisk(&analysis.Risks[index]); err != nil {
+			return err
 		}
 	}
 	input := inputFromAnalysis(analysis)
@@ -401,6 +417,7 @@ const (
 
 type BugTaskSpec = insight.BugTaskSpec
 type GoTestCandidateSpec = insight.GoTestCandidateSpec
+type TestCandidateSpec = insight.TestCandidateSpec
 
 // SanitizeBugTaskSpec applies the same secret redaction and text normalization
 // used by persisted findings while preserving no shared mutable slices.

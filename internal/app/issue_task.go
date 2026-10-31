@@ -2,6 +2,9 @@ package app
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
@@ -57,6 +60,17 @@ func issueTask(root string, finding project.UnifiedFinding) *IssueTask {
 	if finding.ProjectID != "" && finding.Location.Path != "" {
 		task.FindingTargets = []project.FindingTarget{{ProjectID: finding.ProjectID, Kind: "semantic", ID: finding.ID, Path: finding.Location.Path}}
 	}
+	task.Description = issueDescription(finding, file)
+	task.AcceptanceCriteria = issueCriteria(finding, file)
+	addTestCandidate(root, task, issueTestCandidate(finding))
+	if finding.Category == project.FindingCategoryMaintainability {
+		task.Title = finding.Title
+	}
+	return task
+}
+
+// issueDescription says what is wrong, the evidence and where.
+func issueDescription(finding project.UnifiedFinding, file string) string {
 	var description strings.Builder
 	description.WriteString(finding.Message)
 	if finding.Evidence != "" {
@@ -71,12 +85,34 @@ func issueTask(root string, finding project.UnifiedFinding) *IssueTask {
 			description.WriteString(" (in " + finding.Location.Symbol + ")")
 		}
 	}
-	task.Description = description.String()
-	task.AcceptanceCriteria = issueCriteria(finding, file)
-	if finding.Category == project.FindingCategoryMaintainability {
-		task.Title = finding.Title
+	return description.String()
+}
+
+// addTestCandidate starts the task from the regression test the analysis
+// proposed: its file joins the task's files, the description shows it and a
+// criterion asks for it to fail before the fix and pass after.
+func addTestCandidate(root string, task *IssueTask, candidate *project.TestCandidateSpec) {
+	if candidate == nil {
+		return
 	}
-	return task
+	if !slices.Contains(task.Paths, candidate.Path) {
+		task.Paths = append(task.Paths, candidate.Path)
+	}
+	where := "a new test file " + candidate.Path
+	if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(candidate.Path))); err == nil && info.Mode().IsRegular() {
+		where = candidate.Path + ", which exists: add the test to it"
+	}
+	task.Description += fmt.Sprintf("\n\nA regression test to start from, in %s (suggested by the analysis; check it before relying on it):\n```\n%s\n```", where, strings.TrimRight(candidate.Content, "\n"))
+	task.AcceptanceCriteria = append(task.AcceptanceCriteria, fmt.Sprintf("%s in %s fails before the fix and passes after it", candidate.Name, candidate.Path))
+}
+
+// issueTestCandidate is the regression test an issue's task specification
+// proposes, if any.
+func issueTestCandidate(finding project.UnifiedFinding) *project.TestCandidateSpec {
+	if finding.TaskSpec == nil {
+		return nil
+	}
+	return finding.TaskSpec.TestCandidate
 }
 
 // issueCriteria are the task specification's criteria, or ones that fit the

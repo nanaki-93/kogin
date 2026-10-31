@@ -576,6 +576,19 @@ stage and exposes a recoverable operational failure.
 The additive field leaves historical reports readable and finding IDs/triage
 unchanged. Reading saved results never generates titles with a provider call.
 
+`file-analysis-v18` adds two optional parts to each risk, so reports saved with
+earlier versions are stale and their files are analyzed again by the next run.
+`anchor` is one line the model copies from the source where the risk shows;
+Mini-Orca finds it (whitespace collapsed) and stores `start_line`/`end_line`,
+which the risk's issue points at, or no lines when the copy is not in the file.
+`task_spec.test_candidate` (`path`, `name`, `content`) replaces the Go-only
+`go_test_candidate`: a regression test in the target's language, kept only when
+its path is a test file by the common conventions in that language (a Go test
+in the target's directory and package), its content parses and spells its name.
+The task drafted from the issue lists the test file, shows the test and asks for
+it to fail before the fix and pass after. Saved `go_test_candidate`s stay
+readable and are not used.
+
 `Finding.category` and `UnifiedFinding.category` use `bugs`, `performance` or
 `security`. They are independent of severity, confidence, source and the existing
 specialized Performance/Security subtype categories. Storage envelope version 1

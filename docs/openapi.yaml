@@ -1700,6 +1700,8 @@ components:
         severity: {type: string}
         title: {type: string, description: Short content-specific name; older reports may omit it.}
         summary: {type: string}
+        start_line: {type: integer, minimum: 1, description: 'Where the risk is: the line of the source the model copied as its anchor, found by Mini-Orca. Absent when it copied none that is in the file.'}
+        end_line: {type: integer, minimum: 1}
         task_spec: {$ref: '#/components/schemas/BugTaskSpec'}
         engineering_insight: {$ref: '#/components/schemas/EngineeringInsight'}
     BugTaskSpec:
@@ -1710,13 +1712,23 @@ components:
         target_path: {type: string, description: Exact project-relative target file.}
         acceptance_criteria: {type: array, items: {type: string}, maxItems: 8}
         non_goals: {type: array, items: {type: string}, maxItems: 8}
+        test_candidate: {$ref: '#/components/schemas/TestCandidateSpec'}
         go_test_candidate: {$ref: '#/components/schemas/GoTestCandidateSpec'}
+    TestCandidateSpec:
+      type: object
+      required: [path, name, content]
+      description: 'A regression test the analysis proposes, in any language: a test file by the common conventions, in the target''s language (a Go test in the target''s directory and package), that parses and spells its name. Advisory: the task drafted from the issue lists its file, shows it and asks for it to fail before the fix and pass after; only the task''s agents write it.'
+      properties:
+        path: {type: string, maxLength: 1024, description: Project-relative test file.}
+        name: {type: string, maxLength: 200, description: The test's name as the content spells it.}
+        content: {type: string, maxLength: 16384, description: The whole test file.}
     GoTestCandidateSpec:
       type: object
       required: [name, content]
+      description: The Go-only candidate of reports saved before test_candidate; read and never used.
       properties:
-        name: {type: string, description: One valid Go Test function name.}
-        content: {type: string, description: Reviewed test source used only in a temporary copied check workspace.}
+        name: {type: string}
+        content: {type: string}
     Suggestion:
       type: object
       properties: {title: {type: string}, summary: {type: string}, action: {type: string}, engineering_insight: {$ref: '#/components/schemas/EngineeringInsight'}}

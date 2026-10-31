@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
@@ -200,4 +202,9 @@ func (s *Service) resetExecutionTrust(restore bool) {
 	s.executionTrust.workspaceHash = ""
 	s.executionTrust.restorePending = restore
 	s.executionTrust.mu.Unlock()
+}
+
+func validGoTestName(name string) bool {
+	runes := []rune(name)
+	return len(runes) > len("Test") && strings.HasPrefix(name, "Test") && unicode.IsUpper(runes[len("Test")])
 }

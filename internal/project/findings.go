@@ -441,7 +441,7 @@ func validPersistedBugTaskSpec(spec *BugTaskSpec) bool {
 	if !validPersistedBugTaskTarget(spec) || !validPersistedBugTaskItems(spec) {
 		return false
 	}
-	return validPersistedGoTestCandidate(spec.GoTestCandidate)
+	return validPersistedGoTestCandidate(spec.GoTestCandidate) && validPersistedTestCandidate(spec.TestCandidate)
 }
 
 func validPersistedBugTaskTarget(spec *BugTaskSpec) bool {
@@ -457,6 +457,11 @@ func validPersistedBugTaskItems(spec *BugTaskSpec) bool {
 		}
 	}
 	return true
+}
+
+func validPersistedTestCandidate(candidate *TestCandidateSpec) bool {
+	return candidate == nil || (candidate.Path != "" && len(candidate.Path) <= 1024 && candidate.Name != "" && candidate.Content != "" &&
+		len(candidate.Name) <= MaxBugTaskItemBytes && len(candidate.Content) <= MaxBugTaskCandidateBytes)
 }
 
 func validPersistedGoTestCandidate(candidate *GoTestCandidateSpec) bool {
@@ -522,7 +527,7 @@ func SuggestedFindingsForFile(analysis FileAnalysis) []UnifiedFinding {
 			// Historical reports and providers without structured output may omit titles.
 			title = risk.Summary
 		}
-		location := FindingLocation{Path: analysis.Path}
+		location := FindingLocation{Path: analysis.Path, StartLine: risk.StartLine, EndLine: risk.EndLine}
 		eng := resolveFileRiskInsight(analysis, risk, idx)
 		findings = append(findings, UnifiedFinding{Category: risk.Category, Source: FindingSourceAI, Confidence: FindingConfidenceSuggested, Severity: risk.Severity, Title: title, Message: risk.Summary, FileHash: analysis.ContentHash, Location: location, OriginatingAnalysis: "file", TaskSpec: insight.CloneBugTaskSpec(risk.TaskSpec), EngineeringInsight: eng})
 	}

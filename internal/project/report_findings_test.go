@@ -42,3 +42,12 @@ func TestStageReportsBecomeIssuesWithTheirLinesAndFunction(t *testing.T) {
 		t.Fatalf("symbol for other content: %q", changed[0].Location.Symbol)
 	}
 }
+
+func TestFileRisksPointAtTheirAnchoredLines(t *testing.T) {
+	analysis := FileAnalysis{Status: AnalysisStatusFresh, Path: "app/cart.py", ContentHash: "sha256:x",
+		Risks: []Finding{{Category: FindingCategoryBugs, Severity: "high", Title: "Rounds down", Summary: "total() truncates.", StartLine: 3, EndLine: 4}, {Category: FindingCategoryBugs, Severity: "low", Summary: "No line."}}}
+	findings := SuggestedFindingsForFile(analysis)
+	if len(findings) != 2 || findings[0].Location.StartLine != 3 || findings[0].Location.EndLine != 4 || findings[1].Location.StartLine != 0 {
+		t.Fatalf("findings = %+v", findings)
+	}
+}

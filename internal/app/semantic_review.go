@@ -4,20 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"io"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/llm"
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
 
 const (
-	semanticAnalysisPromptVersion = "file-analysis-v17"
+	semanticAnalysisPromptVersion = "file-analysis-v18"
 	maxSemanticAnalysisBytes      = 64 * 1024
 	fileAnalysisInsightFieldCount = 4
 	fileAnalysisInsightMaxChars   = 250
@@ -64,14 +60,14 @@ const fileAnalysisResponseSchemaDocument = `{
         "target_path":{"type":"string","minLength":1,"maxLength":1024},
         "acceptance_criteria":{"type":"array","minItems":1,"maxItems":8,"items":{"type":"string","minLength":1,"maxLength":512}},
         "non_goals":{"type":"array","maxItems":8,"items":{"type":"string","minLength":1,"maxLength":512}},
-        "go_test_candidate":{"anyOf":[{"$ref":"#/$defs/goTestCandidate"},{"type":"null"}]}
+        "test_candidate":{"anyOf":[{"$ref":"#/$defs/testCandidate"},{"type":"null"}]}
       }
     },
-    "goTestCandidate":{
+    "testCandidate":{
       "type":"object",
       "additionalProperties":false,
-      "required":["name","content"],
-      "properties":{"name":{"type":"string","minLength":1,"maxLength":512},"content":{"type":"string","minLength":1,"maxLength":16384}}
+      "required":["path","name","content"],
+      "properties":{"path":{"type":"string","minLength":1,"maxLength":1024},"name":{"type":"string","minLength":1,"maxLength":200},"content":{"type":"string","minLength":1,"maxLength":16384}}
     },
     "risk":{
       "type":"object",
@@ -82,6 +78,7 @@ const fileAnalysisResponseSchemaDocument = `{
         "severity":{"enum":["low","medium","high"]},
         "title":{"type":"string","minLength":1,"maxLength":60},
         "summary":{"type":"string","minLength":1},
+        "anchor":{"type":"string","maxLength":300},
         "task_spec":{"anyOf":[{"$ref":"#/$defs/taskSpec"},{"type":"null"}]},
         "engineering_insight":{"$ref":"#/$defs/optionalInsight"}
       }
@@ -149,8 +146,11 @@ type semanticAnalysisFinding struct {
 	Severity string                  `json:"severity"`
 	Title    string                  `json:"title"`
 	Summary  string                  `json:"summary"`
-	TaskSpec json.RawMessage         `json:"task_spec"`
-	Insight  json.RawMessage         `json:"engineering_insight"`
+	// Anchor copies the line of TARGET_SOURCE the risk is at; Mini-Orca
+	// finds its line number.
+	Anchor   string          `json:"anchor"`
+	TaskSpec json.RawMessage `json:"task_spec"`
+	Insight  json.RawMessage `json:"engineering_insight"`
 }
 
 type semanticAnalysisSuggestion struct {
@@ -354,14 +354,15 @@ func semanticPrompt(source string, analysis project.Analysis, _ *project.Project
 		return "", err
 	}
 	return "You summarize exactly one selected source file. Return one JSON object only; do not use Markdown or code fences. " +
-		"Required fields: purpose (string), responsibilities (string array), dependencies (string array), side_effects (string array), risks ({category,severity,title,summary,task_spec?,engineering_insight?} array), suggestions ({title,summary,action?,engineering_insight?} array), engineering_insight? (see the shared engineering insight contract below). Keep each array to at most three concise items. " +
+		"Required fields: purpose (string), responsibilities (string array), dependencies (string array), side_effects (string array), risks ({category,severity,title,summary,anchor?,task_spec?,engineering_insight?} array), suggestions ({title,summary,action?,engineering_insight?} array), engineering_insight? (see the shared engineering insight contract below). Keep each array to at most three concise items. " +
 		analysisFindingTitleGuidance +
 		fileAnalysisInsightSchema + project.EngineeringInsightPromptInstructions +
 		"Risk severity must be low, medium, or high. " +
 		fileAnalysisInsightGuidance +
 		"Every risk must have exactly one category: bugs for incorrect behavior, performance for avoidable resource costs, or security for a trust-boundary weakness. Choose the category from the demonstrated failure mechanism, independently of severity. State the relevant local control/data flow and conditions in summary. Performance concerns are hypotheses unless measurements are supplied; never invent measured impact. For security, identify the visible input and sensitive operation; do not infer missing safeguards in an unseen callee. Omit concerns unsupported by TARGET_SOURCE. General cleanup, explanations and best-practice advice belong in suggestions, not risks; an empty risks array is valid. " +
 		"Keep each insight field at or below 250 Unicode characters. Generic advice to use defer, handle errors, or follow best practices is not an insight. " +
-		"Include task_spec when a risk has a concrete file-scoped fix; otherwise omit it. If you include one, it must have only these fields: schema_version \"2\", target_path copied exactly from TARGET_FACTS.path, acceptance_criteria (array), non_goals (array), and optional go_test_candidate {name,content}. Never target another file. " +
+		"Give each risk an anchor: one line copied exactly from TARGET_SOURCE where the risk shows (the call, condition or statement), so the issue can point at its line; omit it when no single line shows the risk. " +
+		"Include task_spec when a risk has a concrete file-scoped fix; otherwise omit it. If you include one, it must have only these fields: schema_version \"2\", target_path copied exactly from TARGET_FACTS.path, acceptance_criteria (array), non_goals (array), and optional test_candidate {path,name,content}: a regression test that fails on TARGET_SOURCE as it is and passes once the acceptance criteria hold, written as a new test file in the target's language that follows its ecosystem's test conventions (path: project-relative, beside the target or where that ecosystem keeps tests, for example x_test.go in the same Go package, test_x.py, x.test.ts or XTest.java; name: the test's name exactly as content spells it; content: the whole file). Never target another file. " +
 		"Treat all interpretations as suggestions. Do not quote source wholesale, invent files, or include source from another file.\n\n" +
 		"PROJECT_FACTS:\n" + string(facts) + "\n\nCONTEXT_MANIFEST:\n" + string(manifestJSON) + "\n\nTARGET_FACTS:\n" + string(targetJSON) + "\n\nTARGET_SOURCE (the only source content supplied):\n```\n" + source + "\n```\n", nil
 }
@@ -468,6 +469,7 @@ func parseSemanticRisks(risks []semanticAnalysisFinding, target project.IndexFil
 			TaskSpec:           parseOptionalBugTaskSpec(risk.TaskSpec, target, source),
 			EngineeringInsight: diagnostics.parseInsight("risk", &index, risk.Insight),
 		}
+		finding.StartLine, finding.EndLine = anchoredLines(source, risk.Anchor)
 		if len(risk.TaskSpec) > 0 && strings.TrimSpace(string(risk.TaskSpec)) != "null" && finding.TaskSpec == nil {
 			diagnostics.TaskSpecDegradedRiskIndices = append(diagnostics.TaskSpecDegradedRiskIndices, index)
 		}
@@ -557,9 +559,9 @@ func validateBugTaskSpec(spec *project.BugTaskSpec, target project.IndexFile, so
 	}
 	validated := project.SanitizeBugTaskSpec(spec)
 	validated.TargetPath = target.Path
-	if validated.GoTestCandidate != nil {
-		validated.GoTestCandidate = validateGoTestCandidate(validated.GoTestCandidate, target, source)
-	}
+	// The legacy Go-only candidate is not asked for any more.
+	validated.GoTestCandidate = nil
+	validated.TestCandidate = validateTestCandidate(validated.TestCandidate, target, source)
 	return validated, nil
 }
 
@@ -578,38 +580,6 @@ func validateBugTaskItems(items []string, required bool) error {
 		}
 	}
 	return nil
-}
-
-func validateGoTestCandidate(candidate *project.GoTestCandidateSpec, target project.IndexFile, source string) *project.GoTestCandidateSpec {
-	if candidate == nil || target.Language != "Go" || len(candidate.Name) > project.MaxBugTaskItemBytes || len(candidate.Content) > project.MaxBugTaskCandidateBytes || !validGoTestName(candidate.Name) {
-		return nil
-	}
-	fset := token.NewFileSet()
-	targetFile, err := parser.ParseFile(fset, target.Path, source, parser.PackageClauseOnly)
-	if err != nil {
-		return nil
-	}
-	testFile, err := parser.ParseFile(fset, candidate.Name+"_test.go", candidate.Content, parser.AllErrors)
-	if err != nil || testFile.Name == nil || testFile.Name.Name != targetFile.Name.Name {
-		return nil
-	}
-	count := 0
-	for _, declaration := range testFile.Decls {
-		function, ok := declaration.(*ast.FuncDecl)
-		if ok && function.Recv == nil && function.Name.Name == candidate.Name {
-			count++
-		}
-	}
-	if count != 1 {
-		return nil
-	}
-	copy := *candidate
-	return &copy
-}
-
-func validGoTestName(name string) bool {
-	runes := []rune(name)
-	return len(runes) > len("Test") && strings.HasPrefix(name, "Test") && unicode.IsUpper(runes[len("Test")])
 }
 
 func validateSemanticRisks(risks []project.Finding) error {

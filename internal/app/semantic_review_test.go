@@ -184,7 +184,7 @@ func TestSemanticStageRefreshClassifiesLegacyCacheWithoutPassiveModelCalls(t *te
 		}
 	}
 	stage, err := semanticStageFor(t, service, "main.go", true)
-	if fresh := stage.Semantic; err != nil || fresh == nil || fresh.Status != project.AnalysisStatusFresh || fresh.PromptVersion != "file-analysis-v17" || len(fresh.Risks) != 1 || fresh.Risks[0].Category != project.FindingCategorySecurity || calls.Load() != 1 {
+	if fresh := stage.Semantic; err != nil || fresh == nil || fresh.Status != project.AnalysisStatusFresh || fresh.PromptVersion != "file-analysis-v18" || len(fresh.Risks) != 1 || fresh.Risks[0].Category != project.FindingCategorySecurity || calls.Load() != 1 {
 		t.Fatalf("explicit refresh = %+v, %v; calls=%d", stage, err, calls.Load())
 	}
 	if _, err := service.CachedFileAnalysis("main.go"); err != nil || calls.Load() != 1 {
@@ -355,8 +355,8 @@ func TestCachedFileAnalysisMarksV11PromptResultsStale(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := EngineeringInsightPromptVersion(); got != "file-analysis-v17" {
-		t.Fatalf("file analysis prompt version = %q, want file-analysis-v17", got)
+	if got := EngineeringInsightPromptVersion(); got != "file-analysis-v18" {
+		t.Fatalf("file analysis prompt version = %q, want file-analysis-v18", got)
 	}
 	legacy := project.FileAnalysis{
 		SchemaVersion: "1", ProjectID: prepared.input.ProjectID, ProjectRevision: prepared.input.ProjectRevision,
@@ -404,7 +404,7 @@ func TestSemanticStageValidatesAndCachesOneExactBugTaskWithoutAnotherModelCall(t
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		calls++
-		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: `{"purpose":"Explains the file.","responsibilities":[],"dependencies":[],"side_effects":[],"risks":[{"category":"bugs","severity":"high","summary":"Run ignores an error.","task_spec":{"schema_version":"2","target_path":"main.go","acceptance_criteria":["Return the formatting error to the caller."],"non_goals":["Do not edit helper files."],"go_test_candidate":{"name":"TestRunReturnsError","content":"package main\n\nimport \"testing\"\n\nfunc TestRunReturnsError(t *testing.T) {}\n"}}}],"suggestions":[]}`}}}})
+		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: `{"purpose":"Explains the file.","responsibilities":[],"dependencies":[],"side_effects":[],"risks":[{"category":"bugs","severity":"high","summary":"Run ignores an error.","anchor":"func Run() { fmt.Println(\"run\") }","task_spec":{"schema_version":"2","target_path":"main.go","acceptance_criteria":["Return the formatting error to the caller."],"non_goals":["Do not edit helper files."],"test_candidate":{"path":"main_test.go","name":"TestRunReturnsError","content":"package main\n\nimport \"testing\"\n\nfunc TestRunReturnsError(t *testing.T) {}\n"}}}],"suggestions":[]}`}}}})
 	}))
 	defer server.Close()
 	service, root := newSemanticAnalysisService(t, server.URL, 0)
@@ -414,8 +414,11 @@ func TestSemanticStageValidatesAndCachesOneExactBugTaskWithoutAnotherModelCall(t
 		t.Fatalf("analysis = %+v, %v", stage, err)
 	}
 	task := stage.Semantic.Risks[0].TaskSpec
-	if task == nil || task.TargetPath != "main.go" || task.GoTestCandidate == nil {
+	if task == nil || task.TargetPath != "main.go" || task.TestCandidate == nil || task.TestCandidate.Path != "main_test.go" {
 		t.Fatalf("validated task = %+v", task)
+	}
+	if risk := stage.Semantic.Risks[0]; risk.StartLine != 5 || risk.EndLine != 5 {
+		t.Fatalf("risk lines = %d-%d", risk.StartLine, risk.EndLine)
 	}
 	content, err := os.ReadFile(filepath.Join(root, "main.go"))
 	if err != nil || string(content) != "package main\n\nimport \"fmt\"\n\nfunc Run() { fmt.Println(\"run\") }\n" {
@@ -447,13 +450,15 @@ func TestSemanticBugTaskDropsUntrustedTargetsAndInvalidOptionalTests(t *testing.
 	}
 
 	for _, candidate := range []string{
-		`{"name":"TestRun","content":"package other\nfunc TestRun() {}"}`,
-		`{"name":"TestRun","content":"package main\nfunc TestRun( {"}`,
-		`{"name":"NotATest","content":"package main\nfunc NotATest() {}"}`,
+		`{"path":"main_test.go","name":"TestRun","content":"package other\nfunc TestRun() {}"}`,
+		`{"path":"main_test.go","name":"TestRun","content":"package main\nfunc TestRun( {"}`,
+		`{"path":"sub/main_test.go","name":"TestRun","content":"package main\nfunc TestRun() {}"}`,
+		`{"path":"main.go","name":"TestRun","content":"package main\nfunc TestRun() {}"}`,
+		`{"path":"run_test.py","name":"test_run","content":"def test_run():\n    pass\n"}`,
 	} {
-		output := valid(`{"schema_version":"2","target_path":"main.go","acceptance_criteria":["Handle the error."],"non_goals":[],"go_test_candidate":` + candidate + `}`)
+		output := valid(`{"schema_version":"2","target_path":"main.go","acceptance_criteria":["Handle the error."],"non_goals":[],"test_candidate":` + candidate + `}`)
 		parsed, err := parseSemanticReviewResponse(output, target, "package main\nfunc Run() {}")
-		if err != nil || parsed.Risks[0].TaskSpec == nil || parsed.Risks[0].TaskSpec.GoTestCandidate != nil {
+		if err != nil || parsed.Risks[0].TaskSpec == nil || parsed.Risks[0].TaskSpec.TestCandidate != nil {
 			t.Fatalf("invalid optional test = %+v, %v", parsed.Risks[0].TaskSpec, err)
 		}
 	}

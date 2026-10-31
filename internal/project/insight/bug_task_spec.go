@@ -20,15 +20,29 @@ var findingSecret = regexp.MustCompile(`(?i)\b(?:api[_-]?key|access[_-]?token|au
 // BugTaskSpec is a bounded model proposal for one file edit. Its
 // target fields are always validated against the deterministic project index.
 type BugTaskSpec struct {
-	SchemaVersion      string               `json:"schema_version"`
-	TargetPath         string               `json:"target_path"`
-	AcceptanceCriteria []string             `json:"acceptance_criteria"`
-	NonGoals           []string             `json:"non_goals"`
-	GoTestCandidate    *GoTestCandidateSpec `json:"go_test_candidate,omitempty"`
+	SchemaVersion      string             `json:"schema_version"`
+	TargetPath         string             `json:"target_path"`
+	AcceptanceCriteria []string           `json:"acceptance_criteria"`
+	NonGoals           []string           `json:"non_goals"`
+	TestCandidate      *TestCandidateSpec `json:"test_candidate,omitempty"`
+	// GoTestCandidate is the Go-only candidate of reports saved before
+	// test_candidate; it is read and never used.
+	GoTestCandidate *GoTestCandidateSpec `json:"go_test_candidate,omitempty"`
 }
 
-// GoTestCandidateSpec is advisory text only. Mini-Orca never writes or runs it
-// until a user has independently reviewed a generated candidate.
+// TestCandidateSpec is a regression test the model proposes as a new test
+// file, in the target's language and the project's test conventions: it
+// should fail on the code as it is and pass once the criteria hold. It is
+// advisory: a task draft shows it, and only a task's agents write it.
+type TestCandidateSpec struct {
+	// Path is the new test file, project-relative.
+	Path string `json:"path"`
+	// Name is the test's name as content spells it.
+	Name    string `json:"name"`
+	Content string `json:"content"`
+}
+
+// GoTestCandidateSpec is the legacy Go-only candidate.
 type GoTestCandidateSpec struct {
 	Name    string `json:"name"`
 	Content string `json:"content"`
@@ -61,6 +75,13 @@ func SanitizeBugTaskSpec(spec *BugTaskSpec) *BugTaskSpec {
 			Content: SanitizeFindingText(spec.GoTestCandidate.Content, MaxBugTaskCandidateBytes),
 		}
 	}
+	if spec.TestCandidate != nil {
+		result.TestCandidate = &TestCandidateSpec{
+			Path:    strings.TrimSpace(spec.TestCandidate.Path),
+			Name:    SanitizeFindingText(spec.TestCandidate.Name, MaxBugTaskItemBytes),
+			Content: SanitizeFindingText(spec.TestCandidate.Content, MaxBugTaskCandidateBytes),
+		}
+	}
 	return result
 }
 
@@ -83,6 +104,10 @@ func CloneBugTaskSpec(spec *BugTaskSpec) *BugTaskSpec {
 	if spec.GoTestCandidate != nil {
 		candidate := *spec.GoTestCandidate
 		copy.GoTestCandidate = &candidate
+	}
+	if spec.TestCandidate != nil {
+		candidate := *spec.TestCandidate
+		copy.TestCandidate = &candidate
 	}
 	return &copy
 }
