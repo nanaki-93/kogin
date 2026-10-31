@@ -110,6 +110,16 @@ every guard when the action arrives.
   the task is deleted and its linked issues are dismissed; the task list opens.
   The model's reason is shown either way. **Fix with agents** links the task to
   its issue so this, Apply & commit and merging update the issue.
+- **Main changed the task's files.** A task in its own worktree keeps its base
+  commit, so a merge of another task on the same files does not make it stale.
+  Its page then says which of its files the main branch changed since it
+  started, finished or not, and offers **Re-analyze & retake** (not while its
+  agents run). After one confirmation a model checks the issue against the main
+  branch's files. Still valid: the task starts again in a new worktree from the
+  main branch with its title, plan, criteria, scope and linked issues, and its
+  page opens. Not valid: it is deleted and its linked issues dismissed. Either
+  way the old task is deleted, and its worktree is removed or, when it holds
+  work, offered for discarding.
 - **Live progress.** A task's stages and the end of its run update the page and
   the task lists as they happen, in its own worktree as in the main checkout.
 

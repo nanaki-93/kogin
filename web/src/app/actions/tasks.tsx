@@ -2,7 +2,7 @@
 // re-analyze it when stale and delete it.
 
 import { api, errorMessage, query, withWorktree } from '@/api/client';
-import type { AgentSettings, ChangeOpened, ChangeReanalysis, ChangeSession, FindingTarget, LoadedSession, ModelsCurrent, Project } from '@/api/types';
+import type { AgentSettings, ChangeOpened, ChangeReanalysis, ChangeRetake, ChangeSession, FindingTarget, LoadedSession, ModelsCurrent, Project } from '@/api/types';
 import { changeIdentity, openComments, workflowActive } from '@/lib/readiness';
 import { runStartOptions, workflowDestinations, workflowRequest } from '@/lib/workflow';
 import { navigate } from '@/lib/router';
@@ -209,6 +209,67 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
     return true;
   }
 
+  /**
+   * Retakes a task in its own worktree whose files the main branch changed
+   * since it started: the Bug model checks whether its issue is still present
+   * in the main branch's files. Still valid, it starts again in a new
+   * worktree from there; not valid, it is deleted and its linked issues
+   * dismissed. Either way the old task is deleted, and its worktree is
+   * removed, or discarded with its work if the user says so.
+   */
+  async function retake(session: LoadedSession): Promise<boolean> {
+    const change = session.main_changed;
+    if (!change) return false;
+    const model = client.getQueryData<ModelsCurrent>(keys.models)?.scopes?.bug;
+    const remote = Boolean(model?.remote_provider);
+    const linked = session.finding_targets?.length ?? 0;
+    const ok = await confirm({
+      title: 'Re-analyze and retake this task?',
+      body: (
+        <div className="stack">
+          <p>
+            {change.branch} changed {change.paths.join(', ')} since this task started. A model checks whether the issue is still present in {change.branch}'s files.
+          </p>
+          <p className="small">
+            <strong>Still valid:</strong> the task starts again in a new worktree from {change.branch}, with its title, plan, criteria, scope and linked issues; this one is deleted.
+            <br />
+            <strong>Not valid:</strong> the task is deleted{linked ? ` and its ${linked === 1 ? 'linked issue is' : `${linked} linked issues are`} dismissed` : ''}.
+          </p>
+          <p className="small muted">
+            Either way you then decide whether its worktree and the work in it are discarded.
+            {remote ? ` Sends the task and its files to ${model?.model || 'the Bug model'} at ${model?.provider_origin || 'a remote provider'}.` : ''}
+          </p>
+        </div>
+      ),
+      confirmLabel: 'Re-analyze & retake',
+    });
+    if (!ok) return false;
+    const result = await guarded('Retaking…', async () => {
+      try {
+        return await api.post<ChangeRetake>(changePath(session, '/retake'), { ...changeIdentity(session), confirm_remote_provider: remote, confirm_execution: true });
+      } catch (err) {
+        fail('Retake failed', err);
+        return null;
+      }
+    });
+    if (!result) return false;
+    for (const key of ['changes', 'git', 'findings']) void client.invalidateQueries({ queryKey: [key] });
+    if (result.outcome === 'still_valid' && result.opened) {
+      navigate(`/tasks/${result.opened.id}`, { wt: result.opened.worktree_path });
+      toast(`Still valid: “${session.title || session.id}” starts again from ${change.branch} on ${result.opened.branch}. Run the agents when ready.`, 'success', result.reason);
+    } else {
+      openWorkspace('/tasks');
+      const dismissed = result.dismissed_issues ? ` and ${plural(result.dismissed_issues, 'linked issue')} dismissed` : '';
+      toast(`No longer valid: “${session.title || session.id}” was deleted${dismissed}.`, 'info', result.reason);
+    }
+    for (const warning of result.warnings ?? []) toast(warning, 'warning');
+    if (result.deleted) {
+      const removed = await guarded('Removing its worktree…', () => removeEmptyWorktrees([session.checkout.worktreePath]));
+      if (!removed?.length) await discardAbandonedWorktrees([session.checkout.worktreePath]);
+    }
+    return true;
+  }
+
   async function cancelAgents(session: LoadedSession) {
     if (!workflowActive(session) || !session.workflow) return;
     if (!(await confirm({ title: 'Stop the agents?', body: 'Running agents stop. Nothing is applied.', confirmLabel: 'Stop agents', cancelLabel: 'Keep running', danger: true }))) return;
@@ -313,5 +374,5 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
     return done?.deleted ?? 0;
   }
 
-  return { createTask, startAgents, reanalyze, cancelAgents, refine, stopRevision, deleteTasks };
+  return { createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, deleteTasks };
 }

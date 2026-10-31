@@ -176,6 +176,19 @@ func (h *ChangeHandler) Reanalyze(w http.ResponseWriter, r *http.Request) {
 	api.WriteJSON(w, http.StatusOK, value)
 }
 
+func (h *ChangeHandler) Retake(w http.ResponseWriter, r *http.Request) {
+	var request app.ChangeRetakeRequest
+	if !decodeWorkflowBody(w, r, &request) {
+		return
+	}
+	value, err := h.service.RetakeChange(r.Context(), r.PathValue("sessionID"), request)
+	if err != nil {
+		writeWorkflowError(w, "task retake failed", err)
+		return
+	}
+	api.WriteJSON(w, http.StatusOK, value)
+}
+
 func (h *ChangeHandler) Apply(w http.ResponseWriter, r *http.Request) {
 	var request app.ChangeApplyRequest
 	if !decodeWorkflowBody(w, r, &request) {

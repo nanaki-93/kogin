@@ -14,11 +14,13 @@ import { FileIcon } from '@/components/domain';
 import { navigate } from '@/lib/router';
 import { CodeRules } from './CodeRules';
 import { ReanalyzeTask } from './ReanalyzeTask';
+import { MainChanged } from './RetakeTask';
 import { RunAgents } from './RunAgents';
 
 export function TaskOverview({ session }: { session: LoadedSession }) {
   return (
     <div className="page-inner stack-lg">
+      <MainChanged session={session} />
       <Brief session={session} />
       <CodeRules session={session} />
       {session.workflow ? <AgentRun session={session} /> : null}

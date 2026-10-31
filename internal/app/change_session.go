@@ -173,6 +173,8 @@ func (s *Service) ChangeSession(ctx context.Context, id string) (*ChangeSession,
 	if unadopted != nil {
 		session.Freshness, session.StaleReason = "stale", "the edits in its worktree could not become its proposal ("+unadopted.Error()+")"
 	}
+	// Best effort: a task the main branch overtook can be retaken.
+	session.MainChanged, _ = s.mainChange(ctx, root, session)
 	s.restoreChangeWorkflow(session)
 	s.estimateStageCosts(session)
 	return session, nil

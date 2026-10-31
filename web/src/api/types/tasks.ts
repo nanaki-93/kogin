@@ -124,6 +124,8 @@ export interface ChangeSession extends ProjectIdentity {
   comments?: ChangeComment[];
   /** Why the proposal is stale: the scope file that changed. */
   stale_reason?: string;
+  /** For a task in its own worktree: its files the main branch changed since it started. */
+  main_changed?: MainChange;
   /** The project changed since the checks ran; they must run again. */
   checks_outdated?: boolean;
   reviewed_files?: string[];
@@ -185,6 +187,26 @@ export interface ChangeReanalysis {
   /** The model's explanation: a suggestion, not a verified finding. */
   reason: string;
   session?: ChangeSession;
+  deleted?: string;
+  dismissed_issues?: number;
+  warnings: string[];
+}
+
+/** The files of a task in its own worktree that the main branch changed since the task's base commit. */
+export interface MainChange {
+  branch: string;
+  head: string;
+  paths: string[];
+}
+
+/** What retaking a task the main branch overtook decided: started again (still_valid) or deleted (not_valid). */
+export interface ChangeRetake {
+  outcome: 'still_valid' | 'not_valid';
+  /** The model's explanation: a suggestion, not a verified finding. */
+  reason: string;
+  /** The task started again in its new worktree. */
+  opened?: ChangeOpened;
+  /** The old task, once deleted. */
   deleted?: string;
   dismissed_issues?: number;
   warnings: string[];

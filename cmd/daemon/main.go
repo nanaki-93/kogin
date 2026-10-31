@@ -245,6 +245,7 @@ func newProjectHTTPMux(application *app.Service, projectManager *project.Manager
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/apply", changeHandler.Apply)
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/delete", changeHandler.Delete)
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/reanalyze", changeHandler.Reanalyze)
+	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/retake", changeHandler.Retake)
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/undo", changeHandler.Undo)
 
 	modelHandler := handlers.NewModelHandler(application)

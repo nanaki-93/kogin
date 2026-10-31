@@ -23,7 +23,7 @@ export function useActions() {
   const context = useActionContext();
   const { guarded } = context;
   const { previewMerge, merge, removeWorktree, removeEmptyWorktrees, discardWorktree, discardAbandonedWorktrees, abortMerge } = gitActions(context);
-  const { createTask, startAgents, reanalyze, cancelAgents, refine, stopRevision, deleteTasks } = taskActions(context, { removeEmptyWorktrees, discardAbandonedWorktrees });
+  const { createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, deleteTasks } = taskActions(context, { removeEmptyWorktrees, discardAbandonedWorktrees });
   const { markViewed, runChecks, addComment, deleteComment, approve, overrideReview, reject, apply, undo } = reviewActions(context);
   const { setTrust, reindex, openProject } = projectActions(context);
   const { fixIssue, triageFinding } = issueActions(context);
@@ -31,5 +31,5 @@ export function useActions() {
   const { saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, controlAgentSettings } = setupActions(context);
   const { explainFile, refreshDocs, askCodebase } = docsActions(context);
 
-  return { guarded, createTask, startAgents, reanalyze, cancelAgents, refine, stopRevision, markViewed, runChecks, addComment, deleteComment, approve, overrideReview, reject, apply, undo, setTrust, reindex, openProject, fixIssue, triageFinding, deleteTasks, saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, runAnalysis, controlAnalysis, controlAgentSettings, previewMerge, merge, removeWorktree, discardWorktree, abortMerge, explainFile, refreshDocs, askCodebase };
+  return { guarded, createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, markViewed, runChecks, addComment, deleteComment, approve, overrideReview, reject, apply, undo, setTrust, reindex, openProject, fixIssue, triageFinding, deleteTasks, saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, runAnalysis, controlAnalysis, controlAgentSettings, previewMerge, merge, removeWorktree, discardWorktree, abortMerge, explainFile, refreshDocs, askCodebase };
 }

@@ -158,7 +158,7 @@ func storeChangeSession(root string, session *ChangeSession) error {
 		return err
 	}
 	stored := *session
-	stored.StaleReason, stored.ChecksOutdated = "", false // Derived on read.
+	stored.StaleReason, stored.ChecksOutdated, stored.MainChanged = "", false, nil // Derived on read.
 	data, err := json.MarshalIndent(&stored, "", "  ")
 	if err != nil {
 		return err

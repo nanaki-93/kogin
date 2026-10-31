@@ -48,6 +48,7 @@ type ChangeSession struct {
 	ScopeVersion        int                     `json:"scope_version,omitempty"`
 	Scope               []ChangeScopeFile       `json:"scope,omitempty"`
 	StaleReason         string                  `json:"stale_reason,omitempty"` // Set on read; never stored.
+	MainChanged         *ChangeMainChange       `json:"main_changed,omitempty"` // Set on read; never stored.
 	Git                 *GitIdentity            `json:"git,omitempty"`
 	Worktree            *ChangeWorktree         `json:"worktree,omitempty"`
 	Commit              *ChangeCommit           `json:"commit,omitempty"`

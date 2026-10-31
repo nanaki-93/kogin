@@ -281,6 +281,19 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+  /api/projects/current/changes/{sessionID}/retake:
+    parameters:
+      - {$ref: '#/components/parameters/WorktreePath'}
+      - {in: path, name: sessionID, required: true, schema: {type: string}}
+    post:
+      tags: [Chat]
+      description: Retake a task in its own worktree whose files the main branch changed since it started (its main_changed), finished or not. One Bug-model request (remote models need confirm_remote_provider) checks whether the task's issue is still present in the main branch's current files; confirm_execution is required because a still-valid task checks out a new worktree. still_valid opens the task again in a new worktree from the main branch, with its title, kind, plan, criteria, scope (its first eight files) and linked issues, and a note; not_valid dismisses its linked issues. Either way the old task is deleted; its worktree is kept for the client to remove. A task the main branch did not change returns 400; running agents, an Apply that can still be undone, or a task or file that changed during the request return 409.
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeRetakeRequest'}}}}
+      responses:
+        '200': {description: The decision and its effect, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeRetake'}}}}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/git/workspace:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -2102,6 +2115,24 @@ components:
         deleted: {type: string, description: The deleted task's ID; only for not_valid.}
         dismissed_issues: {type: integer, minimum: 0, description: Linked issues of this checkout that were dismissed.}
         warnings: {type: array, items: {type: string}}
+    ChangeRetakeRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ChangeIdentity'}
+        - type: object
+          required: [confirm_execution]
+          properties:
+            confirm_remote_provider: {type: boolean}
+            confirm_execution: {type: boolean, description: Required true; a still-valid task checks out a new worktree, which can run repository filters.}
+    ChangeRetake:
+      type: object
+      required: [outcome, reason, warnings]
+      properties:
+        outcome: {type: string, enum: [still_valid, not_valid]}
+        reason: {type: string, maxLength: 1024, description: The model's explanation; a suggestion, not a verified finding.}
+        opened: {$ref: '#/components/schemas/ChangeOpened', description: The task started again in its new worktree; only for still_valid.}
+        deleted: {type: string, description: The old task's ID once it is deleted.}
+        dismissed_issues: {type: integer, minimum: 0, description: Linked issues that were dismissed; only for not_valid.}
+        warnings: {type: array, items: {type: string}}
     ChangeReviewRequest:
       allOf:
         - {$ref: '#/components/schemas/ChangeIdentity'}
@@ -2590,6 +2621,14 @@ components:
           description: Sorted dependency files outside the captured targets and read context, with their content hashes.
           items: {type: object, required: [path, hash], properties: {path: {type: string}, hash: {type: string}}}
         stale_reason: {type: string, description: Set on read when freshness is stale; names the changed file.}
+        main_changed:
+          type: object
+          description: Set on read for a task in its own worktree whose files the main branch changed since the task's base commit; it can be retaken.
+          required: [branch, head, paths]
+          properties:
+            branch: {type: string}
+            head: {type: string}
+            paths: {type: array, items: {type: string}}
         checks_workspace_hash: {type: string, description: Whole-tree fingerprint of the project the checks ran on.}
         checks_outdated: {type: boolean, description: Set on read when the project changed after the checks ran; they must run again before approval or Apply.}
         reviewed_hash: {type: string}

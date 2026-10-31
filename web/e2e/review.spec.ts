@@ -133,6 +133,53 @@ test('a stale task that is no longer valid is deleted', async ({ page, daemon })
   await expect(page.getByRole('link', { name: new RegExp(session.title) })).toHaveCount(0);
 });
 
+/** Saves a draft task in its own worktree from the composer; it is chg-100. */
+async function draftInItsOwnWorktree(page: import('@playwright/test').Page) {
+  await page.goto('/#/tasks');
+  await page.keyboard.press('c');
+  const dialog = page.getByRole('dialog');
+  await dialog.getByPlaceholder('What should change?').fill('Reject nested asset paths');
+  await dialog.getByLabel('Search files to add').fill('webui');
+  await dialog.getByRole('option', { name: /internal\/api\/handlers\/webui\.go/ }).first().click();
+  await dialog.getByRole('button', { name: 'Save draft' }).click();
+  await expect(page).toHaveURL(/#\/tasks\/chg-100\?wt=/);
+}
+
+test('a task whose files a merge changed is re-analyzed and retaken from main', async ({ page, daemon }) => {
+  await draftInItsOwnWorktree(page);
+  daemon.overtake('chg-100', ['internal/api/handlers/webui.go']);
+  await page.reload();
+  const callout = page.getByText('main changed 1 file of this task since it started');
+  await expect(callout).toBeVisible();
+  await page.getByRole('button', { name: 'Re-analyze & retake' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('main changed internal/api/handlers/webui.go since this task started.');
+  await dialog.getByRole('button', { name: 'Re-analyze & retake' }).click();
+
+  await expect(page.getByText('Still valid: “Reject nested asset paths” starts again from main on orca/reject-nested-asset-d4e5f6. Run the agents when ready.')).toBeVisible();
+  await expect(page).toHaveURL(/#\/tasks\/chg-101\?wt=.*d4e5f6/);
+  expect(daemon.mutations('/retake')[0].body).toMatchObject({ project_id: 'p1', confirm_execution: true, confirm_remote_provider: false });
+  // The old worktree held no work of its own, so it goes without asking.
+  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/mini-orca/.worktrees/reject-nested-asset-a1b2c3' });
+  await expect(page.getByText('main changed 1 file')).toHaveCount(0);
+});
+
+test('a retaken task that is no longer valid is deleted, and its work discarded only if asked', async ({ page, daemon }) => {
+  await draftInItsOwnWorktree(page);
+  daemon.overtake('chg-100', ['internal/api/handlers/webui.go']);
+  daemon.patchWorktree('/work/mini-orca/.worktrees/reject-nested-asset-a1b2c3', { dirty: true });
+  daemon.retakeOutcome = 'not_valid';
+  await page.reload();
+  await page.getByRole('button', { name: 'Re-analyze & retake' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Re-analyze & retake' }).click();
+
+  await expect(page.getByText('No longer valid: “Reject nested asset paths” was deleted.')).toBeVisible();
+  await expect(page).toHaveURL(/#\/tasks$/);
+  await expect(page.getByRole('alertdialog')).toContainText('Discard the worktree orca/reject-nested-asset-a1b2c3?');
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Keep it' }).click();
+  expect(daemon.mutations('/discard-worktree')).toHaveLength(0);
+});
+
 test('Apply names the running tasks whose files it changes', async ({ page, daemon }) => {
   const session = daemon.sessions.get('chg-1')!;
   daemon.sessions.set('chg-1', { ...session, reviewed_files: session.changes.map(change => change.path), reviewed_hash: session.hash });

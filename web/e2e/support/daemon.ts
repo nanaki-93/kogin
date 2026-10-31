@@ -186,6 +186,28 @@ export class FakeDaemon {
     return { deleted: task.id };
   }
 
+  /** Marks a task's files as changed on the main branch since it started, as merging another task does. */
+  overtake(id: string, paths: string[]): void {
+    this.sessions.set(id, { ...this.sessions.get(id)!, main_changed: { branch: 'main', head: MERGED_HEAD, paths } });
+  }
+
+  /** What retaking an overtaken task decides; tests choose. */
+  retakeOutcome: 'still_valid' | 'not_valid' = 'still_valid';
+
+  /** Retakes like the daemon: the old task goes, and a valid one starts again in a new worktree. */
+  private retake(id: string, body: Record<string, unknown>) {
+    const session = this.sessions.get(decodeURIComponent(id));
+    if (!session) throw new Error('This task no longer exists; refresh the task list.');
+    if (body.revision !== session.revision || body.hash !== session.hash) throw new Error('The task changed since it was loaded.');
+    if (!session.main_changed) throw new Error('only a task in its own worktree whose files the main branch changed since it started is retaken');
+    if (body.confirm_execution !== true) throw new Error('confirm the Git action and execution of repository filters or merge drivers');
+    this.deleted.add(session.id);
+    this.sessions.delete(session.id);
+    if (this.retakeOutcome === 'not_valid') return { outcome: 'not_valid', reason: 'The merged change already rejects nested paths.', deleted: session.id, dismissed_issues: (session.finding_targets ?? []).length, warnings: [] };
+    const request = { kind: session.kind, title: session.title, paths: session.targets.map(target => target.path), acceptance_criteria: session.acceptance_criteria, finding_targets: session.finding_targets, worktree: true, confirm_execution: true };
+    return { outcome: 'still_valid', reason: 'ServeAsset still accepts nested paths.', opened: this.createTask(request, 'd4e5f6'), deleted: session.id, warnings: [] };
+  }
+
   /** What re-analyzing a stale task decides; tests choose. */
   reanalysisOutcome: 'still_valid' | 'not_valid' = 'still_valid';
 
@@ -242,6 +264,7 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/changes\/([^/]+)\/apply$/, (body, m) => this.apply(m[1], body)],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/delete$/, (body, m) => this.deleteTask(m[1], body)],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/reanalyze$/, (body, m) => this.reanalyze(m[1], body)],
+    [/^\/api\/projects\/current\/changes\/([^/]+)\/retake$/, (body, m) => this.retake(m[1], body)],
     [/^\/api\/projects\/current\/agent-settings\/control$/, body => this.controlSettings(body)],
     [/^\/api\/projects\/current\/setup$/, body => this.saveSetup(body)],
     [/^\/api\/projects\/current\/setup\/timeouts$/, body => (this.setup = { ...this.setup, state: 'configured', timeouts: body.timeouts as ProjectSetup['timeouts'] })],
@@ -391,7 +414,7 @@ export class FakeDaemon {
   }
 
   /** Creates a task like the daemon; with worktree, in a new branch and worktree of its own. */
-  private createTask(body: Record<string, unknown>): ChangeSession {
+  private createTask(body: Record<string, unknown>, suffix = 'a1b2c3'): ChangeSession {
     const id = `chg-${this.nextId++}`;
     if (body.worktree === true && body.confirm_execution !== true) throw new Error('confirm the Git action and execution of repository filters or merge drivers');
     const paths = (body.paths as string[] | undefined) ?? [];
@@ -414,7 +437,7 @@ export class FakeDaemon {
     };
     this.sessions.set(id, session);
     if (body.worktree !== true) return session;
-    const name = `${taskSlug(String(body.title))}-a1b2c3`;
+    const name = `${taskSlug(String(body.title))}-${suffix}`;
     const path = `${data.project.path}/.worktrees/${name}`;
     session.worktree = { base: '41030b7e', branch: `orca/${name}` };
     this.taskWorktrees.set(id, path);

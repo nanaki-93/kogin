@@ -128,6 +128,7 @@ untrusted networks.
 | POST | `/api/projects/current/changes/{sessionID}/apply` | Explicitly apply the current reviewed proposal with grouped recovery; for a task that owns its worktree, accept it as a commit on its branch (no Undo). |
 | POST | `/api/projects/current/changes/{sessionID}/delete` | Delete a task that is not running and whose Apply cannot be undone; stale tasks included. Publishes a `workflow` event with status `deleted`. |
 | POST | `/api/projects/current/changes/{sessionID}/reanalyze` | Re-check an out-of-date task's issue against the current files: still valid captures it again, not valid deletes it and dismisses its linked issues. |
+| POST | `/api/projects/current/changes/{sessionID}/retake` | Re-check the issue of a task in its own worktree whose files the main branch changed against the main branch: still valid opens it again in a new worktree from there, not valid dismisses its linked issues; the old task is deleted either way. |
 | POST | `/api/projects/current/changes/{sessionID}/undo` | Restore the latest unchanged grouped Apply or recover an interrupted mutation. |
 
 Project analysis keeps the existing string fields: new `architecture` values contain
@@ -730,6 +731,25 @@ or, for a task in its own worktree, to the checkout that created it;
 A current task returns 400; running agents and an Apply that can still be undone
 return 409, as does a task or source file that changed before the answer was
 saved. Nothing is written when the request fails or is canceled.
+
+A task in its own worktree keeps the base commit it started from, so it never
+goes stale when the main branch moves. When the main branch changed any of the
+task's files since that base (often by merging another task on the same files),
+GET returns `main_changed` (`branch`, `head` and the changed `paths`), finished
+task or not. `POST /api/projects/current/changes/{sessionID}/retake` on the
+task's worktree (body: the version shown, `confirm_remote_provider` and
+`confirm_execution: true`) captures the task again at the main branch's current
+files (its first eight files, so the new task is within a new task's limit,
+and the finding targets among them), checks that a new worktree can be made
+there, and sends the same one Bug-model request as re-analysis, naming what the
+main branch changed. `still_valid` opens the task in a new worktree from the
+main branch (`opened`, as for a new task, with an assistant note) and then
+deletes the old task; its linked issues follow the new one. `not_valid` deletes
+the old task and dismisses its linked issues. The old worktree is never removed
+here: it may hold the task's work, and the client offers to remove or discard
+it. A task the main branch did not change returns 400, as does a missing
+`confirm_execution`; running agents, an Apply that can still be undone, and a
+task or main-branch file that changed before the answer return 409.
 
 The whole-tree fingerprint still guards checks. Every check copy must equal the
 tree it was copied from and hold the captured sources and scope, and the
