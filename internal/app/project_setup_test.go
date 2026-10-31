@@ -151,10 +151,15 @@ func TestProjectSetupWaitsForRunningWork(t *testing.T) {
 	}
 	_, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	s.goScan.mu.Lock()
-	s.goScan.cancel = cancel
-	s.goScan.mu.Unlock()
-	if _, err := s.SaveProjectSetup(t.Context(), setupRequestFrom(setup)); !errors.Is(err, ErrSetupBusy) || !strings.Contains(err.Error(), "a Go scan is running") {
+	s.analysisRun.mu.Lock()
+	s.analysisRun.cancel = cancel
+	s.analysisRun.mu.Unlock()
+	defer func() {
+		s.analysisRun.mu.Lock()
+		s.analysisRun.cancel = nil
+		s.analysisRun.mu.Unlock()
+	}()
+	if _, err := s.SaveProjectSetup(t.Context(), setupRequestFrom(setup)); !errors.Is(err, ErrSetupBusy) || !strings.Contains(err.Error(), "an analysis is running") {
 		t.Fatalf("busy save: %v", err)
 	}
 }
@@ -266,9 +271,14 @@ func TestProjectTimeoutsAreSavedFromTheAppAndAppliedLive(t *testing.T) {
 	}
 	_, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	s.goScan.mu.Lock()
-	s.goScan.cancel = cancel
-	s.goScan.mu.Unlock()
+	s.analysisRun.mu.Lock()
+	s.analysisRun.cancel = cancel
+	s.analysisRun.mu.Unlock()
+	defer func() {
+		s.analysisRun.mu.Lock()
+		s.analysisRun.cancel = nil
+		s.analysisRun.mu.Unlock()
+	}()
 	if _, err := s.SaveProjectTimeouts(t.Context(), ProjectTimeoutsRequest{ProjectID: id, ProjectRevision: revision, Timeouts: timeouts}); !errors.Is(err, ErrSetupBusy) {
 		t.Fatalf("busy save: %v", err)
 	}

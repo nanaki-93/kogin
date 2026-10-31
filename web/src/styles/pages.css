@@ -2203,6 +2203,32 @@
   font-variant-numeric: tabular-nums;
 }
 
+.checks-commands {
+  list-style: none;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  display: grid;
+  gap: 4px;
+}
+
+.checks-commands li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.checks-commands li > span {
+  flex: none;
+  min-width: 80px;
+}
+
+.checks-commands code {
+  overflow-wrap: anywhere;
+}
+
 .model-list li {
   padding: 8px 16px;
   border-top: 1px solid var(--border);

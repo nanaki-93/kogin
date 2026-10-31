@@ -220,6 +220,7 @@ type AnalysisRunPreview struct {
 	Models                       *AnalysisModels               `json:"models,omitempty"`
 	Features                     *AnalysisFeaturePlan          `json:"features,omitempty"`
 	Docs                         *AnalysisDocsPlan             `json:"docs,omitempty"`
+	Checks                       *AnalysisChecksPlan           `json:"checks,omitempty"`
 	RetryStaleFailed             bool                          `json:"retry_stale_failed,omitempty"`
 	StaleOnly                    bool                          `json:"stale_only,omitempty"`
 	StalePath                    string                        `json:"stale_path,omitempty"`
@@ -417,7 +418,9 @@ type AnalysisRunFile struct {
 type AnalysisRun struct {
 	Features *AnalysisFeatureProgress `json:"features,omitempty"`
 	// Docs is what refreshing the docs did at the end of the run.
-	Docs                 *DocsRefresh              `json:"docs,omitempty"`
+	Docs *DocsRefresh `json:"docs,omitempty"`
+	// Checks is what the project checks did after the files.
+	Checks               *AnalysisChecks           `json:"checks,omitempty"`
 	SchemaVersion        string                    `json:"schema_version"`
 	Identity             AnalysisRunIdentity       `json:"identity"`
 	Plan                 AnalysisRunPreview        `json:"plan"`

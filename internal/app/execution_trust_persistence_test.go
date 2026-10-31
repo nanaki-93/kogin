@@ -33,7 +33,7 @@ func reopenTrustFixture(t *testing.T, original *Service, root string) (*Service,
 }
 
 func TestRememberedTrustSurvivesRestartAndRevocation(t *testing.T) {
-	s, _, revision := newGoScanService(t, map[string]string{"go.mod": "module fixture\n\ngo 1.22\n", "main.go": "package fixture\n"})
+	s, _, revision := newTrustedService(t, map[string]string{"go.mod": "module fixture\n\ngo 1.22\n", "main.go": "package fixture\n"})
 	root := s.manager.Root()
 	path, err := executionTrustPath(root)
 	if err != nil {
@@ -60,13 +60,13 @@ func TestRememberedTrustSurvivesRestartAndRevocation(t *testing.T) {
 	if err != nil || trust.Trusted || trust.WorkspaceHash != "" {
 		t.Fatalf("revocation did not survive restart: %+v %v", trust, err)
 	}
-	if _, err := reopened.StartGoScan(context.Background(), revision); err == nil {
+	if err := reopened.requireProjectExecutionTrust(context.Background(), revision); err == nil {
 		t.Fatal("revoked consent allowed project code")
 	}
 }
 
 func TestRememberedTrustRevalidatesSourcesAndDoesNotCrossProjects(t *testing.T) {
-	s, root, originalRevision := newGoScanService(t, map[string]string{"main.go": "package fixture\n"})
+	s, root, originalRevision := newTrustedService(t, map[string]string{"main.go": "package fixture\n"})
 	first, _ := s.ExecutionTrust(context.Background(), originalRevision, "")
 	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package fixture\nfunc NewCode() {}\n"), 0600); err != nil {
 		t.Fatal(err)
@@ -83,14 +83,11 @@ func TestRememberedTrustRevalidatesSourcesAndDoesNotCrossProjects(t *testing.T) 
 	if err != nil || !trust.Trusted || trust.WorkspaceHash == first.WorkspaceHash {
 		t.Fatalf("reindex reused old execution authority: %+v %v", trust, err)
 	}
-	if err := s.requireWorkspaceExecutionTrust(context.Background(), originalRevision, first.WorkspaceHash); !errors.Is(err, project.ErrRevisionConflict) {
+	if err := s.requireProjectExecutionTrust(context.Background(), originalRevision); !errors.Is(err, project.ErrRevisionConflict) {
 		t.Fatalf("old job retained execution authority: %v", err)
 	}
-	if err := s.requireWorkspaceExecutionTrust(context.Background(), updated.ProjectRevision, first.WorkspaceHash); !errors.Is(err, project.ErrRevisionConflict) {
-		t.Fatalf("old workspace retained execution authority: %v", err)
-	}
 	other := t.TempDir()
-	writeGoScanFixture(t, other)
+	writeGoFixture(t, other)
 	if err := s.RestoreActiveProject(other, &project.Analysis{Name: "other"}); err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +110,7 @@ func TestRememberedTrustRevalidatesSourcesAndDoesNotCrossProjects(t *testing.T) 
 func TestRememberedTrustRejectsIncompatibleOrCorruptSettings(t *testing.T) {
 	for _, variant := range []string{"root", "project", "policy", "commands", "corrupt", "trailing", "incomplete", "symlink"} {
 		t.Run(variant, func(t *testing.T) {
-			s, _, _ := newGoScanService(t, map[string]string{"main.go": "package fixture\n"})
+			s, _, _ := newTrustedService(t, map[string]string{"main.go": "package fixture\n"})
 			root := s.manager.Root()
 			path, _ := executionTrustPath(root)
 			saved, err := readRememberedExecutionTrust(root)
@@ -163,7 +160,7 @@ func TestRememberedTrustRejectsIncompatibleOrCorruptSettings(t *testing.T) {
 }
 
 func TestRememberedTrustWriteFailureDoesNotGrantExecution(t *testing.T) {
-	s, _, revision := newGoScanService(t, map[string]string{"main.go": "package fixture\n"})
+	s, _, revision := newTrustedService(t, map[string]string{"main.go": "package fixture\n"})
 	s.clearExecutionTrust()
 	root := s.manager.Root()
 	path, _ := executionTrustPath(root)
@@ -182,7 +179,7 @@ func TestRememberedTrustWriteFailureDoesNotGrantExecution(t *testing.T) {
 }
 
 func TestCanceledTrustDoesNotRestoreOrPersistConsent(t *testing.T) {
-	s, _, revision := newGoScanService(t, map[string]string{"main.go": "package fixture\n"})
+	s, _, revision := newTrustedService(t, map[string]string{"main.go": "package fixture\n"})
 	root := s.manager.Root()
 	path, _ := executionTrustPath(root)
 	s.resetExecutionTrust(true)

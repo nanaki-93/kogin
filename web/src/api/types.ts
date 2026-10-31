@@ -711,7 +711,10 @@ export interface AnalysisRunSummary {
     retry_stale_failed?: boolean;
     expected_model_requests?: number;
     max_model_requests?: number;
+    checks?: AnalysisChecksPlan;
   };
+  /** The project checks that ran after the files. */
+  checks?: AnalysisChecks | null;
   /** The docs refresh that ended the run. */
   docs?: DocsRefresh | null;
   elapsed_seconds?: number;
@@ -719,6 +722,40 @@ export interface AnalysisRunSummary {
   created_at?: string;
   started_at?: string;
   updated_at?: string;
+}
+
+/** One command of a run's project checks, run in its subproject; never through a shell. */
+export interface AnalysisCheckCommand {
+  name: string;
+  kind: 'lint' | 'test' | 'semgrep' | string;
+  dir?: string;
+  command: string[];
+}
+
+/** The project checks an analysis runs after its files. */
+export interface AnalysisChecksPlan {
+  commands: AnalysisCheckCommand[];
+  /** Why commands that run the project's code are left out. */
+  reason?: string;
+}
+
+/** How one check went: parse and code budgets have no command. */
+export interface AnalysisCheckResult {
+  name: string;
+  command?: string[];
+  state: 'passed' | 'failed' | 'skipped' | 'canceled' | 'unavailable' | string;
+  issues: number;
+  output?: string;
+  duration_ms?: number;
+}
+
+/** What a run's checks did; failures are issues on the Issues page. */
+export interface AnalysisChecks {
+  status: 'completed' | 'canceled' | 'failed' | string;
+  checks: AnalysisCheckResult[];
+  issues: number;
+  reason?: string;
+  at: string;
 }
 
 /** Lines of a file that support an answer; the daemon found the quote in them. */

@@ -59,16 +59,6 @@ func (s *Service) stopWorktreeJobs(ctx context.Context) error {
 	if err := s.ShutdownChangeWorkflows(ctx); err != nil {
 		return err
 	}
-	s.goScan.mu.Lock()
-	done := s.goScan.done
-	s.goScan.mu.Unlock()
-	if done != nil {
-		select {
-		case <-done:
-		case <-ctx.Done():
-			return fmt.Errorf("wait for the project scan to finish stopping")
-		}
-	}
 	return nil
 }
 

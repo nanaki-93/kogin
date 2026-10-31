@@ -189,20 +189,6 @@ func (s *Service) changeExecutionRevision(session *ChangeSession) (string, error
 	return analysis.ProjectRevision, nil
 }
 
-func (s *Service) requireWorkspaceExecutionTrust(ctx context.Context, revision, workspaceHash string) error {
-	trust, err := s.ExecutionTrust(ctx, revision, "")
-	if err != nil {
-		return err
-	}
-	if !trust.Trusted {
-		return fmt.Errorf("trusted local execution is required before running project code")
-	}
-	if workspaceHash == "" || trust.WorkspaceHash != workspaceHash {
-		return project.ErrRevisionConflict
-	}
-	return nil
-}
-
 func (s *Service) clearExecutionTrust() {
 	s.resetExecutionTrust(false)
 }

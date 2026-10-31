@@ -14,7 +14,7 @@ import (
 
 func TestScanSecurityFileStoresFreshDeterministicReport(t *testing.T) {
 	source := "package fixture\nimport \"crypto/tls\"\nfunc Run() { _ = tls.Config{InsecureSkipVerify: true} }\n"
-	service, root, revision := newGoScanService(t, map[string]string{"main.go": source, "main_test.go": source, "empty.go": "package fixture\nfunc Empty() {}\n"})
+	service, root, revision := newTrustedService(t, map[string]string{"main.go": source, "main_test.go": source, "empty.go": "package fixture\nfunc Empty() {}\n"})
 	report, err := service.ScanSecurityFile(context.Background(), "main.go", revision)
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +42,7 @@ func TestScanSecurityFileStoresFreshDeterministicReport(t *testing.T) {
 
 func TestScanSecurityFileBoundsMatchesAndRevalidatesCacheHits(t *testing.T) {
 	source := "package fixture\nimport \"os/exec\"\nfunc Run(input string) {\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\t_ = exec.Command(\"sh\", \"-c\", input)\n}\n"
-	service, root, revision := newGoScanService(t, map[string]string{"main.go": source, "cached.go": "package fixture\nimport \"os/exec\"\nfunc Run(input string) { _ = exec.Command(\"sh\", \"-c\", input) }\n"})
+	service, root, revision := newTrustedService(t, map[string]string{"main.go": source, "cached.go": "package fixture\nimport \"os/exec\"\nfunc Run(input string) { _ = exec.Command(\"sh\", \"-c\", input) }\n"})
 	report, err := service.ScanSecurityFile(context.Background(), "main.go", revision)
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +88,7 @@ func TestScanSecurityFileBoundsMatchesAndRevalidatesCacheHits(t *testing.T) {
 
 func TestScanSecurityFileRejectsProjectChangeAfterCacheLoad(t *testing.T) {
 	source := "package fixture\nimport \"os/exec\"\nfunc Run(input string) { _ = exec.Command(\"sh\", \"-c\", input) }\n"
-	service, _, revision := newGoScanService(t, map[string]string{"main.go": source})
+	service, _, revision := newTrustedService(t, map[string]string{"main.go": source})
 	if _, err := service.ScanSecurityFile(context.Background(), "main.go", revision); err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestScanSecurityFileDoesNotContactConfiguredProvider(t *testing.T) {
 }
 
 func TestScanSecurityFileRejectsStaleExcludedSymlinkAndUnsupportedPaths(t *testing.T) {
-	service, root, revision := newGoScanService(t, map[string]string{
+	service, root, revision := newTrustedService(t, map[string]string{
 		"main.go":          "package fixture\nfunc Run() {}\n",
 		"notes.txt":        "run it\n",
 		".mini-orcaignore": "excluded.go\n",

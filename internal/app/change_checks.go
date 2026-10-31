@@ -237,14 +237,6 @@ func (s *Service) prepareCheckCopy(ctx context.Context, root, workspace string, 
 	return fingerprint, verifyCapturedSources(workspace, policy, session)
 }
 
-func workspaceHasGo(workspace string, edits []ChangeEdit) bool {
-	if archgate.HasGoSourceEdits(edits) {
-		return true
-	}
-	info, err := os.Stat(filepath.Join(workspace, "go.mod"))
-	return err == nil && !info.IsDir()
-}
-
 func stageChangeEdits(workspace string, edits []ChangeEdit) error {
 	for _, edit := range edits {
 		if edit.OldPath != "" {

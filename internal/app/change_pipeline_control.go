@@ -129,10 +129,7 @@ func (s *Service) ShutdownChangeWorkflows(ctx context.Context) error {
 	if err := s.waitAnalysisRunDone(ctx); err != nil {
 		return err
 	}
-	if err := s.waitDocsRefreshDone(ctx); err != nil {
-		return err
-	}
-	return s.waitGoScanDone(ctx)
+	return s.waitDocsRefreshDone(ctx)
 }
 
 func (s *Service) waitChangeWorkflowDone(ctx context.Context) error {
@@ -162,27 +159,6 @@ func (s *Service) waitAnalysisRunDone(ctx context.Context) error {
 		s.analysisRun.cancel()
 	}
 	s.analysisRun.mu.Unlock()
-	if done == nil {
-		return nil
-	}
-	select {
-	case <-done:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-func (s *Service) waitGoScanDone(ctx context.Context) error {
-	if s.goScan == nil {
-		return nil
-	}
-	s.goScan.mu.Lock()
-	done := s.goScan.done
-	if s.goScan.cancel != nil {
-		s.goScan.cancel()
-	}
-	s.goScan.mu.Unlock()
 	if done == nil {
 		return nil
 	}

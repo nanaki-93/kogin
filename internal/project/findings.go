@@ -22,17 +22,24 @@ const (
 
 	FindingSourceAI     = "ai"
 	FindingSourceParser = "parser"
-	FindingSourceVet    = "vet"
-	FindingSourceTest   = "test"
-	// FindingSourceRules marks code over the budgets AGENTS.md declares. These
-	// findings come from task checks, not analysis runs, and survive them.
+	// FindingSourceVet marks go vet failures of the retired Go scan; lint
+	// reports them now.
+	FindingSourceVet = "vet"
+	// FindingSourceTest marks failing tests of a project's test commands.
+	FindingSourceTest = "test"
+	// FindingSourceLint marks diagnostics of a project's lint commands.
+	FindingSourceLint = "lint"
+	// FindingSourceSemgrep marks matches of the project's own semgrep rules.
+	FindingSourceSemgrep = "semgrep"
+	// FindingSourceRules marks code over the budgets AGENTS.md declares,
+	// found by task checks and by the checks of each analysis run.
 	FindingSourceRules = "rules"
 	// FindingSourceSecurityRules marks matches of the deterministic security
 	// rules; they are reported, not suggested.
 	FindingSourceSecurityRules = "security_rules"
 
 	// FindingCategoryMaintainability is code to refactor, such as a file over
-	// its line budget. Only the rules source uses it.
+	// its line budget or a lint diagnostic. Only rules and lint use it.
 	FindingCategoryMaintainability FindingCategory = "maintainability"
 
 	FindingConfidenceSuggested    = "suggested"
@@ -395,7 +402,7 @@ func findingMatchesInput(finding UnifiedFinding, input FindingInput) bool {
 }
 
 func validateFinding(finding UnifiedFinding) error {
-	maintainability := finding.Source == FindingSourceRules && finding.Category == FindingCategoryMaintainability
+	maintainability := (finding.Source == FindingSourceRules || finding.Source == FindingSourceLint) && finding.Category == FindingCategoryMaintainability
 	if finding.Category != FindingCategoryUnclassified && !finding.Category.Valid() && !maintainability {
 		return fmt.Errorf("finding category is invalid")
 	}
@@ -458,7 +465,11 @@ func validPersistedGoTestCandidate(candidate *GoTestCandidateSpec) bool {
 }
 
 func validFindingSource(value string) bool {
-	return value == FindingSourceAI || value == FindingSourceParser || value == FindingSourceVet || value == FindingSourceTest || value == FindingSourceRules || value == FindingSourceSecurityRules
+	switch value {
+	case FindingSourceAI, FindingSourceParser, FindingSourceVet, FindingSourceTest, FindingSourceLint, FindingSourceSemgrep, FindingSourceRules, FindingSourceSecurityRules:
+		return true
+	}
+	return false
 }
 func validFindingConfidence(source, confidence string) bool {
 	if source == FindingSourceAI {

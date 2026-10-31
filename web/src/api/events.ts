@@ -18,7 +18,6 @@ const INVALIDATES: Record<string, string[][]> = {
   findings: [['findings'], ['overview']],
   analysis: [['overview'], ['findings'], ['fileSummary'], ['usage']],
   docs: [['overview']],
-  scan: [['scan']],
   agent_settings: [['settings']],
   configuration: [['setup'], ['models'], ['settings'], ['overview']],
   agent_run: [['session'], ['usage'], ['quarantine']],

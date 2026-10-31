@@ -443,7 +443,7 @@ test('a task shows its files against the code rules, and a budget issue opens a 
   daemon.serve('/api/projects/current/findings', () => ({
     project_id: 'p1',
     project_revision: 'r42',
-    findings: [{ id: 'f9', project_id: 'p1', source: 'rules', category: 'maintainability', severity: 'low', title: 'Refactor internal/api/handlers/webui.go to fit its code budgets', message: 'It was already over the budgets in AGENTS.md when a task changed it.', evidence: 'file has 812 lines (max 800)', location: { path: 'internal/api/handlers/webui.go' }, status: 'open' }],
+    findings: [{ id: 'f9', project_id: 'p1', source: 'rules', category: 'maintainability', severity: 'low', title: 'Refactor internal/api/handlers/webui.go to fit its code budgets', message: 'internal/api/handlers/webui.go is over the code budgets in its AGENTS.md.', evidence: 'file has 812 lines (max 800)', location: { path: 'internal/api/handlers/webui.go' }, status: 'open' }],
   }));
   await page.goto('/#/issues');
   await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row', { name: /Refactor internal/ })).toContainText('Code budget (AGENTS.md)');

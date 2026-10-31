@@ -13,7 +13,11 @@ guarded **Apply** and **Undo**.
   scopes (`analyze`, `bug`, `code`). Static rules and per-language security
   rule packs (Go, Python, JS/TS, Java, Kotlin, Ruby, PHP, C#, C/C++, Rust)
   produce verified findings with their lines; semantic, performance and
-  security reviews produce labeled model suggestions. The Docs page maps the
+  security reviews produce labeled model suggestions. Each run then checks the
+  project, in any language: parser diagnostics, files over their AGENTS.md code
+  budgets, every subproject's lint and tests (when you let checks run project
+  code) and semgrep with the project's own rules; failures become issues on
+  their file and line, and close when fixed. The Docs page maps the
   code in any language (components, the
   imports between them drawn as a diagram, entry points, manifests and the
   runbook), and each analysis run ends by summarizing again the components

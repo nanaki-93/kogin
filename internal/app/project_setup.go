@@ -369,11 +369,6 @@ func (s *Service) activeWork() []string {
 		}
 	}
 	s.changeWorkflow.mu.Unlock()
-	s.goScan.mu.Lock()
-	if s.goScan.cancel != nil {
-		busy = append(busy, "a Go scan is running")
-	}
-	s.goScan.mu.Unlock()
 	s.worktreesMu.Lock()
 	children := make([]*Service, 0, len(s.worktrees))
 	for _, child := range s.worktrees {

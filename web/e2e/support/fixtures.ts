@@ -235,6 +235,14 @@ export function analysisRun(status = 'partial'): AnalysisRunSummary {
       limits: { batch_files: 64, budget_seconds: 1800, max_attempts_per_stage: 2 },
       providers: [{ id: 'p-bug', stages: ['semantic'], model: { scope: 'bug', model: 'local-bug-model', provider_origin: 'http://localhost:1234', remote_provider: false } }],
     },
+    checks: status === 'running' ? null : {
+      status: 'completed', issues: 3, at: ago(28), checks: [
+        { name: 'parse', state: 'passed', issues: 0 },
+        { name: 'code budgets', state: 'failed', issues: 1 },
+        { name: 'lint', command: ['go', 'vet', './...'], state: 'passed', issues: 0 },
+        { name: 'tests', command: ['go', 'test', './...'], state: 'failed', issues: 2 },
+      ],
+    },
     elapsed_seconds: 139,
     created_at: ago(30),
     updated_at: ago(28),

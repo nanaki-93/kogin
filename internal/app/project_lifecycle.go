@@ -15,7 +15,6 @@ func (s *Service) Reindex() (*project.ProjectIndex, error) {
 // reindexActiveProject refreshes project facts after source changed and
 // stops only the change workflows whose tasks the change made stale.
 func (s *Service) reindexActiveProject(reason string) (*project.ProjectIndex, error) {
-	s.cancelGoScan()
 	index, err := s.manager.Reindex()
 	if err == nil {
 		s.resetExecutionTrust(true)
@@ -66,18 +65,8 @@ func (s *Service) invalidateJobsForProjectChange(reason string) {
 // running; the reindex that follows stops those the rewrite made stale.
 func (s *Service) invalidateWholeTreeJobs() {
 	s.interruptAnalysisRunForProjectChange()
-	s.cancelGoScan()
 	s.cancelDocsRefresh()
 	s.clearExecutionTrust()
-}
-
-func (s *Service) cancelGoScan() {
-	s.goScan.mu.Lock()
-	cancel := s.goScan.cancel
-	s.goScan.mu.Unlock()
-	if cancel != nil {
-		cancel()
-	}
 }
 
 func isSemanticAnalysisCandidate(file project.IndexFile) bool {

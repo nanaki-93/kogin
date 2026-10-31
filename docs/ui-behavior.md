@@ -194,7 +194,7 @@ every guard when the action arrives.
   Inbox offers it while it is needed and reports an invalid file, and Settings
   → Project shows where the configuration comes from and reopens setup, and
   Settings → Models & agents reopens it with **Change models**. Saving is
-  refused while an analysis, agent work, a Go scan or worktree work runs.
+  refused while an analysis, agent work or worktree work runs.
 - **Time limits.** Settings → Models & agents → Time limits edits how long each
   analysis request, project overview, Code model request, agent model call and
   check command may take, in seconds (1 to 86,400, with the current value as a
@@ -215,11 +215,15 @@ every guard when the action arrives.
   Inbox, the Analysis page and setup say so and offer **Reset**, and saving
   setup resets them. Remote models still
   ask before each run.
-- **Trust.** Granting lists the commands checks will run; revoking stops checks,
-  scans and agent verification. Trust is bound to the canonical project path.
+- **Trust.** Granting lists the commands checks will run; revoking stops checks
+  and agent verification. Trust is bound to the canonical project path.
 - **Analyze.** A preview comes first; the confirmation names the file count, the
-  maximum model requests, remote destinations and whether a security review is
-  included. Analysis writes findings and the handbook, never source. A dispatch
+  maximum model requests, remote destinations, whether a security review is
+  included, and the checks that run after the files: the parser and code
+  budgets of every file, then each command with its arguments (each
+  subproject's lint and tests when checks may run project code, semgrep with the
+  project's own rules when it is installed), or why lint and tests are left out.
+  Analysis writes findings and the handbook, never source. A dispatch
   window covers up to 64 files and 30 minutes; a run that reaches either pauses
   and resumes from the dashboard.
 - **Docs.** The components, the imports between them (the diagram), entry
@@ -243,7 +247,8 @@ every guard when the action arrives.
 - **Analysis dashboard.** Shows the last or running run live: overall progress,
   failed stages grouped by reason (with a link to the models when the provider
   could not be reached), each section's coverage and findings (opening Issues
-  filtered to that category), the models used, and every file's stages with
+  filtered to that category), the checks with each one's state and issues (the
+  count opens Issues), the models used, and every file's stages with
   their reasons, filterable to failed, with findings or in progress. Controls
   follow the run: pause and cancel while it runs; resume (after a fresh preview)
   or cancel when it is paused or interrupted; otherwise analyze changes, retry

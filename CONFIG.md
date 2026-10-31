@@ -609,7 +609,7 @@ keeps any others, with their comments. The file is written `0600`, and
 
 The configuration applies without restarting: opening or switching to a
 project loads its file, and saving setup reloads it at once. Saving is refused
-while an analysis, an agent run, a Go scan or work in a worktree is running,
+while an analysis, an agent run or work in a worktree is running,
 since that work was admitted with the old models. A file that cannot be applied
 (invalid YAML, a daemon-only key, an invalid model) leaves the daemon's
 configuration in use; the Inbox and setup show the error. Agent overrides saved

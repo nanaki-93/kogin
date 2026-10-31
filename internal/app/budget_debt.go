@@ -53,7 +53,7 @@ func budgetDebtFinding(report archgate.BudgetReport) project.UnifiedFinding {
 		Severity:   "low",
 		Rule:       "code-budget",
 		Title:      "Refactor " + report.Path + " to fit its code budgets",
-		Message: report.Path + " was already over the budgets in AGENTS.md when a task changed it. " +
+		Message: report.Path + " is over the code budgets in its AGENTS.md. " +
 			"Tasks may change it without making it worse; split it to bring it within budget.",
 		Evidence: strings.Join(evidence, "\n"),
 		Location: project.FindingLocation{Path: report.Path, Symbol: symbol},

@@ -399,6 +399,7 @@ func (s *Service) runAnalysisWindow(ctx context.Context, identity AnalysisRunIde
 	fileContext, cancelFiles := context.WithTimeout(ctx, budget)
 	s.runAnalysisFiles(fileContext, identity)
 	cancelFiles()
+	s.runChecksAfterRun(ctx, identity)
 	s.refreshDocsAfterRun(ctx, identity)
 	c.mu.Lock()
 	defer c.mu.Unlock()

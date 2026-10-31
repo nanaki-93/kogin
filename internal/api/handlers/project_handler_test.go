@@ -241,12 +241,6 @@ func TestProjectWorkspaceAPIsAreRevisionGuardedAndSourceFree(t *testing.T) {
 		t.Fatalf("finding completion response: %s, %v", findings.Body, err)
 	}
 
-	noScan := httptest.NewRecorder()
-	handler.GoScanProgress(noScan, httptest.NewRequest(http.MethodGet, "/api/projects/current/scan?project_revision="+index.ProjectRevision, nil))
-	if noScan.Code != http.StatusNoContent {
-		t.Fatalf("scan without job = %d %s", noScan.Code, noScan.Body.String())
-	}
-
 	for _, call := range []struct {
 		name string
 		call func(*httptest.ResponseRecorder)
@@ -256,15 +250,6 @@ func TestProjectWorkspaceAPIsAreRevisionGuardedAndSourceFree(t *testing.T) {
 		}},
 		{name: "findings", call: func(response *httptest.ResponseRecorder) {
 			handler.Findings(response, httptest.NewRequest(http.MethodGet, "/api/projects/current/findings?project_revision=stale", nil))
-		}},
-		{name: "scan start", call: func(response *httptest.ResponseRecorder) {
-			handler.StartGoScan(response, httptest.NewRequest(http.MethodPost, "/api/projects/current/scan", bytes.NewBufferString(`{"project_revision":"stale"}`)))
-		}},
-		{name: "scan progress", call: func(response *httptest.ResponseRecorder) {
-			handler.GoScanProgress(response, httptest.NewRequest(http.MethodGet, "/api/projects/current/scan?project_revision=stale", nil))
-		}},
-		{name: "scan cancel", call: func(response *httptest.ResponseRecorder) {
-			handler.CancelGoScan(response, httptest.NewRequest(http.MethodDelete, "/api/projects/current/scan?project_revision=stale", nil))
 		}},
 		{name: "triage", call: func(response *httptest.ResponseRecorder) {
 			handler.UpdateFindingStatus(response, httptest.NewRequest(http.MethodPatch, "/api/projects/current/findings/finding:test", bytes.NewBufferString(`{"project_revision":"stale","status":"dismissed"}`)))
@@ -673,7 +658,7 @@ func TestProjectEventsSSEStream(t *testing.T) {
 		t.Fatalf("SSE initial flush missing ready event: %s", readySnapshot)
 	}
 
-	if _, err := service.ScanGoProject(context.Background(), index.ProjectRevision); err != nil {
+	if _, err := service.Reindex(); err != nil {
 		t.Fatal(err)
 	}
 	eventSnapshot := <-rec.flushed
@@ -683,8 +668,8 @@ func TestProjectEventsSSEStream(t *testing.T) {
 	if rec.code != http.StatusOK {
 		t.Fatalf("SSE status = %d", rec.code)
 	}
-	if !strings.Contains(eventSnapshot, "event: update") || !strings.Contains(eventSnapshot, `"kind":"scan"`) {
-		t.Fatalf("SSE stream missing scan update event: %s", eventSnapshot)
+	if !strings.Contains(eventSnapshot, "event: update") || !strings.Contains(eventSnapshot, `"kind":"project_index"`) {
+		t.Fatalf("SSE stream missing reindex update event: %s", eventSnapshot)
 	}
 }
 

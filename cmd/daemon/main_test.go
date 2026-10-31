@@ -315,31 +315,6 @@ func TestDocumentedRoutesAreHandledByDaemon(t *testing.T) {
 	}
 }
 
-func TestOpenAPIGoScanPhaseIncludesWorkspace(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "docs", "openapi.yaml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var spec struct {
-		Components struct {
-			Schemas map[string]struct {
-				Properties map[string]struct {
-					Enum []string `yaml:"enum"`
-				} `yaml:"properties"`
-			} `yaml:"schemas"`
-		} `yaml:"components"`
-	}
-	if err := yaml.Unmarshal(data, &spec); err != nil {
-		t.Fatalf("parse OpenAPI: %v", err)
-	}
-	for _, name := range spec.Components.Schemas["GoScanPhase"].Properties["name"].Enum {
-		if name == "workspace" {
-			return
-		}
-	}
-	t.Fatalf("GoScanPhase names = %v, want workspace", spec.Components.Schemas["GoScanPhase"].Properties["name"].Enum)
-}
-
 // The built bundle has content-hashed names, so tests read them from the
 // embedded document instead of hard-coding them.
 var webUIScriptPath, webUIStylesheetPath = func() (string, string) {

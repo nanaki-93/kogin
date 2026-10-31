@@ -57,7 +57,9 @@ const SOURCE_LABELS: Record<string, string> = {
   ai: 'AI suggestion',
   vet: 'Verified by go vet',
   parser: 'Verified by parser',
-  test: 'Verified by a test',
+  test: 'Failing test',
+  lint: 'Lint',
+  semgrep: 'Semgrep rule',
   security_rules: 'Security rule',
   rules: 'Code budget (AGENTS.md)',
 };

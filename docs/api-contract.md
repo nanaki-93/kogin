@@ -82,13 +82,10 @@ untrusted networks.
 | POST | `/api/projects/current/analysis/run` | Durably admit the previewed run with fresh provider and Security intent. |
 | GET | `/api/projects/current/analysis/run` | Read progress with `project_id` and `project_revision`; 204 when absent. |
 | POST | `/api/projects/current/analysis/run/control` | Pause, resume or cancel the exact run generation. |
-| GET | `/api/projects/current/findings` | List source-free verified findings and AI suggestions with provenance, filters, and freshness: the semantic, Performance and Security AI stages' suggestions (`ai`, `originating_analysis` `file`, `performance` or `security`), security rule matches (`security_rules`), parser/vet/test findings and code-budget issues (`rules`). `location` has the path, lines and `symbol`, the function around the first line when the file still has the content the finding was made from. |
+| GET | `/api/projects/current/findings` | List source-free verified findings and AI suggestions with provenance, filters, and freshness: the semantic, Performance and Security AI stages' suggestions (`ai`, `originating_analysis` `file`, `performance` or `security`), security rule matches (`security_rules`), and what each analysis run's checks report: parser diagnostics (`parser`), lint diagnostics (`lint`), failing tests (`test`), the project's semgrep rules (`semgrep`) and files over their code budgets (`rules`). `vet` marks go vet failures of the retired Go scan; lint closes them. `location` has the path, lines and `symbol`, the function around the first line when the file still has the content the finding was made from. |
 | GET | `/api/projects/current/rules` | Test file patterns (conventions plus AGENTS.md `test_files`), the indexed AGENTS.md files and any rules block that could not be read. |
 | PATCH | `/api/projects/current/findings/{findingID}` | Record an explicit user triage status for one finding. |
 | GET | `/api/projects/current/findings/{findingID}/task` | Draft the task that fixes one issue for the composer: kind, title, description, the file and its conventional test in any language, criteria and the linked finding. Nothing is saved. |
-| GET | `/api/projects/current/scan` | Read an explicitly started Go scan for `project_revision` from a temporary copied workspace. |
-| POST | `/api/projects/current/scan` | Start an explicit Go parser/vet/test scan in a temporary copied workspace. |
-| DELETE | `/api/projects/current/scan` | Cancel the active explicit Go scan. |
 | GET | `/api/projects/current/events` | Stream Server-Sent Events (SSE) when analysis runs, scans, reindexing or change workflows change state; workflow events name the task, stage and status and carry the run's usage and estimated cost. |
 | GET | `/api/projects/current/quarantine` | List records set aside because they were unreadable, and records skipped because a newer Mini-Orca wrote them, with the remedy. |
 | GET | `/api/projects/current/usage` | Total agent model calls, tokens and estimated cost per task in the checkout, plus work not tied to a task. |
@@ -111,7 +108,7 @@ untrusted networks.
 | POST | `/api/projects/current/git/discard-worktree` | Remove a confirmed clean worktree without merging; keep its branch unless the current branch contains its commits. |
 | POST | `/api/projects/current/git/abort-merge` | Abort the identified merge and discard conflict resolutions. |
 | GET | `/api/projects/current/files/analysis` | Read cached semantic analysis for one selected file and revision. |
-| POST | `/api/projects/current/files/security-scan` | Scan one selected eligible Go file with deterministic source-only rules; no provider request or subprocess execution occurs. Matches require syntactic review and do not prove exploitability. At most five source-order matches are returned; a `partial` report says when that limit truncates coverage. |
+| POST | `/api/projects/current/files/security-scan` | Scan one selected eligible file with the deterministic source-only rule pack of its language; no provider request or subprocess execution occurs. Matches require syntactic review and do not prove exploitability. At most the five most severe matches are returned; a `partial` report says when that limit truncates coverage. |
 | POST | `/api/projects/current/files/explanation` | Explicitly explain one selected Go file using transient Code-scope context. |
 | POST | `/api/projects/current/security-review` | Explicitly perform one passive, source-free AI Security review for one current eligible file. |
 | POST | `/api/projects/current/reindex` | Refresh deterministic facts without an LLM request. |
@@ -162,18 +159,18 @@ Import, restore, navigation, indexing, parsing, and `gofmt`/`go vet` source anal
 
 ## Project intelligence and limits
 
-Import and reindex build deterministic metadata; neither starts a verified scan
-or unified analysis. Indexing streams hashes and line counts for large files, while
+Import and reindex build deterministic metadata; neither runs checks or starts an
+analysis. Indexing streams hashes and line counts for large files, while
 import extraction is limited to text files within the 1 MiB source-view limit.
 Larger text files retain full size, hash and line-count facts with a diagnostic
 that source inspection is unavailable. Index schema version 4 rebuilds older
 cached entries under this file-level extraction policy.
-Go scans and semantic analysis are always user-started. A scan
-prepares a bounded temporary copied workspace before parser, vet, and test phases;
-a resource failure is returned as a failed `workspace` phase with sanitized evidence.
-Findings keep source (`ai`, parser, vet, or test), confidence, severity, status,
-and freshness separate so a model suggestion is never presented as a verified
-tool result.
+Analysis is always user-started. Each run ends its files with the project checks
+(see the analysis run's `checks`), which run in a bounded temporary copy of the
+project; a copy that fails is reported as unavailable checks with sanitized evidence.
+Findings keep source (`ai`, `parser`, `lint`, `test`, `semgrep`, `rules`,
+`security_rules`), confidence, severity, status and freshness separate so a model
+suggestion is never presented as a verified tool result.
 
 Shared proposals support captured Go and Markdown files. Go changes require
 parse and format checks; other languages retain import extraction
@@ -359,6 +356,28 @@ part of `queue_id`, so runs saved before it resume; they end without a refresh.
 background, and always writes the overview again; it stops when the project
 changes or the daemon shuts down, keeping the summaries already written.
 
+Every preview of a run with files also plans the project checks
+(`preview.checks`), which run after the files and before the docs and make no
+model requests: the parser diagnostics and AGENTS.md code budgets of every code
+file; each subproject's lint and test commands from its toolchain profile
+(AGENTS.md checks block, justfile/Taskfile/Makefile targets, or the ecosystem's
+defaults), listed with their argument lists so the confirmation names them; and
+`semgrep scan --config <the project's .semgrep.yml|.semgrep.yaml|.semgrep/>
+--json --metrics=off` when semgrep is installed and the project has its own
+rules (registry rules are never downloaded). Commands that run the project's
+code need execution trust: without it they are left out and `checks.reason`
+says so, and a command whose trust was revoked before it ran is `skipped`.
+Commands run in a temporary copy of the project, one at a time, each with the
+check time limit. `run.checks` records each check's state (`passed`, `failed`,
+`skipped`, `canceled`, `unavailable`), the issues it reported (at most 50 per
+command) and sanitized output. Lint diagnostics become `lint` issues on their
+file and line (go vet, gcc/clang, ruff, flake8, mypy, rubocop, eslint, tsc,
+rustc/clippy formats); failing tests become `test` issues on the file and line
+the output points at; semgrep matches become `semgrep` issues; files over their
+code budgets become `rules` issues. A source whose commands all ran closes the
+issues it no longer reports; a failing command whose output names no place is
+one issue for the command. The plan is not part of `queue_id`.
+
 `queue_id` binds project/revision, policy, provider fingerprints, ordered file/hash
 and stage identities, exclusions, refresh choice and limits. Effective provider
 identity includes scope, model, origin, reasoning, context/timeout/retry settings
@@ -451,7 +470,8 @@ provider. This intent is limited to the displayed admitted work; it is consumed
 when start/resume is attempted, is never saved in a run, and cannot survive restart
 or authorize a changed provider/project. Pause/cancel do not carry confirmations.
 Scope-specific existing consent rules remain enforced before each provider dispatch.
-The run never invokes tests, vet, benchmarks, exploits or suggested shell commands.
+Model stages never invoke tests, vet, benchmarks, exploits or suggested shell
+commands; only the planned checks run commands, as described above.
 
 ### Retired workflows
 
@@ -734,7 +754,7 @@ same fields but no move).
 
 Each `update` event of `/api/projects/current/events` carries a JSON `Event`:
 `kind` (`workflow`, `project_index`, `analysis`, `findings`, `docs`,
-`scan`, `configuration`, `agent_settings` or `agent_run`) and, for workflows, `session_id`,
+`configuration`, `agent_settings` or `agent_run`) and, for workflows, `session_id`,
 `workflow_id`, the task `title`, the `stage` that moved (`create`, `test`,
 `review`, `human_review`; empty when the run ended), the workflow `status`, and
 the run's `usage` and `cost` so far. Clients reload only the named task.
@@ -1255,7 +1275,7 @@ provider and `clear_api_key: true` removes it. The result is validated on top
 of the daemon's configuration (400 with the field and reason), written `0600`
 with the file listed in `.mini-orca/.gitignore`, and applied at once; other keys
 of an existing file and their comments are kept. A running analysis, agent
-run, Go scan or worktree work returns 409 naming it. Saving resets the agent
+run or worktree work returns 409 naming it. Saving resets the agent
 overrides of `…/agent-settings` and then reports `overrides_reset: true`. A `configuration` event
 announces every applied change. `…/setup/skip` records the choice in
 `.mini-orca/setup.json`. `…/setup/timeouts` takes `timeouts` alone, writes

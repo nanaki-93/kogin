@@ -14,6 +14,7 @@ import { SECTION_LABELS, STAGES, failureGroups, fileFindings, filterFiles, forma
 import { Badge, Button, Callout, EmptyState, Input, Progress, Segmented, Skeleton, Tip, cx } from '@/components/ui';
 import { ConfigSource } from '@/features/settings/ConfigSource';
 import { AgentSettingsNotice } from '@/features/settings/AgentSettingsNotice';
+import { RunChecks } from '@/features/analysis/RunChecks';
 
 const FILE_PAGE = 200;
 
@@ -145,6 +146,7 @@ function RunDashboard({ run, coverage }: { run: AnalysisRunSummary; coverage?: R
           </section>
         ))}
       </div>
+      <RunChecks checks={run.checks} />
       <ModelsUsed run={run} />
       <FileTable files={files} />
     </>

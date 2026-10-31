@@ -5,7 +5,7 @@
 import { useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage, query, withWorktree } from '@/api/client';
-import type { AgentPreferences, AgentSettings, AnalysisFileSelection, AskAnswer, AnalysisRunSummary, ProjectSetup, SetupModel, SetupModelTest, SetupScope, SetupTimeouts, ChangeHistoryEntry, ChangeMutationResult, ChangeOpened, ChangeReanalysis, ChangeSession, DocsRefresh, ExecutionTrust, Finding, FindingTarget, GitMutationResult, GitWorkspace, IssueTaskDraft, MergeChecks, GitWorktree, LoadedSession, MergePreview, Model, ModelsCurrent, Project } from '@/api/types';
+import type { AgentPreferences, AgentSettings, AnalysisChecksPlan, AnalysisFileSelection, AskAnswer, AnalysisRunSummary, ProjectSetup, SetupModel, SetupModelTest, SetupScope, SetupTimeouts, ChangeHistoryEntry, ChangeMutationResult, ChangeOpened, ChangeReanalysis, ChangeSession, DocsRefresh, ExecutionTrust, Finding, FindingTarget, GitMutationResult, GitWorkspace, IssueTaskDraft, MergeChecks, GitWorktree, LoadedSession, MergePreview, Model, ModelsCurrent, Project } from '@/api/types';
 import { useFeedback } from '@/components/overlays';
 import { canOverrideReview, changeIdentity, openComments, proposalReadiness, workflowActive } from '@/lib/readiness';
 import { changeOverlaps, mergeRequest, runStartOptions, workflowDestinations, workflowRequest, worktreeRemovable, worktreeTasks } from '@/lib/workflow';
@@ -15,6 +15,7 @@ import { forgetCheckouts, openWorkspace } from '@/app/checkout';
 import { mergeToCheck, runMergeChecks } from '@/app/mergeChecks';
 import { commentsBrief, isTestPath, plural, unique } from '@/lib/util';
 import { RunStartChoice } from '@/components/domain';
+import { ChecksPlanNote } from '@/features/analysis/RunChecks';
 import { keys } from '@/api/hooks';
 
 // ------------------------------------------------------------------ busy state
@@ -89,6 +90,8 @@ interface AnalysisPreview {
   max_model_requests?: number;
   /** The docs refresh that ends the run: its own bound on requests. */
   docs?: { max_model_requests?: number };
+  /** The project checks after the files: the commands they run. */
+  checks?: AnalysisChecksPlan;
   security_review_intent_required?: boolean;
 }
 
@@ -676,7 +679,12 @@ export function useActions() {
         const docs = docsRequests ? `, then summarizes again the docs' components whose files changed (up to ${plural(docsRequests, 'more request')})` : '';
         const ok = await confirm({
           title: resume ? 'Resume the analysis?' : options.retryFailed ? 'Retry failed analysis?' : 'Analyze the project?',
-          body: `${what} ${plural(files.length - kept, 'file')} (up to ${preview.max_model_requests ?? 0} model requests) for bugs, performance and security${docs}.${kept ? ` The other ${plural(kept, 'file')} keep their saved results.` : ''}${security ? ' Includes an AI security review.' : ''}${remote.length ? ` Sends bounded source context to ${remote.join(', ')}.` : ''}`,
+          body: (
+            <div className="stack">
+              <p>{`${what} ${plural(files.length - kept, 'file')} (up to ${preview.max_model_requests ?? 0} model requests) for bugs, performance and security${docs}.${kept ? ` The other ${plural(kept, 'file')} keep their saved results.` : ''}${security ? ' Includes an AI security review.' : ''}${remote.length ? ` Sends bounded source context to ${remote.join(', ')}.` : ''}`}</p>
+              <ChecksPlanNote plan={preview.checks} />
+            </div>
+          ),
           confirmLabel: resume ? 'Resume' : 'Analyze',
         });
         if (!ok) return;

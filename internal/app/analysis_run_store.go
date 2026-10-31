@@ -37,6 +37,11 @@ func cloneAnalysisPreview(plan AnalysisRunPreview) AnalysisRunPreview {
 		docs := *plan.Docs
 		copy.Docs = &docs
 	}
+	if plan.Checks != nil {
+		checks := *plan.Checks
+		checks.Commands = append([]AnalysisCheckCommand{}, plan.Checks.Commands...)
+		copy.Checks = &checks
+	}
 	copy.Files = append([]AnalysisPlannedFile{}, plan.Files...)
 	for i := range copy.Files {
 		copy.Files[i].Stages = append([]AnalysisStagePlan{}, plan.Files[i].Stages...)
@@ -65,6 +70,11 @@ func cloneAnalysisRun(run *AnalysisRun) *AnalysisRun {
 	if run.Docs != nil {
 		docs := *run.Docs
 		copy.Docs = &docs
+	}
+	if run.Checks != nil {
+		checks := *run.Checks
+		checks.Checks = append([]AnalysisCheckResult{}, run.Checks.Checks...)
+		copy.Checks = &checks
 	}
 	copy.Plan = cloneAnalysisPreview(run.Plan)
 	copy.Files = append([]AnalysisRunFile{}, run.Files...)
@@ -225,7 +235,7 @@ func analysisMetadataReason(value string) bool {
 	}
 	switch value {
 	case "The provider rejected the Performance response format.", analysisSelectionExclusion, analysisRetryExclusion, analysisRecoveryExclusion, analysisStaleExclusion, analysisStalePathExclusion, "", "Excluded by source policy.", "Not a supported text source file.", "Source exceeds analyzer size limits.", "Not eligible for semantic source analysis.",
-		noRulePackReason, legacyNoRulePackReason, "The model for this stage is not configured.",
+		noRulePackReason, legacyNoRulePackReason, checksUntrustedReason, checksCopyReason, "The model for this stage is not configured.",
 		"Analysis stage could not complete.", "The stage needs an additional attempt allowance.", "The file is not eligible for this source analysis.",
 		"The report contains incomplete evidence; review its details.",
 		"Analysis canceled by the user.", "Analysis paused by the user.", "The batch limit was reached; resume to continue pending files.",
@@ -263,6 +273,9 @@ func validateStoredAnalysisRun(run *AnalysisRun) error {
 		return err
 	}
 	if err := validateStoredAnalysisFeatures(run); err != nil {
+		return err
+	}
+	if err := validateStoredAnalysisChecks(run); err != nil {
 		return err
 	}
 	if err := validateStoredAnalysisDocs(run); err != nil {

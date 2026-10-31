@@ -23,6 +23,9 @@ test('the dashboard explains a failed run and retries only what failed', async (
 
   await expect(page.getByRole('region', { name: 'Models used' })).toContainText('local-bug-model');
   await expect(page.getByRole('region', { name: 'Bugs results' })).toContainText('2 findings');
+  const checks = page.getByRole('region', { name: 'Checks' });
+  await expect(checks).toContainText('3 issues');
+  await expect(checks.getByRole('listitem').filter({ hasText: 'go test ./...' })).toContainText('2 issuesfailed');
 
   await failures.getByRole('button', { name: 'Show failed files' }).click();
   const files = page.getByRole('region', { name: 'Files' });
@@ -38,6 +41,8 @@ test('the dashboard explains a failed run and retries only what failed', async (
   const dialog = page.getByRole('alertdialog');
   await expect(dialog).toContainText('Retries the failed, stale and canceled stages of 2 files');
   await expect(dialog).toContainText('The other 2 files keep their saved results.');
+  await expect(dialog).toContainText('Then checks the parser diagnostics and the AGENTS.md code budgets of every file');
+  await expect(dialog.getByRole('listitem').filter({ hasText: 'tests: web' })).toContainText('npm test');
   await dialog.getByRole('button', { name: 'Analyze' }).click();
   await expect(page.getByText('Analysis started.')).toBeVisible();
   const [preview] = daemon.mutations('/analysis/preview');

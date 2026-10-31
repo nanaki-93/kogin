@@ -13,7 +13,7 @@ import (
 
 func TestProjectExecutionTrustDeniesCommandsUntilExplicitlyConfirmed(t *testing.T) {
 	root := t.TempDir()
-	writeGoScanFixture(t, root)
+	writeGoFixture(t, root)
 	manager, err := project.NewManager(root)
 	if err != nil {
 		t.Fatal(err)
@@ -33,8 +33,8 @@ func TestProjectExecutionTrustDeniesCommandsUntilExplicitlyConfirmed(t *testing.
 	if err != nil || trust.Trusted || len(trust.Commands) != 2 || strings.Join(trust.Commands[0], " ") != "go test ./..." || strings.Join(trust.Commands[1], " ") != "go vet ./..." {
 		t.Fatalf("initial trust = %+v, %v", trust, err)
 	}
-	if _, err := service.StartGoScan(context.Background(), analysis.ProjectRevision); err == nil || !strings.Contains(err.Error(), "trusted local execution") {
-		t.Fatalf("untrusted scan error = %v", err)
+	if err := service.requireProjectExecutionTrust(context.Background(), analysis.ProjectRevision); err == nil || !strings.Contains(err.Error(), "trusted local execution") {
+		t.Fatalf("untrusted execution error = %v", err)
 	}
 	if _, err := service.TrustProjectExecution(context.Background(), analysis.ProjectRevision, false); err == nil {
 		t.Fatal("denied confirmation authorized project execution")
@@ -57,13 +57,13 @@ func TestProjectExecutionTrustDeniesCommandsUntilExplicitlyConfirmed(t *testing.
 	if err != nil || revoked.Trusted {
 		t.Fatalf("revoked execution trust = %+v, %v", revoked, err)
 	}
-	if _, err := service.StartGoScan(context.Background(), analysis.ProjectRevision); err == nil || !strings.Contains(err.Error(), "trusted local execution") {
-		t.Fatalf("revoked scan error = %v", err)
+	if err := service.requireProjectExecutionTrust(context.Background(), analysis.ProjectRevision); err == nil || !strings.Contains(err.Error(), "trusted local execution") {
+		t.Fatalf("revoked execution error = %v", err)
 	}
 }
 
 func TestProjectExecutionTrustRebindsAfterReindex(t *testing.T) {
-	service, _, _ := newGoScanService(t, map[string]string{"go.mod": "module fixture\n\ngo 1.22\n", "main.go": "package fixture\n"})
+	service, _, _ := newTrustedService(t, map[string]string{"go.mod": "module fixture\n\ngo 1.22\n", "main.go": "package fixture\n"})
 	if _, err := service.Reindex(); err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestProjectExecutionTrustRebindsAfterReindex(t *testing.T) {
 }
 
 func TestProjectCodeProcessRechecksTheOriginalRevisionAtStart(t *testing.T) {
-	service, root, originalRevision := newGoScanService(t, map[string]string{"go.mod": "module fixture\n\ngo 1.22\n", "main.go": "package fixture\n"})
+	service, root, originalRevision := newTrustedService(t, map[string]string{"go.mod": "module fixture\n\ngo 1.22\n", "main.go": "package fixture\n"})
 	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package fixture\n\nfunc Changed() {}\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestProjectCodeProcessRechecksTheOriginalRevisionAtStart(t *testing.T) {
 	}
 }
 
-func writeGoScanFixture(t *testing.T, root string) {
+func writeGoFixture(t *testing.T, root string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module fixture\n\ngo 1.22\n"), 0600); err != nil {
 		t.Fatal(err)

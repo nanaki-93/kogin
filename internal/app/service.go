@@ -76,7 +76,6 @@ type Service struct {
 	changeWorkflow                  changeWorkflowController
 	analysisRun                     *analysisRunController
 	writeAnalysisRun                func(string, []byte, os.FileMode) error
-	goScan                          *goScanController
 	executionTrust                  *executionTrustStore
 	checkBaselines                  checkBaselines
 	events                          *eventBroker
@@ -109,7 +108,6 @@ func New(cfg *config.Config, manager *project.Manager) (*Service, error) {
 		manager:                 manager,
 		changeAuthority:         make(map[string]string),
 		analysisRun:             &analysisRunController{},
-		goScan:                  newGoScanController(),
 		executionTrust:          newExecutionTrustStore(),
 		events:                  newEventBroker(),
 		buildDeclarationContext: contextBuilder.BuildFunctionWithManifest,

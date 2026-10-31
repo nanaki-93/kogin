@@ -11,7 +11,7 @@ import (
 )
 
 func TestProjectOverviewSeparatesFindingSourcesAndKeepsMissingAnalysisUseful(t *testing.T) {
-	service, root, revision := newGoScanService(t, map[string]string{"go.mod": "module fixture\n\ngo 1.22\n", "main.go": "package fixture\nfunc Run() {}\n"})
+	service, root, revision := newTrustedService(t, map[string]string{"go.mod": "module fixture\n\ngo 1.22\n", "main.go": "package fixture\nfunc Run() {}\n"})
 	manager := service.manager
 	analysis, err := manager.Analysis()
 	if err != nil {

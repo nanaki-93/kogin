@@ -684,7 +684,7 @@ paths:
         - {$ref: '#/components/parameters/ProjectRevision'}
         - name: source
           in: query
-          schema: {type: string, enum: [ai, parser, vet, test, rules, security_rules]}
+          schema: {type: string, enum: [ai, parser, vet, test, lint, semgrep, rules, security_rules]}
         - name: confidence
           in: query
           schema: {type: string, enum: [suggested, tool_reported]}
@@ -757,46 +757,12 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/scan:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    get:
-      tags: [Projects]
-      summary: Read explicit Go scan progress from a temporary copied workspace
-      parameters:
-        - {$ref: '#/components/parameters/ProjectRevision'}
-      responses:
-        '200': {description: Source-free workspace preparation, parser, vet, and test progress; bounded workspace failures include sanitized evidence, content: {application/json: {schema: {$ref: '#/components/schemas/GoScanReport'}}}}
-        '204': {description: No verified scan exists for this project revision.}
-        '404': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-    post:
-      tags: [Projects]
-      summary: Explicitly start a Go verified scan in a temporary copied workspace
-      requestBody:
-        required: true
-        content: {application/json: {schema: {$ref: '#/components/schemas/GoScanRequest'}}}
-      responses:
-        '202': {description: Scan started, content: {application/json: {schema: {$ref: '#/components/schemas/GoScanReport'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '404': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-    delete:
-      tags: [Projects]
-      summary: Cancel the active temporary-workspace Go scan
-      parameters:
-        - {$ref: '#/components/parameters/ProjectRevision'}
-      responses:
-        '200': {description: Cancellation requested; completed phases remain available, content: {application/json: {schema: {$ref: '#/components/schemas/GoScanReport'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '404': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/events:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
     get:
       tags: [Projects]
-      summary: Stream Server-Sent Events (SSE) for project analysis, scan, reindex and workflow progress
+      summary: Stream Server-Sent Events (SSE) for project analysis, reindex and workflow progress
       responses:
         '200':
           description: Server-Sent Events stream of ready and update notifications; each update's data is an Event.
@@ -1514,7 +1480,7 @@ components:
       properties:
         id: {type: string}
         category: {type: string, enum: [bugs, performance, security, maintainability], description: A FindingCategory; maintainability is used only by the rules source.}
-        source: {type: string, enum: [ai, parser, vet, test, rules, security_rules], description: 'rules marks a file a task found already over its AGENTS.md budgets (category maintainability); one finding per file, refreshed by later tasks and kept across analysis runs. security_rules marks a deterministic security rule match (category security, tool_reported). ai includes the semantic, Performance and Security AI stages; their originating_analysis is file, performance or security.'}
+        source: {type: string, enum: [ai, parser, vet, test, lint, semgrep, rules, security_rules], description: 'rules marks a file over its AGENTS.md code budgets (category maintainability), one finding per file, found by task checks and by every analysis run''s checks, which close it once the file is back within budget. lint marks a lint diagnostic (category maintainability), test a failing test (category bugs), parser a parser diagnostic, semgrep a match of the project''s own semgrep rules (category security when the rule names a CWE or the security category); the checks of each analysis run report them. vet marks go vet failures of the retired Go scan; lint closes them. security_rules marks a deterministic security rule match (category security, tool_reported). ai includes the semantic, Performance and Security AI stages; their originating_analysis is file, performance or security.'}
         confidence: {type: string, enum: [suggested, tool_reported]}
         severity: {type: string, enum: [low, medium, high]}
         title: {type: string}
@@ -1552,22 +1518,6 @@ components:
       properties:
         project_revision: {type: string}
         status: {type: string, enum: [open, dismissed, fixed]}
-    GoScanRequest:
-      type: object
-      required: [project_revision]
-      properties:
-        project_revision: {type: string}
-    GoScanReport:
-      type: object
-      required: [project_id, project_revision, status, started_at, updated_at, phases]
-      properties:
-        project_id: {type: string}
-        project_revision: {type: string}
-        status: {type: string, enum: [running, completed, canceled, failed]}
-        started_at: {type: string, format: date-time}
-        updated_at: {type: string, format: date-time}
-        completed_at: {type: string, format: date-time}
-        phases: {type: array, items: {$ref: '#/components/schemas/GoScanPhase'}}
     ExecutionTrustRequest:
       type: object
       required: [project_revision, confirm]
@@ -1583,17 +1533,8 @@ components:
         trusted: {type: boolean, description: Remembered consent for this canonical project path, validated against the current revision and workspace. Revoked consent remains revoked after restart.}
         commands:
           type: array
-          description: Exact argv vectors for this requested scan or task-test action; gofmt and go vet are source-only and omitted.
+          description: Exact argv vectors for this requested check or task-test action; gofmt and go vet are source-only and omitted.
           items: {type: array, items: {type: string}}
-    GoScanPhase:
-      type: object
-      required: [name, state]
-      properties:
-        name: {type: string, enum: [workspace, parse, vet, tests]}
-        state: {type: string, enum: [passed, failed, canceled]}
-        command: {type: array, items: {type: string}}
-        output: {type: string, description: Sanitized and bounded output.}
-        exit_code: {type: integer}
     FileInfo:
       type: object
       properties:
@@ -2027,6 +1968,7 @@ components:
         models: {$ref: '#/components/schemas/AnalysisModels'}
         features: {$ref: '#/components/schemas/AnalysisFeaturePlan', description: Only in runs saved before feature discovery was retired.}
         docs: {$ref: '#/components/schemas/AnalysisDocsPlan'}
+        checks: {$ref: '#/components/schemas/AnalysisChecksPlan'}
         schema_version: {type: string, enum: ['1']}
         preview_id: {type: string, minLength: 1, description: Admission fingerprint including remaining work, cache dispositions and request bounds.}
         identity: {$ref: '#/components/schemas/AnalysisQueueIdentity'}
@@ -2122,6 +2064,7 @@ components:
       properties:
         features: {$ref: '#/components/schemas/AnalysisFeatureProgress', description: Only in runs saved before feature discovery was retired; such a run cannot resume.}
         docs: {$ref: '#/components/schemas/DocsRefresh'}
+        checks: {$ref: '#/components/schemas/AnalysisChecks'}
         schema_version: {type: string, enum: ['1']}
         identity: {$ref: '#/components/schemas/AnalysisRunIdentity'}
         plan: {$ref: '#/components/schemas/AnalysisRunPreview'}
@@ -2155,6 +2098,44 @@ components:
         components: {type: integer, minimum: 0, maximum: 16, description: Components the docs show.}
         max_model_requests: {type: integer, minimum: 0, description: 'At most one request per component and one for the overview, each with its retries; zero when the analyze model is not configured.'}
         reason: {type: string}
+    AnalysisChecksPlan:
+      type: object
+      required: [commands]
+      description: 'The project checks, run once after the files and before the docs: every file''s parser diagnostics and AGENTS.md code budgets, each subproject''s lint and tests from its toolchain profile when the project lets checks run its code, and semgrep with the project''s own rules (.semgrep.yml, .semgrep.yaml or .semgrep/) when semgrep is installed. They run in a copy of the project and make no model requests.'
+      properties:
+        commands:
+          type: array
+          maxItems: 64
+          items:
+            type: object
+            required: [name, kind, command]
+            properties:
+              name: {type: string, description: '"lint", "tests: web", "semgrep".'}
+              kind: {type: string, enum: [lint, test, semgrep]}
+              dir: {type: string, description: The subproject directory the command runs in; empty for the root.}
+              command: {type: array, items: {type: string}, description: The argument list; never run through a shell.}
+        reason: {type: string, description: Why commands that run the project's code are left out.}
+    AnalysisChecks:
+      type: object
+      required: [status, checks, issues, at]
+      description: What the checks did. Each source whose commands all ran closes the issues it no longer reports.
+      properties:
+        status: {type: string, enum: [completed, canceled, failed]}
+        checks:
+          type: array
+          items:
+            type: object
+            required: [name, state, issues]
+            properties:
+              name: {type: string, description: 'parse, code budgets, or a planned command''s name.'}
+              command: {type: array, items: {type: string}}
+              state: {type: string, enum: [passed, failed, skipped, canceled, unavailable]}
+              issues: {type: integer, minimum: 0, description: 'Issues it reported, at most 50 per command.'}
+              output: {type: string, description: Sanitized and bounded output.}
+              duration_ms: {type: integer, format: int64}
+        issues: {type: integer, minimum: 0}
+        reason: {type: string}
+        at: {type: string, format: date-time}
     AskRequest:
       type: object
       additionalProperties: false
@@ -2248,7 +2229,7 @@ components:
       type: object
       required: [kind]
       properties:
-        kind: {type: string, enum: [workflow, project_index, analysis, findings, docs, scan, configuration, agent_settings, agent_run]}
+        kind: {type: string, enum: [workflow, project_index, analysis, findings, docs, configuration, agent_settings, agent_run]}
         session_id: {type: string}
         workflow_id: {type: string}
         title: {type: string}
