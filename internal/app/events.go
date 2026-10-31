@@ -73,9 +73,19 @@ func (s *Service) notifyEvent(kind string) {
 	s.publishEvent(Event{Kind: kind})
 }
 
+// publishEvent tells this checkout's listeners. A task's progress in a
+// worktree is also told to the active project's listeners, the only ones the
+// Web UI has: without it, a task in its own worktree reached human review
+// unnoticed until something else refreshed the page.
 func (s *Service) publishEvent(event Event) {
-	if s != nil && s.events != nil {
+	if s == nil {
+		return
+	}
+	if s.events != nil {
 		s.events.publish(event)
+	}
+	if s.owner != nil && event.Kind == "workflow" {
+		s.owner.publishEvent(event)
 	}
 }
 

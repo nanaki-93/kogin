@@ -769,6 +769,8 @@ Each `update` event of `/api/projects/current/events` carries a JSON `Event`:
 `workflow_id`, the task `title`, the `stage` that moved (`create`, `test`,
 `review`, `human_review`; empty when the run ended), the workflow `status`, and
 the run's `usage` and `cost` so far. Clients reload only the named task.
+Workflow events of a task in its own worktree are also published on the active
+project's stream, which is the one clients listen to.
 
 A workflow charges what its budget spent to the stage that was running, across
 attempts: each stage of `workflow.stages` has `usage` and, on read, a `cost`

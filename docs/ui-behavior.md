@@ -110,6 +110,8 @@ every guard when the action arrives.
   the task is deleted and its linked issues are dismissed; the task list opens.
   The model's reason is shown either way. **Fix with agents** links the task to
   its issue so this, Apply & commit and merging update the issue.
+- **Live progress.** A task's stages and the end of its run update the page and
+  the task lists as they happen, in its own worktree as in the main checkout.
 
 ## Review and apply
 
