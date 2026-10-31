@@ -76,7 +76,8 @@ func (s *Service) requestAnalysisModel(ctx context.Context, runtime modelRuntime
 	return s.retryRequestAuthorized(ctx, runtime, messages, schema, dispatch.beforeAttempt)
 }
 
-// Reuse the same one-shot publication rule for standalone and coordinated reports.
+// publishAnalysisReport stores a stage's report once, under the run's
+// publication authority; without one it stores directly.
 func publishAnalysisReport(store func() error, authorize func(func() error) error) error {
 	if authorize == nil {
 		return store()

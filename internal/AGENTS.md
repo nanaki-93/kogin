@@ -16,7 +16,7 @@ the backend guide for changes to `cmd/`.
   packages (`internal/project/diff`, `internal/project/symbols`, `internal/project/insight`,
   `internal/project/handbook`, `internal/project/securityrules`;
   `internal/app/archgate`, `internal/app/sandbox`, `internal/app/changes`,
-  `internal/app/gitops`, `internal/app/features`).
+  `internal/app/gitops`, `internal/app/toolserver`).
   Subpackages must respect the acyclic import rules declared in the root `AGENTS.md`
   and enforced by `internal/app/archgate`.
 - Keep ADK imports in `internal/app/agentruntime`; pass admitted host operations
