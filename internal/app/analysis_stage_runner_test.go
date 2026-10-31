@@ -2,121 +2,20 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
 
 var analysisTestStages = []AnalysisStage{AnalysisStageSemantic, AnalysisStagePerformance, AnalysisStageSecurityRules, AnalysisStageSecurityAI}
-
-func analysisStageRequestFor(t *testing.T, s *Service, path string, stage AnalysisStage) analysisFileStageRequest {
-	t.Helper()
-	analysis, err := s.manager.Analysis()
-	if err != nil {
-		t.Fatal(err)
-	}
-	file, err := s.manager.IndexedFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return analysisFileStageRequest{Run: AnalysisRunIdentity{AnalysisQueueIdentity: AnalysisQueueIdentity{ProjectID: analysis.ProjectID, ProjectRevision: analysis.ProjectRevision, PolicyFingerprint: "policy", ProviderFingerprint: "providers", QueueID: "queue"}, ID: "run", Generation: "generation"}, File: AnalysisFileIdentity{Path: file.Path, ContentHash: file.ContentHash, Language: file.Language}, Stage: stage, RemainingAttempts: 2, SecurityReview: true}
-}
-
-func analysisStageAuthorityFor(t *testing.T, request analysisFileStageRequest) analysisFileStageAuthority {
-	t.Helper()
-	var mu sync.Mutex
-	check := func(run AnalysisRunIdentity, file AnalysisFileIdentity, stage AnalysisStage) error {
-		if run != request.Run || file != request.File || stage != request.Stage {
-			return project.ErrRevisionConflict
-		}
-		return nil
-	}
-	return analysisFileStageAuthority{
-		Check: func(ctx context.Context, run AnalysisRunIdentity) error {
-			mu.Lock()
-			defer mu.Unlock()
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			if run != request.Run {
-				return project.ErrRevisionConflict
-			}
-			return nil
-		},
-		BeforeAttempt: func(ctx context.Context, run AnalysisRunIdentity, file AnalysisFileIdentity, stage AnalysisStage) error {
-			mu.Lock()
-			defer mu.Unlock()
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			return check(run, file, stage)
-		},
-		Publish: func(run AnalysisRunIdentity, file AnalysisFileIdentity, stage AnalysisStage, write func() error) error {
-			mu.Lock()
-			defer mu.Unlock()
-			if err := check(run, file, stage); err != nil {
-				return err
-			}
-			return write()
-		},
-	}
-}
-
-func analysisReply(stage AnalysisStage) string {
-	switch stage {
-	case AnalysisStageSemantic:
-		return strings.Replace(validSemanticAnalysis, `"risks":[]`, `"risks":[{"category":"bugs","severity":"low","summary":"A conditional correctness concern."},{"category":"security","severity":"high","summary":"A conditional trust-boundary concern."}]`, 1)
-	case AnalysisStagePerformance:
-		return validPerformanceReview
-	default:
-		return validSecurityReview
-	}
-}
-
-func analysisResponseServer(t *testing.T, reply func(AnalysisStage) string) (*httptest.Server, *atomic.Int32) {
-	t.Helper()
-	return analysisModelResponseServer(t, "", reply)
-}
-
-func analysisModelResponseServer(t *testing.T, model string, reply func(AnalysisStage) string) (*httptest.Server, *atomic.Int32) {
-	t.Helper()
-	calls := &atomic.Int32{}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var request llm.ChatRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil || len(request.Messages) == 0 {
-			http.Error(w, "invalid fixture request", 400)
-			return
-		}
-		// The docs refresh at a run's end is answered here but not counted:
-		// the tests count the analysis stages' requests.
-		if reply, ok := docsRefreshReply(request); ok {
-			_ = json.NewEncoder(w).Encode(llm.ChatResponse{Model: model, Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Role: "assistant", Content: reply}, FinishReason: "stop"}}})
-			return
-		}
-		stage := AnalysisStageSecurityAI
-		if strings.HasPrefix(request.Messages[0].Content, "You summarize") {
-			stage = AnalysisStageSemantic
-		}
-		if strings.HasPrefix(request.Messages[0].Content, "Review exactly one supplied") {
-			stage = AnalysisStagePerformance
-		}
-		calls.Add(1)
-		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Model: model, Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Role: "assistant", Content: reply(stage)}, FinishReason: "stop"}}})
-	}))
-	t.Cleanup(server.Close)
-	return server, calls
-}
 
 func TestAnalysisFileStagesReuseCachesAndKeepProducerEvidenceDistinct(t *testing.T) {
 	server, calls := analysisResponseServer(t, analysisReply)
