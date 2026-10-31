@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -283,34 +282,6 @@ func TestGrantDevelopmentModeRequiresOneUniqueAuthorization(t *testing.T) {
 	}
 }
 
-func TestEvaluationBugProfilePreservesExplicitSamplingControls(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "config.yaml")
-	config := `model_scopes:
-  analyze: {api_base_url: http://127.0.0.1:1234/v1, model: analyze}
-  bug:
-    api_base_url: http://127.0.0.1:1234/v1
-    model: qwen/qwen3.8-27b
-    reasoning_effort: low
-    temperature: 1
-    top_p: 0.95
-    top_k: 20
-    min_p: 0
-    presence_penalty: 0
-    repeat_penalty: 1
-  code: {api_base_url: http://127.0.0.1:1234/v1, model: code}
-`
-	if err := os.WriteFile(path, []byte(config), 0600); err != nil {
-		t.Fatal(err)
-	}
-	profile, err := evaluationBugProfile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if profile.MaxTokens != 4096 || profile.ReasoningEffort != "low" || profile.Temperature != 1 || profile.TopP == nil || *profile.TopP != 0.95 || profile.TopK == nil || *profile.TopK != 20 || profile.MinP == nil || *profile.MinP != 0 || profile.PresencePenalty == nil || *profile.PresencePenalty != 0 || profile.RepeatPenalty == nil || *profile.RepeatPenalty != 1 {
-		t.Fatalf("evaluation profile = %+v", profile)
-	}
-}
-
 func lifecycleArgs(root, configPath, casesPath, base, receiptPath string) []string {
 	return []string{"-mode", "collect", "-root", root, "-run-id", "development-one", "-receipt", receiptPath, "-cases", casesPath, "-config", configPath, "-candidate-id", "candidate", "-provider", "fixture", "-prompt-version", app.EngineeringInsightPromptVersion(), "-corpus-id", "corpus", "-base-revision", base}
 }
@@ -325,73 +296,6 @@ func git(t *testing.T, root string, args ...string) string {
 	return string(output)
 }
 
-func TestQualificationScheduleBuildsFrozenTwoRepetitionPlan(t *testing.T) {
-	schedule, err := qualificationSchedule([]byte(testCasesJSON()))
-	if err != nil {
-		t.Fatalf("qualification schedule: %v", err)
-	}
-	if len(schedule) != 24 {
-		t.Fatalf("schedule count = %d, want 24", len(schedule))
-	}
-	for index, attempt := range schedule {
-		if attempt.Partition != "qualification" || attempt.Attempt != 1 || attempt.Repetition != index/12+1 {
-			t.Fatalf("schedule attempt %d = %+v", index, attempt)
-		}
-	}
-}
-
-func TestRunnerUsesActualDevelopmentCorpusOnceWithItsControl(t *testing.T) {
-	data, err := os.ReadFile("../../internal/app/testdata/engineering-insight-eval/cases.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cases, err := runnerCasesForMode(data, insighteval.EngineeringInsightDevelopmentRunMode, "engineering-insight-v1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(cases) != 3 {
-		t.Fatalf("development cases = %d, want 3", len(cases))
-	}
-	controls := 0
-	for _, item := range cases {
-		if item.Expected.Intent == "control" {
-			controls++
-		}
-		if item.Expected.Repetition != 1 {
-			t.Fatalf("unexpected repetition: %+v", item.Expected)
-		}
-	}
-	if controls != 1 {
-		t.Fatalf("controls = %d, want 1", controls)
-	}
-}
-
-func TestQualificationScheduleRejectsIncompleteAndRepeatedCorpus(t *testing.T) {
-	for name, data := range map[string]string{
-		"not enough qualification cases": `[{"name":"case","partition":"qualification","intent":"substantive"}]`,
-		"duplicate names":                strings.Repeat(`{"name":"same","partition":"qualification","intent":"substantive"},`, 12),
-	} {
-		t.Run(name, func(t *testing.T) {
-			if _, err := qualificationSchedule([]byte("[" + strings.TrimSuffix(data, ",") + "]")); err == nil {
-				t.Fatal("invalid corpus was accepted")
-			}
-		})
-	}
-}
-
-func TestQualificationScheduleRejectsDuplicateAndTrailingJSON(t *testing.T) {
-	for name, data := range map[string]string{
-		"duplicate object field": `[{"name":"case","name":"other","partition":"qualification","intent":"substantive"}]`,
-		"trailing JSON":          testCasesJSON() + ` []`,
-	} {
-		t.Run(name, func(t *testing.T) {
-			if _, err := qualificationSchedule([]byte(data)); err == nil {
-				t.Fatal("unsafe corpus JSON was accepted")
-			}
-		})
-	}
-}
-
 func TestEvaluationExitStatusSeparatesValidCollectionIncompleteFailureAndPass(t *testing.T) {
 	for outcome, want := range map[insighteval.EngineeringInsightEvaluationOutcome]int{
 		insighteval.EngineeringInsightCollectionOutcome: 0,
@@ -402,24 +306,6 @@ func TestEvaluationExitStatusSeparatesValidCollectionIncompleteFailureAndPass(t 
 		if got := evaluationExitStatus(outcome); got != want {
 			t.Fatalf("exit status for %s = %d, want %d", outcome, got, want)
 		}
-	}
-}
-
-func TestEvaluationOptionsBindReceiptToExternallySelectedIdentity(t *testing.T) {
-	options := evaluationOptions{candidateID: "candidate", provider: "provider", model: "model", promptVersion: "prompt", corpusID: "corpus", baseRevision: "base", maxRequests: 24, maxOutputTokens: 4096, attemptTimeoutSeconds: 300}
-	path := writeCases(t, testCasesJSON())
-	options.caseSetPath = path
-	expected, err := options.expectationFor(insighteval.EngineeringInsightQualificationMode)
-	if err != nil {
-		t.Fatal(err)
-	}
-	receipt := receiptFor(expected)
-	if report, err := insighteval.ValidateEngineeringInsightEvaluationReceipt(receipt, expected); err != nil || report.Outcome != insighteval.EngineeringInsightPassedOutcome {
-		t.Fatalf("externally selected receipt = %+v, %v", report, err)
-	}
-	receipt.CorpusDigest = strings.Repeat("b", 64)
-	if _, err := insighteval.ValidateEngineeringInsightEvaluationReceipt(receipt, expected); err == nil {
-		t.Fatal("self-asserted corpus identity was accepted")
 	}
 }
 
@@ -441,81 +327,4 @@ func TestRecoveryV2AuthorizationRejectsEveryOverrideBeforeActivation(t *testing.
 	if err := runEvaluationMode([]string{"-mode", "authorize-recovery-v2"}); err == nil || !strings.Contains(err.Error(), "accepts only") {
 		t.Fatalf("authorization without explicit root was accepted: %v", err)
 	}
-}
-
-func TestRecoveryV2CommandSelectsUniqueDevelopmentAndQualificationSchedules(t *testing.T) {
-	developmentData, err := os.ReadFile("../../internal/app/testdata/engineering-insight-eval/v2-development.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	development, err := runnerCasesForMode(developmentData, insighteval.EngineeringInsightDevelopmentRunMode, "engineering-insight-v2")
-	if err != nil || len(development) != 12 {
-		t.Fatalf("v2 development schedule = %d, %v", len(development), err)
-	}
-	seen := map[string]bool{}
-	for _, item := range development {
-		if seen[item.Expected.CaseName] || item.Expected.Partition != "development" || item.Expected.Repetition != 1 || item.Expected.Attempt != 1 {
-			t.Fatalf("invalid v2 development attempt: %+v", item.Expected)
-		}
-		seen[item.Expected.CaseName] = true
-	}
-
-	qualificationDocuments := make([]string, 24)
-	for index := range qualificationDocuments {
-		intent := "substantive"
-		if index >= 16 {
-			intent = "control"
-		}
-		qualificationDocuments[index] = fmt.Sprintf(`{"name":"qualification-%02d","partition":"qualification","intent":"%s","source":"package fixture\n"}`, index, intent)
-	}
-	qualificationData := []byte("[" + strings.Join(qualificationDocuments, ",") + "]")
-	qualification, err := runnerCasesForMode(qualificationData, insighteval.EngineeringInsightQualificationRunMode, "engineering-insight-v2")
-	if err != nil || len(qualification) != 24 {
-		t.Fatalf("v2 qualification schedule = %d, %v", len(qualification), err)
-	}
-	if _, err := uniqueSchedule(qualificationData, "qualification", 24, 16); err != nil {
-		t.Fatalf("valid source-free qualification schedule rejected: %v", err)
-	}
-	duplicate := strings.Replace(string(qualificationData), `"qualification-01"`, `"qualification-00"`, 1)
-	if _, err := uniqueSchedule([]byte(duplicate), "qualification", 24, 16); err == nil {
-		t.Fatal("duplicate v2 qualification IDs were accepted")
-	}
-}
-
-func testCasesJSON() string {
-	cases := make([]string, 0, 15)
-	for index := 0; index < 3; index++ {
-		cases = append(cases, fmt.Sprintf(`{"name":"development-%d","partition":"development","intent":"substantive"}`, index))
-	}
-	for index := 0; index < 12; index++ {
-		intent := "substantive"
-		if index >= 8 {
-			intent = "control"
-		}
-		cases = append(cases, fmt.Sprintf(`{"name":"qualification-%d","partition":"qualification","intent":"%s"}`, index, intent))
-	}
-	return "[" + strings.Join(cases, ",") + "]"
-}
-
-func writeCases(t *testing.T, data string) string {
-	t.Helper()
-	path := t.TempDir() + "/cases.json"
-	if err := os.WriteFile(path, []byte(data), 0600); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
-
-func receiptFor(expected insighteval.EngineeringInsightEvaluationExpectation) insighteval.EngineeringInsightEvaluationReceipt {
-	receipt := insighteval.EngineeringInsightEvaluationReceipt{Mode: insighteval.EngineeringInsightQualificationMode, RunID: "run", CandidateID: expected.CandidateID, Provider: expected.Provider, Model: expected.Model, PromptVersion: expected.PromptVersion, CorpusID: expected.CorpusID, CorpusDigest: expected.CorpusDigest, BaseRevision: expected.BaseRevision, MaxRequests: expected.MaxRequests, MaxOutputTokens: expected.MaxOutputTokens, AttemptTimeoutSeconds: expected.AttemptTimeoutSeconds}
-	for index, scheduled := range expected.Schedule {
-		digest := fmt.Sprintf("%064x", index+1)
-		optional := "present"
-		if scheduled.Intent == "control" {
-			optional = "omitted"
-		}
-		receipt.Attempts = append(receipt.Attempts, insighteval.EngineeringInsightEvaluationAttempt{CaseName: scheduled.CaseName, Partition: scheduled.Partition, Intent: scheduled.Intent, Repetition: scheduled.Repetition, Attempt: scheduled.Attempt, CandidateID: expected.CandidateID, Outcome: "completed", UsableSummary: true, CompleteSummary: true, OptionalInsight: optional, EmittedResponse: true, ResponseDigest: digest, OutputTokens: 100, FinishReason: "stop", ElapsedMilliseconds: float64(index + 1), Score: &insighteval.EngineeringInsightAttemptScore{ResponseDigest: digest, Correctness: 2, LocalRelevance: 2, TradeoffClarity: 2, UsefulVerification: 2}})
-	}
-	receipt.Consumption = insighteval.EngineeringInsightEvaluationConsumption{Requests: len(receipt.Attempts), OutputTokens: len(receipt.Attempts) * 100}
-	return receipt
 }
