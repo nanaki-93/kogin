@@ -205,6 +205,7 @@
 .phase-passed { color: var(--success); }
 .phase-failed { color: var(--danger); }
 .phase-running { color: var(--info); }
+.phase-waiting { color: var(--warning); }
 .phase-idle { color: var(--faint); }
 
 .count {

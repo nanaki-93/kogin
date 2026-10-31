@@ -3,7 +3,7 @@
 import { formatKeys } from '@/app/shortcuts';
 import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
-import { CheckCircle2, ChevronDown, CircleDashed, CircleDot, Loader2, XCircle, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, ChevronDown, CircleDashed, CircleDot, Hourglass, Loader2, XCircle, type LucideIcon } from 'lucide-react';
 import type { Tone } from '@/lib/util';
 import type { PhaseTone } from '@/lib/readiness';
 
@@ -71,7 +71,7 @@ export function Dot({ tone = 'neutral', pulse }: { tone?: Tone; pulse?: boolean 
   return <span className={cx('dot', `dot-${tone}`, pulse && 'dot-pulse')} aria-hidden />;
 }
 
-const PHASE_ICON: Record<PhaseTone, LucideIcon> = { passed: CheckCircle2, failed: XCircle, running: Loader2, idle: CircleDashed };
+const PHASE_ICON: Record<PhaseTone, LucideIcon> = { passed: CheckCircle2, failed: XCircle, running: Loader2, waiting: Hourglass, idle: CircleDashed };
 
 export function PhaseIcon({ tone, size = 16, label }: { tone: PhaseTone; size?: number; label?: string }) {
   const Icon = PHASE_ICON[tone];

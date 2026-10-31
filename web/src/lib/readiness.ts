@@ -5,14 +5,16 @@
 import type { ChangeComment, ChangeHistoryEntry, ChangeMutationResult, ChangeSession, Check, FileChange, LoadedSession, UndoAvailability } from '@/api/types';
 import type { Tone } from './util';
 
-export type PhaseTone = 'passed' | 'failed' | 'running' | 'idle';
+/** waiting: nothing runs until someone acts (your review, or a plan's reset). */
+export type PhaseTone = 'passed' | 'failed' | 'running' | 'waiting' | 'idle';
 
 /** Normalizes check, stage and verdict states into four display tones. */
 export function phaseTone(raw: string | undefined): PhaseTone {
   const s = (raw ?? '').toLowerCase().trim();
   if (['passed', 'completed', 'completed_empty', 'fresh', 'approve', 'approved', 'checked', 'reviewed', 'applied', 'committed', 'merged', 'verified'].includes(s)) return 'passed';
   if (['failed', 'error', 'rejected', 'changes_requested', 'stale', 'outdated', 'interrupted', 'conflicts', 'blocked'].includes(s)) return 'failed';
-  if (['running', 'in_progress', 'working', 'queued', 'canceling', 'pausing', 'pending_review', 'waiting'].includes(s)) return 'running';
+  if (['waiting', 'awaiting_human_review', 'paused'].includes(s)) return 'waiting';
+  if (['running', 'in_progress', 'working', 'queued', 'canceling', 'pausing', 'pending_review'].includes(s)) return 'running';
   return 'idle';
 }
 
@@ -56,7 +58,10 @@ export interface CheckSummary {
 export function checkSummary(checks: Check[] | undefined, outdated = false): CheckSummary {
   const list = checks ?? [];
   const counts = { total: list.length, passed: 0, failed: 0, running: 0, idle: 0 };
-  for (const check of list) counts[phaseTone(check.state)]++;
+  for (const check of list) {
+    const tone = phaseTone(check.state);
+    counts[tone === 'waiting' ? 'running' : tone]++;
+  }
   const requiredFailed = list.filter(check => check.required && phaseTone(check.state) === 'failed').length;
   const optionalFailed = counts.failed - requiredFailed;
   let label: string;

@@ -94,6 +94,9 @@ describe('review helpers', () => {
     expect(checkSummary([check('a', 'passed')])).toMatchObject({ label: '1/1 passed', tone: 'success' });
     expect(phaseTone(' Approved ')).toBe('passed');
     expect(phaseTone('mystery')).toBe('idle');
+    // Waiting on a person or a plan's reset is not work in progress.
+    expect(['waiting', 'awaiting_human_review', 'paused'].map(phaseTone)).toEqual(['waiting', 'waiting', 'waiting']);
+    expect(phaseTone('running')).toBe('running');
   });
 });
 

@@ -72,7 +72,9 @@ every guard when the action arrives.
   **Write the change again**. Another model can be chosen for the stage in the
   role settings before resuming.
 - **Watch.** The Conversation shows each stage with its model and duration and
-  each specialist's verdict and findings. **Stop agents** asks first and applies
+  each specialist's verdict and findings. A running stage spins; a stage that
+  waits on someone (your review, or a paused stage waiting for a plan's reset)
+  shows a yellow hourglass instead. **Stop agents** asks first and applies
   nothing.
 - **Code rules.** Under the brief, a Code rules card lists each task file with
   budgets from its `AGENTS.md` files: its lines against the file budget, what
