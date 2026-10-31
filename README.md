@@ -15,7 +15,8 @@ guarded **Apply** and **Undo**.
   suggestions. The Docs page maps the code in any language (components, the
   imports between them drawn as a diagram, entry points, manifests and the
   runbook), and each analysis run ends by summarizing again the components
-  whose files changed and writing the project overview from those summaries.
+  whose files changed and writing the project overview from those summaries;
+  coding agents start from the summaries around a task's files.
 - **Change it safely.** A task names what should change, the files agents may
   write (up to eight) and "done when" criteria. A native ADK workflow writes the
   change, writes and runs tests in an isolated copy, and runs parallel specialist

@@ -80,7 +80,8 @@ func (s *Service) runToolAgent(ctx context.Context, root string, session *Change
 	if err != nil {
 		return nil, nil, err
 	}
-	result, runErr := runtime.client.RunAgent(ctx, llm.AgentRun{System: system, Prompt: toolTaskPrompt(root, session, role, message), MCPURL: server.URL, MCPToken: server.Token,
+	prompt := toolTaskPrompt(root, session, role, message, s.docsBrief(changeTargetPaths(session)))
+	result, runErr := runtime.client.RunAgent(ctx, llm.AgentRun{System: system, Prompt: prompt, MCPURL: server.URL, MCPToken: server.Token,
 		Tools: described, MaxTurns: run.limits.calls + 10, ToolTimeout: s.conf().focusedCheckTimeout + 2*time.Minute})
 	server.Close()
 	if runErr != nil && run.finished() == nil {
@@ -112,8 +113,9 @@ func sameWorkflow(a, b *ChangeWorkflow) bool {
 	return a == nil && b == nil || a != nil && b != nil && a.ID == b.ID
 }
 
-// toolTaskPrompt is the task as the agent first reads it.
-func toolTaskPrompt(root string, session *ChangeSession, role toolRole, message string) string {
+// toolTaskPrompt is the task as the agent first reads it; docs is where the
+// task's files sit in the project's docs, when there are docs.
+func toolTaskPrompt(root string, session *ChangeSession, role toolRole, message, docs string) string {
 	var prompt strings.Builder
 	fmt.Fprintf(&prompt, "Task (%s): %s\n\n%s\n", session.Kind, session.Title, strings.TrimSpace(message))
 	if len(session.AcceptanceCriteria) > 0 {
@@ -127,15 +129,13 @@ func toolTaskPrompt(root string, session *ChangeSession, role toolRole, message 
 			prompt.WriteString("\nApproved approach: " + plan + "\n")
 		}
 	}
-	var named []string
-	for _, target := range session.Targets {
-		named = append(named, target.Path)
-	}
+	named := changeTargetPaths(session)
 	if len(named) > 0 {
 		prompt.WriteString("\nFiles the task names (a starting point; change others when the task needs it): " + strings.Join(named, ", ") + "\n")
 	}
 	prompt.WriteString(budgetBrief(root, session.Targets))
 	prompt.WriteString(toolInstructionsBrief(root, named))
+	prompt.WriteString(docs)
 	if len(session.Changes) > 0 {
 		prompt.WriteString("\nThe worktree already holds the current version of the change. Its diff:\n")
 		prompt.WriteString(proposalDiffText(session.Changes, 24*1024))

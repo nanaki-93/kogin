@@ -344,3 +344,67 @@ func TestAnalysisRunEndsByRefreshingTheDocsItPlanned(t *testing.T) {
 		t.Fatalf("stored docs = %+v, %v", stored, err)
 	}
 }
+
+func TestCodingAgentsReadWhereTheTaskFilesSitInTheDocs(t *testing.T) {
+	requests := make(chan llm.ChatRequest, 4)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request llm.ChatRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+		content := `{"explanation":"Archive items.","changes":[{"path":"store/store.go","content":"package store\n\nvar Archive []int\n"}]}`
+		if match := componentLine.FindStringSubmatch(request.Messages[len(request.Messages)-1].Content); match != nil {
+			content = `{"summary":"Summary of ` + match[1] + `.","responsibilities":[]}`
+		} else if reply, ok := docsRefreshReply(request); ok {
+			content = reply
+		} else {
+			requests <- request
+		}
+		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: content}}}})
+	}))
+	t.Cleanup(server.Close)
+	s, root := newSemanticAnalysisService(t, server.URL, 0)
+	if brief := s.docsBrief([]string{"main.go"}); brief != "" {
+		t.Fatalf("a brief without docs: %q", brief)
+	}
+	writeDocsFixture(t, root)
+	writeProjectFile(t, root, "cmd/app/main.go", "package main\n\nimport \"example.test/fixture/store\"\n\nfunc main() { _ = store.Items }\n")
+	storeFileSummaries(t, s, root, "store/store.go", "model/model.go", "cmd/app/main.go")
+	if refresh := refreshDocsAndWait(t, s, docsRequest(t, s, false)); refresh.Summarized != 3 {
+		t.Fatalf("refresh = %+v", refresh)
+	}
+	brief := s.docsBrief([]string{"store/store.go"})
+	for _, want := range []string{"- store (holds the task's files): Summary of store. Imports: model. Used by: cmd/app.", "- model (imported by store): Summary of model.", "- cmd/app (uses store): Summary of cmd/app."} {
+		if !strings.Contains(brief, want) {
+			t.Fatalf("brief lacks %q:\n%s", want, brief)
+		}
+	}
+	// A one-shot change request carries it after the task's files.
+	index, err := s.manager.Index()
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := s.OpenChangeSession(context.Background(), ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "feature", Title: "Archive items", Paths: []string{"store/store.go"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SendChangeMessage(context.Background(), session.ID, ChangeMessageRequest{ChangeIdentity: changeIdentity(session), Message: "Keep archived items apart."}); err != nil {
+		t.Fatal(err)
+	}
+	request := <-requests
+	if input := request.Messages[len(request.Messages)-1].Content; !strings.Contains(input, "Where these files sit") || !strings.Contains(input, "Summary of store.") {
+		t.Fatalf("the change request lacks the docs:\n%s", input)
+	}
+}
+
+func TestToolAgentsReadTheDocsAfterTheProjectGuidance(t *testing.T) {
+	root := t.TempDir()
+	writeProjectFile(t, root, "AGENTS.md", "Keep functions small.\n")
+	session := &ChangeSession{Kind: "feature", Title: "Archive items", Targets: []ChangeTarget{{Path: "store/store.go"}}}
+	prompt := toolTaskPrompt(root, session, toolCoder, "Keep archived items apart.", "\nWhere these files sit (docs):\n- store (holds the task's files): Saves items.\n")
+	guidance, docs := strings.Index(prompt, "Keep functions small."), strings.Index(prompt, "Where these files sit")
+	if guidance < 0 || docs < guidance {
+		t.Fatalf("prompt order:\n%s", prompt)
+	}
+}

@@ -227,7 +227,9 @@ every guard when the action arrives.
   confirmation counts those requests. **Refresh docs** does the same without a
   run and always writes the overview again: it asks first (naming a remote
   model), runs in the background, one at a time, and the page shows it running,
-  then what it wrote and kept or why it failed or was skipped.
+  then what it wrote and kept or why it failed or was skipped. Coding agents
+  start from these summaries too: the components a task's files are in and
+  the components those import or are used by, marked as model-written.
 - **Analysis dashboard.** Shows the last or running run live: overall progress,
   failed stages grouped by reason (with a link to the models when the provider
   could not be reached), each section's coverage and findings (opening Issues

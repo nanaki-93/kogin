@@ -56,7 +56,11 @@ func (s *Service) prepareChangeContext(ctx context.Context, root string, session
 		return prepared, err
 	}
 	prepared.manifest = composition.Manifest
-	prepared.messages, err = compactChangeMessages(prepared.ctx, runtime, session, message, composition.Text, stageZero, settings.Compaction)
+	text := composition.Text
+	if brief := s.docsBrief(changeTargetPaths(session)); brief != "" && len(text)+len(brief) <= maxChangeBytes {
+		text += brief
+	}
+	prepared.messages, err = compactChangeMessages(prepared.ctx, runtime, session, message, text, stageZero, settings.Compaction)
 	if err == nil {
 		err = validateChangeContextLimit(prepared.messages, runtime)
 	}
