@@ -108,9 +108,7 @@ untrusted networks.
 | POST | `/api/projects/current/git/discard-worktree` | Remove a confirmed clean worktree without merging; keep its branch unless the current branch contains its commits. |
 | POST | `/api/projects/current/git/abort-merge` | Abort the identified merge and discard conflict resolutions. |
 | GET | `/api/projects/current/files/analysis` | Read cached semantic analysis for one selected file and revision. |
-| POST | `/api/projects/current/files/security-scan` | Scan one selected eligible file with the deterministic source-only rule pack of its language; no provider request or subprocess execution occurs. Matches require syntactic review and do not prove exploitability. At most the five most severe matches are returned; a `partial` report says when that limit truncates coverage. |
 | POST | `/api/projects/current/files/explanation` | Explicitly explain one selected Go file using transient Code-scope context. |
-| POST | `/api/projects/current/security-review` | Explicitly perform one passive, source-free AI Security review for one current eligible file. |
 | POST | `/api/projects/current/reindex` | Refresh deterministic facts without an LLM request. |
 | GET | `/api/projects/current/changes` | List local change conversations without generation. |
 | POST | `/api/projects/current/changes` | Capture a task and 1–64 explicit text paths (planned tasks: 1–8), here or with `worktree` in a new branch and worktree created for it. |
@@ -151,7 +149,7 @@ File explanation requests bind `project_id`, `project_revision`, `base_file_hash
 
 Explanation responses are transient. This route does not create chat sessions or drafts, persist chat or analysis history, run checks, or change Apply/Undo state. Cancellation, malformed provider output, and stale request identity return an error without publishing a result.
 
-Security review requests require `project_id`, `project_revision`, `base_file_hash`, `path`, and `confirm_remote_provider`. The request uses the configured Analyze scope and requires fresh `confirm_remote_provider: true` before a non-loopback HTTP or CLI provider receives source. It sends at most 64 KiB of target source plus up to 32 KiB of applicable project instructions, and accepts at most 64 KiB of one strict JSON response with at most five advisory `model_suspicion` findings. The provider receives a strict `json_schema` response format with lowercase rule/category identifiers and file-specific path and line bounds. Provider rejection of structured output fails the stage without falling back to unconstrained output. Prompt version `security-file-v4` also requires source-free explanations and an empty findings array when no concrete security concern is supported, including documentation and ignore files. Earlier prompt versions remain readable but are stale for current reviews. The service rechecks project, revision, file hash, policy, and provider identity before delivery, after response, before caching, and before returning. Reports omit source, redact stored/returned prose, and reject meaningful source-line token sequences even when spacing or punctuation changes. Findings are advisory suspicions, and `completed_empty` means no findings were returned; it does not mean the file is secure. The route never runs suggested exploit code, scans, or project code; a configured CLI runs only as the model transport.
+An analysis run's `security_ai` stage reviews one file at a time with the run's Security model (Analyze by default). It needs `confirmations.security_review: true` on the run's start or resume, and the provider's ID in `confirmations.provider_ids` before a non-loopback HTTP or CLI provider receives source. It sends at most 64 KiB of target source plus up to 32 KiB of applicable project instructions, and accepts at most 64 KiB of one strict JSON response with at most five advisory `model_suspicion` findings. The provider receives a strict `json_schema` response format with lowercase rule/category identifiers and file-specific path and line bounds. Provider rejection of structured output fails the stage without falling back to unconstrained output. Prompt version `security-file-v4` also requires source-free explanations and an empty findings array when no concrete security concern is supported, including documentation and ignore files. Earlier prompt versions remain readable but are stale for current reviews. The service rechecks project, revision, file hash, policy, and provider identity before delivery, after response, before caching, and before returning. Reports omit source, redact stored/returned prose, and reject meaningful source-line token sequences even when spacing or punctuation changes. Findings are advisory suspicions, and `completed_empty` means no findings were returned; it does not mean the file is secure. The stage never runs suggested exploit code, scans, or project code; a configured CLI runs only as the model transport.
 
 ## Trusted local execution
 
@@ -1064,7 +1062,7 @@ worker. Background work can continue while the client navigates or disconnects.
 
 ### Agent invocation history and progress
 
-Explicit project import, declaration explanation and security review have
+Explicit project import and declaration explanation have
 native knowledge runs. Provider
 attempts appear as children and share the host budget; host retries, source
 checks and publication authority are unchanged. Import binds its run to the

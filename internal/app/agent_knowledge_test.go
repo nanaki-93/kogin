@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -128,22 +127,4 @@ func TestKnowledgeImportJournalFailurePreservesPriorReport(t *testing.T) {
 	if err != nil || string(before) != string(after) {
 		t.Fatalf("journal failure overwrote prior interpretation: %v", err)
 	}
-}
-
-func TestKnowledgeSecurityRetainsNativeAncestry(t *testing.T) {
-	server, calls := analysisResponseServer(t, emptyAnalysisReply)
-	s, root := newSemanticAnalysisService(t, server.URL, 0)
-	index, err := s.manager.Index()
-	if err != nil {
-		t.Fatal(err)
-	}
-	file, err := s.manager.IndexedFile("main.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	report, err := s.ReviewSecurityFile(context.Background(), SecurityReviewRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, BaseFileHash: file.ContentHash, Path: file.Path})
-	if err != nil || report.Status != project.SecurityStatusCompletedEmpty || calls.Load() != 1 {
-		t.Fatalf("security report=%+v calls=%d err=%v", report, calls.Load(), err)
-	}
-	assertKnowledgeHistory(t, s, root, "security", index.ProjectID, index.ProjectRevision)
 }

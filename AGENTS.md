@@ -53,15 +53,13 @@ imports:
   - from: internal/app/agentstate
     never: [internal/app, internal/project, internal/llm]
   - from: internal/app/archgate
-    never: [internal/app/sandbox, internal/app/gitops, internal/app/features, internal/app/changes, internal/llm, internal/storage]
+    never: [internal/app/sandbox, internal/app/gitops, internal/app/changes, internal/llm, internal/storage]
   - from: internal/app/sandbox
-    never: [internal/app/gitops, internal/app/features, internal/app/changes, internal/llm, internal/storage]
+    never: [internal/app/gitops, internal/app/changes, internal/llm, internal/storage]
   - from: internal/app/gitops
-    never: [internal/app/archgate, internal/app/features, internal/app/changes, internal/llm, internal/storage]
-  - from: internal/app/features
-    never: [internal/app/archgate, internal/app/gitops]
+    never: [internal/app/archgate, internal/app/changes, internal/llm, internal/storage]
   - from: internal/app/toolserver
-    never: [internal/app/archgate, internal/app/sandbox, internal/app/gitops, internal/app/features, internal/app/changes, internal/app/agentruntime, internal/project, internal/llm, internal/storage]
+    never: [internal/app/archgate, internal/app/sandbox, internal/app/gitops, internal/app/changes, internal/app/agentruntime, internal/project, internal/llm, internal/storage]
   - from: internal/app/changes
     never: [internal/app/archgate, internal/app/gitops, internal/llm]
   - from: internal/project/diff

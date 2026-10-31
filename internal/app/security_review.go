@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentruntime"
 	"github.com/nanaki-93/mini-orca/v2/internal/config"
 	"github.com/nanaki-93/mini-orca/v2/internal/llm"
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
@@ -34,30 +33,8 @@ type securityReviewSnapshot struct {
 	modelProfile  string
 }
 
-// ReviewSecurityFile sends one bounded, passive review request. It never
-// executes model-suggested commands or project code.
-func (s *Service) ReviewSecurityFile(ctx context.Context, request SecurityReviewRequest) (*project.SecurityFileReport, error) {
-	if err := s.RequireRemoteConfirmation(config.AnalyzeModelScope, request.ConfirmRemoteProvider); err != nil {
-		return nil, err
-	}
-	return s.runSecurityReview(ctx, request)
-}
-
-func (s *Service) runSecurityReview(ctx context.Context, request SecurityReviewRequest) (*project.SecurityFileReport, error) {
-	snapshot, err := s.prepareSecurityReview(request)
-	if err != nil {
-		return nil, err
-	}
-	return runKnowledge(ctx, s, snapshot.runtime, agentruntime.KnowledgeSecurity, func(ctx context.Context) (*project.SecurityFileReport, string, error) {
-		result, findings, err := s.executeSecurityReview(ctx, snapshot, nil)
-		if err != nil {
-			return nil, "failed", err
-		}
-		report, err := s.publishSecurityReview(ctx, snapshot, result, findings, nil)
-		return report, "completed", err
-	})
-}
-
+// executeSecurityReview sends one bounded, passive review request through the
+// stage's dispatch. It never executes model-suggested commands or project code.
 func (s *Service) executeSecurityReview(ctx context.Context, snapshot securityReviewSnapshot, dispatch *analysisModelDispatch) (modelOutput, []project.SecurityFinding, error) {
 	if err := s.validateSecurityReviewSnapshot(ctx, snapshot); err != nil {
 		return modelOutput{}, nil, err
@@ -88,11 +65,6 @@ func (s *Service) executeSecurityReview(ctx context.Context, snapshot securityRe
 	runtime := snapshot.runtime
 	if runtime.client != nil {
 		runtime.client = runtime.client.WithOptionalFinalContent()
-	}
-	if dispatch == nil {
-		dispatch = &analysisModelDispatch{maxAttempts: runtime.effective.MaxRetries + 1, beforeAttempt: func(ctx context.Context) error {
-			return s.validateSecurityReviewSnapshot(ctx, snapshot)
-		}}
 	}
 	result, err := s.requestAnalysisModel(timed, runtime, []llm.ChatMessage{{Role: "user", Content: prompt}}, &schema, dispatch)
 	if timed.Err() != nil {

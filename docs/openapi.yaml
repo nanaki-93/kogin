@@ -22,7 +22,6 @@ servers:
 tags:
   - name: Daemon
   - name: Projects
-  - name: Security
   - name: Chat
   - name: Drafts
 paths:
@@ -864,22 +863,6 @@ paths:
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/files/security-scan:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    post:
-      tags: [Security]
-      summary: Scan exactly one eligible file with the deterministic source-only security rule pack of its language
-      description: Applies the rule pack for the file's language (Go, Python, JavaScript, TypeScript, Java, Kotlin, Ruby, PHP, C#, C, C++, Rust) without provider access or subprocess execution; other languages return 422. A rule match requires syntactic review and is not proof of exploitability.
-      requestBody:
-        required: true
-        content: {application/json: {schema: {$ref: '#/components/schemas/SecurityScanRequest'}}}
-      responses:
-        '200': {description: Source-free deterministic Security report; partial reports retain the five most severe matches (then source order) and state that coverage limit, content: {application/json: {schema: {$ref: '#/components/schemas/SecurityFileReport'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '403': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-        '422': {$ref: '#/components/responses/Error'}
   /api/projects/current/files/explanation:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -891,24 +874,6 @@ paths:
         content: {application/json: {schema: {$ref: '#/components/schemas/DeclarationExplanationRequest'}}}
       responses:
         '200': {description: Transient bounded explanation with source anchors and Function-context provenance, content: {application/json: {schema: {$ref: '#/components/schemas/DeclarationExplanation'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '403': {$ref: '#/components/responses/Error'}
-        '404': {$ref: '#/components/responses/Error'}
-        '408': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-        '422': {$ref: '#/components/responses/Error'}
-        '504': {$ref: '#/components/responses/Error'}
-  /api/projects/current/security-review:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    post:
-      tags: [Security]
-      summary: Perform one explicit passive AI security review of one selected file
-      requestBody:
-        required: true
-        content: {application/json: {schema: {$ref: '#/components/schemas/SecurityReviewRequest'}}}
-      responses:
-        '200': {description: Source-free advisory report; completed_empty does not mean the file is secure, content: {application/json: {schema: {$ref: '#/components/schemas/SecurityFileReport'}}}}
         '400': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
@@ -1583,90 +1548,6 @@ components:
       required: [project_revision]
       properties:
         project_revision: {type: string}
-    SecurityScanRequest:
-      type: object
-      required: [path, project_revision]
-      properties:
-        path: {type: string, description: One project-relative context-policy-eligible source file in a language with a rule pack.}
-        project_revision: {type: string}
-    SecurityFileReport:
-      type: object
-      required: [schema_version, project_id, project_revision, path, content_hash, status, source, findings, context_policy_version, generated_at]
-      properties:
-        schema_version: {type: string, enum: ['1']}
-        project_id: {type: string}
-        project_revision: {type: string}
-        path: {type: string}
-        content_hash: {type: string}
-        status: {type: string, enum: [completed, completed_empty, partial]}
-        source: {type: string, enum: [deterministic, ai]}
-        rule_set_version: {type: string}
-        findings: {type: array, maxItems: 5, items: {$ref: '#/components/schemas/SecurityFinding'}}
-        reason: {type: string, description: Present only when the deterministic five-finding limit truncates source-order matches.}
-        model: {type: string}
-        configured_model: {type: string}
-        profile: {type: string, enum: [analyze]}
-        scope: {type: string, enum: [analyze]}
-        provider_origin: {type: string}
-        reasoning_effort: {type: string}
-        prompt_version: {type: string, enum: [security-file-v1, security-file-v2, security-file-v3]}
-        context_policy_version: {type: string}
-        instructions_fingerprint: {type: string, description: Identity of the applicable AGENTS.md guides used for AI review.}
-        generated_at: {type: string, format: date-time}
-      oneOf:
-        - required: [rule_set_version]
-          properties:
-            source: {type: string, enum: [deterministic]}
-            status: {type: string, enum: [completed, completed_empty, partial]}
-          not:
-            anyOf:
-              - required: [model]
-              - required: [configured_model]
-              - required: [profile]
-              - required: [scope]
-              - required: [provider_origin]
-              - required: [reasoning_effort]
-              - required: [prompt_version]
-        - required: [model, configured_model, profile, scope, provider_origin, reasoning_effort, prompt_version]
-          properties:
-            source: {type: string, enum: [ai]}
-            status: {type: string, enum: [completed, completed_empty]}
-          not: {required: [rule_set_version]}
-    SecurityFinding:
-      type: object
-      required: [id, rule, category, title, source_anchor, severity, confidence, evidence_kind, observed_condition, preconditions_or_unknowns, remediation, verification_idea, triage, verification_state]
-      properties:
-        id: {type: string}
-        rule: {type: string}
-        category: {type: string}
-        title: {type: string}
-        source_anchor: {$ref: '#/components/schemas/SecuritySourceAnchor'}
-        severity: {type: string, enum: [critical, high, medium, low, info]}
-        confidence: {type: string, enum: [high, medium, low]}
-        evidence_kind: {type: string, enum: [rule_match, model_suspicion]}
-        observed_condition: {type: string}
-        preconditions_or_unknowns: {type: string}
-        remediation: {type: string}
-        verification_idea: {type: string, description: Safe verification idea only; no exploit execution occurs.}
-        cwe: {type: string}
-        reference: {type: string, format: uri}
-        triage: {type: string, enum: [open, dismissed, accepted]}
-        verification_state: {type: string, enum: [unverified, verified, not_reproducible]}
-        engineering_insight: {$ref: '#/components/schemas/EngineeringInsight'}
-      oneOf:
-        - properties:
-            evidence_kind: {type: string, enum: [rule_match]}
-            severity: {type: string, enum: [high]}
-            confidence: {type: string, enum: [high]}
-        - properties:
-            evidence_kind: {type: string, enum: [model_suspicion]}
-    SecuritySourceAnchor:
-      type: object
-      required: [path, start_line, end_line]
-      properties:
-        path: {type: string}
-        start_line: {type: integer, minimum: 1}
-        end_line: {type: integer, minimum: 1}
     FileAnalysis:
       type: object
       required: [schema_version, project_id, project_revision, path, content_hash, language, status, prompt_version, context_policy_version, generated_at]
@@ -1787,16 +1668,6 @@ components:
         error_behavior: {type: array, maxItems: 6, items: {type: string}}
         engineering_insight: {$ref: '#/components/schemas/EngineeringInsight'}
         context_manifest: {$ref: '#/components/schemas/ContextManifest'}
-    SecurityReviewRequest:
-      type: object
-      additionalProperties: false
-      required: [project_id, project_revision, base_file_hash, path, confirm_remote_provider]
-      properties:
-        project_id: {type: string}
-        project_revision: {type: string}
-        base_file_hash: {type: string, description: Current selected-file content hash.}
-        path: {type: string, description: Exact eligible project-relative file path.}
-        confirm_remote_provider: {type: boolean, description: Fresh Analyze-scope confirmation required for non-loopback providers.}
     DeclarationSourceAnchor:
       type: object
       required: [path, start_line, end_line]

@@ -8,24 +8,11 @@ import (
 	"github.com/nanaki-93/mini-orca/v2/internal/app"
 )
 
-type securityScanRequest struct {
-	Path            string `json:"path"`
-	ProjectRevision string `json:"project_revision"`
-}
-
 type declarationExplanationRequest struct {
 	ProjectID             string `json:"project_id"`
 	ProjectRevision       string `json:"project_revision"`
 	BaseFileHash          string `json:"base_file_hash"`
 	TargetPath            string `json:"target_path"`
-	ConfirmRemoteProvider *bool  `json:"confirm_remote_provider"`
-}
-
-type securityReviewRequest struct {
-	ProjectID             string `json:"project_id"`
-	ProjectRevision       string `json:"project_revision"`
-	BaseFileHash          string `json:"base_file_hash"`
-	Path                  string `json:"path"`
 	ConfirmRemoteProvider *bool  `json:"confirm_remote_provider"`
 }
 
@@ -40,25 +27,6 @@ func (h *ProjectHandler) FileAnalysis(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.WriteJSON(w, http.StatusOK, analysis)
-}
-
-// ScanSecurityFile runs the bounded rule pack of the file's language against
-// one selected file. It is source-only and does not contact a provider or run
-// project code.
-func (h *ProjectHandler) ScanSecurityFile(w http.ResponseWriter, r *http.Request) {
-	var request securityScanRequest
-	if !decodeStrictJSON(w, r, &request, "invalid security scan request", "Provide path and project_revision.") || !requireCurrentRevision(w, h.manager, request.ProjectRevision) {
-		return
-	}
-	report, err := h.service.ScanSecurityFile(r.Context(), request.Path, request.ProjectRevision)
-	if err != nil {
-		if writeContextError(w, "security scan", err) {
-			return
-		}
-		writeProjectError(w, "security scan failed", err)
-		return
-	}
-	api.WriteJSON(w, http.StatusOK, report)
 }
 
 // ExplainDeclaration performs one transient, read-only Code-scope request.
@@ -85,29 +53,4 @@ func (h *ProjectHandler) ExplainDeclaration(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	api.WriteJSON(w, http.StatusOK, result)
-}
-
-// ReviewSecurityFile performs one explicit, passive Analyze-scope review of a
-// selected eligible file. It never starts a scan or executes project code.
-func (h *ProjectHandler) ReviewSecurityFile(w http.ResponseWriter, r *http.Request) {
-	var request securityReviewRequest
-	if !decodeStrictJSON(w, r, &request, "invalid security review request", "Provide the current project, file identity, and remote-provider confirmation.") {
-		return
-	}
-	if request.ConfirmRemoteProvider == nil {
-		api.WriteRequestError(w, errors.New("confirm_remote_provider is required"), "invalid security review request", "Confirm whether the Analyze provider may receive this file context.")
-		return
-	}
-	report, err := h.service.ReviewSecurityFile(r.Context(), app.SecurityReviewRequest{
-		ProjectID: request.ProjectID, ProjectRevision: request.ProjectRevision, BaseFileHash: request.BaseFileHash,
-		Path: request.Path, ConfirmRemoteProvider: *request.ConfirmRemoteProvider,
-	})
-	if err != nil {
-		if writeContextError(w, "security review", err) {
-			return
-		}
-		writeProjectError(w, "security review failed", err)
-		return
-	}
-	api.WriteJSON(w, http.StatusOK, report)
 }

@@ -22,6 +22,9 @@ func TestRetiredWorkflowRoutesAreUnavailable(t *testing.T) {
 		{"GET", "performance"},
 		{"GET", "performance/context"},
 		{"POST", "performance-job"},
+		// Single-file security work; every analysis run's stages do it now.
+		{"POST", "files/security-scan"},
+		{"POST", "security-review"},
 		// Features that only the terminal UI exposed.
 		{"GET", "missions"},
 		{"GET", "live-sessions"},

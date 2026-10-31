@@ -23,37 +23,15 @@ const (
 	legacyNoRulePackReason = "Passive security rules require a Go source file."
 )
 
-// ScanSecurityFile applies the deterministic source-only rule pack of the
-// file's language to one current, policy-eligible file. It never calls a
-// provider or runs a process.
-func (s *Service) ScanSecurityFile(ctx context.Context, path, revision string) (*project.SecurityFileReport, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	snapshot, err := s.prepareSecurityRulesScan(path, revision)
-	if err != nil {
-		return nil, err
-	}
-	input := securityRulesInput(snapshot)
-	cached, err := s.loadSecurityFileReport(snapshot.root, input)
-	if err != nil {
-		return nil, err
-	}
-	if cached != nil && (cached.Status == project.SecurityStatusCompleted || cached.Status == project.SecurityStatusCompletedEmpty || cached.Status == project.SecurityStatusPartial) {
-		if err := s.validateSecurityRulesSnapshot(ctx, snapshot); err != nil {
-			return nil, err
-		}
-		return cached, nil
-	}
-	return s.executeSecurityRulesScan(ctx, snapshot, nil)
-}
-
 func securityRulesInput(snapshot securityRulesSnapshot) project.SecurityReportInput {
 	return project.SecurityReportInput{ProjectID: snapshot.analysis.ProjectID, ProjectRevision: snapshot.analysis.ProjectRevision,
 		Path: snapshot.file.Path, ContentHash: snapshot.file.ContentHash, Source: project.SecuritySourceDeterministic,
 		RuleSetVersion: project.SecurityRuleSetVersion, ContextPolicyVersion: snapshot.policyVersion}
 }
 
+// executeSecurityRulesScan applies the deterministic source-only rule pack of
+// the file's language to one current, policy-eligible file. It never calls a
+// provider or runs a process.
 func (s *Service) executeSecurityRulesScan(ctx context.Context, snapshot securityRulesSnapshot, authorizePublication func(func() error) error) (*project.SecurityFileReport, error) {
 	input := securityRulesInput(snapshot)
 	scan, err := project.ScanSecurityRules(snapshot.file, snapshot.source)
