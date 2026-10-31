@@ -4,7 +4,7 @@ import { ancestors, buildTree, visibleRows } from './tree';
 import { buildHash, parseHash } from './router';
 import { escapeHtml, highlightLines } from './highlight';
 import { companionTestPath, explainable, formatElapsed, isTestPath, newFilePath, timeAgo } from './util';
-import { changeOverlaps, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stageToolsLabel, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeRemovable, worktreeTasks } from './workflow';
+import { changeOverlaps, composerStartBlocker, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stageToolsLabel, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeRemovable, worktreeTasks } from './workflow';
 import type { ChangeHistoryEntry, GitWorkspace, GitWorktree } from '@/api/types';
 import { limitErrors, modelLocation, roleModelOptions, selectedModel } from './agentSettings';
 import { applyEvent, finishedRun, parseFrames } from '@/api/events';
@@ -97,6 +97,15 @@ describe('util and workflow', () => {
     expect(workflowBlocker({ ...s, worktree: { base: 'b', branch: 'mo/x' } }, true, isTestPath)).toBe('');
     expect(workflowBlocker({ ...s, workflow: { id: 'w', status: 'paused', stages: [] } as never, targets: [{ path: 'a_test.go' }] }, true, isTestPath)).toBe('');
     expect(workflowBlocker(null, true, isTestPath)).toMatch(/Select/);
+  });
+
+  it('says why the composer cannot start agents', () => {
+    expect(composerStartBlocker([], true, true, isTestPath)).toMatch(/at least one file/);
+    expect(composerStartBlocker(['cmd/master.go'], false, true, isTestPath)).toMatch(/test file/);
+    // In its own worktree, the testing agent creates the test files it needs.
+    expect(composerStartBlocker(['cmd/master.go'], true, true, isTestPath)).toBe('');
+    expect(composerStartBlocker(['cmd/master.go', 'cmd/master_test.go'], false, true, isTestPath)).toBe('');
+    expect(composerStartBlocker(['cmd/master.go'], true, false, isTestPath)).toMatch(/Trust/);
   });
 });
 

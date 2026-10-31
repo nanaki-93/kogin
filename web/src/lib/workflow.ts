@@ -330,6 +330,18 @@ export function parseCommits(text: string | undefined): { sha: string; subject: 
     });
 }
 
+/**
+ * Explains why the composer cannot start agents on a new task, or '': the same
+ * rules the daemon applies when the run starts.
+ */
+export function composerStartBlocker(paths: string[], ownWorktree: boolean, trusted: boolean, isTestPath: (path: string) => boolean): string {
+  if (!paths.length) return 'Choose at least one file the agents may change.';
+  // In its own worktree, a testing agent on a CLI creates the test files it needs.
+  if (!ownWorktree && !paths.some(isTestPath)) return 'Add a test file to the scope so the testing agent can write tests.';
+  if (!trusted) return 'Allow this project to run checks (Settings → Trust) so agents can verify their work.';
+  return '';
+}
+
 /** Explains why the agent workflow cannot start for this task, or ''. */
 export function workflowBlocker(session: { state: string; freshness: string; kind: string; workflow?: ChangeWorkflow; targets?: { path: string; test?: boolean }[]; worktree?: unknown } | null, trusted: boolean, isTestPath: (path: string) => boolean): string {
   if (!session) return 'Select a task first.';

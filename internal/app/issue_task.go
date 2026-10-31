@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 	"github.com/nanaki-93/mini-orca/v2/internal/project/rules"
@@ -44,7 +45,7 @@ func issueTask(root string, finding project.UnifiedFinding) *IssueTask {
 	if file == "" && finding.TaskSpec != nil {
 		file = finding.TaskSpec.TargetPath
 	}
-	task := &IssueTask{Kind: "fix", Title: "Fix: " + finding.Title, Paths: []string{}}
+	task := &IssueTask{Kind: "fix", Title: issueTitle("Fix: ", finding.Title), Paths: []string{}}
 	switch finding.Category {
 	case project.FindingCategorySecurity:
 		task.Kind = "security"
@@ -64,9 +65,33 @@ func issueTask(root string, finding project.UnifiedFinding) *IssueTask {
 	task.AcceptanceCriteria = issueCriteria(finding, file)
 	addTestCandidate(root, task, issueTestCandidate(finding))
 	if finding.Category == project.FindingCategoryMaintainability {
-		task.Title = finding.Title
+		task.Title = issueTitle("", finding.Title)
 	}
 	return task
+}
+
+// issueTitle fits an issue's title into a task title. An AI suggestion can
+// carry its whole message as its title, so a long one keeps its first sentence,
+// or is cut at a word, within the limit a new task's title has; the
+// description keeps the full message.
+func issueTitle(prefix, title string) string {
+	title = strings.Join(strings.Fields(title), " ")
+	if len(prefix)+len(title) <= maxTaskTitleBytes {
+		return prefix + title
+	}
+	if sentence, _, found := strings.Cut(title, ". "); found && len(prefix)+len(sentence) <= maxTaskTitleBytes {
+		return prefix + sentence
+	}
+	const ellipsis = "…"
+	limit := maxTaskTitleBytes - len(prefix) - len(ellipsis)
+	for limit > 0 && !utf8.RuneStart(title[limit]) {
+		limit--
+	}
+	cut := title[:limit]
+	if space := strings.LastIndexByte(cut, ' '); space > 0 {
+		cut = cut[:space]
+	}
+	return prefix + strings.TrimRight(cut, " ,;:") + ellipsis
 }
 
 // issueDescription says what is wrong, the evidence and where.
@@ -127,6 +152,6 @@ func issueCriteria(finding project.UnifiedFinding, file string) []string {
 			"Keep its behavior and public interface; existing tests pass unchanged",
 		}
 	default:
-		return []string{fmt.Sprintf("Resolve “%s” without breaking existing callers", finding.Title), "Add a regression test that fails before the fix"}
+		return []string{fmt.Sprintf("Resolve “%s” without breaking existing callers", issueTitle("", finding.Title)), "Add a regression test that fails before the fix"}
 	}
 }

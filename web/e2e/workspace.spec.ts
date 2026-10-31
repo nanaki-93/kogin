@@ -421,6 +421,28 @@ test('issues are triaged from the keyboard, filtered by kind and fixed in a link
   expect(daemon.mutations('/changes')[0].body).toMatchObject({ finding_targets: [{ project_id: 'p1', kind: 'semantic', id: 'f1', path: 'internal/api/handlers/change_handler.go' }] });
 });
 
+test('an issue without a file opens a composer that says what Start agents needs', async ({ page, daemon }) => {
+  daemon.serve('/api/projects/current/findings', () => ({
+    project_id: 'p1', project_revision: 'r42',
+    findings: [{ id: 'f9', project_id: 'p1', source: 'ai', severity: 'high', title: 'Vault save is not atomic', message: 'The key file and the vault can disagree after a failed save.', location: {}, status: 'open', category: 'bugs' }],
+  }));
+  await page.goto('/#/issues?id=f9');
+  await page.getByRole('complementary', { name: 'Issue detail' }).getByRole('button', { name: /Fix with agents/ }).click();
+  const dialog = page.getByRole('dialog');
+  const start = dialog.getByRole('button', { name: /Start agents/ });
+  await expect(start).toBeDisabled();
+  await expect(dialog.getByRole('status')).toHaveText('Choose at least one file the agents may change.');
+  // In its own worktree a testing agent writes the tests it needs, so a file without one is enough.
+  await dialog.getByLabel('Search files to add').fill('README');
+  await page.keyboard.press('Enter');
+  await expect(dialog.getByText('README.md')).toBeVisible();
+  await expect(start).toBeEnabled();
+  await expect(dialog.getByRole('status')).toHaveCount(0);
+  await dialog.getByLabel('Work in its own worktree').uncheck();
+  await expect(start).toBeDisabled();
+  await expect(dialog.getByRole('status')).toHaveText('Add a test file to the scope so the testing agent can write tests.');
+});
+
 test('a task shows its files against the code rules, and a budget issue opens a refactor task', async ({ page, daemon }) => {
   daemon.serve('/api/projects/current/changes/chg-1/rules', () => ({
     session_id: 'chg-1',

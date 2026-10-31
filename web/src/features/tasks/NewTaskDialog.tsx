@@ -12,7 +12,7 @@ import { rankItems } from '@/lib/fuzzy';
 import { companionTestPath, dirname, basename, isTestPath, newFilePath, plural, unique } from '@/lib/util';
 import { Button, Highlight, Kbd, Segmented, Textarea, Tip, cx } from '@/components/ui';
 import { FileIcon, KINDS } from '@/components/domain';
-import { ownWorktreeBlocker } from '@/lib/workflow';
+import { composerStartBlocker, ownWorktreeBlocker } from '@/lib/workflow';
 
 export const MAX_TASK_PATHS = 8;
 
@@ -48,10 +48,11 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
   // Only the main checkout makes worktrees; a task opened in one stays there.
   const worktreeBlocker = worktreePath ? '' : ownWorktreeBlocker(git, Boolean(trust?.trusted));
   const ownWorktree = !worktreePath && !worktreeBlocker && draft.worktree;
+  // Why Start agents is unavailable, shown beside it rather than a silent disabled button.
+  const startBlocker = composerStartBlocker(draft.paths, ownWorktree, Boolean(trust?.trusted), isTestPath);
 
   useEffect(() => titleRef.current?.focus(), []);
 
-  const hasTest = draft.paths.some(isTestPath);
   const update = (patch: Partial<DraftTask>) => {
     setDraft(d => ({ ...d, ...patch }));
     setError('');
@@ -73,7 +74,7 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
     if (!project) return;
     if (!draft.title.trim()) return setError('Give the task a title.');
     if (!draft.paths.length) return setError('Choose at least one file the agents may change.');
-    if (start === 'agents' && !hasTest) return setError('Agents verify their work with tests: add a test file to the scope, or save a draft.');
+    if (start === 'agents' && startBlocker) return setError(startBlocker);
     const id = await actions.createTask(project, worktreePath, { ...draft, worktree: ownWorktree, start });
     if (id) setUI({ newTask: null });
   }
@@ -84,12 +85,12 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
       className="composer-form"
       onSubmit={event => {
         event.preventDefault();
-        void submit(hasTest && trust?.trusted ? 'agents' : 'draft');
+        void submit(startBlocker ? 'draft' : 'agents');
       }}
       onKeyDown={(event: KeyboardEvent) => {
         if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
           event.preventDefault();
-          void submit(hasTest ? 'agents' : 'draft');
+          void submit(startBlocker ? 'draft' : 'agents');
         }
       }}
     >
@@ -117,6 +118,10 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
           <div className="composer-error" role="alert">
             {error}
           </div>
+        ) : startBlocker ? (
+          <p className="xs muted" role="status">
+            {startBlocker}
+          </p>
         ) : null}
       </div>
       <div className="composer-foot">
@@ -139,13 +144,16 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
           )}
         </div>
         <span className="spacer" />
-        {!trust?.trusted ? <span className="xs muted">Checks need trust · Settings</span> : null}
         <Button variant="ghost" icon={Save} onClick={() => void submit('draft')} disabled={Boolean(busy)}>
           Save draft
         </Button>
-        <Button variant="primary" icon={Play} type="button" onClick={() => void submit('agents')} loading={busy === 'Creating task…' || busy === 'Starting agents…'} disabled={!hasTest || !trust?.trusted}>
-          Start agents <Kbd>mod+Enter</Kbd>
-        </Button>
+        <Tip label={startBlocker || 'Agents write the change, tests, and review it'}>
+          <span>
+            <Button variant="primary" icon={Play} type="button" onClick={() => void submit('agents')} loading={busy === 'Creating task…' || busy === 'Starting agents…'} disabled={Boolean(startBlocker)}>
+              Start agents <Kbd>mod+Enter</Kbd>
+            </Button>
+          </span>
+        </Tip>
       </div>
     </form>
   );

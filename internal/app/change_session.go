@@ -89,7 +89,7 @@ func (s *Service) captureChangeSession(ctx context.Context, root string, index *
 }
 
 func validateChangeCreateRequest(request ChangeCreateRequest) error {
-	if len(request.Paths) == 0 || len(request.Paths) > maxTaskPaths || len(request.Title) > 200 || strings.TrimSpace(request.Title) == "" || !validChangeKind(request.Kind) {
+	if len(request.Paths) == 0 || len(request.Paths) > maxTaskPaths || len(request.Title) > maxTaskTitleBytes || strings.TrimSpace(request.Title) == "" || !validChangeKind(request.Kind) {
 		return fmt.Errorf("provide a task title, kind and one to %d paths", maxTaskPaths)
 	}
 	return validateChangeCriteria(request.AcceptanceCriteria)

@@ -44,7 +44,8 @@ every guard when the action arrives.
 - **Start agents.** Requires a trusted project, and a test file in scope unless
   the task has its own worktree (there a testing agent on a CLI model creates
   the test files it needs; the daemon refuses the run when the testing model
-  cannot). The
+  cannot). When something is missing, the composer says what instead of
+  leaving the button silently disabled. The
   confirmation lists every remote destination the Creation, Testing and Review
   roles will use; local-only runs say so. Repairs are opt-in and capped at two.
   A security task adds a security specialist.
@@ -260,7 +261,9 @@ every guard when the action arrives.
 - **Issues.** Dismiss and reopen are local triage. **Fix with agents** opens the
   composer with the task the daemon drafts from the finding (its file, that
   file's conventional test in its language, the kind and “done when” criteria);
-  nothing starts until the user does.
+  nothing starts until the user does. An issue without a file, such as a
+  project-wide suggestion, drafts no files, so the composer asks for them; a
+  long title is shortened to its first sentence (the description keeps it whole).
 - **Explain a file.** Sends the file's admitted context to a model after remote
   consent; the explanation is transient and cannot be applied.
 
