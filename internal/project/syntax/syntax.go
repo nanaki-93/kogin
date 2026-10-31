@@ -74,3 +74,15 @@ func textHash(text string) string {
 	sum := sha256.Sum256([]byte(normalized.String()))
 	return hex.EncodeToString(sum[:12])
 }
+
+// Enclosing names the innermost function whose span holds the line; empty
+// when none does.
+func Enclosing(functions []Function, line int) string {
+	name, span := "", 0
+	for _, function := range functions {
+		if function.StartLine <= line && line <= function.EndLine && (name == "" || function.Lines() < span) {
+			name, span = function.Name, function.Lines()
+		}
+	}
+	return name
+}

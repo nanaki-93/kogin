@@ -27,6 +27,9 @@ const (
 	// FindingSourceRules marks code over the budgets AGENTS.md declares. These
 	// findings come from task checks, not analysis runs, and survive them.
 	FindingSourceRules = "rules"
+	// FindingSourceSecurityRules marks matches of the deterministic security
+	// rules; they are reported, not suggested.
+	FindingSourceSecurityRules = "security_rules"
 
 	// FindingCategoryMaintainability is code to refactor, such as a file over
 	// its line budget. Only the rules source uses it.
@@ -45,11 +48,15 @@ const (
 	FindingFreshnessStale = "stale"
 )
 
-// FindingLocation identifies an optional project-relative location.
+// FindingLocation identifies an optional project-relative location: a file,
+// its lines and the function that holds them.
 type FindingLocation struct {
 	Path      string `json:"path,omitempty"`
 	StartLine int    `json:"start_line,omitempty"`
 	EndLine   int    `json:"end_line,omitempty"`
+	// Symbol is the innermost function around StartLine, as the syntax layer
+	// names it ("Store.add"); not part of the finding's identity.
+	Symbol string `json:"symbol,omitempty"`
 }
 
 // UnifiedFinding keeps model suggestions structurally distinct from verified
@@ -355,6 +362,7 @@ func normalizeFinding(finding UnifiedFinding, input FindingInput) UnifiedFinding
 	finding.Evidence = sanitizeFindingText(finding.Evidence, maxProjectAnalysisBytes)
 	finding.TaskSpec = SanitizeBugTaskSpec(finding.TaskSpec)
 	finding.Location.Path = filepath.ToSlash(strings.TrimSpace(finding.Location.Path))
+	finding.Location.Symbol = sanitizeFindingText(finding.Location.Symbol, maxFindingSymbolBytes)
 	if finding.Status == "" {
 		finding.Status = FindingStatusOpen
 	}
@@ -413,8 +421,11 @@ func validFindingIdentity(finding UnifiedFinding) bool {
 func validFindingContent(finding UnifiedFinding) bool {
 	return len(finding.Title) <= maxProjectAnalysisItemBytes && len(finding.Message) <= maxProjectAnalysisItemBytes &&
 		len(finding.Evidence) <= maxProjectAnalysisBytes && finding.Location.StartLine >= 0 &&
-		finding.Location.EndLine >= finding.Location.StartLine
+		finding.Location.EndLine >= finding.Location.StartLine && len(finding.Location.Symbol) <= maxFindingSymbolBytes
 }
+
+// maxFindingSymbolBytes bounds a location's function name.
+const maxFindingSymbolBytes = 256
 
 func validPersistedBugTaskSpec(spec *BugTaskSpec) bool {
 	if spec == nil {
@@ -447,7 +458,7 @@ func validPersistedGoTestCandidate(candidate *GoTestCandidateSpec) bool {
 }
 
 func validFindingSource(value string) bool {
-	return value == FindingSourceAI || value == FindingSourceParser || value == FindingSourceVet || value == FindingSourceTest || value == FindingSourceRules
+	return value == FindingSourceAI || value == FindingSourceParser || value == FindingSourceVet || value == FindingSourceTest || value == FindingSourceRules || value == FindingSourceSecurityRules
 }
 func validFindingConfidence(source, confidence string) bool {
 	if source == FindingSourceAI {

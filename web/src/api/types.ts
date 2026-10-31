@@ -527,6 +527,8 @@ export interface SourceAnchor {
   path: string;
   start_line?: number;
   end_line?: number;
+  /** The function around start_line, as the syntax layer names it. */
+  symbol?: string;
 }
 
 export interface Finding {

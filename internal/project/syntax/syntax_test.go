@@ -202,3 +202,12 @@ func TestOutlinesListDeclarationsWithTheirFirstLine(t *testing.T) {
 		t.Fatalf("unknown = %+v", none)
 	}
 }
+
+func TestEnclosingNamesTheInnermostFunction(t *testing.T) {
+	functions := []Function{{Name: "Store", StartLine: 1, EndLine: 20}, {Name: "Store.add", StartLine: 5, EndLine: 9}, {Name: "other", StartLine: 22, EndLine: 30}}
+	for line, want := range map[int]string{3: "Store", 7: "Store.add", 21: "", 22: "other"} {
+		if got := Enclosing(functions, line); got != want {
+			t.Errorf("line %d: %q, want %q", line, got, want)
+		}
+	}
+}

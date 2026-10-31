@@ -122,7 +122,7 @@ export function IssuesPage() {
                     <div className="truncate strong-row">{f.title}</div>
                     {f.category ? <div className="xs faint">{f.category}</div> : null}
                   </td>
-                  <td className="mono xs truncate" title={f.location?.path}>{f.location?.path}{f.location?.start_line ? `:${f.location.start_line}` : ''}</td>
+                  <td className="mono xs truncate" title={[f.location?.path, f.location?.symbol].filter(Boolean).join(' · ')}>{f.location?.path}{f.location?.start_line ? `:${f.location.start_line}` : ''}{f.location?.symbol ? <span className="faint"> · {f.location.symbol}</span> : null}</td>
                   <td className="xs muted">{sourceLabel(f)}</td>
                 </tr>
               ))}
@@ -162,6 +162,7 @@ function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => vo
           {path}{finding.location?.start_line ? `:${finding.location.start_line}` : ''} <ExternalLink size={11} aria-hidden />
         </button>
       ) : null}
+      {finding.location?.symbol ? <div className="mono xs faint">in {finding.location.symbol}</div> : null}
       <p className="prose small">{finding.message}</p>
       {finding.evidence ? (
         <div>

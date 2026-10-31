@@ -58,7 +58,7 @@ const SOURCE_LABELS: Record<string, string> = {
   vet: 'Verified by go vet',
   parser: 'Verified by parser',
   test: 'Verified by a test',
-  deterministic: 'Security rule',
+  security_rules: 'Security rule',
   rules: 'Code budget (AGENTS.md)',
 };
 

@@ -82,7 +82,7 @@ untrusted networks.
 | POST | `/api/projects/current/analysis/run` | Durably admit the previewed run with fresh provider and Security intent. |
 | GET | `/api/projects/current/analysis/run` | Read progress with `project_id` and `project_revision`; 204 when absent. |
 | POST | `/api/projects/current/analysis/run/control` | Pause, resume or cancel the exact run generation. |
-| GET | `/api/projects/current/findings` | List source-free verified findings and AI suggestions with provenance, filters, and freshness. |
+| GET | `/api/projects/current/findings` | List source-free verified findings and AI suggestions with provenance, filters, and freshness: the semantic, Performance and Security AI stages' suggestions (`ai`, `originating_analysis` `file`, `performance` or `security`), security rule matches (`security_rules`), parser/vet/test findings and code-budget issues (`rules`). `location` has the path, lines and `symbol`, the function around the first line when the file still has the content the finding was made from. |
 | GET | `/api/projects/current/rules` | Test file patterns (conventions plus AGENTS.md `test_files`), the indexed AGENTS.md files and any rules block that could not be read. |
 | PATCH | `/api/projects/current/findings/{findingID}` | Record an explicit user triage status for one finding. |
 | GET | `/api/projects/current/findings/{findingID}/task` | Draft the task that fixes one issue for the composer: kind, title, description, the file and its conventional test in any language, criteria and the linked finding. Nothing is saved. |

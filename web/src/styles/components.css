@@ -121,6 +121,7 @@
   border: 0;
   background: none;
   color: var(--accent-text);
+  text-align: left;
 }
 
 .link-btn:hover {

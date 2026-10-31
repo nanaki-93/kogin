@@ -162,6 +162,9 @@ every guard when the action arrives.
 - **Issues from the keyboard.** `j`/`k` select the next or previous issue and
   open its detail, `f` starts "Fix with agents", `x` dismisses or reopens it and
   `Esc` closes the detail. Chips filter by kind (bugs, performance, security).
+  An issue shows its file and line, and the function around that line while
+  the file still has the content the finding was made from; the source says
+  where it came from (security rule, AI suggestion, parser, vet, test, rules).
 - **Analysis everywhere.** While an analysis runs, the status bar shows its
   progress and the sidebar counts it; the code inspector shows how each stage
   went for the open file, with its reason, and links to the dashboard.

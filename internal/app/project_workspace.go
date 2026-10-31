@@ -218,6 +218,10 @@ func (s *Service) refreshAISuggestions(analysis *project.Analysis, index *projec
 		return err
 	}
 	cache = cache.WithPolicy(policy)
+	reports, err := newStageReports(s.manager.Root(), policy)
+	if err != nil {
+		return err
+	}
 	for i := range index.Files {
 		file := &index.Files[i]
 		if file.Binary {
@@ -232,13 +236,65 @@ func (s *Service) refreshAISuggestions(analysis *project.Analysis, index *projec
 			return err
 		}
 		reported = append(reported, project.SuggestedFindingsForFile(*cached)...)
+		if err := reports.add(*file); err != nil {
+			return err
+		}
 	}
+	reported = append(reported, reports.suggested...)
+	project.AttachSymbols(s.manager.Root(), reported)
+	project.AttachSymbols(s.manager.Root(), reports.ruled)
 	store, err := project.NewFindingStore(s.manager.Root())
 	if err != nil {
 		return err
 	}
-	_, err = store.ReconcileSource(input, project.FindingSourceAI, reported)
+	if _, err := store.ReconcileSource(input, project.FindingSourceAI, reported); err != nil {
+		return err
+	}
+	_, err = store.ReconcileSource(input, project.FindingSourceSecurityRules, reports.ruled)
 	return err
+}
+
+// stageReports gathers the Performance and Security stages' stored findings:
+// the models' as suggestions, the security rules' as reported findings.
+type stageReports struct {
+	root      string
+	policy    *project.ContextPolicy
+	security  *project.SecurityReportCache
+	suggested []project.UnifiedFinding
+	ruled     []project.UnifiedFinding
+}
+
+func newStageReports(root string, policy *project.ContextPolicy) (*stageReports, error) {
+	security, err := project.NewSecurityReportCache(root)
+	if err != nil {
+		return nil, err
+	}
+	return &stageReports{root: root, policy: policy, security: security}, nil
+}
+
+func (r *stageReports) add(file project.IndexFile) error {
+	performance, err := project.LoadPerformanceFileReport(r.root, file.Path, file.ContentHash, r.policy)
+	if err != nil {
+		return err
+	}
+	if performance != nil {
+		r.suggested = append(r.suggested, project.FindingsForPerformanceReport(*performance)...)
+	}
+	for _, source := range []string{project.SecuritySourceAI, project.SecuritySourceDeterministic} {
+		report, err := r.security.LoadStored(file.Path, source)
+		if err != nil {
+			return err
+		}
+		if report == nil {
+			continue
+		}
+		if source == project.SecuritySourceDeterministic {
+			r.ruled = append(r.ruled, project.FindingsForSecurityReport(*report)...)
+		} else {
+			r.suggested = append(r.suggested, project.FindingsForSecurityReport(*report)...)
+		}
+	}
+	return nil
 }
 
 func validateFindingFilter(filter FindingFilter) error {

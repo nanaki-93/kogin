@@ -67,6 +67,9 @@ func issueTask(root string, finding project.UnifiedFinding) *IssueTask {
 		if finding.Location.StartLine > 0 {
 			description.WriteString(fmt.Sprintf(":%d", finding.Location.StartLine))
 		}
+		if finding.Location.Symbol != "" {
+			description.WriteString(" (in " + finding.Location.Symbol + ")")
+		}
 	}
 	task.Description = description.String()
 	task.AcceptanceCriteria = issueCriteria(finding, file)

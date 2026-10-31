@@ -211,6 +211,7 @@ test('issues label where each finding comes from', async ({ page }) => {
   await page.goto('/#/issues');
   const table = page.getByRole('table');
   await expect(table.getByRole('row', { name: /size limit/ })).toContainText('Security rule');
+  await expect(table.getByRole('row', { name: /size limit/ })).toContainText('change_handler.go:88 · ChangeHandler.Create');
   await expect(table.getByRole('row', { name: /ignores cancellation/ })).toContainText('AI suggestion');
 });
 

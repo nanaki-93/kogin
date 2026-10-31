@@ -37,8 +37,14 @@ func (s *Service) recordBudgetDebt(reports []archgate.BudgetReport) {
 
 func budgetDebtFinding(report archgate.BudgetReport) project.UnifiedFinding {
 	evidence := make([]string, 0, len(report.Debt))
+	// The issue is the file's, so its lines stay out of its identity; the
+	// first function over a budget names where to start.
+	symbol := ""
 	for _, debt := range report.Debt {
 		evidence = append(evidence, debt.String())
+		if symbol == "" {
+			symbol = debt.Function
+		}
 	}
 	return project.UnifiedFinding{
 		Category:   project.FindingCategoryMaintainability,
@@ -50,6 +56,6 @@ func budgetDebtFinding(report archgate.BudgetReport) project.UnifiedFinding {
 		Message: report.Path + " was already over the budgets in AGENTS.md when a task changed it. " +
 			"Tasks may change it without making it worse; split it to bring it within budget.",
 		Evidence: strings.Join(evidence, "\n"),
-		Location: project.FindingLocation{Path: report.Path},
+		Location: project.FindingLocation{Path: report.Path, Symbol: symbol},
 	}
 }

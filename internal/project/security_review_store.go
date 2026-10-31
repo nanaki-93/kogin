@@ -348,6 +348,29 @@ func (c *SecurityReportCache) Load(input SecurityReportInput) (*SecurityFileRepo
 	return cloneSecurityFileReport(&report), nil
 }
 
+// LoadStored reads a file's stored report from one source as it was saved,
+// whatever model or rules wrote it; nil when there is none or it is unreadable.
+func (c *SecurityReportCache) LoadStored(path, source string) (*SecurityFileReport, error) {
+	securityCacheMu.Lock()
+	defer securityCacheMu.Unlock()
+	file, err := c.resolveCachePath(path, source)
+	if err != nil {
+		return nil, fmt.Errorf("read security cache: %w", err)
+	}
+	data, err := os.ReadFile(file)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read security cache: %w", err)
+	}
+	var report SecurityFileReport
+	if decodeStoredSecurityReport(data, &report) != nil || !validStoredSecurityReport(report, nil) || report.Path != path || report.Source != source {
+		return nil, nil
+	}
+	return cloneSecurityFileReport(&report), nil
+}
+
 func (c *SecurityReportCache) Clear() error {
 	securityCacheMu.Lock()
 	defer securityCacheMu.Unlock()

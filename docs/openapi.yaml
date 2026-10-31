@@ -684,7 +684,7 @@ paths:
         - {$ref: '#/components/parameters/ProjectRevision'}
         - name: source
           in: query
-          schema: {type: string, enum: [ai, parser, vet, test, rules]}
+          schema: {type: string, enum: [ai, parser, vet, test, rules, security_rules]}
         - name: confidence
           in: query
           schema: {type: string, enum: [suggested, tool_reported]}
@@ -1514,7 +1514,7 @@ components:
       properties:
         id: {type: string}
         category: {type: string, enum: [bugs, performance, security, maintainability], description: A FindingCategory; maintainability is used only by the rules source.}
-        source: {type: string, enum: [ai, parser, vet, test, rules], description: rules marks a file a task found already over its AGENTS.md budgets (category maintainability); one finding per file, refreshed by later tasks and kept across analysis runs.}
+        source: {type: string, enum: [ai, parser, vet, test, rules, security_rules], description: 'rules marks a file a task found already over its AGENTS.md budgets (category maintainability); one finding per file, refreshed by later tasks and kept across analysis runs. security_rules marks a deterministic security rule match (category security, tool_reported). ai includes the semantic, Performance and Security AI stages; their originating_analysis is file, performance or security.'}
         confidence: {type: string, enum: [suggested, tool_reported]}
         severity: {type: string, enum: [low, medium, high]}
         title: {type: string}
@@ -1545,6 +1545,7 @@ components:
         path: {type: string, description: Project-relative path.}
         start_line: {type: integer}
         end_line: {type: integer}
+        symbol: {type: string, maxLength: 256, description: 'The innermost function around start_line ("Store.add"), named from the file the finding was made from; for a code-budget issue, the first function over a budget. Not part of the finding identity.'}
     FindingTriageRequest:
       type: object
       required: [project_revision, status]
