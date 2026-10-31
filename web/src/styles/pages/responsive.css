@@ -1,0 +1,104 @@
+/* ---------------------------------------------------------------- responsive */
+
+@media (max-width: 1180px) {
+  .inbox-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rail {
+    width: 260px;
+  }
+
+  .inspector {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .shell {
+    --sidebar: 56px;
+  }
+
+  .sidebar-label,
+  .nav-count,
+  .sidebar-new .kbd,
+  .project-switcher .grow {
+    display: none;
+  }
+
+  .search-trigger {
+    width: auto;
+  }
+
+  .search-trigger .grow,
+  .search-trigger .row {
+    display: none;
+  }
+
+  .task-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rail {
+    display: none;
+  }
+
+  .files-changed,
+  .ide {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .detail-pane {
+    position: fixed;
+    right: 0;
+    top: var(--topbar);
+    bottom: var(--statusbar);
+    z-index: 30;
+    width: min(420px, 100vw);
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+.inspector-hint {
+  gap: 4px;
+}
+
+.docs-notice {
+  margin-bottom: 20px;
+}
+
+.quarantine-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.quarantine-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.quarantine-item p {
+  margin: 0;
+}
+
+/* ---------------------------------------------------- settings: agent roles */
+
+.role-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.role-grid .badge {
+  flex: none;
+}
+
+.limit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 6px;
+}

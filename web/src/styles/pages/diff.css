@@ -1,0 +1,337 @@
+/* ---------------------------------------------------------------- files changed & diff */
+
+.files-changed {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.fc-tree {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg-sunken);
+}
+
+.fc-tree-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fc-files {
+  flex: 1;
+  margin: 0;
+  padding: 4px;
+  overflow: auto;
+  list-style: none;
+}
+
+.fc-file {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 30px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-2);
+  text-align: left;
+}
+
+.fc-file:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.fc-file.is-active {
+  background: var(--active);
+  color: var(--text);
+}
+
+.fc-file.is-viewed .fc-name {
+  color: var(--muted);
+}
+
+.fc-check {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+}
+
+.fc-check.is-on {
+  border-color: var(--success);
+  background: var(--success);
+  color: #fff;
+}
+
+.fc-name {
+  display: block;
+  font-size: var(--text-sm);
+}
+
+.fc-dir {
+  display: block;
+  overflow: hidden;
+  color: var(--faint);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+}
+
+.fc-stats {
+  display: inline-flex;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.add { color: var(--success); }
+.del { color: var(--danger); }
+
+.fc-tree-foot {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.fc-diff {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.fc-diff-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  font-size: var(--text-sm);
+}
+
+.fc-summary,
+.fc-criteria {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.fc-diff-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.diff-counts {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.diff-blocks {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.diff-blocks span {
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  background: var(--border-strong);
+}
+
+.diff-blocks .b-add { background: var(--success); }
+.diff-blocks .b-del { background: var(--danger); }
+
+.diff {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.diff .col-ln { width: 52px; }
+.diff-split .col-ln { width: 48px; }
+
+.diff td {
+  padding: 0;
+  vertical-align: top;
+}
+
+.diff .ln {
+  padding: 0 8px;
+  color: var(--faint);
+  text-align: right;
+  user-select: none;
+  font-size: 11px;
+}
+
+.diff .code {
+  padding: 0 12px 0 0;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.diff-wrap .code {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.diff .sign {
+  display: inline-block;
+  width: 18px;
+  color: var(--faint);
+  text-align: center;
+  user-select: none;
+}
+
+.row-add td { background: var(--diff-add); }
+.row-add .ln { background: var(--diff-gutter-add); }
+.row-del td { background: var(--diff-del); }
+.row-del .ln { background: var(--diff-gutter-del); }
+.row-add .sign { color: var(--success); }
+.row-del .sign { color: var(--danger); }
+.row-hunk td { background: var(--info-soft); color: var(--info); }
+
+.diff-split td.add { background: var(--diff-add); }
+.diff-split td.del { background: var(--diff-del); }
+.diff-split td.ln.add { background: var(--diff-gutter-add); }
+.diff-split td.ln.del { background: var(--diff-gutter-del); }
+.diff-split td.add .sign { color: var(--success); }
+.diff-split td.del .sign { color: var(--danger); }
+.diff-split td.empty { background: var(--surface-2); }
+.diff-split td.code:nth-child(2) { border-right: 1px solid var(--border); }
+
+.diff-gap td {
+  background: var(--surface-2);
+}
+
+.diff-expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  padding: 0 14px;
+  border: 0;
+  background: none;
+  color: var(--info);
+  font-family: var(--font);
+  font-size: var(--text-xs);
+  text-align: left;
+}
+
+.diff-expand:hover {
+  background: var(--info-soft);
+}
+
+.diff-empty {
+  padding: 20px;
+}
+
+/* Line comments: a gutter button on hover or focus, threads under the line. */
+.ln-cell {
+  position: relative;
+  display: block;
+}
+
+.ln-comment {
+  position: absolute;
+  top: 1px;
+  left: -6px;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+  opacity: 0;
+}
+
+.diff-row:hover .ln-comment,
+.ln-comment:focus-visible {
+  opacity: 1;
+}
+
+.diff-annotation td {
+  padding: 8px 12px 8px 52px;
+  border-block: 1px solid var(--border);
+  background: var(--surface-2);
+  font-family: var(--font);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  white-space: normal;
+}
+
+.line-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 760px;
+}
+
+.line-comment,
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.line-comment .prose {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.fc-comments {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--accent-text);
+}
+
+.merge-file {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.commits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.commits li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+}

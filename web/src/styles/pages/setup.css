@@ -1,0 +1,213 @@
+/* ---------------------------------------------------------------- setup */
+
+.setup-page {
+  max-width: 920px;
+}
+
+.setup-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.setup-step:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.setup-step.is-active {
+  border-color: var(--accent);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.setup-step.is-done {
+  color: var(--text-2);
+}
+
+.setup-step-mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.setup-step.is-active .setup-step-mark {
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+}
+
+.setup-step.is-done .setup-step-mark {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px 16px;
+}
+
+.setup-test {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.setup-detail {
+  max-width: 560px;
+  overflow-wrap: anywhere;
+}
+
+.setup-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.folder-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.folder-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.folder-row {
+  display: flex;
+  width: 100%;
+  padding: 8px 12px;
+}
+
+/* ------------------------------------------------------------- code rules */
+
+.rules-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rules-file {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.rules-file-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rules-file-head .mono {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rules-lines {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rules-lines-over {
+  color: var(--danger);
+}
+
+.rules-findings {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  font-size: var(--text-xs);
+}
+
+.rules-findings-over {
+  color: var(--danger);
+}
+
+/* Ask the code */
+.ask-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ask-pending,
+.ask-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ask-text {
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.ask-citations {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ask-citations li {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.ask-citations .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ask-quote {
+  display: block;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-left: 2px solid var(--border-strong);
+  background: var(--bg-sunken);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

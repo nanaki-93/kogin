@@ -1,0 +1,318 @@
+/* ---------------------------------------------------------------- tabs */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab[data-state='active'] {
+  color: var(--text);
+}
+
+.tab[data-state='active']::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+/* ---------------------------------------------------------------- tables & lists */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-md);
+}
+
+.table th {
+  height: 32px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table td {
+  height: 40px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  max-width: 0;
+}
+
+.table-row {
+  cursor: pointer;
+}
+
+.table .num {
+  width: 92px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table tfoot td {
+  border-bottom: 0;
+  font-weight: 500;
+}
+
+.table-row:hover td {
+  background: var(--hover);
+}
+
+.table-row.is-active td {
+  background: var(--accent-soft);
+}
+
+.table-row.is-muted {
+  opacity: 0.55;
+}
+
+.strong-row {
+  font-weight: 500;
+}
+
+.col-sev { width: 96px; }
+.col-loc { width: 32%; }
+.col-src { width: 120px; }
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.list-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.list-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.list-group-action {
+  margin-left: auto;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  text-decoration: none;
+  transition: background 0.1s var(--ease);
+}
+
+.list-row + .list-row {
+  box-shadow: 0 -1px 0 var(--border);
+}
+
+.list-row:hover,
+.list-row.is-active {
+  background: var(--hover);
+  text-decoration: none;
+}
+
+.list-row:hover + .list-row,
+.list-row.is-active + .list-row,
+.list-row + .list-row:hover,
+.list-row + .list-row.is-active {
+  box-shadow: none;
+}
+
+.list-row.is-active {
+  background: var(--active);
+}
+
+/* Fixed-width trailing columns keep rows aligned across a list. */
+.col {
+  flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.col-status { width: 116px; }
+.col-kind { width: 104px; }
+.col-files { width: 48px; text-align: right; }
+.col-time { width: 56px; text-align: right; }
+
+@media (max-width: 900px) {
+  .col-kind,
+  .col-files {
+    display: none;
+  }
+}
+
+.list-title {
+  font-weight: 500;
+}
+
+.list-reason {
+  max-width: 38%;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.mini-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+}
+
+.mini-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+}
+
+.mini-row:hover {
+  background: var(--hover);
+}
+
+.label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 6px 10px;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.details-wide {
+  grid-template-columns: 140px minmax(0, 1fr);
+}
+
+.details dt {
+  color: var(--muted);
+}
+
+.details dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stat {
+  flex: 1;
+  min-width: 80px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.stat-value {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  text-transform: capitalize;
+}
+
+pre.output {
+  max-height: 360px;
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-sunken);
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.prose {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+/* ---------------------------------------------------------------- syntax */
+
+.hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-literal { color: var(--syntax-keyword); }
+.hljs-string, .hljs-regexp, .hljs-addition, .hljs-attribute .hljs-string { color: var(--syntax-string); }
+.hljs-number, .hljs-symbol, .hljs-bullet { color: var(--syntax-number); }
+.hljs-comment, .hljs-quote, .hljs-meta { color: var(--syntax-comment); font-style: italic; }
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--syntax-function); }
+.hljs-type, .hljs-title.class_, .hljs-class .hljs-title { color: var(--syntax-type); }
+.hljs-attr, .hljs-attribute, .hljs-variable, .hljs-template-variable, .hljs-params { color: var(--syntax-attr); }
+.hljs-section, .hljs-name, .hljs-tag { color: var(--syntax-function); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 600; }

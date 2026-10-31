@@ -1,0 +1,258 @@
+/* ---------------------------------------------------------------- docs & settings */
+
+.docs {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  height: 100%;
+}
+
+.docs-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 16px 8px;
+  border-right: 1px solid var(--border);
+  background: var(--bg-sunken);
+}
+
+.docs-nav .panel-title {
+  padding: 0 10px 8px;
+}
+
+.docs-link {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--text-2);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.docs-link:hover {
+  background: var(--hover);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.docs-link.is-active {
+  background: var(--active);
+  color: var(--text);
+}
+
+.docs-refresh {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: auto;
+  padding: 8px 10px;
+}
+
+.docs-refresh .btn {
+  margin-left: -8px;
+}
+
+.doc {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  line-height: 1.65;
+}
+
+.doc h1 {
+  font-size: var(--text-2xl);
+  letter-spacing: -0.02em;
+}
+
+.doc h2 {
+  margin-top: 8px;
+  font-size: var(--text-lg);
+}
+
+.doc .lead {
+  color: var(--text-2);
+  font-size: var(--text-lg);
+  line-height: 1.6;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.doc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.doc-card.is-focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.doc-card h2 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.component-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.component-graph {
+  margin: 8px 0 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow-x: auto;
+}
+
+.component-graph svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.component-graph figcaption {
+  margin-top: 8px;
+}
+
+.graph-node {
+  cursor: pointer;
+  outline: none;
+}
+
+.graph-node rect {
+  fill: var(--surface-2);
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+.graph-node.is-active rect,
+.graph-node:focus-visible rect {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.graph-label {
+  fill: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.graph-meta {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.graph-edge {
+  fill: none;
+  stroke: var(--faint);
+  opacity: 0.8;
+}
+
+.graph-edge.is-active {
+  stroke: var(--accent);
+  opacity: 1;
+}
+
+.graph-edge.is-dim {
+  opacity: 0.25;
+}
+
+.graph-arrow {
+  fill: var(--faint);
+}
+
+.entry-points {
+  padding-left: 18px;
+}
+
+.doc-card .chips {
+  align-items: center;
+  margin-top: 6px;
+}
+
+.steps li + li {
+  margin-top: 4px;
+}
+
+.steps .link-btn {
+  margin-left: 6px;
+}
+
+.runbook-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.command {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+
+.glossary {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.glossary dt {
+  font-weight: 600;
+}
+
+.glossary dd {
+  margin: 2px 0 0;
+  color: var(--text-2);
+}
+
+.commands {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.commands li {
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: var(--bg-sunken);
+}
+
+.commands li + li {
+  margin-top: 4px;
+}
+
+.open-project {
+  align-items: flex-start;
+}
+
+/* Line the button up with the input, below the field label. */
+.open-project > .btn {
+  margin-top: 23px;
+}

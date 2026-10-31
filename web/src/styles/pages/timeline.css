@@ -1,0 +1,213 @@
+/* ---------------------------------------------------------------- timeline */
+
+.timeline {
+  margin: 0;
+  padding: 8px 14px 14px;
+  list-style: none;
+}
+
+.tl-item {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.tl-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 7.5px;
+  top: 28px;
+  bottom: -8px;
+  width: 1px;
+  background: var(--border-strong);
+}
+
+.tl-marker {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 20px;
+  background: var(--surface);
+}
+
+.tl-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.tl-idle .tl-content > .row .strong {
+  color: var(--muted);
+}
+
+.reviewers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.reviewer {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.reviewer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.reviewer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 12px 10px 32px;
+  color: var(--text-2);
+}
+
+.findings {
+  margin: 0;
+}
+
+.findings li + li {
+  margin-top: 3px;
+}
+
+.findings-advisory {
+  color: var(--muted);
+}
+
+.approval-notes {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.approval-notes .prose {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 14px;
+  list-style: none;
+}
+
+.message {
+  display: flex;
+  gap: 10px;
+}
+
+.message-avatar {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--muted);
+}
+
+.from-agent .message-avatar {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.message-body {
+  min-width: 0;
+}
+
+.revise {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.revise-progress {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.revise .textarea {
+  border: 0;
+  background: transparent;
+  padding: 2px;
+  box-shadow: none !important;
+}
+
+/* ---------------------------------------------------------------- checks */
+
+.checks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check {
+  border-bottom: 1px solid var(--border);
+}
+
+.check:last-child {
+  border-bottom: 0;
+}
+
+.check-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.check-head:disabled {
+  cursor: default;
+  color: inherit;
+}
+
+.check-head:not(:disabled):hover {
+  background: var(--hover);
+}
+
+.check-body {
+  padding: 0 14px 12px 50px;
+}
+
+.chev {
+  color: var(--faint);
+  transition: transform 0.12s var(--ease);
+}
+
+.chev.is-open {
+  transform: rotate(90deg);
+}
+
+.chev.is-hidden {
+  visibility: hidden;
+}
