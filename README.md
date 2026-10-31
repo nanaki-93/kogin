@@ -10,9 +10,11 @@ guarded **Apply** and **Undo**.
 
 - **Understand a project.** Deterministic indexing (`.mini-orca/index.json`,
   honoring `.mini-orcaignore`) feeds a resumable analysis across three model
-  scopes (`analyze`, `bug`, `code`). Static and security rules produce verified
-  findings; semantic, performance and security reviews produce labeled model
-  suggestions. The Docs page maps the code in any language (components, the
+  scopes (`analyze`, `bug`, `code`). Static rules and per-language security
+  rule packs (Go, Python, JS/TS, Java, Kotlin, Ruby, PHP, C#, C/C++, Rust)
+  produce verified findings with their lines; semantic, performance and
+  security reviews produce labeled model suggestions. The Docs page maps the
+  code in any language (components, the
   imports between them drawn as a diagram, entry points, manifests and the
   runbook), and each analysis run ends by summarizing again the components
   whose files changed and writing the project overview from those summaries;

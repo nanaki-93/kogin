@@ -685,18 +685,23 @@ func cloneSecurityFileReport(source *SecurityFileReport) *SecurityFileReport {
 	return &clone
 }
 
-const SecurityGoRuleSetVersion = securityrules.SecurityGoRuleSetVersion
+const SecurityRuleSetVersion = securityrules.SecurityRuleSetVersion
 
 type SecurityRuleScanResult = securityrules.SecurityRuleScanResult
 
-// ScanGoSecurityRules applies the intentionally small, source-only security
-// ruleset to one indexed Go file. It does not resolve packages or execute code.
-func ScanGoSecurityRules(indexed IndexFile, source string) (SecurityRuleScanResult, error) {
-	if !validSecurityIndex(indexed) || indexed.Language != "Go" || indexed.Binary {
+// SecurityRulesCover reports that a deterministic rule pack reads the file.
+func SecurityRulesCover(path string) bool {
+	return securityrules.Covers(path)
+}
+
+// ScanSecurityRules applies the source-only rule pack of the file's language.
+// It does not resolve packages or run code.
+func ScanSecurityRules(indexed IndexFile, source string) (SecurityRuleScanResult, error) {
+	if !validSecurityIndex(indexed) || indexed.Binary || !securityrules.Covers(indexed.Path) {
 		return SecurityRuleScanResult{}, ErrSecurityRulesUnavailable
 	}
 	if len(source) > SecurityMaxSourceBytes || contentHash([]byte(source)) != indexed.ContentHash {
 		return SecurityRuleScanResult{}, ErrRevisionConflict
 	}
-	return securityrules.ScanGoFile(indexed, source)
+	return securityrules.ScanFile(indexed, source)
 }

@@ -231,7 +231,7 @@ func TestAnalysisFileFailureRetainsEarlierReportsAndAllowsOtherStages(t *testing
 func TestAnalysisFileUnsupportedRulesDoNotSuppressAIAndPartialRulesStayPartial(t *testing.T) {
 	server, calls := analysisResponseServer(t, func(AnalysisStage) string { return `{"findings":[]}` })
 	s, root := newSemanticAnalysisService(t, server.URL, 0)
-	if err := os.WriteFile(filepath.Join(root, "sample.js"), []byte("function run() { return 1; }\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "sample.lua"), []byte("function run() return 1 end\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	source := "package main\nimport \"os/exec\"\nfunc Calls(input string) {\n" + strings.Repeat("_ = exec.Command(\"sh\", \"-c\", input)\n", 6) + "}\n"
@@ -241,15 +241,15 @@ func TestAnalysisFileUnsupportedRulesDoNotSuppressAIAndPartialRulesStayPartial(t
 	if _, err := s.Reindex(); err != nil {
 		t.Fatal(err)
 	}
-	request := analysisStageRequestFor(t, s, "sample.js", AnalysisStageSecurityRules)
+	request := analysisStageRequestFor(t, s, "sample.lua", AnalysisStageSecurityRules)
 	result, err := s.analyzeFileStage(context.Background(), request, analysisStageAuthorityFor(t, request))
-	if err != nil || result.Progress.Status != AnalysisStageUnavailable || result.Progress.FindingCount != nil {
+	if err != nil || result.Progress.Status != AnalysisStageUnavailable || result.Progress.FindingCount != nil || result.Progress.Reason != noRulePackReason {
 		t.Fatalf("unsupported rules=%+v, %v", result, err)
 	}
 	request.Stage = AnalysisStageSecurityAI
 	result, err = s.analyzeFileStage(context.Background(), request, analysisStageAuthorityFor(t, request))
 	if err != nil || result.Progress.Status != AnalysisStageCompletedEmpty || result.Progress.Attempts != 1 || calls.Load() != 1 {
-		t.Fatalf("JS advisory=%+v, %v", result, err)
+		t.Fatalf("Lua advisory=%+v, %v", result, err)
 	}
 	request = analysisStageRequestFor(t, s, "rules.go", AnalysisStageSecurityRules)
 	for run := 0; run < 2; run++ {

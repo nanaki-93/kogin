@@ -225,7 +225,7 @@ func analysisMetadataReason(value string) bool {
 	}
 	switch value {
 	case "The provider rejected the Performance response format.", analysisSelectionExclusion, analysisRetryExclusion, analysisRecoveryExclusion, analysisStaleExclusion, analysisStalePathExclusion, "", "Excluded by source policy.", "Not a supported text source file.", "Source exceeds analyzer size limits.", "Not eligible for semantic source analysis.",
-		"Passive security rules require a Go source file.", "The model for this stage is not configured.",
+		noRulePackReason, legacyNoRulePackReason, "The model for this stage is not configured.",
 		"Analysis stage could not complete.", "The stage needs an additional attempt allowance.", "The file is not eligible for this source analysis.",
 		"The report contains incomplete evidence; review its details.",
 		"Analysis canceled by the user.", "Analysis paused by the user.", "The batch limit was reached; resume to continue pending files.",

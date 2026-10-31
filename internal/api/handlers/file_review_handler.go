@@ -42,8 +42,9 @@ func (h *ProjectHandler) FileAnalysis(w http.ResponseWriter, r *http.Request) {
 	api.WriteJSON(w, http.StatusOK, analysis)
 }
 
-// ScanSecurityFile runs the bounded deterministic rules against one selected
-// Go file. It is source-only and does not contact a provider or run project code.
+// ScanSecurityFile runs the bounded rule pack of the file's language against
+// one selected file. It is source-only and does not contact a provider or run
+// project code.
 func (h *ProjectHandler) ScanSecurityFile(w http.ResponseWriter, r *http.Request) {
 	var request securityScanRequest
 	if !decodeStrictJSON(w, r, &request, "invalid security scan request", "Provide path and project_revision.") || !requireCurrentRevision(w, h.manager, request.ProjectRevision) {

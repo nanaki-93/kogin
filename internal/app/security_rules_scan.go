@@ -16,8 +16,16 @@ type securityRulesSnapshot struct {
 	policyVersion string
 }
 
-// ScanSecurityFile applies the deterministic source-only Go rules to one
-// current, policy-eligible file. It never calls a provider or runs a process.
+// noRulePackReason explains a file the security rule packs do not read;
+// runs saved before the packs covered every language say it the old way.
+const (
+	noRulePackReason       = "No security rule pack covers this file type."
+	legacyNoRulePackReason = "Passive security rules require a Go source file."
+)
+
+// ScanSecurityFile applies the deterministic source-only rule pack of the
+// file's language to one current, policy-eligible file. It never calls a
+// provider or runs a process.
 func (s *Service) ScanSecurityFile(ctx context.Context, path, revision string) (*project.SecurityFileReport, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -43,12 +51,12 @@ func (s *Service) ScanSecurityFile(ctx context.Context, path, revision string) (
 func securityRulesInput(snapshot securityRulesSnapshot) project.SecurityReportInput {
 	return project.SecurityReportInput{ProjectID: snapshot.analysis.ProjectID, ProjectRevision: snapshot.analysis.ProjectRevision,
 		Path: snapshot.file.Path, ContentHash: snapshot.file.ContentHash, Source: project.SecuritySourceDeterministic,
-		RuleSetVersion: project.SecurityGoRuleSetVersion, ContextPolicyVersion: snapshot.policyVersion}
+		RuleSetVersion: project.SecurityRuleSetVersion, ContextPolicyVersion: snapshot.policyVersion}
 }
 
 func (s *Service) executeSecurityRulesScan(ctx context.Context, snapshot securityRulesSnapshot, authorizePublication func(func() error) error) (*project.SecurityFileReport, error) {
 	input := securityRulesInput(snapshot)
-	scan, err := project.ScanGoSecurityRules(snapshot.file, snapshot.source)
+	scan, err := project.ScanSecurityRules(snapshot.file, snapshot.source)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +67,7 @@ func (s *Service) executeSecurityRulesScan(ctx context.Context, snapshot securit
 	}
 	if scan.Truncated {
 		report.Status = project.SecurityStatusPartial
-		report.Reason = "Only the first five source rule matches are shown; review the file for additional matches."
+		report.Reason = "Only the five most severe rule matches are shown; review the file for additional matches."
 	} else if len(scan.Findings) == 0 {
 		report.Status = project.SecurityStatusCompletedEmpty
 	} else {
@@ -93,7 +101,7 @@ func (s *Service) prepareSecurityRulesScan(path, revision string) (securityRules
 	if err != nil {
 		return securityRulesSnapshot{}, err
 	}
-	if file.Language != "Go" || file.Binary {
+	if file.Binary || !project.SecurityRulesCover(file.Path) {
 		return securityRulesSnapshot{}, project.ErrSecurityRulesUnavailable
 	}
 	root := s.manager.Root()

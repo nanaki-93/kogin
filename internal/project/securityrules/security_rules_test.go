@@ -9,7 +9,7 @@ import (
 	"github.com/nanaki-93/mini-orca/v2/internal/project/symbols"
 )
 
-func TestScanGoSecurityRulesMatchesOnlyExactSourcePatterns(t *testing.T) {
+func TestGoSecurityRulesMatchesOnlyExactSourcePatterns(t *testing.T) {
 	for _, test := range []struct {
 		name       string
 		path       string
@@ -165,7 +165,7 @@ func TestScanGoSecurityRulesMatchesOnlyExactSourcePatterns(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			indexed := securityRuleIndexedFile(test.path, test.source)
-			scan, err := ScanGoFile(indexed, test.source)
+			scan, err := ScanFile(indexed, test.source)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -189,9 +189,9 @@ func TestScanGoSecurityRulesMatchesOnlyExactSourcePatterns(t *testing.T) {
 	}
 }
 
-func TestScanGoSecurityRulesBoundsResultsInSourceOrder(t *testing.T) {
+func TestGoSecurityRulesBoundsResultsInSourceOrder(t *testing.T) {
 	source := "package fixture\nimport \"os/exec\"\nfunc Run(input string) {\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\t_ = exec.Command(\"sh\", \"-c\", input)\n}\n"
-	scan, err := ScanGoFile(securityRuleIndexedFile("command.go", source), source)
+	scan, err := ScanFile(securityRuleIndexedFile("command.go", source), source)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,9 +205,9 @@ func TestScanGoSecurityRulesBoundsResultsInSourceOrder(t *testing.T) {
 	}
 }
 
-func TestScanGoSecurityRulesSortsCandidatesBeforeCapping(t *testing.T) {
+func TestGoSecurityRulesSortsCandidatesBeforeCapping(t *testing.T) {
 	source := "package fixture\nimport (\"crypto/tls\"; \"os/exec\")\nvar values []tls.Config\nfunc Run(input string) {\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\t_ = exec.Command(\"sh\", \"-c\", input)\n\tvalues[0].InsecureSkipVerify, _ = true, exec.Command(\"sh\", \"-c\", input)\n}\n"
-	scan, err := ScanGoFile(securityRuleIndexedFile("ordered.go", source), source)
+	scan, err := ScanFile(securityRuleIndexedFile("ordered.go", source), source)
 	if err != nil {
 		t.Fatal(err)
 	}

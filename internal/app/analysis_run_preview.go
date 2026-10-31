@@ -398,8 +398,8 @@ func analysisStageExclusion(file project.IndexFile, stage AnalysisStage) string 
 		return "Source exceeds analyzer size limits."
 	case (stage == AnalysisStageSecurityRules || stage == AnalysisStageSecurityAI) && file.SizeBytes > project.SecurityMaxSourceBytes:
 		return "Source exceeds analyzer size limits."
-	case stage == AnalysisStageSecurityRules && file.Language != "Go":
-		return "Passive security rules require a Go source file."
+	case stage == AnalysisStageSecurityRules && !project.SecurityRulesCover(file.Path):
+		return noRulePackReason
 	}
 	return ""
 }

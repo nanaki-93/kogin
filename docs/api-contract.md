@@ -283,6 +283,15 @@ model requests; retries cannot be multiplied by an undisclosed outer retry loop.
 Four per-file stage identities are fixed: `semantic`, `performance`, `security_rules`,
 `security_ai`. Semantic risks can feed all three result categories. Performance
 reviews feed Performance; Security rules and advisory reviews feed Security.
+Security rules are source-only rule packs, one per language: Go (go/ast plus
+tree-sitter queries), Python, JavaScript, TypeScript, Java, Kotlin, Ruby, PHP,
+C#, C, C++ and Rust. They find commands and SQL built from dynamic data, code
+evaluation, disabled TLS verification, weak hashes and ciphers, unsafe
+deserialization, hard-coded secrets and, in C and C++, unbounded copies, `gets`
+and dynamic format strings. Secrets and weak digests in test and fixture files
+are ignored. A file keeps its five most severe matches (`partial` says more
+exist). Files in other languages skip the stage with "No security rule pack
+covers this file type."
 The latter three retain their existing report types and provenance. A stage's
 consumers do not classify its prose. Stage work counts once in request budgets,
 even when it feeds several result sections. The preview exposes expected model

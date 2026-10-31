@@ -7,15 +7,14 @@ import (
 	"github.com/nanaki-93/mini-orca/v2/internal/project/symbols"
 )
 
-func TestScanGoSecurityRulesRejectsUnsupportedAndStaleInput(t *testing.T) {
+func TestScanSecurityRulesRejectsUnsupportedAndStaleInput(t *testing.T) {
 	source := "package fixture\nfunc Run() {}\n"
-	indexed := securityRuleIndexedFile("main.go", source)
-	indexed.Language = "Kotlin"
-	if _, err := ScanGoSecurityRules(indexed, source); err != ErrSecurityRulesUnavailable {
+	indexed := securityRuleIndexedFile("notes.txt", source)
+	if _, err := ScanSecurityRules(indexed, source); err != ErrSecurityRulesUnavailable {
 		t.Fatalf("unsupported language = %v", err)
 	}
 	indexed = securityRuleIndexedFile("main.go", source)
-	if _, err := ScanGoSecurityRules(indexed, source+"// changed\n"); err != ErrRevisionConflict {
+	if _, err := ScanSecurityRules(indexed, source+"// changed\n"); err != ErrRevisionConflict {
 		t.Fatalf("stale source = %v", err)
 	}
 }

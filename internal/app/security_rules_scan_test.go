@@ -19,7 +19,7 @@ func TestScanSecurityFileStoresFreshDeterministicReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.Status != project.SecurityStatusCompleted || report.RuleSetVersion != project.SecurityGoRuleSetVersion || len(report.Findings) != 1 || report.Findings[0].EvidenceKind != "rule_match" {
+	if report.Status != project.SecurityStatusCompleted || report.RuleSetVersion != project.SecurityRuleSetVersion || len(report.Findings) != 1 || report.Findings[0].EvidenceKind != "rule_match" {
 		t.Fatalf("security report = %+v", report)
 	}
 	cached, err := service.ScanSecurityFile(context.Background(), "main.go", revision)
@@ -143,14 +143,14 @@ func TestScanSecurityFileDoesNotContactConfiguredProvider(t *testing.T) {
 func TestScanSecurityFileRejectsStaleExcludedSymlinkAndUnsupportedPaths(t *testing.T) {
 	service, root, revision := newGoScanService(t, map[string]string{
 		"main.go":          "package fixture\nfunc Run() {}\n",
-		"other.kt":         "fun run() = Unit\n",
+		"notes.txt":        "run it\n",
 		".mini-orcaignore": "excluded.go\n",
 		"excluded.go":      "package fixture\nfunc Excluded() {}\n",
 	})
 	if _, err := service.ScanSecurityFile(context.Background(), "main.go", "stale"); !errors.Is(err, project.ErrRevisionConflict) {
 		t.Fatalf("stale scan = %v", err)
 	}
-	if _, err := service.ScanSecurityFile(context.Background(), "other.kt", revision); !errors.Is(err, project.ErrSecurityRulesUnavailable) {
+	if _, err := service.ScanSecurityFile(context.Background(), "notes.txt", revision); !errors.Is(err, project.ErrSecurityRulesUnavailable) {
 		t.Fatalf("unsupported scan = %v", err)
 	}
 	if _, err := service.ScanSecurityFile(context.Background(), "excluded.go", revision); !errors.Is(err, project.ErrExcludedFile) {

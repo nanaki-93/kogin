@@ -17,7 +17,6 @@ import (
 )
 
 const (
-	SecurityGoRuleSetVersion       = "go-rules-v1"
 	MaxSecurityFindings            = 5
 	maxSecurityFindings            = MaxSecurityFindings
 	SecurityTriageOpen             = "open"
@@ -62,7 +61,7 @@ func SecurityFindingID(f SecurityFinding) string {
 	return "security:" + hex.EncodeToString(sum[:])
 }
 
-// SecurityRuleScanResult is the bounded deterministic output for one Go file.
+// SecurityRuleScanResult is the bounded deterministic output for one file.
 type SecurityRuleScanResult struct {
 	Findings  []SecurityFinding
 	Truncated bool
@@ -73,17 +72,22 @@ type securityRuleCandidate struct {
 	finding  SecurityFinding
 }
 
-// ScanGoFile parses Go source and evaluates the deterministic AST security ruleset.
-func ScanGoFile(indexed IndexFile, source string) (SecurityRuleScanResult, error) {
+// scanGoCandidates parses Go source and evaluates the AST rules, which
+// resolve imports and shadowing that a tree-sitter query cannot.
+func scanGoCandidates(indexed IndexFile, source string) ([]ruleCandidate, error) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, indexed.Path, source, 0)
 	if err != nil {
-		return SecurityRuleScanResult{}, fmt.Errorf("parse Go security rules: %w", err)
+		return nil, fmt.Errorf("parse Go security rules: %w", err)
 	}
 	visitor := newSecurityRuleVisitor(fset, indexed)
 	visitor.walkFile(file)
-	visitor.finalize()
-	return SecurityRuleScanResult{Findings: visitor.findings, Truncated: visitor.truncated}, nil
+	sort.SliceStable(visitor.candidates, func(i, j int) bool { return visitor.candidates[i].position < visitor.candidates[j].position })
+	candidates := make([]ruleCandidate, 0, len(visitor.candidates))
+	for _, candidate := range visitor.candidates {
+		candidates = append(candidates, ruleCandidate{line: candidate.finding.Anchor.StartLine, finding: candidate.finding})
+	}
+	return candidates, nil
 }
 
 type securityRuleScope struct {
@@ -174,13 +178,11 @@ func (s *securityRuleScope) importsDotPath(name, wanted string) bool {
 type securityRuleVisitor struct {
 	fset       *token.FileSet
 	indexed    IndexFile
-	findings   []SecurityFinding
 	candidates []securityRuleCandidate
-	truncated  bool
 }
 
 func newSecurityRuleVisitor(fset *token.FileSet, indexed IndexFile) *securityRuleVisitor {
-	return &securityRuleVisitor{fset: fset, indexed: indexed, findings: []SecurityFinding{}}
+	return &securityRuleVisitor{fset: fset, indexed: indexed}
 }
 
 func (v *securityRuleVisitor) walkFile(file *ast.File) {
@@ -804,20 +806,4 @@ func (v *securityRuleVisitor) addFinding(finding SecurityFinding, position token
 	finding.VerificationState = SecurityVerificationUnverified
 	finding.ID = SecurityFindingID(finding)
 	v.candidates = append(v.candidates, securityRuleCandidate{position: position, finding: finding})
-}
-
-func (v *securityRuleVisitor) finalize() {
-	sort.SliceStable(v.candidates, func(i, j int) bool { return v.candidates[i].position < v.candidates[j].position })
-	seen := make(map[string]struct{}, len(v.candidates))
-	for _, candidate := range v.candidates {
-		if _, duplicate := seen[candidate.finding.ID]; duplicate {
-			continue
-		}
-		seen[candidate.finding.ID] = struct{}{}
-		if len(v.findings) == maxSecurityFindings {
-			v.truncated = true
-			continue
-		}
-		v.findings = append(v.findings, candidate.finding)
-	}
 }

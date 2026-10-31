@@ -224,7 +224,7 @@ export function analysisRun(status = 'partial'): AnalysisRunSummary {
       failed('internal/vault/store.go'),
       failed('internal/vault/crypto.go'),
       { path: 'internal/api/handlers/webui.go', language: 'Go', stages: [stage('semantic', 'completed', { finding_count: 2 }), stage('performance', 'completed_empty', { finding_count: 0 }), stage('security_rules', 'completed', { finding_count: 1 }), stage('security_ai', status === 'running' ? 'running' : 'completed_empty', { finding_count: 0 })] },
-      { path: 'README.md', language: 'Text', stages: [stage('semantic', 'skipped', { reason: 'Not eligible for semantic source analysis.', attempts: 0 }), stage('performance', 'completed_empty', { finding_count: 0 }), stage('security_rules', 'skipped', { reason: 'Passive security rules require a Go source file.', attempts: 0 }), stage('security_ai', 'completed_empty', { finding_count: 0 })] },
+      { path: 'README.md', language: 'Text', stages: [stage('semantic', 'skipped', { reason: 'Not eligible for semantic source analysis.', attempts: 0 }), stage('performance', 'completed_empty', { finding_count: 0 }), stage('security_rules', 'skipped', { reason: 'No security rule pack covers this file type.', attempts: 0 }), stage('security_ai', 'completed_empty', { finding_count: 0 })] },
     ],
     sections: [
       { category: 'bugs', status: 'partial', coverage: { total: 3, pending: 0, running: 0, succeeded: 1, partial: 0, failed: 2, skipped: 0, unavailable: 0 }, finding_count: 2 },

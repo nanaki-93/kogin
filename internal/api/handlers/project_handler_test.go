@@ -292,7 +292,7 @@ func TestProjectWorkspaceAPIsAreRevisionGuardedAndSourceFree(t *testing.T) {
 func TestSecurityScanIsRevisionGuardedSourceOnlyAndReportsUnavailableLanguages(t *testing.T) {
 	root := t.TempDir()
 	writeProjectHandlerFixture(t, root, "main.go", "package fixture\nimport \"crypto/tls\"\nfunc Run() { _ = tls.Config{InsecureSkipVerify: true} }\n")
-	writeProjectHandlerFixture(t, root, "notes.kt", "fun run() = Unit\n")
+	writeProjectHandlerFixture(t, root, "notes.txt", "run it\n")
 	manager, err := project.NewManager(root)
 	if err != nil {
 		t.Fatal(err)
@@ -323,7 +323,7 @@ func TestSecurityScanIsRevisionGuardedSourceOnlyAndReportsUnavailableLanguages(t
 	}
 
 	unsupported := httptest.NewRecorder()
-	handler.ScanSecurityFile(unsupported, httptest.NewRequest(http.MethodPost, "/api/projects/current/files/security-scan", bytes.NewBufferString(`{"path":"notes.kt","project_revision":"`+index.ProjectRevision+`"}`)))
+	handler.ScanSecurityFile(unsupported, httptest.NewRequest(http.MethodPost, "/api/projects/current/files/security-scan", bytes.NewBufferString(`{"path":"notes.txt","project_revision":"`+index.ProjectRevision+`"}`)))
 	if unsupported.Code != http.StatusUnprocessableEntity || !strings.Contains(unsupported.Body.String(), "unavailable") {
 		t.Fatalf("unsupported security scan = %d %s", unsupported.Code, unsupported.Body.String())
 	}

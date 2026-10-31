@@ -903,13 +903,13 @@ paths:
       - {$ref: '#/components/parameters/WorktreePath'}
     post:
       tags: [Security]
-      summary: Scan exactly one eligible Go file with deterministic source-only security rules
-      description: Applies the current Go ruleset without provider access or subprocess execution. A rule match requires syntactic review and is not proof of exploitability.
+      summary: Scan exactly one eligible file with the deterministic source-only security rule pack of its language
+      description: Applies the rule pack for the file's language (Go, Python, JavaScript, TypeScript, Java, Kotlin, Ruby, PHP, C#, C, C++, Rust) without provider access or subprocess execution; other languages return 422. A rule match requires syntactic review and is not proof of exploitability.
       requestBody:
         required: true
         content: {application/json: {schema: {$ref: '#/components/schemas/SecurityScanRequest'}}}
       responses:
-        '200': {description: Source-free deterministic Security report; partial reports retain the first five source-order matches and state that coverage limit, content: {application/json: {schema: {$ref: '#/components/schemas/SecurityFileReport'}}}}
+        '200': {description: Source-free deterministic Security report; partial reports retain the five most severe matches (then source order) and state that coverage limit, content: {application/json: {schema: {$ref: '#/components/schemas/SecurityFileReport'}}}}
         '400': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
@@ -1646,7 +1646,7 @@ components:
       type: object
       required: [path, project_revision]
       properties:
-        path: {type: string, description: One project-relative context-policy-eligible Go file.}
+        path: {type: string, description: One project-relative context-policy-eligible source file in a language with a rule pack.}
         project_revision: {type: string}
     SecurityFileReport:
       type: object

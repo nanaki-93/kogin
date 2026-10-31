@@ -538,7 +538,7 @@ func rejectedAnalysisStage(ctx context.Context, stage AnalysisStage, attempts in
 		result.Progress.Status = AnalysisStageStale
 	case errors.Is(err, project.ErrSecurityRulesUnavailable):
 		result.Progress.Status = AnalysisStageUnavailable
-		result.Progress.Reason = "Passive security rules require a Go source file."
+		result.Progress.Reason = noRulePackReason
 		return result, nil
 	case errors.Is(err, project.ErrExcludedFile), errors.Is(err, project.ErrUnsupportedFile):
 		result.Progress.Status = AnalysisStageSkipped
