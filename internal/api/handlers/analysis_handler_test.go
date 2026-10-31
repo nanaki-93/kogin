@@ -23,15 +23,27 @@ func newAnalysisHandlerFixture(t *testing.T) (*AnalysisHandler, *ProjectHandler,
 	t.Helper()
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls.Add(1)
 		var request llm.ChatRequest
 		_ = json.NewDecoder(r.Body).Decode(&request)
 		reply := `{"findings":[]}`
-		if strings.HasPrefix(request.Messages[0].Content, "You summarize") {
-			reply = `{"purpose":"Explains this file.","responsibilities":[],"dependencies":[],"side_effects":[],"risks":[],"suggestions":[]}`
+		schema := ""
+		if request.ResponseFormat != nil && request.ResponseFormat.JSONSchema != nil {
+			schema = request.ResponseFormat.JSONSchema.Name
 		}
-		if request.ResponseFormat != nil && request.ResponseFormat.JSONSchema != nil && request.ResponseFormat.JSONSchema.Name == "feature_suggestions" {
+		// The docs refresh that ends a run is answered but not counted.
+		switch {
+		case schema == "module_summary":
+			reply = `{"summary":"Runs the fixture.","responsibilities":[]}`
+		case schema == "project_analysis_response":
+			reply = `{"purpose":"Runs the fixture.","architecture":"One package.","components":[],"entry_points":[],"flows":[],"risks":[],"next_steps":[],"engineering_insight":null}`
+		case schema == "feature_suggestions":
+			calls.Add(1)
 			reply = `{"suggestions":[]}`
+		case strings.HasPrefix(request.Messages[0].Content, "You summarize"):
+			calls.Add(1)
+			reply = `{"purpose":"Explains this file.","responsibilities":[],"dependencies":[],"side_effects":[],"risks":[],"suggestions":[]}`
+		default:
+			calls.Add(1)
 		}
 		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Model: "resolved-model-version", Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: reply}}}})
 	}))

@@ -98,6 +98,12 @@ func analysisModelResponseServer(t *testing.T, model string, reply func(Analysis
 			http.Error(w, "invalid fixture request", 400)
 			return
 		}
+		// The docs refresh at a run's end is answered here but not counted:
+		// the tests count the analysis stages' requests.
+		if reply, ok := docsRefreshReply(request); ok {
+			_ = json.NewEncoder(w).Encode(llm.ChatResponse{Model: model, Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Role: "assistant", Content: reply}, FinishReason: "stop"}}})
+			return
+		}
 		stage := AnalysisStageSecurityAI
 		if strings.HasPrefix(request.Messages[0].Content, "You summarize") {
 			stage = AnalysisStageSemantic

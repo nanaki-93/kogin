@@ -219,6 +219,15 @@ every guard when the action arrives.
   included. Analysis writes findings and the handbook, never source. A dispatch
   window covers up to 64 files and 30 minutes; a run that reaches either pauses
   and resumes from the dashboard.
+- **Docs.** The components, the imports between them (the diagram), entry
+  points, dependencies and runbook are read from the code on every visit. A
+  component's summary is written by the analyze model from its files'
+  summaries and says where it came from. An analysis run ends by summarizing
+  again the components whose files changed and writing the overview again; its
+  confirmation counts those requests. **Refresh docs** does the same without a
+  run and always writes the overview again: it asks first (naming a remote
+  model), runs in the background, one at a time, and the page shows it running,
+  then what it wrote and kept or why it failed or was skipped.
 - **Analysis dashboard.** Shows the last or running run live: overall progress,
   failed stages grouped by reason (with a link to the models when the provider
   could not be reached), each section's coverage and findings (opening Issues

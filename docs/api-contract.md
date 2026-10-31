@@ -74,6 +74,7 @@ untrusted networks.
 | POST | `/api/projects/restore` | Restore a previously imported local project without contacting the model. |
 | GET | `/api/projects/current` | Read the selected project summary without changing the active project. |
 | GET | `/api/projects/current/overview` | Read source-free metrics, structured analysis, optional engineering specification (`docs`), coverage, and finding counts for `project_revision`. |
+| POST | `/api/projects/current/docs/refresh` | Start writing the docs' model-written parts again in the background with the analyze model: the summaries of components whose files' summaries changed, then the overview from all of them. Needs `project_id`/`project_revision`, and `confirm_remote_provider` for a remote model; 202 with the running refresh, 409 while another runs. The overview's `docs_refresh` reports it until it ends. |
 | GET | `/api/projects/current/analysis/selection` | Read the file checklist and saved exclusions with project/revision guards; no dispatch. |
 | POST | `/api/projects/current/analysis/selection` | Save excluded paths with project/revision and selection identity guards; no source changes. |
 | POST | `/api/projects/current/analysis/preview` | Whole-project, read-only preflight with strict project/revision guards. |
@@ -383,6 +384,21 @@ Saved schema-1 runs without feature fields retain their original behavior.
 The feature prompt identity (`feature-suggestions-v4`) is part of the provider
 fingerprint, so finished runs that included features under an earlier prompt
 read as `stale`, not corrupt.
+
+Every preview also plans the docs refresh that ends a run (`preview.docs`): the
+components the docs show, the analyze provider and at most one request per
+component plus one for the overview, each with its retries. These requests are
+not in the preview totals, and the analyze provider needs the run's consent even
+when no file stage uses it. After the last window's files and feature discovery,
+components whose files' summaries changed are summarized again; the overview is
+written again from the component summaries when one changed or it is not current
+for the revision. `run.docs` records the outcome (`completed`, `skipped` or
+`failed`, with counts and a sanitized reason); a failed refresh keeps the
+summaries already written and does not change the run's status. The plan is not
+part of `queue_id`, so runs saved before it resume; they end without a refresh.
+`POST /api/projects/current/docs/refresh` does the same outside a run, in the
+background, and always writes the overview again; it stops when the project
+changes or the daemon shuts down, keeping the summaries already written.
 
 `queue_id` binds project/revision, policy, provider fingerprints, ordered file/hash
 and stage identities, exclusions, refresh choice and limits. Effective provider

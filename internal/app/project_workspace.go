@@ -14,6 +14,7 @@ import (
 type ProjectOverview struct {
 	Run             *AnalysisRun                  `json:"analysis_run,omitempty"`
 	Docs            *project.ProjectDocsReport    `json:"docs,omitempty"`
+	DocsRefresh     *DocsRefresh                  `json:"docs_refresh,omitempty"`
 	ProjectID       string                        `json:"project_id"`
 	ProjectRevision string                        `json:"project_revision"`
 	Metrics         ProjectMetrics                `json:"metrics"`
@@ -96,8 +97,8 @@ func (s *Service) ProjectOverview() (*ProjectOverview, error) {
 		return nil, err
 	}
 	return &ProjectOverview{
-		Run:       run,
-		Docs:      docs,
+		Run:  run,
+		Docs: docs, DocsRefresh: s.latestDocsRefresh(analysis.ProjectID),
 		ProjectID: analysis.ProjectID, ProjectRevision: analysis.ProjectRevision,
 		Metrics:  ProjectMetrics{Type: analysis.Type, BuildFile: analysis.BuildFile, FileCount: analysis.FileCount, SourceFileCount: analysis.SourceFileCount, TotalLines: analysis.TotalLines, Languages: cloneLanguageCounts(analysis.Languages)},
 		Analysis: analysis.Report, Coverage: coverage, Findings: counts,
@@ -110,10 +111,15 @@ func (s *Service) projectDocs(analysis *project.Analysis, index *project.Project
 	if index == nil {
 		return nil, fmt.Errorf("project docs need the project index")
 	}
+	summaries, err := project.LoadModuleSummaries(s.manager.Root(), analysis.ProjectID)
+	if err != nil {
+		return nil, err
+	}
 	docs := project.BuildProjectDocs(project.DocsInputs{
-		Analysis: *analysis,
-		Map:      s.projectMap(index),
-		Profiles: s.projectProfiles(s.manager.Root()),
+		Analysis:  *analysis,
+		Map:       s.projectMap(index),
+		Profiles:  s.projectProfiles(s.manager.Root()),
+		Summaries: summaries.Summaries(),
 	})
 	return &docs, nil
 }

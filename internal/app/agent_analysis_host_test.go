@@ -28,7 +28,9 @@ func TestAnalysisNativeWindowOwnsModelHistoryWithoutChangingEvidence(t *testing.
 		t.Fatal(err)
 	}
 	history, err := store.History(t.Context())
-	if err != nil || len(history.Runs) != 4 {
+	// Three more runs are the docs refresh after the window: a component
+	// summary and the overview's knowledge run with its request.
+	if err != nil || len(history.Runs) != 7 {
 		t.Fatalf("history=%+v %v", history, err)
 	}
 	parent := ""
@@ -48,13 +50,26 @@ func TestAnalysisNativeWindowOwnsModelHistoryWithoutChangingEvidence(t *testing.
 	if parent == "" {
 		t.Fatal("missing native analysis root")
 	}
+	window, knowledge := 0, ""
 	for _, invocation := range history.Runs {
-		if invocation.ID != parent && invocation.ParentID != parent {
+		switch {
+		case invocation.ID == parent || invocation.ParentID == parent:
+			window++
+		case invocation.SchemaVersion == "knowledge-graph-v1":
+			knowledge = invocation.ID
+		}
+	}
+	for _, invocation := range history.Runs {
+		docs := invocation.ID == knowledge || invocation.ParentID == knowledge && knowledge != "" || invocation.ParentID == "" && invocation.SchemaVersion == "completion-v1"
+		if invocation.ID != parent && invocation.ParentID != parent && !docs {
 			t.Fatalf("detached provider attempt: %+v", invocation)
 		}
 	}
+	if window != 4 {
+		t.Fatalf("window runs = %d, want 4", window)
+	}
 	detail, err := s.AgentRunDetail(t.Context(), query, parent, false)
-	if err != nil || detail.Run.Active || detail.Run.Status != "completed" || detail.Text != nil || detail.Run.Usage.ModelCalls != 3 {
+	if err != nil || detail.Run.Active || detail.Run.Status != "completed" || detail.Text != nil || detail.Run.Usage.ModelCalls != 5 { // three stages, then the docs refresh's two requests
 		t.Fatalf("native window receipt=%+v %v", detail, err)
 	}
 	data, err := json.Marshal(detail.Events)

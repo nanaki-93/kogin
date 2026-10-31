@@ -5,7 +5,7 @@
 import { useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage, query, withWorktree } from '@/api/client';
-import type { AgentPreferences, AgentSettings, AnalysisFileSelection, AnalysisRunSummary, ProjectSetup, SetupModel, SetupModelTest, SetupScope, SetupTimeouts, ChangeHistoryEntry, ChangeMutationResult, ChangeOpened, ChangeReanalysis, ChangeSession, ExecutionTrust, Finding, FindingTarget, GitMutationResult, GitWorkspace, IssueTaskDraft, MergeChecks, GitWorktree, LoadedSession, MergePreview, ModelsCurrent, Project } from '@/api/types';
+import type { AgentPreferences, AgentSettings, AnalysisFileSelection, AnalysisRunSummary, ProjectSetup, SetupModel, SetupModelTest, SetupScope, SetupTimeouts, ChangeHistoryEntry, ChangeMutationResult, ChangeOpened, ChangeReanalysis, ChangeSession, DocsRefresh, ExecutionTrust, Finding, FindingTarget, GitMutationResult, GitWorkspace, IssueTaskDraft, MergeChecks, GitWorktree, LoadedSession, MergePreview, ModelsCurrent, Project } from '@/api/types';
 import { useFeedback } from '@/components/overlays';
 import { canOverrideReview, changeIdentity, openComments, proposalReadiness, workflowActive } from '@/lib/readiness';
 import { changeOverlaps, mergeRequest, runStartOptions, workflowDestinations, workflowRequest, worktreeRemovable, worktreeTasks } from '@/lib/workflow';
@@ -87,6 +87,8 @@ interface AnalysisPreview {
   /** Retained files are outside a retry's scope: they keep their saved results. */
   files?: { retained?: boolean }[];
   max_model_requests?: number;
+  /** The docs refresh that ends the run: its own bound on requests. */
+  docs?: { max_model_requests?: number };
   security_review_intent_required?: boolean;
 }
 
@@ -670,9 +672,11 @@ export function useActions() {
         const what = options.retryFailed ? 'Retries the failed, stale and canceled stages of' : options.refresh ? 'Analyzes again, ignoring saved results,' : resume ? 'Resumes the analysis of' : 'Analyzes';
         const files = preview.files ?? [];
         const kept = files.filter(file => file.retained).length;
+        const docsRequests = preview.docs?.max_model_requests ?? 0;
+        const docs = docsRequests ? `, then summarizes again the docs' components whose files changed (up to ${plural(docsRequests, 'more request')})` : '';
         const ok = await confirm({
           title: resume ? 'Resume the analysis?' : options.retryFailed ? 'Retry failed analysis?' : 'Analyze the project?',
-          body: `${what} ${plural(files.length - kept, 'file')} (up to ${preview.max_model_requests ?? 0} model requests) for bugs, performance and security, then refreshes the generated docs.${kept ? ` The other ${plural(kept, 'file')} keep their saved results.` : ''}${security ? ' Includes an AI security review.' : ''}${remote.length ? ` Sends bounded source context to ${remote.join(', ')}.` : ''}`,
+          body: `${what} ${plural(files.length - kept, 'file')} (up to ${preview.max_model_requests ?? 0} model requests) for bugs, performance and security${docs}.${kept ? ` The other ${plural(kept, 'file')} keep their saved results.` : ''}${security ? ' Includes an AI security review.' : ''}${remote.length ? ` Sends bounded source context to ${remote.join(', ')}.` : ''}`,
           confirmLabel: resume ? 'Resume' : 'Analyze',
         });
         if (!ok) return;
@@ -983,7 +987,27 @@ export function useActions() {
     });
   }
 
-  return { guarded, createTask, startAgents, reanalyze, cancelAgents, refine, stopRevision, markViewed, runChecks, addComment, deleteComment, approve, overrideReview, reject, apply, undo, setTrust, reindex, openProject, fixIssue, triageFinding, deleteTasks, saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, runAnalysis, controlAnalysis, controlAgentSettings, previewMerge, merge, removeWorktree, abortMerge, explainFile };
+  /** Starts writing the docs' summaries and overview again; the Docs page shows how it ends. */
+  async function refreshDocs(project: Project, worktreePath: string) {
+    const model = client.getQueryData<ModelsCurrent>(keys.models)?.scopes?.analyze;
+    const remote = Boolean(model?.remote_provider);
+    const ok = await confirm({
+      title: 'Refresh the docs?',
+      body: `${model?.model || 'The analyze model'} summarizes again the components whose files' summaries changed, then writes the project overview again: at most one request per component and one for the overview. It runs in the background.${remote ? ` File summaries and bounded project context go to ${model?.provider_origin || 'a remote provider'}.` : ''}`,
+      confirmLabel: 'Refresh docs',
+    });
+    if (!ok) return;
+    await guarded('Starting the docs refresh…', async () => {
+      try {
+        await api.post<DocsRefresh>(withWorktree('/api/projects/current/docs/refresh', worktreePath), { project_id: project.project_id, project_revision: project.project_revision, confirm_remote_provider: remote });
+        await client.invalidateQueries({ queryKey: ['overview'] });
+      } catch (err) {
+        fail('The docs refresh could not start', err);
+      }
+    });
+  }
+
+  return { guarded, createTask, startAgents, reanalyze, cancelAgents, refine, stopRevision, markViewed, runChecks, addComment, deleteComment, approve, overrideReview, reject, apply, undo, setTrust, reindex, openProject, fixIssue, triageFinding, deleteTasks, saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, runAnalysis, controlAnalysis, controlAgentSettings, previewMerge, merge, removeWorktree, abortMerge, explainFile, refreshDocs };
 }
 
 export interface FileExplanation {

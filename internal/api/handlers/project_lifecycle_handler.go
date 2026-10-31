@@ -88,6 +88,21 @@ func (h *ProjectHandler) Overview(w http.ResponseWriter, r *http.Request) {
 	api.WriteJSON(w, http.StatusOK, overview)
 }
 
+// RefreshDocs starts writing the docs' model-written parts again: the
+// summaries of components whose files changed, then the project overview.
+func (h *ProjectHandler) RefreshDocs(w http.ResponseWriter, r *http.Request) {
+	var request app.DocsRefreshRequest
+	if !decodeStrictJSON(w, r, &request, "invalid docs refresh request", "Provide the current project identity.") {
+		return
+	}
+	refresh, err := h.service.StartDocsRefresh(r.Context(), request)
+	if err != nil {
+		writeProjectError(w, "docs refresh failed", err)
+		return
+	}
+	api.WriteJSON(w, http.StatusAccepted, refresh)
+}
+
 func (h *ProjectHandler) FileInfo(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
 	if _, err := h.manager.IndexedFile(path); err != nil {
@@ -231,6 +246,8 @@ func writeProjectError(w http.ResponseWriter, action string, err error) {
 		api.WriteAppError(w, api.Internal(action, "Analysis progress could not be saved. Read the retained overview, then resume or cancel explicitly.", err))
 	case errors.Is(err, app.ErrNewerAnalysisRun):
 		api.WriteAppError(w, api.Conflict(action, "A newer Mini-Orca saved this project's analysis progress. Upgrade Mini-Orca to continue it, or move .mini-orca/analysis/run.json away.", err))
+	case errors.Is(err, app.ErrDocsRefreshBusy):
+		api.WriteAppError(w, api.Conflict(action, "The docs are already being refreshed. Wait for that refresh to finish.", err))
 	case errors.Is(err, app.ErrAnalysisRunBusy):
 		api.WriteAppError(w, api.Conflict(action, "An analysis run is already active or paused. Continue or cancel it before starting a new analysis.", err))
 	case errors.Is(err, project.ErrNoActiveProject):

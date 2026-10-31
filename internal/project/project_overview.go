@@ -14,6 +14,7 @@ import (
 
 	"github.com/nanaki-93/mini-orca/v2/internal/llm"
 	"github.com/nanaki-93/mini-orca/v2/internal/project/handbook"
+	"github.com/nanaki-93/mini-orca/v2/internal/project/projectmap"
 	"github.com/nanaki-93/mini-orca/v2/internal/project/symbols"
 )
 
@@ -54,6 +55,9 @@ type FileInfo struct {
 
 // Analyzer scans projects and asks the configured model for an architectural summary.
 type Analyzer struct {
+	// contextNote goes before the project context, such as the components'
+	// summaries an analysis run wrote.
+	contextNote     string
 	llm             projectAnalysisClient
 	model           string
 	profile         string
@@ -77,6 +81,12 @@ func NewAnalyzerWithProvenance(client projectAnalysisClient, model, scope, provi
 
 // AnalyzeSnapshot enriches a captured inventory. Callers can admit model work
 // against its exact identity without making project facts depend on a runtime.
+// WithContextNote adds text the model reads before the project context.
+func (a *Analyzer) WithContextNote(note string) *Analyzer {
+	a.contextNote = note
+	return a
+}
+
 func (a *Analyzer) AnalyzeSnapshot(ctx context.Context, analysis *Analysis) (*Analysis, error) {
 	if err := validateAnalysisSnapshot(analysis); err != nil {
 		return nil, err
@@ -89,6 +99,9 @@ func (a *Analyzer) AnalyzeSnapshot(ctx context.Context, analysis *Analysis) (*An
 	contextText, err := NewContextBuilder().Build(analysis.Path, "")
 	if err != nil {
 		return nil, fmt.Errorf("build analysis context: %w", err)
+	}
+	if a.contextNote != "" {
+		contextText = a.contextNote + "\n\n" + contextText
 	}
 	report := newProjectAnalysisReportWithProvenance(analysis.ProjectID, analysis.ProjectRevision, a.model, a.profile, a.scope, a.providerOrigin, a.reasoningEffort)
 	if a.llm == nil {
@@ -368,6 +381,11 @@ type ProjectDocsReport = handbook.ProjectDocsReport
 type ProjectDocsGraph = handbook.ProjectDocsGraph
 type DocsInputs = handbook.DocsInputs
 type ModuleSummary = handbook.ModuleSummary
+
+// DocsComponents are the components the docs show for a project map.
+func DocsComponents(m projectmap.Map) ([]projectmap.Component, []projectmap.Edge) {
+	return handbook.DocsComponents(m)
+}
 
 // BuildProjectDocs builds the project's docs from its map, its checks and
 // the model's summaries.

@@ -88,8 +88,10 @@ func TestOverviewCoverageMatchesSelectedFilesAndRetainsDescriptionStatus(t *test
 	if overview.Coverage != (AnalysisCoverage{Total: 2, Fresh: 2}) {
 		t.Fatalf("excluded or ineligible stages counted: %+v", overview.Coverage)
 	}
-	if overview.Analysis.Status != project.ProjectAnalysisStatusStale {
-		t.Fatal("description freshness rewritten")
+	// The run ended by writing the description, and reading the coverage
+	// does not change it.
+	if overview.Analysis.Status != project.ProjectAnalysisStatusFresh {
+		t.Fatalf("description status = %s, want the run's fresh one", overview.Analysis.Status)
 	}
 	selection = readSelectionFor(t, s)
 	if _, err := s.SaveAnalysisSelection(context.Background(), AnalysisSelectionRequest{selection.ProjectID, selection.ProjectRevision, selection.SelectionID, []string{}}); err != nil {

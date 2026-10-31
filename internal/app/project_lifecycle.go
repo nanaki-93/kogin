@@ -67,6 +67,7 @@ func (s *Service) invalidateJobsForProjectChange(reason string) {
 func (s *Service) invalidateWholeTreeJobs() {
 	s.interruptAnalysisRunForProjectChange()
 	s.cancelGoScan()
+	s.cancelDocsRefresh()
 	s.clearExecutionTrust()
 }
 

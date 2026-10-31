@@ -284,6 +284,19 @@ func (m *Manager) Analysis() (*Analysis, error) {
 	return &copy, nil
 }
 
+// UpdateReport replaces the active project's overview report, when it is
+// still the project the report was written for.
+func (m *Manager) UpdateReport(projectID string, report ProjectAnalysisReport, summary string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.analysis == nil || m.analysis.ProjectID != projectID {
+		return ErrRevisionConflict
+	}
+	m.analysis.Report = *cloneProjectAnalysisReport(&report)
+	m.analysis.AIStatus, m.analysis.Summary = report.Status, summary
+	return nil
+}
+
 // ValidateMutableRequest rejects stale projects and files before candidate work.
 func (m *Manager) ValidateMutableRequest(id, revision, relativePath, baseFileHash string) error {
 	if id == "" || revision == "" || baseFileHash == "" {

@@ -33,6 +33,10 @@ func cloneAnalysisPreview(plan AnalysisRunPreview) AnalysisRunPreview {
 		features.ExcludedPaths = append([]string{}, plan.Features.ExcludedPaths...)
 		copy.Features = &features
 	}
+	if plan.Docs != nil {
+		docs := *plan.Docs
+		copy.Docs = &docs
+	}
 	copy.Files = append([]AnalysisPlannedFile{}, plan.Files...)
 	for i := range copy.Files {
 		copy.Files[i].Stages = append([]AnalysisStagePlan{}, plan.Files[i].Stages...)
@@ -57,6 +61,10 @@ func cloneAnalysisRun(run *AnalysisRun) *AnalysisRun {
 			features.SuggestionCount = &count
 		}
 		copy.Features = &features
+	}
+	if run.Docs != nil {
+		docs := *run.Docs
+		copy.Docs = &docs
 	}
 	copy.Plan = cloneAnalysisPreview(run.Plan)
 	copy.Files = append([]AnalysisRunFile{}, run.Files...)
@@ -227,7 +235,8 @@ func analysisMetadataReason(value string) bool {
 		"File analysis reached its allowance. Feature discovery continues independently.",
 		"Feature discovery reached its allowance; preview and resume to try again.", analysisFeatureHistoryFullReason,
 		"Analysis stopped before the stage completed; review and resume.", "Project source, policy or provider identity changed; start a new analysis.",
-		"Analysis progress could not be saved; resume or cancel to recover.", "Analysis was interrupted; preview and resume explicitly.":
+		"Analysis progress could not be saved; resume or cancel to recover.", "Analysis was interrupted; preview and resume explicitly.",
+		docsRefreshBusyReason, docsRefreshUnreadableReason, docsRefreshUnsavedReason, docsRefreshUnconfirmedReason, docsRefreshStoppedReason:
 		return true
 	}
 	return false
@@ -254,6 +263,9 @@ func validateStoredAnalysisRun(run *AnalysisRun) error {
 		return err
 	}
 	if err := validateStoredAnalysisFeatures(run); err != nil {
+		return err
+	}
+	if err := validateStoredAnalysisDocs(run); err != nil {
 		return err
 	}
 	switch run.Status {

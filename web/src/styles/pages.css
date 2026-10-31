@@ -1722,9 +1722,17 @@
   color: var(--text);
 }
 
-.docs-updated {
+.docs-refresh {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   margin-top: auto;
   padding: 8px 10px;
+}
+
+.docs-refresh .btn {
+  margin-left: -8px;
 }
 
 .doc {

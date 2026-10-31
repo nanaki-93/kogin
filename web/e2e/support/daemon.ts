@@ -4,7 +4,7 @@
 // mutation must carry the Web UI header and the current proposal identity.
 
 import { test as base, expect, type Page, type Route } from '@playwright/test';
-import type { ChangeHistoryEntry, ChangeSession, DaemonEvent, Finding, GitWorktree, ProjectSetup } from '../../src/api/types';
+import type { ChangeHistoryEntry, ChangeSession, DaemonEvent, DocsRefresh, Finding, GitWorktree, ProjectSetup } from '../../src/api/types';
 import * as data from './fixtures';
 
 export interface RecordedRequest {
@@ -46,6 +46,13 @@ export class FakeDaemon {
 
   serveRun(run: ReturnType<typeof data.analysisRun> | undefined): void {
     this.run = run;
+  }
+
+  /** The latest refresh started from the Docs page; tests set it with serveDocsRefresh. */
+  private docsRefresh: DocsRefresh | undefined;
+
+  serveDocsRefresh(refresh: DocsRefresh | undefined): void {
+    this.docsRefresh = refresh;
   }
 
   private setRun(status: string) {
@@ -201,7 +208,7 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/findings$/, () => ({ ...data.project, findings: data.findings })],
     [/^\/api\/projects\/current\/rules$/, () => ({ ...data.project, test_patterns: ['*_test.go', '*.test.ts', '**/tests/**'], guides: ['AGENTS.md'], problems: [] })],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/rules$/, () => ({ session_id: 'chg-1', revision: 3, files: [], problems: [] })],
-    [/^\/api\/projects\/current\/overview$/, () => ({ ...data.overview, analysis_run: this.run ?? data.overview.analysis_run })],
+    [/^\/api\/projects\/current\/overview$/, () => ({ ...data.overview, analysis_run: this.run ?? data.overview.analysis_run, docs_refresh: this.docsRefresh })],
     [/^\/api\/projects\/current\/agent-settings$/, () => this.settings],
     [/^\/api\/projects\/current\/setup$/, () => this.setup],
     [/^\/api\/projects\/current\/analysis\/selection$/, () => this.selection],
@@ -232,6 +239,7 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/analysis\/selection$/, body => (this.selection = { ...data.analysisSelection(body.excluded_paths as string[]) })],
     [/^\/api\/projects\/current\/analysis\/preview$/, body => ({ identity: { ...body, queue_id: 'queue-2' }, preview_id: 'preview-1', providers: [{ id: 'p-bug', model: { model: 'local-bug-model', provider_origin: 'http://localhost:1234' } }], files: [{}, {}, { retained: true }, { retained: true }], max_model_requests: 12, security_review_intent_required: false })],
     [/^\/api\/projects\/current\/analysis\/run$/, () => this.setRun('running')],
+    [/^\/api\/projects\/current\/docs\/refresh$/, () => (this.docsRefresh = { status: 'running', components: 0, summarized: 0, kept: 0, overview: 'skipped', at: new Date().toISOString() })],
     [/^\/api\/projects\/current\/analysis\/run\/control$/, body => this.setRun(body.action === 'pause' ? 'paused' : body.action === 'cancel' ? 'canceled' : 'running')],
     [/^\/api\/projects\/current\/git\/merge-preview$/, () => ({ commits: 'bb22 Merge preview lists overlapping files', diff: '' })],
     [/^\/api\/projects\/current\/git\/merge$/, body => this.mergeWorktree(body)],

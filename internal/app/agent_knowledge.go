@@ -65,13 +65,18 @@ func (s *Service) analyzeProjectKnowledge(ctx context.Context, root string, targ
 	if err != nil {
 		return nil, err
 	}
-	runtime := target.runtimes.analyze
-	admitted, release, err := s.agentRunContextForSnapshot(timed, snapshot.Path, snapshot, runtime)
+	return s.writeKnowledgeOverview(timed, snapshot, target.runtimes.analyze, "")
+}
+
+// writeKnowledgeOverview has a model write the project overview for a
+// snapshot; note, when set, is read before the project's context.
+func (s *Service) writeKnowledgeOverview(ctx context.Context, snapshot *project.Analysis, runtime modelRuntime, note string) (*project.Analysis, error) {
+	admitted, release, err := s.agentRunContextForSnapshot(ctx, snapshot.Path, snapshot, runtime)
 	if err != nil {
 		return nil, err
 	}
 	defer release()
-	analyzer := project.NewAnalyzerWithProvenance(overviewCompletion{runtime}, runtime.profile.Model, string(config.AnalyzeModelScope), runtime.effective.ProviderOrigin, runtime.effective.ReasoningEffort)
+	analyzer := project.NewAnalyzerWithProvenance(overviewCompletion{runtime}, runtime.profile.Model, string(config.AnalyzeModelScope), runtime.effective.ProviderOrigin, runtime.effective.ReasoningEffort).WithContextNote(note)
 	analysis, err := runKnowledgeHost(admitted, agentruntime.KnowledgeOverview, func(ctx context.Context) (*project.Analysis, string, error) {
 		result, err := analyzer.AnalyzeSnapshot(ctx, snapshot)
 		if result == nil {

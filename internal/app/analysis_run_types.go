@@ -217,6 +217,7 @@ type AnalysisExcludedFile struct {
 type AnalysisRunPreview struct {
 	Models                       *AnalysisModels               `json:"models,omitempty"`
 	Features                     *AnalysisFeaturePlan          `json:"features,omitempty"`
+	Docs                         *AnalysisDocsPlan             `json:"docs,omitempty"`
 	RetryStaleFailed             bool                          `json:"retry_stale_failed,omitempty"`
 	StaleOnly                    bool                          `json:"stale_only,omitempty"`
 	StalePath                    string                        `json:"stale_path,omitempty"`
@@ -410,7 +411,9 @@ type AnalysisRunFile struct {
 // AnalysisRun persists only identities and operational progress. Result prose lives
 // in producer-owned report stores; no source, prompt, transcript or consent is saved here.
 type AnalysisRun struct {
-	Features             *AnalysisFeatureProgress  `json:"features,omitempty"`
+	Features *AnalysisFeatureProgress `json:"features,omitempty"`
+	// Docs is what refreshing the docs did at the end of the run.
+	Docs                 *DocsRefresh              `json:"docs,omitempty"`
 	SchemaVersion        string                    `json:"schema_version"`
 	Identity             AnalysisRunIdentity       `json:"identity"`
 	Plan                 AnalysisRunPreview        `json:"plan"`

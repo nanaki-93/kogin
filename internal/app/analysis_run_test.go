@@ -481,6 +481,14 @@ func analysisBlockingServer(t *testing.T) (*httptest.Server, *atomic.Int32, chan
 	release := make(chan struct{})
 	var once sync.Once
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request llm.ChatRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			return
+		}
+		if reply, ok := docsRefreshReply(request); ok {
+			_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: reply}}}})
+			return
+		}
 		call := calls.Add(1)
 		if call == 1 {
 			started <- struct{}{}
@@ -489,10 +497,6 @@ func analysisBlockingServer(t *testing.T) (*httptest.Server, *atomic.Int32, chan
 			case <-r.Context().Done():
 				return
 			}
-		}
-		var request llm.ChatRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			return
 		}
 		reply := `{"findings":[]}`
 		if strings.HasPrefix(request.Messages[0].Content, "You summarize") {
@@ -837,10 +841,15 @@ func TestAnalysisRunKeepsCategoryCountsAndPartialEvidenceAcrossFailedStages(t *t
 func TestAnalysisRunSectionReadsPreserveCategoriesTriageAndDoNotDispatch(t *testing.T) {
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls.Add(1)
 		var request llm.ChatRequest
 		_ = json.NewDecoder(r.Body).Decode(&request)
-		reply := `{"findings":[]}`
+		reply, docs := docsRefreshReply(request)
+		if docs {
+			_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: reply}}}})
+			return
+		}
+		calls.Add(1)
+		reply = `{"findings":[]}`
 		if strings.HasPrefix(request.Messages[0].Content, "You summarize") {
 			reply = `{"purpose":"Explains this file.","responsibilities":[],"dependencies":[],"side_effects":[],"risks":[{"category":"bugs","severity":"high","summary":"Error handling needs review."},{"category":"performance","severity":"low","summary":"Repeated work needs review."},{"category":"security","severity":"medium","summary":"Input trust needs review."}],"suggestions":[]}`
 		}

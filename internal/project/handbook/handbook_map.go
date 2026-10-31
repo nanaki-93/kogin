@@ -16,10 +16,15 @@ const (
 	maxDocsDependencies = 120
 )
 
+// DocsComponents are the components the docs show for a project map.
+func DocsComponents(m projectmap.Map) ([]projectmap.Component, []projectmap.Edge) {
+	return m.Components(docsComponentLimit)
+}
+
 // buildMapComponents turns the project map's components into the docs'
 // components, with their resolved dependencies, entry points and summaries.
 func buildMapComponents(in DocsInputs) ([]ProjectDocsComponent, []projectmap.Edge) {
-	groups, edges := in.Map.Components(docsComponentLimit)
+	groups, edges := DocsComponents(in.Map)
 	dependencies, usedBy := map[string][]string{}, map[string][]string{}
 	for _, edge := range edges {
 		dependencies[edge.From] = append(dependencies[edge.From], edge.To)

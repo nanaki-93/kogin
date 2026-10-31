@@ -1,15 +1,15 @@
 // The generated handbook: purpose and topology, components by layer,
 // dependencies, runbook, scenarios, decisions and glossary.
 
-import { BookOpen, Boxes, Compass, GitFork, ListOrdered, Network, Terminal, TextQuote } from 'lucide-react';
+import { BookOpen, Boxes, Compass, GitFork, ListOrdered, Network, RefreshCw, Terminal, TextQuote } from 'lucide-react';
 import { useOverview, useProject } from '@/api/hooks';
-import type { DocsComponent, ProjectDocs } from '@/api/types';
+import type { DocsComponent, DocsRefresh, ProjectDocs } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
 import { navigate, useRoute } from '@/lib/router';
-import { timeAgo } from '@/lib/util';
+import { plural, timeAgo } from '@/lib/util';
 import { ComponentGraph } from './ComponentGraph';
-import { Badge, Button, Callout, EmptyState, Skeleton, cx } from '@/components/ui';
+import { Badge, Button, Callout, EmptyState, Skeleton, Spinner, cx } from '@/components/ui';
 import { useFeedback } from '@/components/overlays';
 
 const SECTIONS = [
@@ -43,7 +43,16 @@ export function DocsPage({ section }: { section: string }) {
             <span className="xs faint">{countOf(docs, s.id)}</span>
           </a>
         ))}
-        {docs?.updated_at ? <div className="xs faint docs-updated">Updated {timeAgo(docs.updated_at)}</div> : null}
+        <div className="docs-refresh">
+          {docs?.updated_at ? <div className="xs faint">Updated {timeAgo(docs.updated_at)}</div> : null}
+          <RefreshStatus {...latestRefresh(data?.docs_refresh, data?.analysis_run?.docs)} />
+          {project && docs ? (
+            <Button size="sm" variant="ghost" icon={RefreshCw} disabled={Boolean(busy) || data?.docs_refresh?.status === 'running'} onClick={() => void actions.refreshDocs(project, worktreePath)}
+              title="Summarize again the components whose files changed, then write the overview again">
+              Refresh docs
+            </Button>
+          ) : null}
+        </div>
       </nav>
       <div className="docs-body page-scroll">
         <div className="page-inner page-narrow">
@@ -69,6 +78,27 @@ export function DocsPage({ section }: { section: string }) {
       </div>
     </div>
   );
+}
+
+/** The most recent refresh: the Docs page's own or the one that ended the last run. */
+function latestRefresh(own?: DocsRefresh, run?: DocsRefresh | null): { refresh?: DocsRefresh; fromRun: boolean } {
+  if (own?.status === 'running' || !run) return { refresh: own, fromRun: false };
+  return !own || Date.parse(run.at) > Date.parse(own.at) ? { refresh: run, fromRun: true } : { refresh: own, fromRun: false };
+}
+
+const OVERVIEW_OUTCOMES: Record<string, string> = { written: 'overview written', kept: 'overview kept', failed: 'overview failed' };
+
+function RefreshStatus({ refresh, fromRun }: { refresh?: DocsRefresh; fromRun: boolean }) {
+  if (!refresh) return null;
+  if (refresh.status === 'running') {
+    return <div className="xs muted row" role="status"><Spinner size={12} label="Refreshing" /> Refreshing the docs…</div>;
+  }
+  const by = fromRun ? 'Last run' : 'Refresh';
+  if (refresh.status === 'failed' || refresh.status === 'skipped') {
+    return <div className={cx('xs', refresh.status === 'failed' ? 'tone-danger' : 'muted')} role="status">{by} {refresh.status === 'failed' ? 'failed' : 'skipped'} {timeAgo(refresh.at)}{refresh.reason ? `: ${refresh.reason}` : ''}</div>;
+  }
+  const parts = [`${plural(refresh.summarized, 'summary', 'summaries')} written`, refresh.kept ? `${refresh.kept} kept` : '', OVERVIEW_OUTCOMES[refresh.overview] ?? ''].filter(Boolean);
+  return <div className="xs faint" role="status">{by} {timeAgo(refresh.at)}: {parts.join(', ')}</div>;
 }
 
 function countOf(docs: ProjectDocs | undefined, id: string): string {

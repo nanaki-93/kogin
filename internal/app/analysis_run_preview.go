@@ -127,6 +127,7 @@ func (s *Service) analysisPreviewLocked(ctx context.Context, request AnalysisPre
 			return nil, err
 		}
 	}
+	s.planAnalysisDocs(index, preview)
 	return s.completeAnalysisPreviewLocked(ctx, root, preview, request)
 }
 
@@ -284,6 +285,9 @@ func analysisRequestedProviders(preview *AnalysisRunPreview) map[string]bool {
 	if preview.Features != nil && preview.Features.MaxModelRequests > 0 {
 		requested[preview.Features.ProviderID] = true
 	}
+	if preview.Docs != nil && preview.Docs.MaxModelRequests > 0 {
+		requested[preview.Docs.ProviderID] = true
+	}
 	return requested
 }
 
@@ -295,6 +299,9 @@ func analysisQueueFingerprint(preview *AnalysisRunPreview) (string, error) {
 	stable.ExpectedModelRequests = 0
 	stable.MaxModelRequests = 0
 	stable.SecurityReviewIntentRequired = false
+	// The docs plan follows from the revision and providers already in the
+	// identity; leaving it out keeps runs saved before it resumable.
+	stable.Docs = nil
 	if stable.Features != nil {
 		stable.Features.ExpectedHash = ""
 		stable.Features.MaxModelRequests = 0

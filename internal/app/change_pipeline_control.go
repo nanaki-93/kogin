@@ -129,6 +129,9 @@ func (s *Service) ShutdownChangeWorkflows(ctx context.Context) error {
 	if err := s.waitAnalysisRunDone(ctx); err != nil {
 		return err
 	}
+	if err := s.waitDocsRefreshDone(ctx); err != nil {
+		return err
+	}
 	return s.waitGoScanDone(ctx)
 }
 

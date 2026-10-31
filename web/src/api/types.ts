@@ -711,6 +711,8 @@ export interface AnalysisRunSummary {
     max_model_requests?: number;
   };
   features?: { status: string; reason?: string; suggestion_count?: number | null } | null;
+  /** The docs refresh that ended the run. */
+  docs?: DocsRefresh | null;
   elapsed_seconds?: number;
   window_files_completed?: number;
   created_at?: string;
@@ -718,8 +720,21 @@ export interface AnalysisRunSummary {
   updated_at?: string;
 }
 
+/** A refresh of the docs' model-written parts: component summaries and the overview. */
+export interface DocsRefresh {
+  status: 'running' | 'completed' | 'skipped' | 'failed' | string;
+  components: number;
+  summarized: number;
+  kept: number;
+  overview: 'written' | 'kept' | 'failed' | 'skipped' | string;
+  reason?: string;
+  at: string;
+}
+
 export interface Overview extends ProjectIdentity {
   docs?: ProjectDocs;
+  /** The latest refresh started from the Docs page. */
+  docs_refresh?: DocsRefresh;
   metrics?: { type?: string; file_count?: number; source_file_count?: number; total_lines?: number; languages?: Record<string, number> };
   analysis?: { status?: string; purpose?: string; failure?: string; model?: string; generated_at?: string };
   analysis_coverage?: Record<string, number>;

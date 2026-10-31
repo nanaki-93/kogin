@@ -12,8 +12,10 @@ guarded **Apply** and **Undo**.
   honoring `.mini-orcaignore`) feeds a resumable analysis across three model
   scopes (`analyze`, `bug`, `code`). Static and security rules produce verified
   findings; semantic, performance and security reviews produce labeled model
-  suggestions. Analysis also writes an engineering handbook: purpose, layers,
-  dependencies, scenarios, decisions, runbook and glossary.
+  suggestions. The Docs page maps the code in any language (components, the
+  imports between them drawn as a diagram, entry points, manifests and the
+  runbook), and each analysis run ends by summarizing again the components
+  whose files changed and writing the project overview from those summaries.
 - **Change it safely.** A task names what should change, the files agents may
   write (up to eight) and "done when" criteria. A native ADK workflow writes the
   change, writes and runs tests in an isolated copy, and runs parallel specialist
@@ -193,7 +195,7 @@ bundle is embedded in the binary.
 
 ### Project data (`.mini-orca/`)
 
-Project-local `.mini-orca/` stores `index.json`, `project-analysis.json`, `file-analysis/`, `findings.json`, `performance/files/`, and unified progress in `analysis/run.json`. Private `changes/` files retain conversations, captured source and proposals, feature goals/ideas, the latest grouped recovery journal, and verification evidence. Restore uses local persisted analysis without triggering model requests. See the [API guide](docs/api-contract.md) and [workflow migration](docs/api-contract.md#retired-workflows) for current contracts and boundaries.
+Project-local `.mini-orca/` stores `index.json`, `project-analysis.json`, `module-summaries.json`, `file-analysis/`, `findings.json`, `performance/files/`, and unified progress in `analysis/run.json`. Private `changes/` files retain conversations, captured source and proposals, feature goals/ideas, the latest grouped recovery journal, and verification evidence. Restore uses local persisted analysis without triggering model requests. See the [API guide](docs/api-contract.md) and [workflow migration](docs/api-contract.md#retired-workflows) for current contracts and boundaries.
 
 ## Web UI development
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -223,6 +224,30 @@ func (c *FileAnalysisCache) Store(analysis FileAnalysis) error {
 		return fmt.Errorf("store file analysis cache: %w", err)
 	}
 	return nil
+}
+
+// Summary returns a file's stored summary when it was written for the file's
+// current content, whatever model wrote it; nil when there is none.
+func (c *FileAnalysisCache) Summary(file, contentHash string) (*FileAnalysis, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	path, err := storage.MetadataPath(c.root, fileAnalysisRelativeDir, analysisPathKey(normalizedAnalysisPath(file))+".json")
+	if err != nil {
+		return nil, fmt.Errorf("read file analysis cache: %w", err)
+	}
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read file analysis cache: %w", err)
+	}
+	var analysis FileAnalysis
+	if json.Unmarshal(data, &analysis) != nil || !validStoredAnalysis(analysis) || analysis.Status != AnalysisStatusFresh ||
+		analysis.ContentHash != contentHash || strings.TrimSpace(analysis.Purpose) == "" {
+		return nil, nil
+	}
+	return cloneFileAnalysis(&analysis), nil
 }
 
 // Clear removes all cached file analysis reports for the project root.

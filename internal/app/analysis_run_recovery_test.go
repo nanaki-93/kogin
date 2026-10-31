@@ -405,10 +405,9 @@ func TestAnalysisRecoverSingleTargetAndRefreshesDocsAfterReindex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The run rebuilds the handbook from the current index, but it does not
-	// write the project overview, so the handbook keeps the overview's status
-	// (this fixture never wrote one) instead of claiming to be fresh.
-	if overview.Docs == nil || overview.Docs.Status != project.ProjectAnalysisStatusUnavailable || overview.Docs.ProjectRevision != overview.ProjectRevision {
-		t.Fatalf("expected the rebuilt handbook to keep the overview's status, got %+v", overview.Docs)
+	// The run ends by writing the project overview for the current index, so
+	// the docs are fresh for this revision.
+	if overview.Docs == nil || overview.Docs.Status != project.ProjectAnalysisStatusFresh || overview.Docs.ProjectRevision != overview.ProjectRevision {
+		t.Fatalf("expected the run to leave fresh docs, got %+v", overview.Docs)
 	}
 }

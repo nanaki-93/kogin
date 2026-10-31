@@ -250,6 +250,21 @@ test('the docs draw the components and their imports from the code', async ({ pa
   await expect(page.locator('.doc-card.is-focus')).toContainText('internal/project');
 });
 
+test('the docs refresh asks first, runs in the background and says how it ended', async ({ page, daemon }) => {
+  daemon.serveDocsRefresh({ status: 'completed', components: 5, summarized: 2, kept: 3, overview: 'written', at: new Date().toISOString() });
+  await page.goto('/#/docs/overview');
+  await expect(page.getByRole('status').filter({ hasText: 'Refresh just now: 2 summaries written, 3 kept, overview written' })).toBeVisible();
+  await page.getByRole('button', { name: 'Refresh docs' }).click();
+  const dialog = page.getByRole('alertdialog', { name: 'Refresh the docs?' });
+  await expect(dialog).toContainText('gemini-2.5-pro summarizes again the components whose files');
+  await expect(dialog).toContainText('go to generativelanguage.googleapis.com');
+  await dialog.getByRole('button', { name: 'Refresh docs' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Refreshing the docs…' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Refresh docs' })).toBeDisabled();
+  const [start] = daemon.mutations('/docs/refresh');
+  expect(start.body).toMatchObject({ project_id: 'p1', confirm_remote_provider: true });
+});
+
 test('usage lists what agents spent per task and the task shows its own spend', async ({ page }) => {
   await page.goto('/#/settings/usage');
   const table = page.getByRole('table', { name: 'Usage by task' });

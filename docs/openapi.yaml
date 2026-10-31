@@ -935,6 +935,21 @@ paths:
         '200': {description: Deterministic metrics, optional structured analysis, coverage, and source-separated finding counts, content: {application/json: {schema: {$ref: '#/components/schemas/ProjectOverview'}}}}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+  /api/projects/current/docs/refresh:
+    post:
+      tags: [Projects]
+      summary: Start writing the docs' model-written parts again
+      description: 'Starts a background refresh with the analyze model: components whose files'' summaries changed are summarized again, then the project overview is written from all component summaries. One refresh at a time; ProjectOverview.docs_refresh reports it. A remote analyze model needs confirm_remote_provider. It stops when the project changes or the daemon shuts down; summaries written before a stop or failure are kept.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DocsRefreshRequest'}
+      responses:
+        '202': {description: The running refresh, content: {application/json: {schema: {$ref: '#/components/schemas/DocsRefresh'}}}}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/findings:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -1857,6 +1872,7 @@ components:
         metrics: {$ref: '#/components/schemas/ProjectMetrics'}
         analysis: {$ref: '#/components/schemas/ProjectAnalysisReport'}
         docs: {$ref: '#/components/schemas/ProjectDocsReport'}
+        docs_refresh: {$ref: '#/components/schemas/DocsRefresh'}
         analysis_coverage: {$ref: '#/components/schemas/AnalysisCoverage'}
         finding_counts: {$ref: '#/components/schemas/FindingCounts'}
     ProjectDocsReport:
@@ -2574,6 +2590,7 @@ components:
       properties:
         models: {$ref: '#/components/schemas/AnalysisModels'}
         features: {$ref: '#/components/schemas/AnalysisFeaturePlan'}
+        docs: {$ref: '#/components/schemas/AnalysisDocsPlan'}
         schema_version: {type: string, enum: ['1']}
         preview_id: {type: string, minLength: 1, description: Admission fingerprint including remaining work, cache dispositions and request bounds.}
         identity: {$ref: '#/components/schemas/AnalysisQueueIdentity'}
@@ -2669,6 +2686,7 @@ components:
       required: [schema_version, identity, plan, status, files, sections, elapsed_seconds, window_elapsed_seconds, window_files_completed, created_at, updated_at]
       properties:
         features: {$ref: '#/components/schemas/AnalysisFeatureProgress'}
+        docs: {$ref: '#/components/schemas/DocsRefresh'}
         schema_version: {type: string, enum: ['1']}
         identity: {$ref: '#/components/schemas/AnalysisRunIdentity'}
         plan: {$ref: '#/components/schemas/AnalysisRunPreview'}
@@ -2693,6 +2711,34 @@ components:
         provider_id: {type: string}
         max_model_requests: {type: integer, minimum: 0, maximum: 4, description: Remaining requests including retries; zero after this step completes.}
         reason: {type: string}
+    AnalysisDocsPlan:
+      type: object
+      required: [provider_id, components, max_model_requests]
+      description: 'The run''s last step, after its files: components whose files'' summaries changed are summarized again with the analyze model, then the overview is written again when a summary changed or it is not current. Needs the analyze provider''s consent; its requests are not in the preview totals.'
+      properties:
+        provider_id: {type: string}
+        components: {type: integer, minimum: 0, maximum: 16, description: Components the docs show.}
+        max_model_requests: {type: integer, minimum: 0, description: 'At most one request per component and one for the overview, each with its retries; zero when the analyze model is not configured.'}
+        reason: {type: string}
+    DocsRefreshRequest:
+      type: object
+      additionalProperties: false
+      required: [project_id, project_revision]
+      properties:
+        project_id: {type: string, minLength: 1}
+        project_revision: {type: string, minLength: 1}
+        confirm_remote_provider: {type: boolean, default: false}
+    DocsRefresh:
+      type: object
+      required: [status, components, summarized, kept, overview, at]
+      properties:
+        status: {type: string, enum: [running, completed, skipped, failed], description: Running only for a refresh started from the Docs page.}
+        components: {type: integer, minimum: 0, description: Components with current file summaries to summarize.}
+        summarized: {type: integer, minimum: 0, description: Component summaries written by this refresh.}
+        kept: {type: integer, minimum: 0, description: Component summaries that were already current.}
+        overview: {type: string, enum: [written, kept, failed, skipped]}
+        reason: {type: string, description: Sanitized reason a refresh was skipped or failed; never provider or source text.}
+        at: {type: string, format: date-time}
     AnalysisFeatureProgress:
       type: object
       required: [status, attempts, suggestion_count]

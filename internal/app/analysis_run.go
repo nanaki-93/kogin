@@ -425,6 +425,7 @@ func (s *Service) runAnalysisWindow(ctx context.Context, identity AnalysisRunIde
 	s.runAnalysisFiles(fileContext, identity)
 	cancelFiles()
 	<-featureDone
+	s.refreshDocsAfterRun(ctx, identity)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.run == nil || c.run.Identity != identity || c.fault != nil {
