@@ -1,26 +1,20 @@
 package agentstate
 
 import (
-	"bytes"
 	"cmp"
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
 	"mime"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/nanaki-93/mini-orca/v2/internal/storage"
 )
 
 const maxArtifactBytes = 4 << 20
@@ -138,252 +132,6 @@ func validateArtifactPayload(a Artifact) error {
 	return nil
 }
 
-func (s *Store) loadArtifacts() (*artifactCatalog, error) {
-	path, err := s.path("artifacts.json")
-	if err != nil {
-		return nil, err
-	}
-	data, err := readJournalFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return &artifactCatalog{Version: 1, Workspace: s.workspace, Entries: map[string]*artifactHistory{}}, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("read artifact catalog: %w", err)
-	}
-	var catalog artifactCatalog
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if !validJSON(data) || decoder.Decode(&catalog) != nil {
-		return nil, ErrCorrupt
-	}
-	if err := s.validateArtifacts(&catalog); err != nil {
-		return nil, err
-	}
-	return &catalog, nil
-}
-
-func (s *Store) validateArtifacts(catalog *artifactCatalog) error {
-	if catalog.Version != 1 || catalog.Workspace != s.workspace || catalog.Entries == nil || len(catalog.Entries) > 4096 {
-		return ErrCorrupt
-	}
-	for key, history := range catalog.Entries {
-		if history == nil || key != history.Key.key() || history.validate() != nil {
-			return ErrCorrupt
-		}
-	}
-	return nil
-}
-
-func (history *artifactHistory) validate() error {
-	if history.Key.validate() != nil || history.Key != history.Key.scoped() || history.Last < 1 || history.Last > 1<<53 || len(history.Versions) > 128 {
-		return ErrCorrupt
-	}
-	previous := int64(0)
-	for _, version := range history.Versions {
-		if version.Key != history.Key || version.Version <= previous || version.Version > history.Last || version.validate() != nil {
-			return ErrCorrupt
-		}
-		previous = version.Version
-	}
-	return nil
-}
-
-func (s *Store) withArtifacts(ctx context.Context, action func(context.Context, *artifactCatalog) error) (err error) {
-	parent := ctx
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	lock, err := s.lock(ctx)
-	if err != nil {
-		return persistenceOperationError(parent, "lock artifacts", err)
-	}
-	defer func() {
-		if closeErr := lock.Close(); closeErr != nil {
-			err = errors.Join(err, fmt.Errorf("%w: release artifact lock: %w", ErrPersistence, closeErr))
-		}
-	}()
-	catalog, err := s.loadArtifacts()
-	if err != nil {
-		return err
-	}
-	return action(ctx, catalog)
-}
-
-func (s *Store) mutateArtifacts(ctx context.Context, change func(*artifactCatalog) (bool, error)) error {
-	return s.mutateArtifactsAuthorized(ctx, nil, change)
-}
-
-func artifactAuthorization(ctx context.Context, authorize func() error) error {
-	if err := context.Cause(ctx); err != nil {
-		return err
-	}
-	if authorize != nil {
-		return authorize()
-	}
-	return nil
-}
-
-func (s *Store) mutateArtifactsAuthorized(ctx context.Context, authorize func() error, change func(*artifactCatalog) (bool, error)) error {
-	parent := ctx
-	return s.withArtifacts(ctx, func(ctx context.Context, catalog *artifactCatalog) error {
-		guard := func() error { return artifactAuthorization(ctx, authorize) }
-		if err := guard(); err != nil {
-			return err
-		}
-		return s.commitArtifacts(parent, catalog, guard, change)
-	})
-}
-
-func (s *Store) commitArtifacts(parent context.Context, catalog *artifactCatalog, guard func() error, change func(*artifactCatalog) (bool, error)) error {
-	changed, err := change(catalog)
-	if err != nil {
-		return err
-	}
-	if !changed {
-		return guard()
-	}
-	if err := s.validateArtifacts(catalog); err != nil {
-		return err
-	}
-	data, err := json.Marshal(catalog)
-	if err != nil {
-		return fmt.Errorf("encode artifact catalog: %w", err)
-	}
-	if len(data) > maxJournalBytes {
-		return fmt.Errorf("artifact catalog exceeds 64 MiB")
-	}
-	path, err := s.path("artifacts.json")
-	if err != nil {
-		return err
-	}
-	if err := s.write(path, data, 0600, guard); err != nil {
-		return persistenceOperationError(parent, "save artifacts", err)
-	}
-	return nil
-}
-
-// ArtifactInventoryEntry omits payload bytes. InUse is an advisory snapshot;
-// deletion always checks the current run journal while holding the shared lock.
-type ArtifactInventoryEntry struct {
-	Artifact
-	InUse bool
-}
-
-func (s *Store) ArtifactInventory(ctx context.Context) ([]ArtifactInventoryEntry, error) {
-	if err := context.Cause(ctx); err != nil {
-		return nil, err
-	}
-	catalog, err := s.loadArtifacts()
-	if err != nil {
-		return nil, err
-	}
-	db, err := s.load()
-	if err != nil {
-		return nil, err
-	}
-	active := activeArtifactSessions(db)
-	result := []ArtifactInventoryEntry{}
-	for _, history := range catalog.Entries {
-		for _, record := range history.Versions {
-			record.Data = nil
-			result = append(result, ArtifactInventoryEntry{Artifact: record, InUse: active[record.Key.Session.key()]})
-		}
-	}
-	return result, context.Cause(ctx)
-}
-
-func activeArtifactSessions(db *database) map[string]bool {
-	active := map[string]bool{}
-	for _, run := range db.Runs {
-		if unfinishedRun(run) {
-			active[run.Session.key()] = true
-			shared := run.Session
-			shared.ID = "user"
-			active[shared.key()] = true
-		}
-	}
-	for _, event := range db.Progress {
-		if !unfinishedRun(db.Runs[event.RunID]) && !unfinishedRun(db.Runs[event.RootID]) {
-			continue
-		}
-		for _, reference := range event.Evidence {
-			active[reference.Session.key()] = true
-		}
-	}
-	return active
-}
-
-func exactArtifact(catalog *artifactCatalog, key ArtifactKey, version int64, hash string) (*Artifact, error) {
-	if key.validate() != nil || version < 1 || len(hash) != 64 {
-		return nil, fmt.Errorf("exact artifact identity, version and hash are required")
-	}
-	if history := catalog.Entries[key.key()]; history != nil {
-		for _, record := range history.Versions {
-			if record.Version == version {
-				if record.Hash != hash {
-					return nil, ErrArtifactConflict
-				}
-				return &record, nil
-			}
-		}
-	}
-	return nil, ErrNotFound
-}
-
-func (s *Store) DeleteArtifactVersion(ctx context.Context, key ArtifactKey, version int64, hash string, authorize func() error) error {
-	return s.mutateArtifactsAuthorized(ctx, authorize, func(catalog *artifactCatalog) (bool, error) {
-		if _, err := exactArtifact(catalog, key, version, hash); err != nil {
-			return false, err
-		}
-		if err := s.artifactRunProtection(key); err != nil {
-			return false, err
-		}
-		return pruneArtifacts(catalog.Entries[key.key()], ArtifactRetention{Version: version})
-	})
-}
-
-// ExportArtifactFile serializes against deletion and writes a fresh private
-// metadata file. Neither caller input nor the artifact name can select a path.
-func (s *Store) ExportArtifactFile(ctx context.Context, key ArtifactKey, version int64, hash string, authorize func() error) (string, error) {
-	parent := ctx
-	var path string
-	err := s.withArtifacts(ctx, func(ctx context.Context, catalog *artifactCatalog) error {
-		record, err := exactArtifact(catalog, key, version, hash)
-		if err != nil {
-			return err
-		}
-		path, err = storage.MetadataPath(s.root, ".mini-orca", "exports", "artifacts", "artifact-"+rand.Text()+".bin")
-		if err != nil {
-			return err
-		}
-		guard := func() error { return freshArtifactExport(ctx, path, authorize) }
-		if err := guard(); err != nil {
-			return err
-		}
-		if err := s.write(path, record.Data, 0600, guard); err != nil {
-			return persistenceOperationError(parent, "export artifact", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return "", err
-	}
-	return path, nil
-}
-
-func freshArtifactExport(ctx context.Context, path string, authorize func() error) error {
-	if err := artifactAuthorization(ctx, authorize); err != nil {
-		return err
-	}
-	_, err := os.Lstat(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	return fmt.Errorf("artifact export destination already exists")
-}
-
 func (s *Store) SaveArtifact(ctx context.Context, request ArtifactWrite) (*Artifact, error) {
 	if request.Key.validate() != nil || request.Version < 0 || request.Version > 1<<53 || len(request.Data) > maxArtifactBytes {
 		return nil, fmt.Errorf("invalid or oversized artifact")
@@ -431,30 +179,6 @@ func appendArtifact(history *artifactHistory, record Artifact, deduplicate bool)
 	return &record, true, nil
 }
 
-// ExportArtifact verifies the payload and returns a private copy. It deliberately
-// accepts no filesystem destination: exporting cannot mutate project source.
-func (s *Store) ExportArtifact(ctx context.Context, key ArtifactKey, version int64) (*Artifact, error) {
-	if key.validate() != nil || version < 0 {
-		return nil, fmt.Errorf("invalid artifact selection")
-	}
-	if err := context.Cause(ctx); err != nil {
-		return nil, err
-	}
-	catalog, err := s.loadArtifacts()
-	if err != nil {
-		return nil, err
-	}
-	history := catalog.Entries[key.key()]
-	if history != nil {
-		for _, record := range slices.Backward(history.Versions) {
-			if version == 0 || record.Version == version {
-				return &record, nil
-			}
-		}
-	}
-	return nil, ErrNotFound
-}
-
 // ArtifactVersions includes user-scoped artifacts visible to the given session.
 // An empty name lists all metadata; payload bytes are never returned in a list.
 func (s *Store) ArtifactVersions(ctx context.Context, key ArtifactKey) ([]Artifact, error) {
@@ -493,59 +217,6 @@ func artifactVisible(stored, requested ArtifactKey) bool {
 	}
 	requested.Name = stored.Name
 	return stored == requested.scoped()
-}
-
-// ArtifactRetention is applied only by an explicit deletion request. Zero
-// Version deletes all eligible versions; KeepLatest and Before narrow that set.
-type ArtifactRetention struct {
-	Version    int64
-	KeepLatest int
-	Before     time.Time
-}
-
-func (s *Store) DeleteArtifacts(ctx context.Context, key ArtifactKey, retention ArtifactRetention) error {
-	if key.validate() != nil || retention.Version < 0 || retention.KeepLatest < 0 || retention.KeepLatest > 128 {
-		return fmt.Errorf("invalid artifact retention selection")
-	}
-	return s.mutateArtifacts(ctx, func(catalog *artifactCatalog) (bool, error) {
-		history := catalog.Entries[key.key()]
-		if history == nil {
-			return false, nil
-		}
-		if err := s.artifactRunProtection(key); err != nil {
-			return false, err
-		}
-		return pruneArtifacts(history, retention)
-	})
-}
-
-func (s *Store) artifactRunProtection(key ArtifactKey) error {
-	db, err := s.load()
-	if err != nil {
-		return err
-	}
-	if activeArtifactSessions(db)[key.scoped().Session.key()] {
-		return ErrArtifactInUse
-	}
-	return nil
-}
-
-func pruneArtifacts(history *artifactHistory, retention ArtifactRetention) (bool, error) {
-	keep := []Artifact{}
-	cutoff := max(0, len(history.Versions)-retention.KeepLatest)
-	for i, record := range history.Versions {
-		remove := i < cutoff && (retention.Version == 0 || retention.Version == record.Version) && (retention.Before.IsZero() || record.Created.Before(retention.Before))
-		if remove && record.Protected {
-			return false, ErrArtifactInUse
-		}
-		if !remove {
-			keep = append(keep, record)
-		}
-	}
-	// Keep the last assigned counter even after deleting every payload.
-	changed := len(history.Versions) != len(keep)
-	history.Versions = keep
-	return changed, nil
 }
 
 func (s *Store) ArtifactURI(record Artifact) string {
