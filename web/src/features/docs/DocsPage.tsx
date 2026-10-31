@@ -1,13 +1,14 @@
 // The generated handbook: purpose and topology, components by layer,
 // dependencies, runbook, scenarios, decisions and glossary.
 
-import { BookOpen, Boxes, Compass, GitFork, ListOrdered, Network, RefreshCw, Terminal, TextQuote } from 'lucide-react';
+import { BookOpen, Boxes, Compass, GitFork, ListOrdered, MessageCircleQuestion, Network, RefreshCw, Terminal, TextQuote } from 'lucide-react';
 import { useOverview, useProject } from '@/api/hooks';
 import type { DocsComponent, DocsRefresh, ProjectDocs } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
 import { navigate, useRoute } from '@/lib/router';
 import { plural, timeAgo } from '@/lib/util';
+import { AskPanel } from './AskPanel';
 import { ComponentGraph } from './ComponentGraph';
 import { Badge, Button, Callout, EmptyState, Skeleton, Spinner, cx } from '@/components/ui';
 import { useFeedback } from '@/components/overlays';
@@ -20,6 +21,7 @@ const SECTIONS = [
   { id: 'decisions', label: 'Decisions', icon: ListOrdered },
   { id: 'runbook', label: 'Runbook', icon: Terminal },
   { id: 'glossary', label: 'Glossary', icon: TextQuote },
+  { id: 'ask', label: 'Ask the code', icon: MessageCircleQuestion },
 ] as const;
 
 export function DocsPage({ section }: { section: string }) {
@@ -56,7 +58,9 @@ export function DocsPage({ section }: { section: string }) {
       </nav>
       <div className="docs-body page-scroll">
         <div className="page-inner page-narrow">
-          {isLoading ? (
+          {current === 'ask' ? (
+            <AskPanel project={project} worktreePath={worktreePath} />
+          ) : isLoading ? (
             <Skeleton lines={10} />
           ) : !docs ? (
             <EmptyState icon={BookOpen} title="No handbook yet" action={project ? <Button variant="primary" onClick={() => void actions.runAnalysis(project, worktreePath)} disabled={Boolean(busy)}>Analyze project</Button> : undefined}>

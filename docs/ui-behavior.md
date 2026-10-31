@@ -230,6 +230,13 @@ every guard when the action arrives.
   then what it wrote and kept or why it failed or was skipped. Coding agents
   start from these summaries too: the components a task's files are in and
   the components those import or are used by, marked as model-written.
+- **Ask the code.** Docs → Ask the code (or the palette: **Ask the codebase**,
+  or a question of three words or more typed into it) asks the Review role's
+  model, which must run as an agent (Claude Code, Agy or Pi; otherwise the page
+  says so). It asks first, naming the model and that file contents leave the
+  machine, then reads the code with read-only tools and answers with cited
+  lines the daemon checked; each citation opens the file at its line in Code.
+  Nothing is written; this window keeps its answers until it reloads.
 - **Analysis dashboard.** Shows the last or running run live: overall progress,
   failed stages grouped by reason (with a link to the models when the provider
   could not be reached), each section's coverage and findings (opening Issues

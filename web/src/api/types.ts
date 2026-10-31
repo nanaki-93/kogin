@@ -720,6 +720,26 @@ export interface AnalysisRunSummary {
   updated_at?: string;
 }
 
+/** Lines of a file that support an answer; the daemon found the quote in them. */
+export interface AskCitation {
+  path: string;
+  start_line: number;
+  end_line: number;
+  quote: string;
+  content_hash: string;
+}
+
+/** The answer to a question about the code; it is not kept. */
+export interface AskAnswer extends ProjectIdentity {
+  question: string;
+  answer: string;
+  citations: AskCitation[];
+  model: string;
+  turns: number;
+  tool_calls: number;
+  at: string;
+}
+
 /** A refresh of the docs' model-written parts: component summaries and the overview. */
 export interface DocsRefresh {
   status: 'running' | 'completed' | 'skipped' | 'failed' | string;

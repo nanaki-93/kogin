@@ -72,17 +72,13 @@ func (s *Service) runToolAgent(ctx context.Context, root string, session *Change
 		system = toolTesterSystem
 	}
 	tools := run.tools()
-	described := make([]llm.AgentTool, 0, len(tools))
-	for _, tool := range tools {
-		described = append(described, llm.AgentTool{Name: tool.Name, Description: tool.Description, Schema: tool.Schema})
-	}
 	server, err := toolserver.Start(ctx, "Mini-Orca's tools for one task. Work only through them and end with finish.", tools)
 	if err != nil {
 		return nil, nil, err
 	}
 	prompt := toolTaskPrompt(root, session, role, message, s.docsBrief(changeTargetPaths(session)))
 	result, runErr := runtime.client.RunAgent(ctx, llm.AgentRun{System: system, Prompt: prompt, MCPURL: server.URL, MCPToken: server.Token,
-		Tools: described, MaxTurns: run.limits.calls + 10, ToolTimeout: s.conf().focusedCheckTimeout + 2*time.Minute})
+		Tools: describeTools(tools), MaxTurns: run.limits.calls + 10, ToolTimeout: s.conf().focusedCheckTimeout + 2*time.Minute})
 	server.Close()
 	if runErr != nil && run.finished() == nil {
 		// Nothing the agent left half done becomes the proposal.
@@ -91,6 +87,15 @@ func (s *Service) runToolAgent(ctx context.Context, root string, session *Change
 	stage := stageTools(run, result)
 	stored, err := s.storeToolProposal(ctx, root, session, run, stage, result, message)
 	return stored, stage, err
+}
+
+// describeTools describes served tools to the CLI.
+func describeTools(tools []toolserver.Tool) []llm.AgentTool {
+	described := make([]llm.AgentTool, 0, len(tools))
+	for _, tool := range tools {
+		described = append(described, llm.AgentTool{Name: tool.Name, Description: tool.Description, Schema: tool.Schema})
+	}
+	return described
 }
 
 // authorizeToolStage repeats what a model request checks before dispatch:

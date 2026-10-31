@@ -2480,3 +2480,55 @@
 .rules-findings-over {
   color: var(--danger);
 }
+
+/* Ask the code */
+.ask-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ask-pending,
+.ask-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ask-text {
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.ask-citations {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ask-citations li {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.ask-citations .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ask-quote {
+  display: block;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-left: 2px solid var(--border-strong);
+  background: var(--bg-sunken);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

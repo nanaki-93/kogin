@@ -47,26 +47,7 @@ func writeDocsBrief(components []projectmap.Component, edges []projectmap.Edge, 
 	if len(named) == 0 {
 		return ""
 	}
-	imports, usedBy := map[string][]string{}, map[string][]string{}
-	for _, edge := range edges {
-		imports[edge.From] = append(imports[edge.From], edge.To)
-		usedBy[edge.To] = append(usedBy[edge.To], edge.From)
-	}
-	// The task's components first, then their neighbours.
-	order := sortedKeys(named)
-	related := map[string]string{}
-	for _, path := range order {
-		for _, next := range imports[path] {
-			if !named[next] && related[next] == "" {
-				related[next] = "imported by " + path
-			}
-		}
-		for _, previous := range usedBy[path] {
-			if !named[previous] && related[previous] == "" {
-				related[previous] = "uses " + path
-			}
-		}
-	}
+	links := newComponentLinks(edges)
 	var brief strings.Builder
 	write := func(path, role string) {
 		summary, ok := summaries[path]
@@ -74,19 +55,19 @@ func writeDocsBrief(components []projectmap.Component, edges []projectmap.Edge, 
 			return
 		}
 		line := fmt.Sprintf("- %s (%s): %s", path, role, strings.TrimSpace(summary.Summary))
-		if list := imports[path]; len(list) > 0 && named[path] {
-			line += " Imports: " + strings.Join(list, ", ") + "."
-		}
-		if list := usedBy[path]; len(list) > 0 && named[path] {
-			line += " Used by: " + strings.Join(list, ", ") + "."
+		if named[path] {
+			line += links.describe(path)
 		}
 		if brief.Len()+len(line)+1 <= maxDocsBriefBytes {
 			brief.WriteString(line + "\n")
 		}
 	}
+	// The task's components first, then their neighbours.
+	order := sortedKeys(named)
 	for _, path := range order {
 		write(path, "holds the task's files")
 	}
+	related := links.neighbours(order, named)
 	for _, path := range sortedKeys(related) {
 		write(path, related[path])
 	}
@@ -94,6 +75,52 @@ func writeDocsBrief(components []projectmap.Component, edges []projectmap.Edge, 
 		return ""
 	}
 	return "\nWhere these files sit (Mini-Orca's docs; summaries are model-written from earlier file summaries and may be out of date, the code decides):\n" + brief.String()
+}
+
+// componentLinks are the imports between components, both ways.
+type componentLinks struct {
+	imports, usedBy map[string][]string
+}
+
+func newComponentLinks(edges []projectmap.Edge) componentLinks {
+	links := componentLinks{imports: map[string][]string{}, usedBy: map[string][]string{}}
+	for _, edge := range edges {
+		links.imports[edge.From] = append(links.imports[edge.From], edge.To)
+		links.usedBy[edge.To] = append(links.usedBy[edge.To], edge.From)
+	}
+	return links
+}
+
+// describe names what a component imports and what uses it.
+func (links componentLinks) describe(path string) string {
+	text := ""
+	if list := links.imports[path]; len(list) > 0 {
+		text += " Imports: " + strings.Join(list, ", ") + "."
+	}
+	if list := links.usedBy[path]; len(list) > 0 {
+		text += " Used by: " + strings.Join(list, ", ") + "."
+	}
+	return text
+}
+
+// neighbours are the components next to the named ones, each with how it is
+// related to the first named one that reaches it.
+func (links componentLinks) neighbours(order []string, named map[string]bool) map[string]string {
+	related := map[string]string{}
+	add := func(path, role string) {
+		if !named[path] && related[path] == "" {
+			related[path] = role
+		}
+	}
+	for _, path := range order {
+		for _, next := range links.imports[path] {
+			add(next, "imported by "+path)
+		}
+		for _, previous := range links.usedBy[path] {
+			add(previous, "uses "+path)
+		}
+	}
+	return related
 }
 
 // componentOf is the docs component holding a file: the one with its

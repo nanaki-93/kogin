@@ -5,7 +5,7 @@
 import { useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage, query, withWorktree } from '@/api/client';
-import type { AgentPreferences, AgentSettings, AnalysisFileSelection, AnalysisRunSummary, ProjectSetup, SetupModel, SetupModelTest, SetupScope, SetupTimeouts, ChangeHistoryEntry, ChangeMutationResult, ChangeOpened, ChangeReanalysis, ChangeSession, DocsRefresh, ExecutionTrust, Finding, FindingTarget, GitMutationResult, GitWorkspace, IssueTaskDraft, MergeChecks, GitWorktree, LoadedSession, MergePreview, ModelsCurrent, Project } from '@/api/types';
+import type { AgentPreferences, AgentSettings, AnalysisFileSelection, AskAnswer, AnalysisRunSummary, ProjectSetup, SetupModel, SetupModelTest, SetupScope, SetupTimeouts, ChangeHistoryEntry, ChangeMutationResult, ChangeOpened, ChangeReanalysis, ChangeSession, DocsRefresh, ExecutionTrust, Finding, FindingTarget, GitMutationResult, GitWorkspace, IssueTaskDraft, MergeChecks, GitWorktree, LoadedSession, MergePreview, Model, ModelsCurrent, Project } from '@/api/types';
 import { useFeedback } from '@/components/overlays';
 import { canOverrideReview, changeIdentity, openComments, proposalReadiness, workflowActive } from '@/lib/readiness';
 import { changeOverlaps, mergeRequest, runStartOptions, workflowDestinations, workflowRequest, worktreeRemovable, worktreeTasks } from '@/lib/workflow';
@@ -1007,7 +1007,36 @@ export function useActions() {
     });
   }
 
-  return { guarded, createTask, startAgents, reanalyze, cancelAgents, refine, stopRevision, markViewed, runChecks, addComment, deleteComment, approve, overrideReview, reject, apply, undo, setTrust, reindex, openProject, fixIssue, triageFinding, deleteTasks, saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, runAnalysis, controlAnalysis, controlAgentSettings, previewMerge, merge, removeWorktree, abortMerge, explainFile, refreshDocs };
+  /**
+   * Asks the Review role's agent a question about the code after consent. It
+   * only reads, so it does not hold the one-mutation-at-a-time lock.
+   */
+  async function askCodebase(project: Project, worktreePath: string, question: string): Promise<AskAnswer | null> {
+    let model: Model | undefined;
+    try {
+      const settings = await api.get<AgentSettings>(withWorktree('/api/projects/current/agent-settings' + query({ project_id: project.project_id, project_revision: project.project_revision }), worktreePath));
+      model = settings.role_models?.review;
+    } catch {
+      model = undefined;
+    }
+    const remote = model?.remote_provider !== false;
+    if (remote) {
+      const ok = await confirm({
+        title: 'Ask the codebase?',
+        body: `${model?.model || 'The Review role’s model'}${model?.provider_origin ? ` at ${model.provider_origin}` : ''} reads the project's files through Mini-Orca's read-only tools to answer, then cites the lines it used. File contents leave your machine; it can take a few minutes and changes nothing.`,
+        confirmLabel: 'Ask',
+      });
+      if (!ok) return null;
+    }
+    try {
+      return await api.post<AskAnswer>(withWorktree('/api/projects/current/ask', worktreePath), { project_id: project.project_id, project_revision: project.project_revision, question, confirm_remote_provider: remote });
+    } catch (err) {
+      fail('The question could not be answered', err);
+      return null;
+    }
+  }
+
+  return { guarded, createTask, startAgents, reanalyze, cancelAgents, refine, stopRevision, markViewed, runChecks, addComment, deleteComment, approve, overrideReview, reject, apply, undo, setTrust, reindex, openProject, fixIssue, triageFinding, deleteTasks, saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, runAnalysis, controlAnalysis, controlAgentSettings, previewMerge, merge, removeWorktree, abortMerge, explainFile, refreshDocs, askCodebase };
 }
 
 export interface FileExplanation {

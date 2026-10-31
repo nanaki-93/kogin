@@ -126,6 +126,9 @@ func clip(line string, limit int) string {
 // projectFiles lists the files in the worktree, tracked and new, that the
 // context policy admits.
 func (run *taskToolRun) projectFiles(ctx context.Context) ([]string, error) {
+	if run.listed != nil {
+		return run.listed, nil
+	}
 	listed, err := gitRead(ctx, run.root, "ls-files", "--cached", "--others", "--exclude-standard", "-z")
 	if err != nil {
 		return nil, err

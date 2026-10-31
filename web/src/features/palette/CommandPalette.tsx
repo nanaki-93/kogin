@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { Command } from 'cmdk';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Activity, BookOpen, CircleAlert, Code2, GitMerge, Inbox, Keyboard, ListTodo, Moon, Palette as PaletteIcon, Play, Plus, RefreshCw, Settings, ShieldCheck, Sun } from 'lucide-react';
+import { Activity, BookOpen, CircleAlert, Code2, GitMerge, Inbox, Keyboard, ListTodo, MessageCircleQuestion, Moon, Palette as PaletteIcon, Play, Plus, RefreshCw, Settings, ShieldCheck, Sun } from 'lucide-react';
 import { useFindings, useIndex, useProject, useTasks, useTrust } from '@/api/hooks';
 import { useActions } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
@@ -64,6 +64,7 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
     { id: 'docs', label: 'Go to Docs', icon: BookOpen, keys: 'G D', run: () => navigate('/docs') },
     { id: 'git', label: 'Go to Branches', icon: GitMerge, keys: 'G B', run: () => navigate('/git') },
     { id: 'settings', label: 'Open Settings', icon: Settings, keys: 'G S', run: () => navigate('/settings') },
+    { id: 'ask', label: 'Ask the codebase', icon: MessageCircleQuestion, keys: '', run: () => navigate('/docs/ask') },
     ...(project
       ? [
           { id: 'analyze', label: 'Analyze project', icon: Play, keys: '', run: () => void actions.runAnalysis(project, worktreePath) },
@@ -129,6 +130,14 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
                 <span className="xs muted">{item.severity}</span>
               </Command.Item>
             ))}
+          </Command.Group>
+        ) : null}
+        {mode === 'all' && search.trim().split(/\s+/).length >= 3 ? (
+          <Command.Group heading="Ask">
+            <Command.Item value="ask-question" onSelect={run(() => navigate('/docs/ask', { q: search.trim() }))} className="palette-item">
+              <MessageCircleQuestion size={15} aria-hidden />
+              <span className="grow truncate">Ask the codebase: “{search.trim()}”</span>
+            </Command.Item>
           </Command.Group>
         ) : null}
         {!search.trim() && mode === 'all' ? (

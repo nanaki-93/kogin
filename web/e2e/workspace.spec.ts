@@ -265,6 +265,27 @@ test('the docs refresh asks first, runs in the background and says how it ended'
   expect(start.body).toMatchObject({ project_id: 'p1', confirm_remote_provider: true });
 });
 
+test('the codebase answers a question from the palette with lines that open in Code', async ({ page, daemon }) => {
+  await page.goto('/#/docs/overview');
+  await page.keyboard.press('Control+k');
+  await page.getByPlaceholder(/search files, tasks/i).fill('how are assets served');
+  await page.getByRole('option', { name: /Ask the codebase: “how are assets served”/ }).click();
+  await expect(page).toHaveURL(/#\/docs\/ask\?q=how/);
+  await expect(page.getByLabel('Question about the code')).toHaveValue('how are assets served');
+  await page.getByRole('button', { name: 'Ask', exact: true }).click();
+  const dialog = page.getByRole('alertdialog', { name: 'Ask the codebase?' });
+  await expect(dialog).toContainText('reads the project');
+  await dialog.getByRole('button', { name: 'Ask' }).click();
+  const answer = page.getByRole('region', { name: 'Answer to: how are assets served' });
+  await expect(answer).toContainText('a nested path is rejected');
+  await expect(answer).toContainText('claude:opus · 4 turns · 7 tool calls');
+  expect(daemon.mutations('/ask')[0].body).toMatchObject({ project_id: 'p1', question: 'how are assets served', confirm_remote_provider: true });
+  await answer.getByRole('button', { name: /internal\/api\/handlers\/webui\.go:1–3/ }).click();
+  await expect(page).toHaveURL(/#\/code\?file=internal%2Fapi%2Fhandlers%2Fwebui\.go&line=1/);
+  await page.goBack();
+  await expect(page.getByRole('region', { name: 'Answer to: how are assets served' })).toBeVisible();
+});
+
 test('usage lists what agents spent per task and the task shows its own spend', async ({ page }) => {
   await page.goto('/#/settings/usage');
   const table = page.getByRole('table', { name: 'Usage by task' });

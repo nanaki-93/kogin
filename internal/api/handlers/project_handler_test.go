@@ -760,3 +760,39 @@ func TestDocsRefreshHandlerUsesAStrictRevisionGuardedRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestAskHandlerNeedsTheCurrentProjectAndAnAgentModel(t *testing.T) {
+	root := t.TempDir()
+	writeProjectHandlerFixture(t, root, "main.go", "package main\n\nfunc Run() {}\n")
+	manager, err := project.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Set(root, &project.Analysis{Name: "fixture", Path: root}); err != nil {
+		t.Fatal(err)
+	}
+	service, err := app.New(scopedHandlerConfig("http://127.0.0.1:1"), manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	index, _ := manager.Index()
+	handler := NewProjectHandler(manager, service)
+	for _, test := range []struct {
+		name, body string
+		want       int
+	}{
+		{name: "unknown field", body: `{"project_id":"x","project_revision":"x","question":"Why?","unknown":true}`, want: http.StatusBadRequest},
+		{name: "stale revision", body: `{"project_id":"` + index.ProjectID + `","project_revision":"stale","question":"Why?"}`, want: http.StatusConflict},
+		{name: "no question", body: `{"project_id":"` + index.ProjectID + `","project_revision":"` + index.ProjectRevision + `","question":" "}`, want: http.StatusBadRequest},
+		{name: "review model without tools", body: `{"project_id":"` + index.ProjectID + `","project_revision":"` + index.ProjectRevision + `","question":"Why?"}`, want: http.StatusUnprocessableEntity},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			handler.Ask(response, httptest.NewRequest(http.MethodPost, "/api/projects/current/ask", strings.NewReader(test.body)))
+			if response.Code != test.want {
+				t.Fatalf("status = %d, want %d: %s", response.Code, test.want, response.Body.String())
+			}
+			assertStructuredError(t, response)
+		})
+	}
+}

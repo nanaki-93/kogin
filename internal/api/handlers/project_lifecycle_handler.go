@@ -103,6 +103,28 @@ func (h *ProjectHandler) RefreshDocs(w http.ResponseWriter, r *http.Request) {
 	api.WriteJSON(w, http.StatusAccepted, refresh)
 }
 
+// Ask answers a question about the code with the Review role's agent and
+// lines Mini-Orca checked; nothing is written.
+func (h *ProjectHandler) Ask(w http.ResponseWriter, r *http.Request) {
+	var request app.AskRequest
+	if !decodeStrictJSON(w, r, &request, "invalid question", "Provide the current project identity and a question.") {
+		return
+	}
+	answer, err := h.service.AskCodebase(r.Context(), request)
+	if err != nil {
+		if writeContextError(w, "ask", err) {
+			return
+		}
+		if errors.Is(err, app.ErrAskNeedsAgentModel) {
+			api.WriteAppError(w, api.NewAppError(api.ErrorBadRequest, "ask failed", "Choose a Claude Code, Agy or Pi model for the Review role in Settings → Models & agents.", http.StatusUnprocessableEntity, err))
+			return
+		}
+		writeProjectError(w, "ask failed", err)
+		return
+	}
+	api.WriteJSON(w, http.StatusOK, answer)
+}
+
 func (h *ProjectHandler) FileInfo(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
 	if _, err := h.manager.IndexedFile(path); err != nil {

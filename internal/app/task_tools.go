@@ -30,6 +30,8 @@ const (
 	toolCoder toolRole = "coder"
 	// toolTester writes tests only; implementation files are read-only.
 	toolTester toolRole = "tester"
+	// toolReader only reads, to answer a question about the code.
+	toolReader toolRole = "reader"
 )
 
 // toolLimits bound one agent run.
@@ -69,6 +71,8 @@ type taskToolRun struct {
 	limits   toolLimits
 	policy   *project.ContextPolicy
 	resolver *rules.Resolver
+	// listed, when set, are the files the run sees instead of Git's list.
+	listed []string
 
 	// writeMu serializes writes: a model may send several calls at once.
 	writeMu sync.Mutex
@@ -125,7 +129,7 @@ func (run *taskToolRun) admit(name string) error {
 	if run.finish != nil {
 		return errors.New("this run is finished; end your turn")
 	}
-	if run.calls >= run.limits.calls && name != "finish" {
+	if run.calls >= run.limits.calls && name != "finish" && name != "answer" {
 		return fmt.Errorf("this run has used its %d tool calls; call finish now with what you have", run.limits.calls)
 	}
 	run.calls++
@@ -142,7 +146,11 @@ type toolSpec struct {
 // tools are the run's tools as the tool server serves them.
 func (run *taskToolRun) tools() []toolserver.Tool {
 	specs := append(run.readTools(), run.writeTools()...)
-	specs = append(specs, run.checkTools()...)
+	return run.serve(append(specs, run.checkTools()...))
+}
+
+// serve turns tool specs into served tools that pass the run's call gate.
+func (run *taskToolRun) serve(specs []toolSpec) []toolserver.Tool {
 	tools := make([]toolserver.Tool, 0, len(specs))
 	for _, spec := range specs {
 		call, name := spec.call, spec.name
