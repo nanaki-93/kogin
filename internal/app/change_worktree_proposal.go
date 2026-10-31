@@ -155,6 +155,7 @@ func worktreeBaseFile(ctx context.Context, root, base, file string) (content str
 // edit keeps a base to diff, ratchet and restore against.
 func ensureWorktreeTargets(ctx context.Context, root string, session *ChangeSession, edits []ChangeEdit) error {
 	resolver := rules.NewResolver(root)
+	plan := bindPlanScope(session)
 	for _, edit := range edits {
 		for _, file := range []string{edit.Path, edit.OldPath} {
 			if file == "" || changeTarget(session, file) != nil {
@@ -180,10 +181,12 @@ func ensureWorktreeTargets(ctx context.Context, root string, session *ChangeSess
 			if session.Instructions == nil {
 				session.Instructions = map[string]string{}
 			}
+			plan.add(file)
 			session.Targets = append(session.Targets, target)
 			session.Instructions[file] = instructions.Fingerprint
 		}
 	}
+	plan.rebind(session)
 	return nil
 }
 

@@ -34,7 +34,8 @@ func verifyWorktreeProposal(ctx context.Context, root string, session *ChangeSes
 	}
 	read, err := readWorktreeProposal(ctx, root, session, session.Changes)
 	if err != nil {
-		return err
+		// The task is out of date rather than unreadable.
+		return fmt.Errorf("%w: %v", project.ErrRevisionConflict, err)
 	}
 	if !sameProposal(read, session.Changes) {
 		return fmt.Errorf("%w: files in the task's worktree changed outside Mini-Orca", project.ErrRevisionConflict)

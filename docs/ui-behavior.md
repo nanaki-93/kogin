@@ -151,7 +151,10 @@ every guard when the action arrives.
 - **Task in its own worktree.** The proposal is the worktree's diff against the
   task's base commit; Files changed marks new, deleted and moved files. Edits
   made in the worktree outside Mini-Orca become a new version of the proposal
-  (its checks and approval reset, and the conversation says so). A commit on
+  (its checks and approval reset, and the conversation says so); files outside
+  the task's scope join it, and its plan stays approved. Edits that cannot
+  become the proposal (more files than a task holds) leave the task stale with
+  the reason, never unopenable. A commit on
   the task branch by someone else makes the task stale. While agents run, the
   worktree is locked against removal. The gate reads **Ready to accept?**, and
   **Accept & commit** commits the approved diff on the task branch (no Undo:

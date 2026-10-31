@@ -153,11 +153,7 @@ func (s *Service) ChangeSession(ctx context.Context, id string) (*ChangeSession,
 	if s.manager.Root() != root || session.ProjectID != index.ProjectID {
 		return nil, project.ErrRevisionConflict
 	}
-	if ownsWorktree(session) && session.State == "draft" && !s.hasActiveWorkflowJob(root, session) {
-		if session, err = s.adoptWorktreeEdits(ctx, root, session); err != nil {
-			return nil, err
-		}
-	}
+	session, unadopted := s.adoptWorktreeEditsOnRead(ctx, root, session)
 	if session.State == "draft" {
 		var verifyErr error
 		if s.hasActiveWorkflowJob(root, session) {
@@ -174,9 +170,26 @@ func (s *Service) ChangeSession(ctx context.Context, id string) (*ChangeSession,
 			session.ChecksOutdated = errors.Is(verifyChecksWorkspace(ctx, root, session), errChecksOutdated)
 		}
 	}
+	if unadopted != nil {
+		session.Freshness, session.StaleReason = "stale", "the edits in its worktree could not become its proposal ("+unadopted.Error()+")"
+	}
 	s.restoreChangeWorkflow(session)
 	s.estimateStageCosts(session)
 	return session, nil
+}
+
+// adoptWorktreeEditsOnRead makes the edits in a task's own worktree its
+// proposal. When they cannot be, the task stays readable as stored, with the
+// error saying why, rather than a task the user can no longer open.
+func (s *Service) adoptWorktreeEditsOnRead(ctx context.Context, root string, session *ChangeSession) (*ChangeSession, error) {
+	if !ownsWorktree(session) || session.State != "draft" || s.hasActiveWorkflowJob(root, session) {
+		return session, nil
+	}
+	adopted, err := s.adoptWorktreeEdits(ctx, root, session)
+	if err != nil {
+		return session, err
+	}
+	return adopted, nil
 }
 
 func (s *Service) ChangeHistory(ctx context.Context) ([]ChangeHistoryEntry, error) {
