@@ -205,7 +205,7 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/git\/workspace$/, () => this.gitWorkspace()],
     [/^\/api\/projects\/current\/changes$/, () => this.tasks()],
     [/^\/api\/projects\/current\/changes\/recovery$/, () => ({ ...data.project, session_id: '', state: '', hash: '', undo_available: false, warnings: [] })],
-    [/^\/api\/projects\/current\/findings$/, () => ({ ...data.project, findings: data.findings })],
+    [/^\/api\/projects\/current\/findings$/, () => this.findings()],
     [/^\/api\/projects\/current\/rules$/, () => ({ ...data.project, test_patterns: ['*_test.go', '*.test.ts', '**/tests/**'], guides: ['AGENTS.md'], problems: [] })],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/rules$/, () => ({ session_id: 'chg-1', revision: 3, files: [], problems: [] })],
     [/^\/api\/projects\/current\/overview$/, () => ({ ...data.overview, analysis_run: this.run ?? data.overview.analysis_run, docs_refresh: this.docsRefresh })],
@@ -420,6 +420,12 @@ export class FakeDaemon {
       return { ...s, state: 'applied', commit: body.commit_message ? { state: 'committed', oid: 'c0ffee12', message: String(body.commit_message) } : undefined };
     });
     return { ...data.project, session_id: updated.id, state: 'applied', hash: updated.hash, undo_available: !updated.worktree, warnings: [], commit: updated.commit };
+  }
+
+  /** The issues as the daemon reports them: an open one a draft task links is in progress. */
+  private findings() {
+    const fixing = new Set([...this.sessions.values()].filter(session => session.state === 'draft').flatMap(session => (session.finding_targets ?? []).map(target => target.id)));
+    return { ...data.project, findings: data.findings.map(finding => (finding.status === 'open' && fixing.has(finding.id) ? { ...finding, status: 'in_progress' } : finding)) };
   }
 
   /** Creates a task like the daemon; with worktree, in a new branch and worktree of its own. */

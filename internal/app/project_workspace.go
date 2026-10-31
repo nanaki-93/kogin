@@ -198,6 +198,7 @@ func (s *Service) listFindings(analysis *project.Analysis, index *project.Projec
 	if err != nil {
 		return nil, err
 	}
+	s.reportFindingProgress(s.manager.Root(), input.ProjectID, findings)
 	result := make([]project.UnifiedFinding, 0, len(findings))
 	for _, finding := range findings {
 		if matchesFindingFilter(finding, filter) {

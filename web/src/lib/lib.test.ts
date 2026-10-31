@@ -4,8 +4,9 @@ import { ancestors, buildTree, visibleRows } from './tree';
 import { buildHash, parseHash } from './router';
 import { escapeHtml, highlightLines } from './highlight';
 import { companionTestPath, explainable, formatElapsed, isTestPath, newFilePath, timeAgo } from './util';
-import { changeOverlaps, composerStartBlocker, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stageToolsLabel, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeRemovable, worktreeTasks } from './workflow';
-import type { ChangeHistoryEntry, GitWorkspace, GitWorktree } from '@/api/types';
+import { changeOverlaps, composerStartBlocker, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stageToolsLabel, taskFixingIssue, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeRemovable, worktreeTasks } from './workflow';
+import type { ChangeHistoryEntry, Finding, GitWorkspace, GitWorktree } from '@/api/types';
+import { isInProgressFinding, isOpenFinding, isUnresolvedFinding } from '@/components/domain';
 import { limitErrors, modelLocation, roleModelOptions, selectedModel } from './agentSettings';
 import { applyEvent, finishedRun, parseFrames } from '@/api/events';
 import { QueryClient } from '@tanstack/react-query';
@@ -106,6 +107,27 @@ describe('util and workflow', () => {
     expect(composerStartBlocker(['cmd/master.go'], true, true, isTestPath)).toBe('');
     expect(composerStartBlocker(['cmd/master.go', 'cmd/master_test.go'], false, true, isTestPath)).toBe('');
     expect(composerStartBlocker(['cmd/master.go'], true, false, isTestPath)).toMatch(/Trust/);
+  });
+});
+
+describe('issues being fixed', () => {
+  const finding = (status: string): Finding => ({ id: 'f1', source: 'ai', severity: 'high', title: 't', message: 'm', location: { path: 'a.go' }, status });
+
+  it('takes an issue a task is fixing out of the open issues, but not out of the code', () => {
+    expect([isOpenFinding(finding('open')), isInProgressFinding(finding('open')), isUnresolvedFinding(finding('open'))]).toEqual([true, false, true]);
+    expect([isOpenFinding(finding('in_progress')), isInProgressFinding(finding('in_progress')), isUnresolvedFinding(finding('in_progress'))]).toEqual([false, true, true]);
+    for (const status of ['dismissed', 'fixed', 'retired']) expect([isOpenFinding(finding(status)), isUnresolvedFinding(finding(status))]).toEqual([false, false]);
+  });
+
+  it('finds the newest live task fixing an issue', () => {
+    const target = { project_id: 'p', kind: 'semantic', id: 'f1', path: 'a.go' };
+    const entry = (id: string, state: string, worktreePath: string, targets = [target]) => ({ id, state, worktreePath, finding_targets: targets });
+    const tasks = [entry('other', 'draft', '', [{ ...target, id: 'f2' }]), entry('applied-main', 'applied', ''), entry('newest', 'draft', '/p/.worktrees/b'), entry('older', 'draft', '')];
+    expect(taskFixingIssue(tasks, 'f1')?.id).toBe('newest');
+    // Applied in its worktree, the fix is not merged yet; applied in the main checkout, it is done.
+    expect(taskFixingIssue([entry('committed', 'applied', '/p/.worktrees/c')], 'f1')?.id).toBe('committed');
+    expect(taskFixingIssue([entry('applied-main', 'applied', '')], 'f1')).toBeUndefined();
+    expect(taskFixingIssue(tasks, 'f3')).toBeUndefined();
   });
 });
 

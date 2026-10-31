@@ -70,8 +70,19 @@ export function sourceLabel(finding: Finding): string {
   return SOURCE_LABELS[source] ?? (source ? source.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase()) : 'Finding');
 }
 
-export function isOpenFinding(finding: Finding): boolean {
+/** An issue still in the code: open, or being fixed by a task not merged yet. */
+export function isUnresolvedFinding(finding: Finding): boolean {
   return !['dismissed', 'fixed', 'retired'].includes(finding.status || 'open');
+}
+
+/** An issue a task is fixing: out of the open issues until the task is merged, deleted or discarded. */
+export function isInProgressFinding(finding: Finding): boolean {
+  return finding.status === 'in_progress';
+}
+
+/** An issue no task is fixing yet. */
+export function isOpenFinding(finding: Finding): boolean {
+  return isUnresolvedFinding(finding) && !isInProgressFinding(finding);
 }
 
 export function FileIcon({ path, size = 14 }: { path: string; size?: number }) {

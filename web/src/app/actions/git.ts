@@ -108,6 +108,7 @@ export function gitActions(context: ActionContext) {
     }
     leaveRemovedCheckout(removed);
     void client.invalidateQueries({ queryKey: ['git'] });
+    void client.invalidateQueries({ queryKey: ['findings'] });
     return removed;
   }
 

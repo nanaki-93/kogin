@@ -331,6 +331,14 @@ export function parseCommits(text: string | undefined): { sha: string; subject: 
 }
 
 /**
+ * The task fixing an issue: the newest live task that links it, a draft or a
+ * task applied in its worktree and not merged yet. `tasks` is newest first.
+ */
+export function taskFixingIssue<T extends { state: string; worktreePath: string; finding_targets?: { id: string }[] }>(tasks: T[], findingId: string): T | undefined {
+  return tasks.find(task => (task.state === 'draft' || (task.state === 'applied' && Boolean(task.worktreePath))) && Boolean(task.finding_targets?.some(target => target.id === findingId)));
+}
+
+/**
  * Explains why the composer cannot start agents on a new task, or '': the same
  * rules the daemon applies when the run starts.
  */

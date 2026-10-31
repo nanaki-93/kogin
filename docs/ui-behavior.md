@@ -267,6 +267,10 @@ every guard when the action arrives.
   nothing starts until the user does. An issue without a file, such as a
   project-wide suggestion, drafts no files, so the composer asks for them; a
   long title is shortened to its first sentence (the description keeps it whole).
+  Once a task links an issue, the issue leaves **Open** for **In progress**
+  (with its count), where **Open task** replaces Fix with agents; it is marked
+  fixed when the task is merged and returns to Open when the task is deleted or
+  its worktree discarded. The Code page keeps marking it until then.
 - **Explain a file.** Sends the file's admitted context to a model after remote
   consent; the explanation is transient and cannot be applied.
 

@@ -137,13 +137,14 @@ export function Field({ label, hint, error, children, htmlFor }: { label: string
   );
 }
 
-export function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: string; icon?: LucideIcon }[]; onChange: (value: T) => void; label: string }) {
+export function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: string; icon?: LucideIcon; count?: number }[]; onChange: (value: T) => void; label: string }) {
   return (
     <div className="segmented" role="radiogroup" aria-label={label}>
       {options.map(option => (
         <button key={option.value} type="button" role="radio" aria-checked={option.value === value} className={cx('segmented-item', option.value === value && 'is-active')} onClick={() => onChange(option.value)}>
           {option.icon ? <option.icon size={13} aria-hidden /> : null}
           {option.label}
+          {option.count ? <span className="count">{option.count}</span> : null}
         </button>
       ))}
     </div>

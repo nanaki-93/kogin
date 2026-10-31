@@ -1,5 +1,5 @@
 // Navigation and the supporting workspaces: the inbox, the command palette,
-// creating a task, branches and issues.
+// creating a task, branches, docs and settings (issues: issues.spec.ts).
 
 import { expect, test } from './support/daemon';
 
@@ -58,7 +58,9 @@ test('a task in its own worktree does not switch the workspace pages', async ({ 
   await page.keyboard.press('g');
   await page.keyboard.press('i');
   await expect(page).toHaveURL(/#\/issues$/);
-  await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(3);
+  // The main checkout's issues, where the one the task fixes is now in progress.
+  await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(2);
+  await expect(page.getByRole('radiogroup', { name: 'Status' }).getByRole('radio', { name: /In progress/ })).toContainText('1');
   await page.getByRole('navigation', { name: 'Workspace' }).getByRole('link', { name: /Tasks/ }).click();
   await expect(page).toHaveURL(/#\/tasks$/);
   await page.getByRole('listitem').filter({ hasText: 'Fix: Request body read without a size limit' }).click();
@@ -205,14 +207,6 @@ test('a merge whose result fails its tests says so and keeps the merge', async (
   await expect(checks).toContainText('fix it in a new task, or revert the merge commit');
   await expect(checks.getByText('New failures: example/app.TestServe.')).toBeVisible();
   await expect(page.getByRole('alert').filter({ hasText: 'Checks failed after the merge' })).toBeVisible();
-});
-
-test('issues label where each finding comes from', async ({ page }) => {
-  await page.goto('/#/issues');
-  const table = page.getByRole('table');
-  await expect(table.getByRole('row', { name: /size limit/ })).toContainText('Security rule');
-  await expect(table.getByRole('row', { name: /size limit/ })).toContainText('change_handler.go:88 · ChangeHandler.Create');
-  await expect(table.getByRole('row', { name: /ignores cancellation/ })).toContainText('AI suggestion');
 });
 
 for (const theme of ['dark', 'light'] as const) {
@@ -394,53 +388,6 @@ test('a dark palette is chosen in Appearance and kept', async ({ page }) => {
   await page.getByRole('radio', { name: 'True black' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('html')).toHaveAttribute('data-palette', 'oled');
-});
-
-test('issues are triaged from the keyboard, filtered by kind and fixed in a linked task', async ({ page, daemon }) => {
-  await page.goto('/#/issues');
-  await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(3);
-  await page.keyboard.press('j');
-  const detail = page.getByRole('complementary', { name: 'Issue detail' });
-  await expect(detail).toContainText('Request body read without a size limit');
-  await page.keyboard.press('j');
-  await expect(detail).toContainText('Retry loop ignores cancellation');
-  await page.keyboard.press('Escape');
-  await expect(detail).toHaveCount(0);
-
-  await page.getByRole('group', { name: 'Category' }).getByRole('button', { name: /Security/ }).click();
-  await expect(page).toHaveURL(/category=security/);
-  await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(2);
-  await page.keyboard.press('j');
-  await page.keyboard.press('f');
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('dialog').getByPlaceholder('What should change?')).toHaveValue('Fix: Request body read without a size limit');
-  // The daemon drafts the task, so every language gets its own test file convention.
-  expect(daemon.requests.filter(request => request.path === '/api/projects/current/findings/f1/task')).toHaveLength(1);
-  await page.getByRole('dialog').getByRole('button', { name: 'Save draft' }).click();
-  await expect(page.getByText('Draft saved.')).toBeVisible();
-  expect(daemon.mutations('/changes')[0].body).toMatchObject({ finding_targets: [{ project_id: 'p1', kind: 'semantic', id: 'f1', path: 'internal/api/handlers/change_handler.go' }] });
-});
-
-test('an issue without a file opens a composer that says what Start agents needs', async ({ page, daemon }) => {
-  daemon.serve('/api/projects/current/findings', () => ({
-    project_id: 'p1', project_revision: 'r42',
-    findings: [{ id: 'f9', project_id: 'p1', source: 'ai', severity: 'high', title: 'Vault save is not atomic', message: 'The key file and the vault can disagree after a failed save.', location: {}, status: 'open', category: 'bugs' }],
-  }));
-  await page.goto('/#/issues?id=f9');
-  await page.getByRole('complementary', { name: 'Issue detail' }).getByRole('button', { name: /Fix with agents/ }).click();
-  const dialog = page.getByRole('dialog');
-  const start = dialog.getByRole('button', { name: /Start agents/ });
-  await expect(start).toBeDisabled();
-  await expect(dialog.getByRole('status')).toHaveText('Choose at least one file the agents may change.');
-  // In its own worktree a testing agent writes the tests it needs, so a file without one is enough.
-  await dialog.getByLabel('Search files to add').fill('README');
-  await page.keyboard.press('Enter');
-  await expect(dialog.getByText('README.md')).toBeVisible();
-  await expect(start).toBeEnabled();
-  await expect(dialog.getByRole('status')).toHaveCount(0);
-  await dialog.getByLabel('Work in its own worktree').uncheck();
-  await expect(start).toBeDisabled();
-  await expect(dialog.getByRole('status')).toHaveText('Add a test file to the scope so the testing agent can write tests.');
 });
 
 test('a task shows its files against the code rules, and a budget issue opens a refactor task', async ({ page, daemon }) => {

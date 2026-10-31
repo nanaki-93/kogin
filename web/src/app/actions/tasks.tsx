@@ -75,6 +75,8 @@ export function taskActions(context: ActionContext, removeEmptyWorktrees: (paths
     client.setQueryData(keys.session(created.id), loaded);
     void client.invalidateQueries({ queryKey: ['changes'] });
     if (opened) void client.invalidateQueries({ queryKey: ['git'] });
+    // The issues it fixes are in progress now.
+    if (created.finding_targets?.length) void client.invalidateQueries({ queryKey: ['findings'] });
     for (const warning of opened?.warnings ?? []) toast(warning, 'warning');
     navigate(`/tasks/${created.id}`, { wt: checkout || undefined });
     const prompt = draft.title.trim() + (draft.description.trim() ? `\n\nSpecification:\n${draft.description.trim()}` : '');
@@ -287,6 +289,8 @@ export function taskActions(context: ActionContext, removeEmptyWorktrees: (paths
       }
       if (deleted.length) leave?.();
       void client.invalidateQueries({ queryKey: ['changes'] });
+      // Issues the deleted tasks were fixing are open again.
+      void client.invalidateQueries({ queryKey: ['findings'] });
       const removed = await removeEmptyWorktrees(tasks.filter(task => deleted.includes(task.id)).map(task => task.worktreePath));
       const worktreeNote = removed.length ? ` ${removed.length === 1 ? 'Its worktree was' : `${removed.length} worktrees were`} removed too.` : '';
       if (deleted.length) toast((one ? 'Task deleted.' : `${plural(deleted.length, 'task')} deleted.`) + worktreeNote, 'success');

@@ -471,6 +471,10 @@
   color: var(--text);
 }
 
+.segmented-item .count {
+  margin-left: 0;
+}
+
 .segmented-item.is-active {
   background: var(--surface-3);
   color: var(--text);

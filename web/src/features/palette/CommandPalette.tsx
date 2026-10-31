@@ -13,7 +13,7 @@ import { navigate } from '@/lib/router';
 import { rankItems } from '@/lib/fuzzy';
 import { basename, dirname } from '@/lib/util';
 import { taskStatus } from '@/lib/readiness';
-import { FileIcon, isOpenFinding, StatusGlyph } from '@/components/domain';
+import { FileIcon, isInProgressFinding, isUnresolvedFinding, StatusGlyph } from '@/components/domain';
 import { Highlight, Kbd } from '@/components/ui';
 
 export function CommandPalette() {
@@ -37,7 +37,7 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
   const [search, setSearch] = useState('');
   const files = useIndex().data?.files ?? [];
   const { tasks } = useTasks();
-  const findings = (useFindings().data?.findings ?? []).filter(isOpenFinding);
+  const findings = (useFindings().data?.findings ?? []).filter(isUnresolvedFinding);
   const project = useProject().data;
   const trust = useTrust().data;
   const { worktreePath } = useCheckout();
@@ -124,7 +124,7 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
         {issueHits.length ? (
           <Command.Group heading="Issues">
             {issueHits.map(({ item, positions }) => (
-              <Command.Item key={item.id} value={`issue-${item.id}`} onSelect={run(() => navigate('/issues', { id: item.id }))} className="palette-item">
+              <Command.Item key={item.id} value={`issue-${item.id}`} onSelect={run(() => navigate('/issues', { id: item.id, status: isInProgressFinding(item) ? 'in_progress' : undefined }))} className="palette-item">
                 <CircleAlert size={15} aria-hidden />
                 <span className="grow truncate"><Highlight text={item.title} positions={positions} /></span>
                 <span className="xs muted">{item.severity}</span>

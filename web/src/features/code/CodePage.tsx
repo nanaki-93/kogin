@@ -15,7 +15,7 @@ import { ancestors, buildTree, visibleRows } from '@/lib/tree';
 import { rankItems } from '@/lib/fuzzy';
 import { basename, companionTestPath, dirname, explainable, languageOf, plural, timeAgo } from '@/lib/util';
 import { Badge, Button, EmptyState, Highlight, IconButton, Input, Kbd, Skeleton, cx } from '@/components/ui';
-import { FileIcon, SeverityBadge, isOpenFinding } from '@/components/domain';
+import { FileIcon, SeverityBadge, isUnresolvedFinding } from '@/components/domain';
 import { useFeedback } from '@/components/overlays';
 import { FileStages } from '@/features/analysis/FileStages';
 
@@ -82,7 +82,8 @@ export function CodePage() {
 function FileTree({ selected }: { selected: string }) {
   const index = useIndex();
   const files = index.data?.files ?? [];
-  const findings = (useFindings().data?.findings ?? []).filter(isOpenFinding);
+  // An issue a task is fixing is still in these files until the task is merged.
+  const findings = (useFindings().data?.findings ?? []).filter(isUnresolvedFinding);
   const project = useProject().data;
   const { worktreePath } = useCheckout();
   const actions = useActions();
@@ -172,7 +173,7 @@ function FileTree({ selected }: { selected: string }) {
 
 function Editor({ path, line, inspector }: { path: string; line: number; inspector: boolean }) {
   const { data: info, isLoading, error } = useFile(path);
-  const findings = (useFindings().data?.findings ?? []).filter(f => isOpenFinding(f) && f.location?.path === path);
+  const findings = (useFindings().data?.findings ?? []).filter(f => isUnresolvedFinding(f) && f.location?.path === path);
   const lines = useMemo(() => (info ? highlightLines(info.content ?? '', languageOf(path)) : []), [info, path]);
   const markers = useMemo(() => {
     const map = new Map<number, Finding[]>();

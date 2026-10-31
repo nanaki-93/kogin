@@ -3,18 +3,27 @@
 
 import { useMemo, useState } from 'react';
 import { usePageKeys } from '@/app/shortcuts';
-import { CircleAlert, ExternalLink, Search, Wrench, XCircle, RotateCcw } from 'lucide-react';
-import { useFindings, useIndex, useProject } from '@/api/hooks';
-import type { Finding } from '@/api/types';
+import { CircleAlert, ExternalLink, ListTodo, Search, Wrench, XCircle, RotateCcw } from 'lucide-react';
+import { useFindings, useIndex, useProject, useTasks } from '@/api/hooks';
+import type { Finding, TaskEntry } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
 import { navigate, setParam, useRoute } from '@/lib/router';
 import { rankItems } from '@/lib/fuzzy';
 import { severityRank } from '@/lib/util';
-import { Badge, Button, EmptyState, Input, Segmented, Skeleton, cx } from '@/components/ui';
-import { SeverityBadge, isOpenFinding, sourceLabel } from '@/components/domain';
+import { taskFixingIssue } from '@/lib/workflow';
+import { Badge, Button, Callout, EmptyState, Input, Segmented, Skeleton, cx } from '@/components/ui';
+import { SeverityBadge, isInProgressFinding, isOpenFinding, isUnresolvedFinding, sourceLabel } from '@/components/domain';
+import { openTask } from '@/features/tasks/TaskListPage';
 
-type StatusFilter = 'open' | 'dismissed' | 'all';
+type StatusFilter = 'open' | 'in_progress' | 'dismissed' | 'all';
+
+/** Open issues have no task yet; in progress, a task is fixing them; dismissed covers fixed and retired too. */
+function hasStatus(finding: Finding, status: StatusFilter): boolean {
+  if (status === 'open') return isOpenFinding(finding);
+  if (status === 'in_progress') return isInProgressFinding(finding);
+  return status === 'all' || !isUnresolvedFinding(finding);
+}
 
 export function IssuesPage() {
   const route = useRoute();
@@ -27,7 +36,7 @@ export function IssuesPage() {
   const [q, setQ] = useState('');
 
   const list = useMemo(() => {
-    const filtered = all.filter(f => (status === 'all' ? true : status === 'open' ? isOpenFinding(f) : !isOpenFinding(f))).filter(f => severity === 'all' || (f.severity || '').toLowerCase() === severity).filter(f => !category || f.category === category);
+    const filtered = all.filter(f => hasStatus(f, status)).filter(f => severity === 'all' || (f.severity || '').toLowerCase() === severity).filter(f => !category || f.category === category);
     const sorted = [...filtered].sort((a, b) => severityRank(a.severity) - severityRank(b.severity) || (a.location?.path ?? '').localeCompare(b.location?.path ?? ''));
     return rankItems(sorted, q, f => `${f.title} ${f.location?.path ?? ''} ${f.category ?? ''}`, 1000).map(r => r.item);
   }, [all, status, severity, category, q]);
@@ -40,17 +49,22 @@ export function IssuesPage() {
   const categories = Object.keys(categoryCounts).sort();
   const project = useProject().data;
   const { worktreePath } = useCheckout();
+  const { tasks } = useTasks();
   const actions = useActions();
   const busy = useBusy();
   const index = list.findIndex(f => f.id === selectedId);
+  const inProgress = useMemo(() => all.filter(isInProgressFinding).length, [all]);
 
-  // j/k move through the list, Esc closes the detail, f fixes and x dismisses or reopens.
+  // j/k move through the list, Esc closes the detail, f fixes (or opens the
+  // task fixing it) and x dismisses or reopens.
   usePageKeys(key => {
+    const fixing = selected && isInProgressFinding(selected) ? taskFixingIssue(tasks, selected.id) : undefined;
     if (key === 'j' || key === 'ArrowDown') select(list[Math.min(index + 1, list.length - 1)]);
     else if (key === 'k' || key === 'ArrowUp') select(list[Math.max(index - 1, 0)]);
     else if (key === 'Escape' && selected) setParam('id', undefined);
     else if (key === 'f' && selected && isOpenFinding(selected)) void actions.fixIssue(project, worktreePath, selected);
-    else if (key === 'x' && selected && project && !busy) void actions.triageFinding(project, worktreePath, selected, isOpenFinding(selected) ? 'dismissed' : 'open');
+    else if (key === 'f' && fixing) openTask(fixing);
+    else if (key === 'x' && selected && project && !busy) void actions.triageFinding(project, worktreePath, selected, isUnresolvedFinding(selected) ? 'dismissed' : 'open');
     else return false;
     return true;
   });
@@ -76,7 +90,7 @@ export function IssuesPage() {
           </div>
         </div>
         <div className="toolbar">
-          <Segmented label="Status" value={status} onChange={v => setParam('status', v === 'open' ? undefined : v)} options={[{ value: 'open', label: 'Open' }, { value: 'dismissed', label: 'Dismissed' }, { value: 'all', label: 'All' }]} />
+          <Segmented label="Status" value={status} onChange={v => setParam('status', v === 'open' ? undefined : v)} options={[{ value: 'open', label: 'Open' }, { value: 'in_progress', label: 'In progress', count: inProgress }, { value: 'dismissed', label: 'Dismissed' }, { value: 'all', label: 'All' }]} />
           <div className="chips">
             {['all', 'critical', 'high', 'medium', 'low'].map(s => (
               <button key={s} type="button" className={cx('chip', 'chip-toggle', severity === s && 'is-on')} onClick={() => setParam('severity', s === 'all' ? undefined : s)}>
@@ -101,8 +115,8 @@ export function IssuesPage() {
         {isLoading ? (
           <Skeleton lines={8} />
         ) : !list.length ? (
-          <EmptyState icon={CircleAlert} title={all.length ? 'No issues match' : 'No issues yet'}>
-            {all.length ? 'Try another filter.' : 'Run a project analysis to find bugs, performance and security issues.'}
+          <EmptyState icon={CircleAlert} title={all.length ? (status === 'in_progress' ? 'No issue is being fixed' : 'No issues match') : 'No issues yet'}>
+            {all.length ? (status === 'in_progress' ? 'Fix an open issue with agents; it shows here while its task is under way.' : 'Try another filter.') : 'Run a project analysis to find bugs, performance and security issues.'}
           </EmptyState>
         ) : (
           <table className="table" aria-label="Issues">
@@ -116,11 +130,11 @@ export function IssuesPage() {
             </thead>
             <tbody>
               {list.map(f => (
-                <tr key={f.id} id={`issue-${f.id}`} className={cx('table-row', f.id === selectedId && 'is-active', !isOpenFinding(f) && 'is-muted')} onClick={() => setParam('id', f.id)} tabIndex={0} onKeyDown={e => e.key === 'Enter' && setParam('id', f.id)} aria-selected={f.id === selectedId}>
+                <tr key={f.id} id={`issue-${f.id}`} className={cx('table-row', f.id === selectedId && 'is-active', !isUnresolvedFinding(f) && 'is-muted')} onClick={() => setParam('id', f.id)} tabIndex={0} onKeyDown={e => e.key === 'Enter' && setParam('id', f.id)} aria-selected={f.id === selectedId}>
                   <td><SeverityBadge severity={f.severity} /></td>
                   <td>
                     <div className="truncate strong-row">{f.title}</div>
-                    {f.category ? <div className="xs faint">{f.category}</div> : null}
+                    {f.category || isInProgressFinding(f) ? <div className="xs faint">{[isInProgressFinding(f) ? 'In progress' : '', f.category].filter(Boolean).join(' · ')}</div> : null}
                   </td>
                   <td className="mono xs truncate" title={[f.location?.path, f.location?.symbol].filter(Boolean).join(' · ')}>{f.location?.path}{f.location?.start_line ? `:${f.location.start_line}` : ''}{f.location?.symbol ? <span className="faint"> · {f.location.symbol}</span> : null}</td>
                   <td className="xs muted">{sourceLabel(f)}</td>
@@ -143,7 +157,10 @@ function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => vo
   const { worktreePath } = useCheckout();
   const actions = useActions();
   const busy = useBusy();
+  const { tasks } = useTasks();
   const open = isOpenFinding(finding);
+  const fixing = isInProgressFinding(finding);
+  const task: TaskEntry | undefined = fixing ? taskFixingIssue(tasks, finding.id) : undefined;
   const path = finding.location?.path || finding.task_spec?.target_path || '';
 
   return (
@@ -151,6 +168,7 @@ function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => vo
       <div className="detail-head">
         <SeverityBadge severity={finding.severity} />
         <Badge tone={sourceLabel(finding) === 'AI suggestion' ? 'accent' : 'neutral'}>{sourceLabel(finding)}</Badge>
+        {fixing ? <Badge tone="info">In progress</Badge> : null}
         <span className="spacer" />
         <button type="button" className="icon-btn" aria-label="Close detail" onClick={onClose}>
           <XCircle size={16} aria-hidden />
@@ -164,6 +182,11 @@ function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => vo
       ) : null}
       {finding.location?.symbol ? <div className="mono xs faint">in {finding.location.symbol}</div> : null}
       <p className="prose small">{finding.message}</p>
+      {fixing ? (
+        <Callout tone="info" icon={ListTodo} title={task ? `Being fixed in “${task.title || task.id}”` : 'A task is fixing this issue'}>
+          It is marked fixed when the task is merged, and returns to the open issues if the task is deleted or its worktree discarded.
+        </Callout>
+      ) : null}
       {finding.evidence ? (
         <div>
           <div className="label-row">Evidence</div>
@@ -178,8 +201,9 @@ function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => vo
       ) : null}
       <div className="row-wrap detail-actions">
         {open ? <Button variant="primary" icon={Wrench} onClick={() => void actions.fixIssue(project, worktreePath, finding)} disabled={!files.length} kbd="F">Fix with agents</Button> : null}
+        {task ? <Button variant="primary" icon={ListTodo} onClick={() => openTask(task)} kbd="F">Open task</Button> : null}
         {project ? (
-          open ? (
+          open || fixing ? (
             <Button variant="ghost" icon={XCircle} onClick={() => void actions.triageFinding(project, worktreePath, finding, 'dismissed')} disabled={Boolean(busy)} kbd="X">Dismiss</Button>
           ) : (
             <Button variant="ghost" icon={RotateCcw} onClick={() => void actions.triageFinding(project, worktreePath, finding, 'open')} disabled={Boolean(busy)} kbd="X">Reopen</Button>
