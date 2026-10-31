@@ -145,6 +145,21 @@ test('Branches discards a worktree left with no task but work of its own', async
   expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/.mini-orca/wt/old', discard_work: true });
 });
 
+test('Branches discards a mergeable worktree with no task left, as after its merge was aborted', async ({ page, daemon }) => {
+  daemon.addWorktree({ path: '/work/.mini-orca/wt/aborted', head: 'ee55', branch: 'orca/fix-unverified-vault', integration: 'behind', mergeable: true, overlap_paths: ['cmd/add.go'], sessions: [] });
+  await page.goto('/#/git');
+  await page.getByRole('listitem').filter({ hasText: 'orca/fix-unverified-vault' }).click();
+  const detail = page.getByRole('complementary', { name: 'Worktree' });
+  await expect(detail.getByRole('button', { name: 'Merge into main' })).toBeVisible();
+  await expect(detail).toContainText('No task is left on this branch. Merge its commits into main, or discard it with its work.');
+  await detail.getByRole('button', { name: 'Discard worktree' }).click();
+  await expect(page.getByRole('alertdialog')).toContainText('Its checkout and its branch are deleted, with the commits main does not have.');
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Discard worktree' }).click();
+  await expect(page.getByText('Discarded orca/fix-unverified-vault.')).toBeVisible();
+  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/.mini-orca/wt/aborted', source_head: 'ee55', source_branch: 'orca/fix-unverified-vault', discard_work: true });
+  await expect(page.getByRole('listitem').filter({ hasText: 'orca/fix-unverified-vault' })).toHaveCount(0);
+});
+
 test('a task scope can name a file that does not exist yet', async ({ page, daemon }) => {
   await page.goto('/#/tasks');
   await page.keyboard.press('c');

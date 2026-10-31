@@ -181,6 +181,7 @@ function WorktreeDetail({ tree, trusted }: { tree: GitWorktree; trusted: boolean
   const files = useMemo(() => parseGitDiff(preview?.diff), [preview]);
   const commits = parseCommits(preview?.commits);
   const tasks = worktreeTasks(tree);
+  const discardable = worktreeDiscardable(tree);
 
   return (
     <aside className="detail-pane detail-wide" aria-label="Worktree">
@@ -189,6 +190,13 @@ function WorktreeDetail({ tree, trusted }: { tree: GitWorktree; trusted: boolean
         <span className="strong">{tree.branch || basename(tree.path)}</span>
         <IntegrationBadge tree={tree} />
         <span className="spacer" />
+        {/* A branch with no task left can still be merged; when that is not wanted (say its merge
+            conflicted and was aborted) it is discarded with its work. */}
+        {discardable ? (
+          <Button variant={tree.mergeable ? 'ghost' : 'secondary'} icon={Trash2} onClick={() => void actions.discardWorktree(git, tree, main)} disabled={!trusted || Boolean(busy) || Boolean(git.merge_head)} loading={busy === 'Discarding worktree…'}>
+            Discard worktree
+          </Button>
+        ) : null}
         {tree.mergeable ? (
           <Button variant="primary" icon={GitMerge} onClick={() => void actions.merge(git, tree, main)} disabled={!trusted || Boolean(busy) || Boolean(git.merge_head)} loading={busy === 'Merging…'}>
             Merge into {git.branch}
@@ -197,15 +205,13 @@ function WorktreeDetail({ tree, trusted }: { tree: GitWorktree; trusted: boolean
           <Button variant="secondary" icon={Trash2} onClick={() => void actions.removeWorktree(git, tree, main)} disabled={!trusted || Boolean(busy) || Boolean(git.merge_head)} loading={busy === 'Removing worktree…'}>
             Remove worktree
           </Button>
-        ) : worktreeDiscardable(tree) ? (
-          <Button variant="secondary" icon={Trash2} onClick={() => void actions.discardWorktree(git, tree, main)} disabled={!trusted || Boolean(busy) || Boolean(git.merge_head)} loading={busy === 'Discarding worktree…'}>
-            Discard worktree
-          </Button>
         ) : null}
       </div>
       <div className="xs faint mono truncate">{tree.path}</div>
       {!tree.mergeable ? <p className="small muted">{notMergeableReason(tree)}</p> : null}
-      {!trusted && (tree.mergeable || worktreeRemovable(tree) || worktreeDiscardable(tree)) ? <Callout tone="warning" icon={ShieldOff} title={tree.mergeable ? 'Merging needs trust' : 'Removing needs trust'}>Git can run repository filters and merge drivers. Allow checks in Settings first.</Callout> : null}
+      {tree.mergeable && discardable ? <p className="small muted">No task is left on this branch. Merge its commits into {git.branch}, or discard it with its work.</p> : null}
+      {git.merge_head && discardable ? <p className="small muted">Abort or finish the merge in progress to discard this worktree.</p> : null}
+      {!trusted && (tree.mergeable || worktreeRemovable(tree) || discardable) ? <Callout tone="warning" icon={ShieldOff} title={tree.mergeable ? 'Merging needs trust' : 'Removing needs trust'}>Git can run repository filters and merge drivers. Allow checks in Settings first.</Callout> : null}
       {tree.integration === 'behind' && (tree.overlap_paths ?? []).length ? (
         <Callout tone="warning" icon={AlertTriangle} title={`${plural(tree.overlap_paths!.length, 'file')} changed on both branches`}>{tree.overlap_paths!.join(', ')}</Callout>
       ) : null}
