@@ -60,7 +60,6 @@ type Service struct {
 	// project runs with (global with the project's own file applied).
 	global                          *config.Config
 	configured                      atomic.Pointer[configuration]
-	agentRuns                       *agentRunController
 	worktreesMu                     sync.Mutex
 	worktrees                       map[string]*Service
 	owner                           *Service // The service that opened this worktree's; nil for the active project.
@@ -113,7 +112,6 @@ func New(cfg *config.Config, manager *project.Manager) (*Service, error) {
 		goScan:                  newGoScanController(),
 		executionTrust:          newExecutionTrustStore(),
 		events:                  newEventBroker(),
-		agentRuns:               newAgentRunController(),
 		buildDeclarationContext: contextBuilder.BuildFunctionWithManifest,
 		loadSecurityFileReport:  project.LoadSecurityFileReport,
 	}

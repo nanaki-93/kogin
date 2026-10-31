@@ -83,9 +83,17 @@ func TestStalePathAnalysisRetainsTargetAcrossAdmissionAndResume(t *testing.T) {
 	if err != nil || other.Status != "stale" {
 		t.Fatalf("other stale file was analyzed: %+v, %v", other, err)
 	}
-	results, err := s.ReadAnalysisSection(ctx, completed.Identity, project.FindingCategoryBugs, "")
-	if err != nil || len(results.RetainedFiles) != 1 || results.RetainedFiles[0].Path != "helper.go" || len(results.Semantic) != 1 || results.Semantic[0].Location.Path != "helper.go" || results.Semantic[0].Freshness != "stale" {
-		t.Fatalf("other file's saved findings were lost: %+v, %v", results, err)
+	bugs := 0
+	for _, file := range readSavedAnalysisResults(t, s, completed) {
+		if count := file.findings(project.FindingCategoryBugs); count > 0 {
+			if file.Path != "helper.go" || file.Semantic.Status != "stale" {
+				t.Fatalf("saved finding moved or became fresh: %+v", file.Semantic)
+			}
+			bugs += count
+		}
+	}
+	if retained := retainedAnalysisFiles(completed); len(retained) != 1 || retained[0] != "helper.go" || bugs != 1 {
+		t.Fatalf("other file's saved findings were lost: retained=%v bugs=%d", retained, bugs)
 	}
 	if after := readSelectionFor(t, s); after.SelectionID != selection.SelectionID {
 		t.Fatal("single-file analysis changed the saved selection")

@@ -13,15 +13,6 @@ type ChangeHandler struct {
 	manager *project.Manager
 }
 
-func (h *ChangeHandler) InvestigatePlan(w http.ResponseWriter, r *http.Request) {
-	var request app.PlanInvestigationRequest
-	if !decodeWorkflowBody(w, r, &request) {
-		return
-	}
-	value, err := h.service.InvestigatePlan(r.Context(), request)
-	respondWorkflow(w, value, err)
-}
-
 func NewChangeHandler(service *app.Service, manager *project.Manager) *ChangeHandler {
 	return &ChangeHandler{service, manager}
 }
@@ -102,24 +93,6 @@ func (h *ChangeHandler) Open(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	value, err := h.service.OpenChangeSession(r.Context(), request.ChangeCreateRequest)
-	respondWorkflow(w, value, err)
-}
-
-func (h *ChangeHandler) Resume(w http.ResponseWriter, r *http.Request) {
-	var request app.ChangeIdentity
-	if !decodeWorkflowBody(w, r, &request) {
-		return
-	}
-	index, err := h.manager.Index()
-	if err != nil {
-		respondWorkflow(w, nil, err)
-		return
-	}
-	if request.ProjectID != index.ProjectID || request.ProjectRevision != index.ProjectRevision {
-		respondWorkflow(w, nil, project.ErrRevisionConflict)
-		return
-	}
-	value, err := h.service.ResumeChange(r.Context(), r.PathValue("sessionID"))
 	respondWorkflow(w, value, err)
 }
 
@@ -225,29 +198,11 @@ func (h *ChangeHandler) Undo(w http.ResponseWriter, r *http.Request) {
 	respondWorkflow(w, value, err)
 }
 
-func (h *ChangeHandler) Commit(w http.ResponseWriter, r *http.Request) {
-	var request app.ChangeApplyRequest
-	if !decodeWorkflowBody(w, r, &request) {
-		return
-	}
-	value, err := h.service.RetryChangeCommit(r.Context(), r.PathValue("sessionID"), request)
-	respondGit(w, value, err)
-}
-
 func (h *ChangeHandler) Recovery(w http.ResponseWriter, r *http.Request) {
 	if !guardedWorkflowRead(w, r, h.manager) {
 		return
 	}
 	value, err := h.service.ChangeRecovery()
-	respondWorkflow(w, value, err)
-}
-
-func (h *ChangeHandler) Verify(w http.ResponseWriter, r *http.Request) {
-	var request app.ChangeIdentity
-	if !decodeWorkflowBody(w, r, &request) {
-		return
-	}
-	value, err := h.service.VerifyChange(r.Context(), r.PathValue("sessionID"), request)
 	respondWorkflow(w, value, err)
 }
 
@@ -257,14 +212,5 @@ func (h *ChangeHandler) ReviewFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	value, err := h.service.ReviewChangeFile(r.Context(), r.PathValue("sessionID"), request)
-	respondWorkflow(w, value, err)
-}
-
-func (h *ChangeHandler) Plan(w http.ResponseWriter, r *http.Request) {
-	var request app.ChangePlanRequest
-	if !decodeWorkflowBody(w, r, &request) {
-		return
-	}
-	value, err := h.service.UpdateChangePlan(r.Context(), r.PathValue("sessionID"), request)
 	respondWorkflow(w, value, err)
 }

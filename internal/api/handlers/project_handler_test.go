@@ -126,13 +126,6 @@ func TestFileAnalysisAPIsRequireRevisionAndExposeStates(t *testing.T) {
 	if stale.Code != http.StatusConflict {
 		t.Fatalf("stale revision = %d %s", stale.Code, stale.Body.String())
 	}
-
-	body := bytes.NewBufferString(`{"path":"main.go","project_revision":"` + index.ProjectRevision + `"}`)
-	analyzed := httptest.NewRecorder()
-	handler.AnalyzeFile(analyzed, httptest.NewRequest(http.MethodPost, "/api/projects/current/files/analysis", body))
-	if analyzed.Code != http.StatusOK || !strings.Contains(analyzed.Body.String(), `"status":"fresh"`) || !strings.Contains(analyzed.Body.String(), `"title":"Ignored errors"`) || !strings.Contains(analyzed.Body.String(), `"task_spec"`) {
-		t.Fatalf("analyzed response = %d %s", analyzed.Code, analyzed.Body.String())
-	}
 }
 
 func TestPromptHandlersConfirmOnlyTheirOwnRemoteScope(t *testing.T) {
@@ -177,12 +170,6 @@ func TestPromptHandlersConfirmOnlyTheirOwnRemoteScope(t *testing.T) {
 		t.Fatalf("unconfirmed remote import = %d %s, bug calls %d", importResponse.Code, importResponse.Body.String(), bugCalls)
 	}
 
-	analysisResponse := httptest.NewRecorder()
-	projectHandler.AnalyzeFile(analysisResponse, httptest.NewRequest(http.MethodPost, "/api/projects/current/files/analysis", bytes.NewBufferString(`{"path":"main.go","project_revision":"`+index.ProjectRevision+`"}`)))
-	if analysisResponse.Code != http.StatusOK || bugCalls != 1 {
-		t.Fatalf("local bug analysis = %d %s, bug calls %d", analysisResponse.Code, analysisResponse.Body.String(), bugCalls)
-	}
-
 	session, err := service.OpenChangeSession(context.Background(), app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "feature", Title: "Change Run", Paths: []string{"main.go"}})
 	if err != nil {
 		t.Fatal(err)
@@ -195,14 +182,14 @@ func TestPromptHandlersConfirmOnlyTheirOwnRemoteScope(t *testing.T) {
 	message.SetPathValue("sessionID", session.ID)
 	functionResponse := httptest.NewRecorder()
 	NewChangeHandler(service, manager).Message(functionResponse, message)
-	if functionResponse.Code != http.StatusBadRequest || strings.Contains(functionResponse.Body.String(), "hidden") || bugCalls != 1 {
+	if functionResponse.Code != http.StatusBadRequest || strings.Contains(functionResponse.Body.String(), "hidden") || bugCalls != 0 {
 		t.Fatalf("unconfirmed remote function = %d %s, bug calls %d", functionResponse.Code, functionResponse.Body.String(), bugCalls)
 	}
 	assertStructuredError(t, functionResponse)
 
 	reindexResponse := httptest.NewRecorder()
 	projectHandler.Reindex(reindexResponse, httptest.NewRequest(http.MethodPost, "/api/projects/current/reindex", bytes.NewBufferString(`{"project_revision":"`+index.ProjectRevision+`"}`)))
-	if reindexResponse.Code != http.StatusOK || bugCalls != 1 {
+	if reindexResponse.Code != http.StatusOK || bugCalls != 0 {
 		t.Fatalf("model-free reindex = %d %s, bug calls %d", reindexResponse.Code, reindexResponse.Body.String(), bugCalls)
 	}
 }

@@ -6,16 +6,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
-	"time"
-	"unicode/utf8"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
 	"github.com/nanaki-93/mini-orca/v2/internal/llm"
 )
 
-func TestAgentWorkflowStreamingOutputIsOptInAndPrivate(t *testing.T) {
+func TestAgentWorkflowStreamingOutputIsOptIn(t *testing.T) {
 	base, _, initial := workflowService(t, [3]func() string{func() string { return workflowImplementation }, func() string { return workflowTests }, func() string { return workflowApproval }})
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request struct {
@@ -51,23 +48,17 @@ func TestAgentWorkflowStreamingOutputIsOptInAndPrivate(t *testing.T) {
 	if ready.Workflow.Status != "awaiting_human_review" || !ready.Workflow.StreamOutput {
 		t.Fatalf("streamed workflow failed: %+v", ready.Workflow)
 	}
-	query := AgentRunQuery{ProjectID: ready.ProjectID, ProjectRevision: ready.ProjectRevision}
-	history, store, err := s.readAgentHistory(t.Context(), query)
-	if err != nil {
-		t.Fatal(err)
-	}
+	history, store := agentJournalHistory(t, s)
 	outputs := 0
 	for _, run := range history.Runs {
 		if run.SchemaVersion != "completion-v1" {
 			continue
 		}
 		outputs++
-		if !s.agentRuns.privateText(run.ID).Available {
-			t.Fatal("streaming did not reach private observer")
-		}
-		text, err := s.readAgentText(t.Context(), store, run)
-		if err != nil || !text.Available || text.State != "final_model_output" || text.Text == "" {
-			t.Fatalf("final output: %+v %v", text, err)
+		artifact, err := store.ExportArtifact(t.Context(), agentstate.ArtifactKey{Session: run.Session, Name: "completion.json"}, 0)
+		var output struct{ Content string }
+		if err != nil || json.Unmarshal(artifact.Data, &output) != nil || output.Content == "" {
+			t.Fatalf("final output: %+v %v", artifact, err)
 		}
 	}
 	if outputs != 5 {
@@ -79,61 +70,16 @@ func TestAgentWorkflowStreamingOutputIsOptInAndPrivate(t *testing.T) {
 	}
 }
 
-func TestAgentEventsResetReplayAndDroppedNotifications(t *testing.T) {
-	s, store, query := agentHistoryFixture(t)
-	run := seedAgentRun(t, s, store, "root", "", time.Now().UTC())
-	initial, err := s.AgentRunEvents(t.Context(), query)
-	if err != nil || !initial.Reset || initial.Snapshot == nil || len(initial.Snapshot.Runs) != 1 || len(initial.Events) != 0 {
-		t.Fatalf("initial snapshot: %+v %v", initial, err)
-	}
-	query.Cursor = initial.Cursor
-	// There is deliberately no subscriber while the durable terminal event is written.
-	if err := store.FinishRun(t.Context(), run.ID, "completed", nil); err != nil {
+// agentJournalHistory reads the agent journal of the active checkout.
+func agentJournalHistory(t *testing.T, s *Service) (agentstate.History, *agentstate.Store) {
+	t.Helper()
+	store, _, err := s.agentJournal(s.manager.Root())
+	if err != nil {
 		t.Fatal(err)
 	}
-	batch, err := s.AgentRunEvents(t.Context(), query)
-	if err != nil || batch.Reset || len(batch.Events) != 1 || batch.Events[0].State != "completed" || batch.Cursor == initial.Cursor {
-		t.Fatalf("replay lost terminal state: %+v %v", batch, err)
+	history, err := store.History(t.Context())
+	if err != nil {
+		t.Fatal(err)
 	}
-	query.Cursor = batch.Cursor
-	empty, err := s.AgentRunEvents(t.Context(), query)
-	if err != nil || empty.Reset || len(empty.Events) != 0 {
-		t.Fatalf("duplicate replay: %+v %v", empty, err)
-	}
-	for _, cursor := range []string{"foreign:1", progressCursor(initial.Epoch, 9999)} {
-		query.Cursor = cursor
-		reset, err := s.AgentRunEvents(t.Context(), query)
-		if err != nil || !reset.Reset || reset.Snapshot.Runs[0].Status != "completed" || len(reset.Events) != 0 {
-			t.Fatalf("foreign/future cursor: %+v %v", reset, err)
-		}
-	}
-	query.Cursor = "bad\ncursor"
-	if _, err := s.AgentRunEvents(t.Context(), query); err == nil {
-		t.Fatal("invalid cursor accepted")
-	}
-}
-
-func TestAgentPrivateTextBoundsUTF8AndOwnership(t *testing.T) {
-	c := newAgentRunController()
-	c.appendText("missing", "secret")
-	if c.privateText("missing").Available {
-		t.Fatal("unowned output retained")
-	}
-	for i := range 65 {
-		id := fmt.Sprint(i)
-		c.started(agentstate.Run{ID: id}, func() {})
-		c.appendText(id, strings.Repeat("é", maxAgentPrivateText))
-		c.ended(id)
-	}
-	if c.privateText("0").Available {
-		t.Fatal("unbounded retained private runs")
-	}
-	value := c.privateText("64")
-	if !value.Available || !value.Truncated || len(value.Text) != maxAgentPrivateText || !utf8.ValidString(value.Text) {
-		t.Fatalf("private text bound: %d %+v", len(value.Text), value.Truncated)
-	}
-	c.appendText("64", "ignored")
-	if c.privateText("64").Text != value.Text {
-		t.Fatal("ended run retained late text")
-	}
+	return history, store
 }

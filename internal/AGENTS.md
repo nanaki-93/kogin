@@ -14,7 +14,7 @@ the backend guide for changes to `cmd/`.
 - Keep shared workflow policy in `app` and project facts/composition in `project`.
   Place domain-specific logic in its dedicated subpackage rather than expanding root
   packages (`internal/project/diff`, `internal/project/symbols`, `internal/project/insight`,
-  `internal/project/handbook`, `internal/project/securityrules`, `internal/project/instructions`;
+  `internal/project/handbook`, `internal/project/securityrules`;
   `internal/app/archgate`, `internal/app/sandbox`, `internal/app/changes`,
   `internal/app/gitops`, `internal/app/features`).
   Subpackages must respect the acyclic import rules declared in the root `AGENTS.md`

@@ -253,9 +253,9 @@ func TestChangeGenerationHistoryAndRevision(t *testing.T) {
 	if err := storeChangeSession(root, first); err != nil {
 		t.Fatal(err)
 	}
-	resumed, err := service.ResumeChange(context.Background(), session.ID)
-	if err != nil || len(resumed.Messages) != 2 || len(resumed.Checks) != 0 || resumed.ReviewedHash != "" || resumed.Freshness != "current" {
-		t.Fatalf("resume: %+v, %v", resumed, err)
+	read, err := service.ChangeSession(context.Background(), session.ID)
+	if err != nil || len(read.Messages) != 2 || read.Freshness != "current" {
+		t.Fatalf("read: %+v, %v", read, err)
 	}
 	history, err := service.ChangeHistory(context.Background())
 	if err != nil || len(history) != 1 || calls.Load() != 1 {
@@ -268,7 +268,7 @@ func TestChangeGenerationHistoryAndRevision(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\nfunc Run() {}\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	stale, err := service.ResumeChange(context.Background(), session.ID)
+	stale, err := service.ChangeSession(context.Background(), session.ID)
 	if err != nil || stale.Freshness != "stale" || len(stale.Changes) != 1 {
 		t.Fatalf("stale history lost proposal: %+v, %v", stale, err)
 	}
@@ -320,16 +320,9 @@ func TestChangeLateGenerationAndCancellationDoNotPublish(t *testing.T) {
 	}
 }
 
-func TestChangeManualInstructionsAndCorruptHistory(t *testing.T) {
+func TestChangeCorruptHistoryIsSetAside(t *testing.T) {
 	service, root := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
-	index, _ := service.manager.Index()
-	proposal, err := service.ProposeInstructions(context.Background(), InstructionProposalRequest{ChangeCreateRequest: ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "instructions", Title: "Project instructions", Paths: []string{"AGENTS.md"}}, Content: "Use focused tests.\n"})
-	if err != nil || proposal.Revision != 1 || len(proposal.Changes) != 1 {
-		t.Fatalf("instruction proposal: %+v, %v", proposal, err)
-	}
-	if _, err := os.Stat(filepath.Join(root, "AGENTS.md")); !os.IsNotExist(err) {
-		t.Fatal("manual proposal wrote instructions")
-	}
+	proposal := openChangeFixture(t, service, "AGENTS.md")
 	if err := os.WriteFile(filepath.Join(root, ".mini-orca/changes", proposal.ID+".json"), []byte("broken"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -377,15 +370,23 @@ func TestChangeUnlocksAllTextFileTypesAndHunkProposalUpdates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	proposal, err := service.ProposeInstructions(context.Background(), InstructionProposalRequest{
-		ChangeCreateRequest: ChangeCreateRequest{
-			ProjectID:       index.ProjectID,
-			ProjectRevision: index.ProjectRevision,
-			Kind:            "feature",
-			Title:           "Direct edit style.css",
-			Paths:           []string{"style.css"},
-		},
-		Content: ":root {\n  --bg: #111;\n  --fg: #eee;\n}\n",
+	session, err := service.OpenChangeSession(context.Background(), ChangeCreateRequest{
+		ProjectID:       index.ProjectID,
+		ProjectRevision: index.ProjectRevision,
+		Kind:            "feature",
+		Title:           "Direct edit style.css",
+		Paths:           []string{"style.css"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	proposal, err := service.SendChangeMessage(context.Background(), session.ID, ChangeMessageRequest{
+		ChangeIdentity: changeIdentity(session),
+		Message:        "Edit style.css directly",
+		Changes: []ChangeEditInput{{
+			Path:    "style.css",
+			Content: ":root {\n  --bg: #111;\n  --fg: #eee;\n}\n",
+		}},
 	})
 	if err != nil || proposal.Revision != 1 || len(proposal.Changes) != 1 {
 		t.Fatalf("direct non-Go/non-Markdown proposal failed: %+v, %v", proposal, err)

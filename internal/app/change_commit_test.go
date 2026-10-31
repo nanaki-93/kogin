@@ -86,7 +86,7 @@ func TestChangeCommitScopesStagingAndSurvivesRestart(t *testing.T) {
 	}
 }
 
-func TestChangeCommitFailureCanRetryWithoutApplyingAgain(t *testing.T) {
+func TestChangeCommitFailureKeepsAppliedState(t *testing.T) {
 	server := changeProvider(t, func() string { return groupedChangeResponse })
 	service, root := newSemanticAnalysisService(t, server.URL, 0)
 	initializeChangeGit(t, service, root)
@@ -97,18 +97,8 @@ func TestChangeCommitFailureCanRetryWithoutApplyingAgain(t *testing.T) {
 	if err != nil || receipt.State != "applied" || receipt.Commit.State != "failed" {
 		t.Fatalf("failed commit lost applied state: %+v %v (commit %+v)", receipt, err, receipt.Commit)
 	}
-	testGit(t, root, "config", "user.name", "Mini Orca Test")
-	request.ProjectRevision = receipt.ProjectRevision
-	request.CommitMessage = "Fix behavior after configuring identity"
-	receipt, err = service.RetryChangeCommit(context.Background(), session.ID, request)
-	if err != nil || receipt.Commit.State != "committed" || receipt.Commit.Error != "" {
-		t.Fatalf("retry: %+v %v", receipt, err)
-	}
-	if testGit(t, root, "rev-list", "--count", "HEAD") != "2" {
-		t.Fatal("retry created duplicate commit")
-	}
-	if _, err := service.RetryChangeCommit(context.Background(), session.ID, request); err == nil {
-		t.Fatal("repeated retry accepted")
+	if testGit(t, root, "rev-list", "--count", "HEAD") != "1" {
+		t.Fatal("failed commit created a commit")
 	}
 }
 

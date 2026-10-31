@@ -82,7 +82,6 @@ untrusted networks.
 | POST | `/api/projects/current/analysis/run` | Durably admit the previewed run with fresh provider and Security intent. |
 | GET | `/api/projects/current/analysis/run` | Read progress with `project_id` and `project_revision`; 204 when absent. |
 | POST | `/api/projects/current/analysis/run/control` | Pause, resume or cancel the exact run generation. |
-| GET | `/api/projects/current/analysis/results` | Read Bugs, Performance or Security evidence using full run identity; optional captured-file filter. |
 | GET | `/api/projects/current/findings` | List source-free verified findings and AI suggestions with provenance, filters, and freshness. |
 | GET | `/api/projects/current/rules` | Test file patterns (conventions plus AGENTS.md `test_files`), the indexed AGENTS.md files and any rules block that could not be read. |
 | PATCH | `/api/projects/current/findings/{findingID}` | Record an explicit user triage status for one finding. |
@@ -93,12 +92,6 @@ untrusted networks.
 | GET | `/api/projects/current/events` | Stream Server-Sent Events (SSE) when analysis runs, scans, reindexing or change workflows change state; workflow events name the task, stage and status and carry the run's usage and estimated cost. |
 | GET | `/api/projects/current/quarantine` | List records set aside because they were unreadable, and records skipped because a newer Mini-Orca wrote them, with the remedy. |
 | GET | `/api/projects/current/usage` | Total agent model calls, tokens and estimated cost per task in the checkout, plus work not tied to a task. |
-| GET | `/api/projects/current/agent-runs` | Read bounded root invocation history with project/revision guards and pagination. |
-| GET | `/api/projects/current/agent-runs/events` | Replay source-free durable progress or subscribe using SSE and a sequence cursor. |
-| GET | `/api/projects/current/agent-runs/{runID}` | Read invocation hierarchy and retained events; private model text requires `include_text=true`. |
-| POST | `/api/projects/current/agent-runs/{runID}/control` | Cancel an active root invocation owned by this daemon. |
-| POST | `/api/projects/current/agent-runs/{runID}/input` | Respond to a native checkpoint through the guarded proposal review owner. |
-| POST | `/api/projects/current/agent-runs/{runID}/export` | Export one explicitly confirmed source-free trace snapshot to the configured collector. |
 | GET | `/api/projects/current/setup` | The project's configuration as setup edits it: `state` (`needed`, `skipped`, `configured`, `invalid`), the project and daemon files, models (secrets as `api_key_set`), roles and budget. |
 | POST | `/api/projects/current/setup` | Write the project's `.mini-orca/config.yaml` and apply it live; 409 while work runs. |
 | POST | `/api/projects/current/setup/timeouts` | Save only the project's time limits and apply them at once. |
@@ -106,43 +99,32 @@ untrusted networks.
 | POST | `/api/projects/current/setup/test-model` | Send one short request to a model as setup would configure it for a scope. |
 | GET | `/api/projects/current/agent-settings` | Read configured or overridden role, budget and skill settings without dispatch. |
 | POST | `/api/projects/current/agent-settings/control` | Confirm a versioned replacement or reset for future admissions. |
-| POST | `/api/projects/current/agent-settings/skills/validate` | Explicitly validate a configured skill's captured local text without executing resources. |
 | GET | `/api/projects/current/execution-trust` | Read remembered project trust bound to the current revision and exact project-code command scope; `task_test_name` selects a generated task-test argv. |
 | POST | `/api/projects/current/execution-trust` | Save or revoke local execution trust for the current project path. |
 | GET | `/api/projects/current/index` | Read deterministic eligible-file facts. |
 | GET | `/api/projects/current/files/info` | Read safe selected-file information for project-relative `path`. |
-| GET | `/api/projects/current/impact` | Read advisory source-free impact references for one file. |
 | GET | `/api/projects/current/git/workspace` | Read local branches, worktrees and committed fix history. |
-| POST | `/api/projects/current/git/worktrees` | Create a new branch and worktree from the displayed HEAD. |
-| POST | `/api/projects/current/git/switch` | Switch a clean project to an existing local branch. |
 | POST | `/api/projects/current/git/merge-preview` | Preview the selected worktree's incoming commits and diff. |
 | POST | `/api/projects/current/git/merge` | Merge the captured worktree HEAD into the current clean branch, then remove the merged worktree and branch unless `keep_worktree`. The result names `previous_head`, the commit before the merge. |
 | POST | `/api/projects/current/git/merge-checks` | Run the tests and lint of the subprojects a merge changed (`from` → `to`) on a copy of the merged checkout; failures that already happened before the merge pass as `known_failures`. Needs execution trust; never changes the checkout. |
 | POST | `/api/projects/current/git/cleanup-merged` | Reconcile an external merge and safely remove the integrated worktree and branch. |
 | POST | `/api/projects/current/git/discard-worktree` | Remove a confirmed clean worktree without merging; keep its branch unless the current branch contains its commits. |
 | POST | `/api/projects/current/git/abort-merge` | Abort the identified merge and discard conflict resolutions. |
-| GET | `/api/projects/current/git/repository` | Read guarded repository identity, branch and working-tree state. |
-| POST | `/api/projects/current/changes/{sessionID}/commit` | Retry the latest failed proposal commit without reapplying source. |
-| GET | `/api/projects/current/git` | Read target-file Git availability, branch, and status. |
 | GET | `/api/projects/current/files/analysis` | Read cached semantic analysis for one selected file and revision. |
-| POST | `/api/projects/current/files/analysis` | Explicitly analyze exactly one selected file. |
 | POST | `/api/projects/current/files/security-scan` | Scan one selected eligible Go file with deterministic source-only rules; no provider request or subprocess execution occurs. Matches require syntactic review and do not prove exploitability. At most five source-order matches are returned; a `partial` report says when that limit truncates coverage. |
 | POST | `/api/projects/current/files/explanation` | Explicitly explain one selected Go file using transient Code-scope context. |
 | POST | `/api/projects/current/security-review` | Explicitly perform one passive, source-free AI Security review for one current eligible file. |
 | POST | `/api/projects/current/reindex` | Refresh deterministic facts without an LLM request. |
-| POST | `/api/projects/current/plans/investigate` | Investigate captured read/write scope and return validated citations and model suggestions for explicit acceptance. |
 | GET | `/api/projects/current/changes` | List local change conversations without generation. |
 | POST | `/api/projects/current/changes` | Capture a task and 1–64 explicit text paths (planned tasks: 1–8), here or with `worktree` in a new branch and worktree created for it. |
 | GET | `/api/projects/current/changes/recovery` | Read the latest grouped mutation or interrupted recovery journal. |
 | GET | `/api/projects/current/changes/{sessionID}` | Read a proposal and recheck its scoped freshness and whether its checks describe the current tree. |
 | GET | `/api/projects/current/changes/{sessionID}/rules` | Measure each task file against the budgets and import rules of its AGENTS.md files (the proposal where the task changed it); nothing runs. |
-| POST | `/api/projects/current/changes/{sessionID}/resume` | Restore history and clear check/review authority; no provider request. |
 | POST | `/api/projects/current/changes/{sessionID}/messages` | Generate a scoped proposal or explicitly request bounded check-driven repair. |
 | POST | `/api/projects/current/changes/{sessionID}/checks` | Check the current proposal; tests/vet require independent execution trust. |
 | POST | `/api/projects/current/changes/{sessionID}/workflow` | Start creation, test writing/execution and model review for the captured scope. |
 | POST | `/api/projects/current/changes/{sessionID}/workflow/cancel` | Cancel the identified workflow without applying source. |
 | POST | `/api/projects/current/changes/{sessionID}/workflow/input` | Respond to the exact durable review request with current proposal identity. |
-| POST | `/api/projects/current/changes/{sessionID}/plan` | Save revised task intent and scope before generation. |
 | POST | `/api/projects/current/changes/{sessionID}/review-file` | Record inspection of a changed file for the current hash. |
 | POST | `/api/projects/current/changes/{sessionID}/comments` | Add a reviewer comment on one line of the current proposal. |
 | POST | `/api/projects/current/changes/{sessionID}/comments/delete` | Delete an open line comment. |
@@ -152,13 +134,6 @@ untrusted networks.
 | POST | `/api/projects/current/changes/{sessionID}/delete` | Delete a task that is not running and whose Apply cannot be undone; stale tasks included. Publishes a `workflow` event with status `deleted`. |
 | POST | `/api/projects/current/changes/{sessionID}/reanalyze` | Re-check an out-of-date task's issue against the current files: still valid captures it again, not valid deletes it and dismisses its linked issues. |
 | POST | `/api/projects/current/changes/{sessionID}/undo` | Restore the latest unchanged grouped Apply or recover an interrupted mutation. |
-| POST | `/api/projects/current/changes/{sessionID}/verify` | Explicitly verify the latest applied change with fresh identity and trust. |
-| GET | `/api/projects/current/instructions` | Preview applicable AGENTS.md content, origins and instruction presets. |
-| POST | `/api/projects/current/instructions/proposal` | Prepare an AGENTS.md proposal without a provider or source write. |
-| GET | `/api/projects/current/features` | Read saved goals and advisory feature suggestions. |
-| POST | `/api/projects/current/features/goals` | Save goals; ideas generated for other goals become stale. |
-| POST | `/api/projects/current/features/generate` | Explicitly add new bounded feature ideas, keeping existing ones, with optional profile consent. |
-| PATCH | `/api/projects/current/features/{featureID}` | Save, dismiss or reopen an advisory feature suggestion. |
 
 Project analysis keeps the existing string fields: new `architecture` values contain
 Mermaid flowcharts and `flows` items contain flowcharts or sequence diagrams. These are
@@ -281,23 +256,19 @@ All bodies reject unknown fields and trailing JSON. Query guards must each occur
 once, use only documented names and contain 1–4096 characters. Missing/invalid
 request fields return 400, unknown projects 404, identity/lifecycle conflicts 409,
 and progress storage failures 500 with sanitized recovery guidance. No saved run
-returns 204. Result `path` must be a canonical path captured by this run; an
-unknown file yields 409. Filtering leaves the run's project coverage unchanged.
+returns 204.
 
 - `POST /api/projects/current/analysis/preview`: accepts `AnalysisPreviewRequest`;
   returns `AnalysisRunPreview` without provider calls, subprocesses or source writes.
 - `POST /api/projects/current/analysis/run`: accepts `AnalysisRunStartRequest`;
   returns an admitted `AnalysisRun` with status 202 after durable admission. When
   `clear_results: true` is paired with `refresh: true`, admission clears saved
-  findings, stage reports and feature suggestions (preserving saved project goals)
-  and replaces any paused or interrupted run so the new run starts from 0.
+  findings and stage reports and replaces any paused or interrupted run so the
+  new run starts from 0.
 - `GET /api/projects/current/analysis/run`: reads current progress for the required
   `project_id` and `project_revision`; it never starts or resumes work.
 - `POST /api/projects/current/analysis/run/control`: accepts
   `AnalysisRunControlRequest` for pause, resume or cancel.
-- `GET /api/projects/current/analysis/results`: accepts the complete run identity
-  as query guards plus `category` and optional project-relative `path`; returns
-  `AnalysisSectionResults`. A file filter only changes the read view.
 
 There is one execution scope: `project`. No selected file, path filter or list of
 user-picked files belongs in a start request. Preview captures the whole eligible
@@ -338,59 +309,37 @@ or executable paths. `location` is `local` for loopback catalog destinations,
 Agy reports `unknown` because its catalog omits endpoints. This describes catalog
 metadata; all CLI prompt requests still require consent.
 
-Preview/start accept optional `models: {code, performance, security, features}`. Each value is
+Preview/start accept optional `models: {code, performance, security}`. Each value is
 an opaque catalog ID (`configured:<hash>`, `pi:<provider>/<model>` or `agy:<slug>`), or a legacy
-configured profile name (`analyze`, `bug`, `function`); all four operations need a choice when
+configured profile name (`analyze`, `bug`, `function`); all three operations need a choice when
 the object is present. Older clients and saved runs may supply `review` as the
 fallback for either omitted `performance` or `security` choice. Explicit operation
 choices take precedence; legacy captured identities remain unchanged. Omission retains Bug for semantic Code analysis and Analyze
-for Performance, Security AI and feature discovery. Catalog assignments use the
+for Performance and Security AI. Catalog assignments use the
 operation's context and dispatch limits; legacy profile selections retain their
 original timeout/retry behavior. Configured choices retain their transport and
 sampling settings; discovered CLI choices use that CLI's defaults and exact model
 ID, without inheriting a configured scope's reasoning override. Logical scope remains
-Bug for Code and Analyze for reviews/features. Clients cannot supply endpoints,
+Bug for Code and Analyze for reviews. Clients cannot supply endpoints,
 executable paths or credentials. Choices affect dispatch, cache freshness,
 provenance and provider accounting without changing daemon configuration.
 Preview and start must use identical choices. Invalid syntax returns 400; a
 missing choice or changed admission returns 409 before inference. CLI membership
-is rechecked before preview, start, resume and standalone feature generation;
+is rechecked before preview, start and resume;
 discovery failure stops admission. Captured choices survive restart/resume.
 Schema-1 runs without `models` remain readable with their original defaults.
 
-Preview/start accept `include_features` (default false for existing clients),
-which must match at admission. The web client includes it on every new analysis.
-It adds one project-wide `feature_suggestions` step using saved goals, bounded
-policy-filtered context and root AGENTS.md; explicit file exclusions also apply
-to this context and suggested paths. `preview.features` captures goals/workspace
-hashes, the current feature-store hash, exclusions and the selected feature provider/request
-allowance. `run.features` exposes its status, cumulative attempts and nullable
-`suggestion_count`, separately from the three finding sections. The step uses the
-same additive feature generator as the Features routes: `suggestion_count` (0–5)
-counts ideas newly added by this run's generation, not the cumulative library,
-and `completed_empty` means no new ideas were added. A full feature history
-records the step as `failed` with `Feature history is full; existing ideas were
-kept.`; it leaves the saved ideas unchanged and is not a run persistence fault.
-The step runs once
-alongside file stages with its own deadline of at least ten minutes (or the
-selected feature model's timeout when longer). File batch/time limits do not consume
-its deadline. It retains the run's cumulative attempt allowance and fresh
-provider consent, and is not repeated after completion on resume. A batch that
-finishes or reaches its file allowance can still publish file results while
-feature discovery runs. The window settles after both workers finish; user
-pause/cancel stops both workers. Failed generation keeps
-previous ideas and permits other stages to continue; overall progress reflects
-partial results. Cancellation and source/goal changes reject late publication.
-Saved schema-1 runs without feature fields retain their original behavior.
-The feature prompt identity (`feature-suggestions-v4`) is part of the provider
-fingerprint, so finished runs that included features under an earlier prompt
-read as `stale`, not corrupt.
+Feature discovery is retired. Preview/start no longer accept `include_features`,
+and a request that sets `models.features` returns 400. Runs saved with
+`plan.features`/`run.features` stay readable but cannot resume: resuming one
+returns 409 "this analysis included feature discovery, which Mini-Orca no longer
+has; cancel it and start a new analysis".
 
 Every preview also plans the docs refresh that ends a run (`preview.docs`): the
 components the docs show, the analyze provider and at most one request per
 component plus one for the overview, each with its retries. These requests are
 not in the preview totals, and the analyze provider needs the run's consent even
-when no file stage uses it. After the last window's files and feature discovery,
+when no file stage uses it. After the last window's files,
 components whose files' summaries changed are summarized again; the overview is
 written again from the component summaries when one changed or it is not current
 for the revision. `run.docs` records the outcome (`completed`, `skipped` or
@@ -407,7 +356,7 @@ identity includes scope, model, origin, reasoning, context/timeout/retry setting
 and prompt/rule versions. Cache availability is excluded from this stable identity:
 the run's own cache writes cannot invalidate its remaining queue. `preview_id`
 additionally binds current cache dispositions, remaining attempts/work and request
-bounds. Start echoes limits/refresh, `retry_stale_failed`, `stale_only`, `stale_path`, `recover_incomplete`, `include_features`, `models` and both identities; the daemon recomputes
+bounds. Start echoes limits/refresh, `retry_stale_failed`, `stale_only`, `stale_path`, `recover_incomplete`, `models` and both identities; the daemon recomputes
 them before admission. A changed preflight yields 409 and requires a fresh preview.
 
 Preview and start accept optional `retry_stale_failed` (default false). When true,
@@ -442,8 +391,8 @@ still read, resumed and reported as before.
 
 Preview and start accept `stale_only` (default false) to select just files with
 stale evidence. Unrelated failed or missing files are retained (see scoped runs
-below); current stages stay cached. This option cannot be combined with `refresh`, `retry_stale_failed`,
-`recover_incomplete` or `include_features`. It is bound to both admission
+below); current stages stay cached. This option cannot be combined with `refresh`, `retry_stale_failed`
+or `recover_incomplete`. It is bound to both admission
 fingerprints. Resume uses the captured option and file set; requesting it for a
 run without that option returns 409.
 
@@ -467,23 +416,16 @@ caches within the attempt limits, current successful stages remain cached with
 no requests, and stages whose model is not configured keep that reason with no
 requests. Pending, running and paused work belongs to its run, so paused and
 interrupted runs still require continuation. The option returns 400 when combined
-with `refresh`, `retry_stale_failed` or `include_features`, so a recovery plan
-never contains a feature step. It is part of the stored plan and both admission
+with `refresh` or `retry_stale_failed`. It is part of the stored plan and both admission
 fingerprints. On resume the captured plan decides it: clients may omit it, but
 sending `true` for a run admitted without it returns 409. Resume retains the
 admitted file set. An empty recovery selection produces no model requests.
 `retry_stale_failed` keeps the narrower semantics above for existing clients.
 
-Unfiltered result reads include the saved evidence of retained files.
-`retained_files` lists their identities (for runs saved before retention, the
-current identities of files omitted only by the scope); user and source-policy
-exclusions remain excluded.
-
 File reports retain their original project revision as provenance. Their freshness
 depends on that file's current content, applicable instructions, policy and analyzer
 configuration. Editing another file does not invalidate them. A saved run may be
-stale as an execution snapshot while its unchanged files remain current; result
-reads still require that exact saved run identity and the active project.
+stale as an execution snapshot while its unchanged files remain current.
 
 Resume first requests a new preview with `resume_run` identifying the existing
 run. It preserves that run's captured scope, limits and cumulative attempt counts,
@@ -532,7 +474,7 @@ Run and section states are `queued`, `running`, `pausing`, `paused`, `canceling`
 `unavailable`, `stale`. File-stage states additionally identify `pending`,
 `skipped` and incomplete producer reports as `partial`; paused work stays pending.
 Each of Bugs, Performance and Security has its own progress entry. Analysis is
-the progress owner; result prose belongs only to the three result reads.
+the progress owner.
 
 Coverage counts captured file-stage units relevant to the section: total, pending,
 running, succeeded, partial, failed, skipped and unavailable. These sum to total;
@@ -573,18 +515,6 @@ review stale. Older Performance reports omit `configured_model` and reuse `model
 for this check; if it differs from the current selection, explicit recovery must
 refresh that review. Source, revision, policy and provider checks still apply.
 
-Result reads also return nullable `saved_finding_count`, the total of the returned
-classified semantic, Performance and Security findings. It includes retained stale
-reports and is independent of `progress.finding_count`, which still measures the
-current run. Unfinished, failed or canceled stages do not hide their last saved
-reports. A successful producer review replaces that file's previous report,
-including a successful empty review; repeated reads and retries do not add old
-totals to new ones. Stale reports retain their original revision/hash and stale
-labels. Missing saved evidence remains null, and unclassified risks are excluded
-from this total. File-filtered reads count only their returned findings. These
-totals are read from producer stores after restart; no run-schema migration is
-needed.
-
 Overall completion requires all eligible file-stage units to be completely covered. A mixed
 terminal outcome with useful evidence is partial; no successful evidence yields
 failed or unavailable. Reaching a window file/time/attempt budget with work pending
@@ -622,8 +552,8 @@ unchanged. Reading saved results never generates titles with a provider call.
 specialized Performance/Security subtype categories. Storage envelope version 1
 remains readable: the category field is additive and omitted on historical records.
 Absent categories stay unclassified; no keyword inference, default Bugs category
-or history rewrite occurs. Such evidence is available as previous analysis and
-under `unclassified`, excluded from fresh section counts. General suggestions
+or history rewrite occurs. Such evidence is available as previous analysis,
+excluded from fresh section counts. General suggestions
 remain file explanations and are not findings in any result category.
 
 New semantic model output requires explicit categories and uses the updated prompt
@@ -701,29 +631,16 @@ run coverage and the project description retain their own historical status.
 ## Shared AI proposals and project instructions
 
 All new GET routes require `project_id` and `project_revision` query guards.
-The instructions preview also requires a canonical relative `path` ending in
-`AGENTS.md`. It reads root-to-directory guides, respecting context exclusions
-and rejecting symlinks. More local guidance applies within its own directory.
+AGENTS.md guides are read from the project root to the target's directory,
+respecting context exclusions and rejecting symlinks. More local guidance
+applies within its own directory.
 Applicable guides are included by default in project and file analysis, performance
-and security AI reviews, declaration explanations, feature suggestions,
-and proposal creation, testing and review. They grant no provider, execution or
+and security AI reviews, declaration explanations, and proposal creation,
+testing and review. They grant no provider, execution or
 Apply authority. AI file reports carry optional `instructions_fingerprint`
 provenance; changed applicable guides make cached reports stale and invalidate
 in-flight results. Older reports without this identity can only remain current
 when no applicable guide exists and their other cache identities still match.
-The preview's `presets` contain independent guidelines organized by `category`
-into common AGENTS.md sections: project overview/architecture, build/development,
-code style, testing, security/data, UI/accessibility, documentation and handoff.
-These are organizational conventions, not mandatory AGENTS.md fields.
-Choices match indexed languages, build manifests, UI files and supported imports
-in the selected directory and descendants. This includes Go, Node/TypeScript,
-Python, JVM, Rust, shell, Markdown, Go HTTP/database/CLI libraries, React imports
-in TypeScript, desktop host manifests, Dockerfiles and GitHub Actions workflows.
-Common project rules are always available. Matched entries carry `reason` and `evidence`
-(up to three sorted indexed paths); general entries omit these fields. Current
-context exclusions and binary-file filtering apply to the indexed evidence.
-Reindex to refresh file facts. Loading these choices makes no provider request,
-executes no project code and does not write AGENTS.md.
 
 A change creation body carries `project_id`, `project_revision`, `kind`
 (`fix`, `performance`, `security`, `feature`, `instructions`), `title`, `paths` and optional
@@ -807,8 +724,8 @@ guards) returns `files` (set aside: `kind` `agent_journal`, `task` or `analysis_
 same fields but no move).
 
 Each `update` event of `/api/projects/current/events` carries a JSON `Event`:
-`kind` (`workflow`, `project_index`, `analysis`, `findings`, `features`,
-`scan`, `agent_settings` or `agent_run`) and, for workflows, `session_id`,
+`kind` (`workflow`, `project_index`, `analysis`, `findings`, `docs`,
+`scan`, `configuration`, `agent_settings` or `agent_run`) and, for workflows, `session_id`,
 `workflow_id`, the task `title`, the `stage` that moved (`create`, `test`,
 `review`, `human_review`; empty when the run ended), the workflow `status`, and
 the run's `usage` and `cost` so far. Clients reload only the named task.
@@ -818,8 +735,8 @@ attempts: each stage of `workflow.stages` has `usage` and, on read, a `cost`
 estimate. `GET /api/projects/current/usage` (with the project guards) totals the
 agent journal per task: runs started for a task, including its manual
 revisions, carry its session ID. Each row has `session_id`, `title`, `kind`,
-`state`, `runs` (top-level runs), `usage` and `cost`; `other` covers analysis,
-explanations and plans, and `total` everything. Costs come from
+`state`, `runs` (top-level runs), `usage` and `cost`; `other` covers work not
+tied to a task, such as analysis and explanations, and `total` everything. Costs come from
 `agent_runtime.telemetry.prices`: `status: estimated` with a `total` when every
 rate is known, otherwise `unknown` with the `known_subtotal` and `reasons`.
 
@@ -836,7 +753,7 @@ comment on an earlier version says so) after the optional message, which may
 then be empty, and marks them `sent_revision`. A workflow request with its
 brief stays within 8192 bytes. Without open comments the flag is rejected.
 
-Apply, Undo, Git merges, merge aborts, branch switches and reindexing stop only
+Apply, Undo, Git merges, merge aborts and reindexing stop only
 the running workflows whose tasks they made stale, by the same check: captured
 sources, scope and, for path-scoped sessions, the checkout branch (commits on
 it do not matter). A stopped workflow reads `canceled` with a reason naming the
@@ -850,10 +767,7 @@ and optional `read_paths`, plus at least one acceptance criterion. Creation capt
 1–8 write paths and up to 8 distinct existing read-only paths. Read context cannot
 become a write target. `plan.hash` binds the intent, criteria, source, instructions
 and workspace identity. Saving a plan makes no provider request and runs no checks.
-`POST /api/projects/current/changes/{sessionID}/plan` accepts `ChangeIdentity`,
-`plan`, `paths` and `acceptance_criteria` while the draft has no proposal. It
-recaptures the scope, advances the revision and clears plan approval. Once a proposal
-exists, changing its intent requires a new plan. Missing scope is never filled from
+Missing scope is never filled from
 an arbitrary index entry; oversized scope must be split explicitly by the user.
 Optional plan `citations` (at most eight) contain `path`, captured `hash`, one-based
 `start_line` / `end_line`, exact `quote` (at most 1024 UTF-8 bytes), and model
@@ -861,35 +775,6 @@ Optional plan `citations` (at most eight) contain `path`, captured `hash`, one-b
 Optional `assumptions` contain at most eight nonempty strings of at most 512 bytes.
 Both fields participate in approval identity; adding or changing them clears
 approval. Empty fields preserve existing plan hashes.
-
-`POST /api/projects/current/plans/investigate` accepts `project_id`,
-`project_revision`, `plan`, one to eight explicit write `paths`, optional initial
-`acceptance_criteria`, `sources`, and `confirm_remote_provider`. Each selected
-read/write path needs exactly one source record: `{path, hash, exists}`. Existing
-files require the current indexed hash; new write paths require `exists: false`
-and an empty hash. Read context must exist and remain distinct from write scope.
-The optional `worktree_path` query selects an existing worktree without creating
-one. Investigation creates private run evidence but no change session, execution
-trust, source mutation or worktree.
-
-The Code profile performs bounded read-only investigation with admitted
-repository tools when supported; completion-only profiles receive captured
-source instead. Remote profiles require explicit confirmation. Source, absence,
-revision, policy and applicable instructions are checked before dispatch and
-again before publication. Changed source returns a conflict. Invalid input or
-unusable model evidence returns an error; neither replaces the editable draft.
-Cancel the HTTP request to stop investigation.
-
-The result contains `version: "v1"`, project identity, `input_hash`,
-`context_manifest`, suggested `approach`, `evidence`, `assumptions`,
-`suggested_scope`, and nonempty `acceptance_criteria`. Evidence quotes and hashes
-are validated against captured source; observations and assumptions remain model
-suggestions. Response limits are 32 KiB, eight citations, eight assumptions, eight
-suggested paths, sixteen criteria (512 bytes each), and a 4096-byte approach.
-Captured source is capped at 256 KiB; the Code profile's context limit also
-applies. Suggested paths never extend admitted scope. Accepting suggestions in
-the client updates the draft only; explicit plan approval is still required before
-generation.
 
 Legacy API conversations and schema-1 history without `plan` retain their direct
 message flow. Planned sessions reject generation without current approval.
@@ -950,11 +835,8 @@ source writes. This operation skips hooks, attribute filters and signing. Git
 identity comes from normal Git configuration. No push or remote request occurs.
 The optional `commit` object on mutation receipts, sessions and history records
 `state` (`pending`, `failed`, `committed`), message, original branch/HEAD, candidate
-`oid` and any error. A failed commit leaves source applied. Retry via
-`POST /api/projects/current/changes/{sessionID}/commit` carries current project
-identity, proposal hash, `confirm: true` and an editable `commit_message` and
-rechecks source and Git identity. A recorded candidate is reconciled after an
-interruption before retry is offered; ambiguous outcomes stay pending.
+`oid` and any error. A failed commit leaves source applied. A recorded candidate
+is reconciled after an interruption; ambiguous outcomes stay pending.
 Undo restores source as working-tree changes and does not rewrite commit history.
 
 Every proposal revision clears earlier checks/review. Apply uses current-session
@@ -964,9 +846,8 @@ and conversations in private files; it is excluded from prompt context and Git
 source indexing. Limits are eight paths, 256 KiB prompt/response content, forty
 messages, 2 MiB per conversation/recovery journal and two hundred conversations.
 History lists return summaries (`id`, project identity, kind, title, revision,
-hash, state, freshness and updated time); selected reads/resume return full contents.
-History reads are passive. Resume clears check/review authority; stale history is readable but cannot
-be applied.
+hash, state, freshness and updated time); selected reads return full contents.
+History reads are passive; stale history is readable but cannot be applied.
 
 `POST /api/projects/current/changes/{sessionID}/workflow` starts a bounded agent
 workflow and returns HTTP 202 with the captured session and `workflow.id`.
@@ -1141,8 +1022,8 @@ worker. Background work can continue while the client navigates or disconnects.
 
 ### Agent invocation history and progress
 
-Explicit project import, feature generation, declaration explanation, standalone
-semantic analysis and security review have native knowledge runs. Provider
+Explicit project import, declaration explanation and security review have
+native knowledge runs. Provider
 attempts appear as children and share the host budget; host retries, source
 checks and publication authority are unchanged. Import binds its run to the
 newly scanned checkout. A provider timeout/refusal retains a failed report and
@@ -1156,17 +1037,7 @@ are not invented. Older schema `1` handbooks are rebuilt in memory from retained
 reports and indexes on read, without rewriting the saved history. Historical
 project-analysis report schemas remain readable.
 
-All agent-history reads require the current `project_id` and `project_revision`;
-the existing optional `worktree_path` selects a registered checkout. Unknown or
-duplicate query fields are rejected. Reads are passive and return `no-store`.
-
-`GET /agent-runs` (under `/api/projects/current`) lists roots newest first, with
-`limit` from 1 to 100 (default 50), an opaque `cursor`, and `next_cursor` when more
-remain. A cursor is bound to its project/revision. Older-revision records are
-marked `stale`; records with no live daemon owner are `interrupted`, never
-advertised as running or cancelable. Native `parent_id`/`root_id` group attempts,
-parallel reviewers, model invocations and human input. Budgets are shared totals,
-so child usage must not be added together.
+Budgets are shared totals, so child usage must not be added together.
 `usage.input_tokens` and `output_tokens` are enforced budget charges, including
 conservative estimates for unavailable consumption. New usage snapshots include
 optional `accounting: {version: 1, providers: [...]}`. Each bounded provider group
@@ -1181,26 +1052,6 @@ projection is absent for historical records whose measurements cannot be
 reconstructed. Counts use exact integers; no endpoint, credential or provider
 diagnostic is part of the projection. Remote-reported delegation consumption is
 separate from this shared local provider budget.
-Checked workflows also expose `change_session_id` and `workflow_id` for exact
-association with the proposal; legacy or unrelated invocations may omit them.
-
-`GET /agent-runs/{runID}` returns the selected `run`, up to 256 related
-`invocations` (`has_more` identifies truncation), and the last 256 retained
-source-free `events` (`events_truncated` identifies potentially missing history).
-The passive detail also includes `trace` and `cost`. `trace` version 1 correlates
-the same shared budget across retries and children using an opaque `trace_id`,
-a content `snapshot` hash and up to 256 `spans`. Span `id`/`parent_id` are 16-digit
-hex identities; `run_key` and `operation_key` are SHA-256 hashes. Kinds are
-`invocation`, `node`, `tool`, `provider`, `retry`, `summary`, `delegation` and
-`check`. Status describes execution (`running`, `completed`, `failed`, `canceled`,
-`timed_out`, projected `interrupted`, or `unfinished` when an enclosing attempt
-has no registered invocation to establish current ownership), not the validity
-of findings or checks.
-`started` and optional `ended` are timestamps; `elapsed_nanos` is the measured
-monotonic duration only when an end was recorded. `legacy`, `incomplete`,
-`truncated` and `omitted` preserve unavailable history. The journal keeps at most
-4096 spans, never evicting unfinished spans to admit another. Trace retention
-does not remove cumulative budget accounting. Reading does not export telemetry.
 
 `cost.status` is `estimated` only when a configured versioned table covers all
 measured local token consumption; then `total` is present. Otherwise status is
@@ -1208,96 +1059,14 @@ measured local token consumption; then `total` is present. Otherwise status is
 `price_version`, `currency` and fixed `reasons` identify the basis: missing table,
 legacy usage, missing model rate, incomplete usage or unknown cache split.
 These are token estimates, excluding remote agent consumption, other fees and
-taxes. No model name, prompt, diagnostic or tool payload is exposed by the spans
-or cost projection. Rates are configured locally; see `CONFIG.md`.
-
-`trace.export` is a passive preview: `enabled`, configured `destination`, its
-`fingerprint`, `finished` and `unfinished` retained span counts, and an optional
-fixed `reason` (`not_configured` or `no_finished_spans`). Legacy or unfinished-only
-history cannot be exported. Destination/credential-reference changes invalidate
-the destination fingerprint independently of `trace.snapshot`; the credential
-value and environment variable name are never exposed by the preview.
-
-`POST /agent-runs/{runID}/export` requires strict JSON containing `project_id`,
-`project_revision`, `snapshot`, `destination_fingerprint` and `confirm: true`.
-The service rechecks checkout identity, retained content and destination before
-one send. Unconfirmed/invalid requests return 400, a missing run returns 404,
-and changed scope/snapshot/destination returns 409 without sending. As with
-other run routes, `worktree_path` selects its guarded checkout service.
-
-The response is a source-free receipt with the project identity, `run_id`,
-`snapshot`, `destination_fingerprint`, `state`, `sent`, optional `accepted` and
-`rejected` counts, and a fixed optional `reason`. `sent` is the number of spans
-in the attempted payload, not proof of delivery. A valid acknowledgement yields
-`exported`, `partial`, or `warning`; `unknown` omits acceptance/rejection counts
-because the collector may already have received the data. HTTP, cancellation,
-timeout, oversized or malformed replies never become a successful receipt.
-No automatic retry occurs. Reading history or a preview never exports.
-
-Export follows the [OTLP HTTP/JSON envelope](https://opentelemetry.io/docs/specs/otlp/)
-with hexadecimal trace/span IDs, numeric enums, decimal-string timestamps and
-only host-projected attributes: fixed service/scope, snapshot hash, history
-flags, omitted/unfinished span counts, outcome, monotonic duration and optional hashed run/operation
-identities. It excludes source, prompts, tool values, raw errors, model names,
-resource detection and ambient `OTEL_*` settings. Only finished spans with real
-end times are included; incomplete/truncated history remains labeled. Request
-body, response headers/body and duration are bounded as described in `CONFIG.md`.
-
-An existing domain checkpoint is returned as `input`; superseded or removed
-proposals have no input control. No raw SDK session, prompt or model response is
-returned by default. Explicit `include_text=true` returns `text` with availability,
-`partial_model_output` or `final_model_output` provenance, at most 64 KiB of UTF-8,
-and `truncated`. Final output references its immutable completion artifact.
-Partial text is transient (at most 64 invocation buffers) and may be unavailable
-after eviction or restart. Text has no approval or execution authority.
-
-The same explicit disclosure includes up to 16 `tool_records` from the selected
-invocation's last 128 private events. Each record identifies its event, call,
-tool name and kind (`arguments` or `result`); `value` is JSON text bounded to
-2,048 UTF-8 bytes, with `truncated` identifying omitted text or nested values.
-Names and call IDs are bounded to 128 bytes, and nesting to 24 levels.
-`tools_truncated` identifies omitted history. Credential-bearing fields such as
-authorization, API keys, passwords, tokens and private keys are redacted;
-arbitrary prose may still contain private source and must remain an explicit,
-local disclosure. Tool records are absent from default details and progress SSE.
-
-`GET /agent-runs/events` returns a JSON replay batch, or SSE when Accept contains
-`text/event-stream`. SSE frames use `event: agent_progress`, `id: <cursor>` and
-the same JSON batch in `data`. The cursor has an opaque journal epoch and a
-monotonic sequence. Pass it as `cursor` or `Last-Event-ID`; conflicting values
-are rejected. Batches contain at most 128 events; `has_more` requests immediate
-replay. With no cursor, a foreign/future cursor, or a cursor older than the 2,048
-retained events, `reset=true` returns a current root snapshot and its new cursor,
-without replaying older transitions over that snapshot. Paginate the snapshot's
-`next_cursor` if needed. Subsequent batches contain only newer events. Consumers
-deduplicate by epoch/sequence and replace state on reset. Detail views expose
-retained earlier node transitions separately.
-
-Events carry root `run_id`, native `invocation_id`, parent/node identity, project
-revision, time, state, shared usage, input request identity and immutable evidence
-references. They contain no source, prompts, arbitrary provider metadata or model
-text. Durable terminal transitions survive missed broker notifications. Frames
-are capped at 1 MiB, slow writes at ten seconds, and idle streams refresh every
-25 seconds to recover dropped notifications. Disconnect/cancel releases the
-subscription; reconnect rechecks project scope. Existing `/events` ready/update
-subscribers retain their original contract.
-
-`POST /agent-runs/{runID}/control` requires `project_id`, `project_revision` and
-`action: cancel`. Only a current active root with `can_cancel=true` is eligible;
-the shared budget is canceled and the worker owns cleanup. History cannot create
-or retry arbitrary graphs. Waiting input is resolved through
-`POST /agent-runs/{runID}/input` with the same `ChangeIdentity`, `workflow_id`,
-`request_id` and `decision` as the workflow input endpoint. It routes to the
-proposal owner, retaining all fresh source, check, scope and explicit Apply guards.
-Missing invocation IDs return 404, stale identities 409, and unreadable journals
-500; none is interpreted as empty successful history.
+taxes. No model name, prompt, diagnostic or tool payload is exposed by the cost
+projection. Rates are configured locally; see `CONFIG.md`.
 
 Workflow progress and advisory review are private source-bearing conversation
 history. List entries add `workflow_status` without review contents. Schema-1
 history without the optional `workflow` field remains readable. After a daemon
 restart, unfinished workers read as interrupted and do not automatically dispatch.
-Waiting input stays visible without resuming its graph. Resume clears check/review
-authority and marks workflow evidence outdated. An unchanged approval checkpoint
+Waiting input stays visible without resuming its graph. An unchanged approval checkpoint
 can be answered after explicit fresh checks; a new workflow requires fresh
 admission. A saved approval receipt never restores in-memory Apply authority.
 Progress persistence failures remain
@@ -1313,91 +1082,9 @@ Undo availability. Metadata failure after source changes does not erase the rece
 Undo verifies post-Apply hashes and removes files that the proposal created. The
 latest grouped change owns the Undo journal.
 
-`POST /api/projects/current/changes/{sessionID}/verify` accepts `ChangeIdentity`:
-current `project_id`/`project_revision` plus applied proposal `revision`/`hash`.
-It requires the latest journal to be applied and every post-Apply target and
-workspace hash to match. Go verification requires fresh execution trust, then
-checks source parse/format and runs fixed `go test ./...` and `go vet ./...` in
-an isolated copy. Other code runs the project's declared task-runner test and
-check targets; without a runner the status is `unavailable` because nothing
-executed. Documentation-only verification checks text/file identities without
-executing code. It sends no model request and never changes source. Results carry
-`session_id`, project identity, `proposal_hash`, `workspace_hash`, `status`, optional
-`reason`, checks and timestamp. Status distinguishes `verified`, `failed`,
-`unavailable` and `canceled`; later source/project changes expose evidence as `stale`.
-Evidence is private journal metadata and appears in passive recovery receipts as
-`verification`. Undo clears it. Failed checks leave applied source in place.
-Verification proves only those checks; it does not certify all acceptance criteria
-or automatically resolve findings. Explicit focused reanalysis uses the existing
-file-analysis endpoint and its own Bug-scope provider consent.
-
-Features use the configured Analyze scope. Generation/goals bodies carry current
-project identity, `expected_hash`, `goals` (at most 4096 bytes), and generation's
-`confirm_remote_provider`. Triage adds `status` (`open`, `saved`, `dismissed`).
-Each generation requests at most five ideas; each includes benefit, evidence,
-eligible affected paths, estimated effort and acceptance criteria. Ideas remain
-advisory and never enter Bugs/Performance/Security finding counts. Standalone
-generation via `POST /api/projects/current/features/generate` accepts an
-optional `profile` (catalog model ID or legacy `analyze`, `bug`, `function`;
-default `analyze`) to choose the model, and an optional `analysis_selection_id`. When the selection ID
-is present, its fingerprint is validated (409 on mismatch) and its exclusions
-are applied to the context and suggested paths.
-
-Standalone generation is synchronous and uses the same workflow deadline as
-analysis feature discovery: at least ten minutes, or the selected profile's
-timeout when longer. The native client waits for the workflow result or caller
-cancellation. The daemon suspends its ordinary response write deadline during
-generation and restores the bounded write allowance before sending the result.
-
-Every generation, from the Features routes or an analysis run, is additive. The
-prompt receives a bounded list of existing idea titles and statuses, newest first
-(at most 8 KiB of whole lines, with a count of omitted older titles), and the
-token-budget check counts it with the context and goals. After the expected-hash,
-project and source checks, the daemon appends only new ideas with status `open`.
-A candidate is a duplicate when its `id` matches an existing idea, or its
-normalized title matches any existing idea (dismissed included) or an earlier
-candidate in the same response. Normalization lower-cases Unicode text, turns
-each run of non-letter, non-digit characters into one space and trims; empty
-keys never match. Existing ideas keep their order, IDs and statuses, so a
-duplicate never reopens a dismissed idea. An empty or duplicate-only response is
-a successful generation with no new ideas.
-
-Feature history is `schema_version: 2`. `generations[]` records each successful
-generation's `id`, `generated_at`, `project_revision`, `workspace_hash`,
-`goals_hash` and `model` (`profile`, `model`, `provider_origin`,
-`remote_provider`, or null when unknown); each idea has `generation_id`.
-`last_generation` reports `generation_id`, `added_count` and `duplicate_count`
-for the most recent successful generation. Records no longer referenced are
-pruned on write, and unresolved or duplicate references are rejected as
-unsupported history. Each idea's `freshness` is derived on read: it is `current`
-only when its own generation's revision, workspace fingerprint and goals hash
-match the current values. The report-level `freshness`, `project_revision`,
-`workspace_hash` and `context_manifest` describe only the most recent generation,
-so a later generation never revalidates older ideas. Version 1 history remains
-readable: its ideas share a `legacy` generation built from the v1 report context,
-with goals trusted only if v1 marked them current and a null model. The stored
-`hash` is kept until the next successful write saves version 2.
-
-The history stays bounded at 64 KiB. A generation that would exceed it adds no
-ideas, leaves the file unchanged and fails with `feature history is full;
-existing ideas were kept`; a v1 upgrade that would exceed it fails the same way
-with the v1 file intact. Failed generation retains earlier ideas with an
-explicit failure status. Its `failure` explains whether the provider request,
-response format, or suggestion validation failed without storing raw provider
-diagnostics or rejected output. If that status cannot fit, the generation error is
-returned and the file is unchanged. Cancellation, project/source/goal changes,
-a concurrent report change and persistence errors write nothing new.
-
-The web Summary reads saved feature suggestions without generating them. Its
-Features count includes open and saved ideas and links to the Features workspace.
-Unavailable or ungenerated counts remain unknown; a successful empty report
-shows zero. Stale and failed reports retain their status indicators and any
-available saved counts. Features keeps the full ideas, estimated effort, error
-details and passive handoff to Chat.
-
 ## Git and worktrees
 
-Repository/workspace reads require current `project_id` and `project_revision`.
+Workspace reads require current `project_id` and `project_revision`.
 `available: false` represents a non-Git directory; a detached branch or unborn
 HEAD stays distinguishable from read failures. Worktree status failures have an
 `error` and omit `dirty`; unknown status is never treated as clean. Lists are
@@ -1415,12 +1102,12 @@ Git mutations carry that project identity and the displayed `head`/`branch`,
 `confirm: true` and `confirm_execution: true`. They also require existing execution
 trust for the current project revision, since checkout filters and merge drivers
 can execute project code. Hooks, signing, editors and credential prompts are
-suppressed. Switch/merge/abort cancel prepared jobs, invalidate review/execution
+suppressed. Merge/abort cancel prepared jobs, invalidate review/execution
 trust and reindex even after a Git command fails. A command failure can leave
 source changes; its receipt preserves `error`, observed repository status and
 index/warnings. Transport failures require status/recovery refresh before retry.
 
-Creation adds `target_branch` and an unused absolute `path` directly inside the
+A new worktree gets a new branch and an unused absolute path directly inside the
 current project's `.worktrees/` directory. The daemon creates that directory,
 rejects symlinked parents, and adds `/.worktrees/` to Git's local `info/exclude`.
 Project indexing, context policy and isolated checks also exclude `.worktrees`;
@@ -1458,11 +1145,6 @@ separate implementations run; task Review/Apply/Commit/Undo target only their
 captured checkout. Daemon shutdown and explicit project replacement stop these
 workers; reindexing or switching branches in the original checkout does not
 replace their task state. Existing initialized worktrees outside `.worktrees` remain readable.
-
-Branch switching takes an existing `target_branch`; dirty worktrees and branches
-checked out elsewhere block the switch. To return to a branch already checked
-out elsewhere, explicitly restore that existing project path instead of switching
-the current worktree to the same branch.
 
 Merge preview and merge take the selected worktree `path` and `source_head`.
 Preview returns source/target identities, incoming commits and a bounded read-only
@@ -1578,7 +1260,7 @@ overrides never block it.
 Opening or switching to a project loads its configuration file. An invalid
 file leaves the daemon's configuration in use and is reported by setup.
 
-### Agent settings and skill validation
+### Agent settings
 
 GET `/api/projects/current/agent-settings` requires current `project_id` and
 `project_revision`. Its no-store response contains the configuration fingerprint,
@@ -1612,13 +1294,3 @@ replacing retained data. Existing runs keep their admitted roles, budget, skill
 selection, context policy and configuration fingerprint. Explicit per-request
 model choices still take precedence. A pending pure human-review handoff keeps
 its captured settings but rechecks operator, project, policy and proposal identity.
-
-POST `/api/projects/current/agent-settings/skills/validate` requires current
-project/configuration/version identity and a configured `directory`. It reads the
-indexed manifest and resources through current source/policy guards, uses the
-native ADK parser, and returns `state: valid` with bounded metadata, required tool
-names and resource hashes/sizes. It returns neither instructions nor resource
-bodies, writes no validation grant and executes no scripts. Validation does not
-enable a skill or grant its required tools; actual investigations revalidate
-source and check tool availability in their own admitted scope. Changed, excluded,
-malformed, oversized or unindexed resources remain explicit errors.

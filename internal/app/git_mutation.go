@@ -75,34 +75,6 @@ func (s *Service) initializeWorktreeInventory(ctx context.Context, path string) 
 	return analyzer.StoreLocalInventory(ctx, path)
 }
 
-func (s *Service) SwitchGitBranch(ctx context.Context, request GitMutationRequest) (*GitMutationResult, error) {
-	s.jobLifecycleMu.Lock()
-	defer s.jobLifecycleMu.Unlock()
-	repository, err := s.gitMutationPreflight(ctx, request, false)
-	if err != nil {
-		return nil, err
-	}
-	if repository.Dirty {
-		return nil, fmt.Errorf("commit or move local changes before switching branches")
-	}
-	branches, err := gitops.ReadBranches(ctx, repository.Root, nil)
-	if err != nil {
-		return nil, err
-	}
-	found := false
-	for _, branch := range branches {
-		if branch.Name == request.TargetBranch {
-			found = true
-		}
-	}
-	if !found || request.TargetBranch == repository.Branch {
-		return nil, fmt.Errorf("choose a different existing local branch")
-	}
-	s.invalidateWholeTreeJobs()
-	_, err = gitRead(ctx, repository.Root, "switch", "--no-guess", "--", request.TargetBranch)
-	return s.completeGitMutation(repository.Root, "switched", err), nil
-}
-
 // Even a failed or canceled Git command may have written source. Reindex and
 // return the observed outcome instead of presenting the attempt as a no-op.
 func (s *Service) completeGitMutation(root, state string, cause error) *GitMutationResult {

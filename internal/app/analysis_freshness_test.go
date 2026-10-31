@@ -35,29 +35,27 @@ func TestAnalysisFreshnessIsLocalToChangedFiles(t *testing.T) {
 		if transition != "before reindex" {
 			s = transitionAnalysisProject(t, s, transition)
 		}
-		for _, category := range []project.FindingCategory{project.FindingCategoryBugs, project.FindingCategoryPerformance, project.FindingCategorySecurity} {
-			result, err := s.ReadAnalysisSection(ctx, run.Identity, category, "")
-			if err != nil {
-				t.Fatalf("%s %s results: %v", transition, category, err)
+		assertFreshness := func(path, status string) {
+			t.Helper()
+			if (status == "stale") != (path == "main.go") {
+				t.Fatalf("%s %s freshness = %s", transition, path, status)
 			}
-			assertFreshness := func(path, status string) {
-				t.Helper()
-				if (status == "stale") != (path == "main.go") {
-					t.Fatalf("%s %s %s freshness = %s", transition, category, path, status)
-				}
+		}
+		bugs, performance, security := 0, 0, 0
+		for _, file := range readSavedAnalysisResults(t, s, run) {
+			assertFreshness(file.Path, file.Semantic.Status)
+			bugs += file.findings(project.FindingCategoryBugs)
+			if file.Performance != nil {
+				assertFreshness(file.Path, file.Performance.Status)
+				performance++
 			}
-			for _, finding := range result.Semantic {
-				assertFreshness(finding.Location.Path, finding.Freshness)
+			for _, report := range file.Security {
+				assertFreshness(file.Path, report.Status)
+				security++
 			}
-			for _, report := range result.Performance {
-				assertFreshness(report.Path, report.Status)
-			}
-			for _, report := range result.Security {
-				assertFreshness(report.Path, report.Status)
-			}
-			if category == project.FindingCategoryBugs && len(result.Semantic) != 2 || category == project.FindingCategoryPerformance && len(result.Performance) != 2 || category == project.FindingCategorySecurity && len(result.Security) != 4 {
-				t.Fatalf("%s lost saved %s evidence", transition, category)
-			}
+		}
+		if bugs != 2 || performance != 2 || security != 4 {
+			t.Fatalf("%s lost saved evidence: bugs=%d performance=%d security=%d", transition, bugs, performance, security)
 		}
 		overview, err := s.ProjectOverview()
 		if err != nil || overview.Coverage.Fresh != 1 || overview.Coverage.Stale != 1 {
@@ -78,14 +76,15 @@ func TestAnalysisFreshnessIsLocalToChangedFiles(t *testing.T) {
 	if calls.Load() != beforeCalls+3 {
 		t.Fatalf("reanalyzed unchanged files: %d calls", calls.Load()-beforeCalls)
 	}
-	result, err := s.ReadAnalysisSection(ctx, run.Identity, project.FindingCategoryBugs, "")
-	if err != nil || len(result.Semantic) != 2 || len(result.RetainedFiles) != 1 {
-		t.Fatalf("retry lost unchanged findings: %+v %v", result, err)
-	}
-	for _, finding := range result.Semantic {
-		if finding.Freshness != project.FindingFreshnessFresh {
-			t.Fatalf("retry left current file stale: %+v", finding)
+	results, bugs := readSavedAnalysisResults(t, s, run), 0
+	for _, file := range results {
+		bugs += file.findings(project.FindingCategoryBugs)
+		if file.Semantic.Status != project.AnalysisStatusFresh {
+			t.Fatalf("retry left current file stale: %+v", file.Semantic)
 		}
+	}
+	if bugs != 2 || len(retainedAnalysisFiles(run)) != 1 {
+		t.Fatalf("retry lost unchanged findings: %+v retained=%v", results, retainedAnalysisFiles(run))
 	}
 }
 
@@ -104,9 +103,9 @@ func TestAnalysisFreshnessSurvivesProjectLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 			completed := completedAnalysisRun(t, s)
-			results, err := s.ReadAnalysisSection(context.Background(), completed.Identity, project.FindingCategoryBugs, "")
-			if err != nil || len(results.Semantic) != 1 || results.Semantic[0].Freshness != project.FindingFreshnessFresh {
-				t.Fatalf("initial results=%+v error=%v", results, err)
+			results := readSavedAnalysisResults(t, s, completed)
+			if len(results) != 1 || results[0].findings(project.FindingCategoryBugs) != 1 || results[0].Semantic.Status != project.AnalysisStatusFresh {
+				t.Fatalf("initial results=%+v", results)
 			}
 			before, err := os.ReadFile(filepath.Join(root, analysisRunRelativePath))
 			if err != nil {
@@ -128,9 +127,8 @@ func TestAnalysisFreshnessSurvivesProjectLifecycle(t *testing.T) {
 			if !reflect.DeepEqual(overview.Run, completed) || overview.Coverage.Fresh != 1 || overview.Coverage.Stale != 0 || calls.Load() != 3 {
 				t.Fatalf("restored status=%s coverage=%+v calls=%d", overview.Run.Status, overview.Coverage, calls.Load())
 			}
-			restoredResults, err := s.ReadAnalysisSection(context.Background(), completed.Identity, project.FindingCategoryBugs, "")
-			if err != nil || !reflect.DeepEqual(restoredResults, results) {
-				t.Fatalf("restored results=%+v error=%v", restoredResults, err)
+			if restoredResults := readSavedAnalysisResults(t, s, completed); !reflect.DeepEqual(restoredResults, results) {
+				t.Fatalf("restored results=%+v", restoredResults)
 			}
 			after, err := os.ReadFile(filepath.Join(root, analysisRunRelativePath))
 			if err != nil || string(after) != string(before) {
@@ -189,11 +187,7 @@ func TestAnalysisCoverageWithResolvedModelSurvivesResumeAndRestart(t *testing.T)
 	if cached.ExpectedModelRequests != 0 || calls.Load() != 6 {
 		t.Fatalf("fresh evidence was not reused: requests=%d calls=%d", cached.ExpectedModelRequests, calls.Load())
 	}
-	results, err := s.ReadAnalysisSection(context.Background(), completed.Identity, project.FindingCategoryPerformance, "main.go")
-	if err != nil || len(results.Performance) != 1 {
-		t.Fatalf("performance results=%+v error=%v", results, err)
-	}
-	report := results.Performance[0]
+	report := savedPerformanceReport(t, s, completed, "main.go")
 	if report.Model != "resolved-model-version" || report.ConfiguredModel != s.conf().runtimes.analyze.profile.Model || report.Status != "completed" {
 		t.Fatalf("lost requested or returned model provenance: %+v", report)
 	}
@@ -220,12 +214,8 @@ func TestAnalysisCoverageReadsLegacyPerformanceModelIdentity(t *testing.T) {
 				t.Fatal(err)
 			}
 			run := completedAnalysisRun(t, s)
-			results, err := s.ReadAnalysisSection(context.Background(), run.Identity, project.FindingCategoryPerformance, "main.go")
-			if err != nil || len(results.Performance) != 1 {
-				t.Fatalf("performance results=%+v error=%v", results, err)
-			}
 			// Schema 1 reports predating configured_model remain readable.
-			legacy := results.Performance[0]
+			legacy := savedPerformanceReport(t, s, run, "main.go")
 			legacy.ConfiguredModel = ""
 			if err := project.StorePerformanceFileReport(root, legacy); err != nil {
 				t.Fatal(err)
@@ -465,4 +455,16 @@ func newAnalysisFreshnessService(t *testing.T, baseURL string, includeHelper boo
 		t.Fatal(err)
 	}
 	return s, root
+}
+
+// savedPerformanceReport is the saved Performance report of one file a run covers.
+func savedPerformanceReport(t *testing.T, s *Service, run *AnalysisRun, path string) project.PerformanceFileReport {
+	t.Helper()
+	for _, file := range readSavedAnalysisResults(t, s, run) {
+		if file.Path == path && file.Performance != nil {
+			return *file.Performance
+		}
+	}
+	t.Fatalf("no saved performance report for %s", path)
+	return project.PerformanceFileReport{}
 }

@@ -16,21 +16,19 @@ type analysisRunRecovery struct {
 }
 
 type analysisRunController struct {
-	detached          map[string]analysisRunRecovery
-	mu                sync.Mutex
-	run               *AnalysisRun
-	root              string
-	fault             error
-	done              chan struct{}
-	cancel            context.CancelFunc
-	featureCancel     context.CancelFunc
-	admission         *AnalysisRunPreview
-	confirmations     AnalysisRunConfirmations
-	windowStart       time.Time
-	elapsedBase       int64
-	windowBudget      time.Duration
-	fileStopReason    string
-	featureStopReason string
+	detached       map[string]analysisRunRecovery
+	mu             sync.Mutex
+	run            *AnalysisRun
+	root           string
+	fault          error
+	done           chan struct{}
+	cancel         context.CancelFunc
+	admission      *AnalysisRunPreview
+	confirmations  AnalysisRunConfirmations
+	windowStart    time.Time
+	elapsedBase    int64
+	windowBudget   time.Duration
+	fileStopReason string
 }
 
 func (s *Service) StartAnalysisRun(ctx context.Context, request AnalysisRunStartRequest) (*AnalysisRun, error) {
@@ -81,7 +79,7 @@ func (s *Service) startAnalysisRunLocked(ctx context.Context, request AnalysisRu
 	if !canReplaceAnalysisRun(c.run, request.ClearResults) {
 		return cloneAnalysisRun(c.run), errAnalysisRunBusy
 	}
-	preview, err := s.analysisPreviewLocked(ctx, AnalysisPreviewRequest{Models: request.Models, IncludeFeatures: request.IncludeFeatures, ProjectID: request.Identity.ProjectID, ProjectRevision: request.Identity.ProjectRevision, Scope: AnalysisRunScopeProject, RetryStaleFailed: request.RetryStaleFailed, StaleOnly: request.StaleOnly, StalePath: request.StalePath, RecoverIncomplete: request.RecoverIncomplete, Refresh: request.Refresh, ClearResults: request.ClearResults, Limits: request.Limits})
+	preview, err := s.analysisPreviewLocked(ctx, AnalysisPreviewRequest{Models: request.Models, ProjectID: request.Identity.ProjectID, ProjectRevision: request.Identity.ProjectRevision, Scope: AnalysisRunScopeProject, RetryStaleFailed: request.RetryStaleFailed, StaleOnly: request.StaleOnly, StalePath: request.StalePath, RecoverIncomplete: request.RecoverIncomplete, Refresh: request.Refresh, ClearResults: request.ClearResults, Limits: request.Limits})
 	if err != nil {
 		return nil, err
 	}
@@ -218,19 +216,7 @@ func (s *Service) clearAnalysisResultsLocked(ctx context.Context, root string, p
 	if err := s.manager.ResetFileAnalysisStatuses(preview.Identity.ProjectID, preview.Identity.ProjectRevision); err != nil {
 		return err
 	}
-	index, err := s.manager.Index()
-	if err != nil {
-		return err
-	}
-	report, err := clearFeatureSuggestions(root, index)
-	if err != nil {
-		return err
-	}
-	if preview.Features != nil {
-		preview.Features.ExpectedHash = report.Hash
-	}
 	s.notifyEvent("findings")
-	s.notifyEvent("features")
 	return nil
 }
 
@@ -330,9 +316,6 @@ func (s *Service) pauseAnalysisRunLocked() (*AnalysisRun, error) {
 	if c.done != nil && c.fault == nil {
 		c.run.Status = AnalysisRunPausing
 	}
-	if c.featureCancel != nil {
-		c.featureCancel()
-	}
 	c.run.Reason = "Analysis paused by the user."
 	if err := s.saveAnalysisRunLocked(true); err != nil {
 		return cloneAnalysisRun(c.run), err
@@ -391,7 +374,7 @@ func (s *Service) launchAnalysisRunLocked(preview *AnalysisRunPreview, confirmat
 	c.confirmations = AnalysisRunConfirmations{SecurityReview: confirmations.SecurityReview, ProviderIDs: append([]string(nil), confirmations.ProviderIDs...)}
 	c.windowStart = time.Now()
 	c.elapsedBase = c.run.ElapsedSeconds
-	c.fileStopReason, c.featureStopReason = "", ""
+	c.fileStopReason = ""
 	go s.runAnalysisWindow(ctx, c.run.Identity, c.done)
 	return nil
 }
@@ -411,20 +394,11 @@ func (s *Service) runAnalysisWindow(ctx context.Context, identity AnalysisRunIde
 		return
 	}
 	c.run.Status = AnalysisRunRunning
-	featureDone := make(chan struct{})
-	if c.run.Features != nil && analysisStageNeedsWork(c.run.Features.Status) {
-		featureContext, cancelFeature := context.WithCancel(ctx)
-		c.featureCancel = cancelFeature
-		go s.runAnalysisFeatureWindow(featureContext, identity, featureDone)
-	} else {
-		close(featureDone)
-	}
 	budget := c.windowBudget
 	c.mu.Unlock()
 	fileContext, cancelFiles := context.WithTimeout(ctx, budget)
 	s.runAnalysisFiles(fileContext, identity)
 	cancelFiles()
-	<-featureDone
 	s.refreshDocsAfterRun(ctx, identity)
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -435,11 +409,8 @@ func (s *Service) runAnalysisWindow(ctx context.Context, identity AnalysisRunIde
 		s.finishAnalysisWindowLocked(ctx)
 		return
 	}
-	if c.fileStopReason != "" || c.featureStopReason != "" {
+	if c.fileStopReason != "" {
 		c.run.Status, c.run.Reason = AnalysisRunPaused, c.fileStopReason
-		if c.run.Reason == "" {
-			c.run.Reason = c.featureStopReason
-		}
 		_ = s.saveAnalysisRunLocked(false)
 		return
 	}
@@ -538,9 +509,7 @@ func (s *Service) updateAnalysisElapsedLocked() {
 		return
 	}
 	active := time.Since(c.windowStart)
-	if c.run.Plan.Features == nil {
-		active = min(active, c.windowBudget)
-	}
+	active = min(active, c.windowBudget)
 	elapsed := int64(active / time.Second)
 	c.run.WindowElapsedSeconds = elapsed
 	c.run.ElapsedSeconds = c.elapsedBase + elapsed
@@ -591,7 +560,6 @@ func (s *Service) closeAnalysisWindow(done chan struct{}) {
 			c.cancel()
 		}
 		c.cancel = nil
-		c.featureCancel = nil
 		c.done = nil
 		c.admission = nil
 		c.confirmations = AnalysisRunConfirmations{}

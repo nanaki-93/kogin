@@ -42,6 +42,32 @@ func rewriteMigrationJournal(t *testing.T, root string, edit func(map[string]jso
 	return paths[0], data
 }
 
+func seedAgentRun(t *testing.T, s *Service, store *agentstate.Store, id, parent string, started time.Time) agentstate.Run {
+	t.Helper()
+	_, binding, err := s.agentJournal(s.manager.Root())
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := agentstate.Key{App: "mini-orca", User: "local", ID: id}
+	if _, err := store.CreateSession(t.Context(), key, agentstate.State{"private": json.RawMessage(`"PRIVATE_PROMPT"`)}); err != nil {
+		t.Fatal(err)
+	}
+	budgetID := "budget-" + id
+	if parent != "" {
+		budgetID = "budget-" + parent
+	}
+	if parent == "" {
+		if _, err := store.Checkpoint(t.Context(), agentstate.BudgetRecord{ID: budgetID, Binding: binding, Limits: s.conf().agentRuntime.Limits, Sequence: 1}, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run := agentstate.Run{ID: id, ParentID: parent, Session: key, BudgetID: budgetID, RequestHash: strings.Repeat("a", 64), SchemaHash: strings.Repeat("b", 64), SchemaVersion: "completion-v1", Status: "running", Started: started, Updated: started}
+	if _, err := store.BeginRun(t.Context(), run, nil); err != nil {
+		t.Fatal(err)
+	}
+	return run
+}
+
 func TestAgentMigrationReadsLegacyPassivelyAndAdmitsOnlyFreshNativeWork(t *testing.T) {
 	var calls atomic.Int32
 	provider := changeProvider(t, func() string { calls.Add(1); return "admitted result" })
@@ -67,9 +93,18 @@ func TestAgentMigrationReadsLegacyPassivelyAndAdmitsOnlyFreshNativeWork(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	query := AgentRunQuery{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision}
-	list, err := s.ListAgentRuns(t.Context(), query)
-	if err != nil || len(list.Runs) != 2 {
+	legacy, err := agentstate.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, err := legacy.History(t.Context())
+	roots := 0
+	for _, run := range list.Runs {
+		if run.ParentID == "" && run.Binding.Project == index.ProjectID {
+			roots++
+		}
+	}
+	if err != nil || roots != 2 {
 		t.Fatal(list, err)
 	}
 	if _, err := InspectAgentState(t.Context(), AgentInspectionOptions{Root: root, Limit: 100}); err != nil {

@@ -150,27 +150,6 @@ func (h *ProjectHandler) Index(w http.ResponseWriter, _ *http.Request) {
 	api.WriteJSON(w, http.StatusOK, index)
 }
 
-func (h *ProjectHandler) Impact(w http.ResponseWriter, r *http.Request) {
-	preview, err := h.manager.ImpactPreview(r.URL.Query().Get("path"))
-	if err != nil {
-		writeProjectError(w, "impact preview failed", err)
-		return
-	}
-	api.WriteJSON(w, http.StatusOK, preview)
-}
-
-func (h *ProjectHandler) GitStatus(w http.ResponseWriter, r *http.Request) {
-	status, err := h.service.GitStatus(r.Context(), r.URL.Query().Get("path"))
-	if err != nil {
-		if writeContextError(w, "Git status", err) {
-			return
-		}
-		writeProjectError(w, "Git status failed", err)
-		return
-	}
-	api.WriteJSON(w, http.StatusOK, status)
-}
-
 // Reindex refreshes deterministic facts without contacting the model.
 func (h *ProjectHandler) Reindex(w http.ResponseWriter, r *http.Request) {
 	var request reindexRequest

@@ -124,13 +124,7 @@ func TestChangeFailedChecksRepairAndApprovalInvalidation(t *testing.T) {
 	if err != nil || repaired.RepairAttempts != 1 || len(repaired.Checks) != 0 || repaired.ReviewedHash != "" {
 		t.Fatalf("repair: %+v, %v", repaired, err)
 	}
-	approved := approveChangeFixture(t, service, repaired)
-	if _, err := service.ResumeChange(context.Background(), session.ID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := service.ApplyChange(context.Background(), session.ID, ChangeApplyRequest{ChangeIdentity: changeIdentity(approved), Confirm: true}); err == nil || !strings.Contains(err.Error(), "review") {
-		t.Fatalf("historical approval reused: %v", err)
-	}
+	approveChangeFixture(t, service, repaired)
 }
 
 func TestReviewChangeAcrossRestartAndDirectHunkEdits(t *testing.T) {

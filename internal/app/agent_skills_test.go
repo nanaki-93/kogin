@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/llm"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
 
 func installSkillFixture(t *testing.T, service *Service, root string) {
@@ -34,75 +33,55 @@ func installSkillFixture(t *testing.T, service *Service, root string) {
 	}
 }
 
-func TestProjectSkillsReachPlanAndDeclarationThroughScopedNativeTools(t *testing.T) {
-	for _, mode := range []string{"plan", "declaration"} {
-		t.Run(mode, func(t *testing.T) {
-			var calls atomic.Int32
-			hash := ""
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				call := calls.Add(1)
-				body, _ := io.ReadAll(r.Body)
-				if call == 1 {
-					if strings.Contains(string(body), "SKILL_INSTRUCTIONS") || strings.Contains(string(body), "touch SHOULD_NEVER_EXIST") {
-						t.Error("eager skill context")
-					}
-					repositoryToolCall(w, "load_skill", `{"name":"review-code"}`)
-					return
-				}
-				if call == 2 {
-					if !strings.Contains(string(body), "SKILL_INSTRUCTIONS") {
-						t.Error("missing native skill body")
-					}
-					fmt.Fprintf(w, `{"choices":[{"index":0,"finish_reason":"tool_calls","message":{"role":"assistant","tool_calls":[{"id":"resource-2","type":"function","function":{"name":"load_skill_resource","arguments":%q}}]}}]}`, `{"skill_name":"review-code","resource_path":"scripts/check.sh"}`)
-					return
-				}
-				if !strings.Contains(string(body), "touch SHOULD_NEVER_EXIST") || !strings.Contains(string(body), "admitted_sources") {
-					t.Error("missing bounded resource provenance")
-				}
-				content := validDeclarationExplanation
-				if mode == "plan" {
-					data, _ := json.Marshal(planInvestigationFixture(hash))
-					content = string(data)
-				}
-				json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: content}}}})
-			}))
-			defer server.Close()
-			service, root := newSemanticAnalysisService(t, server.URL, 0)
-			installSkillFixture(t, service, root)
-			hash = declarationRequest(t, service).BaseFileHash
-			var manifest project.ContextManifest
-			if mode == "plan" {
-				result, err := service.InvestigatePlan(t.Context(), planInvestigationRequest(t, service))
-				if err != nil {
-					t.Fatal(err)
-				}
-				manifest = result.ContextManifest
-			} else {
-				result, err := service.ExplainDeclaration(t.Context(), declarationRequest(t, service))
-				if err != nil {
-					t.Fatal(err)
-				}
-				manifest = result.ContextManifest
+func TestProjectSkillsReachDeclarationThroughScopedNativeTools(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		call := calls.Add(1)
+		body, _ := io.ReadAll(r.Body)
+		if call == 1 {
+			if strings.Contains(string(body), "SKILL_INSTRUCTIONS") || strings.Contains(string(body), "touch SHOULD_NEVER_EXIST") {
+				t.Error("eager skill context")
 			}
-			if calls.Load() != 3 {
-				t.Fatalf("calls=%d", calls.Load())
+			repositoryToolCall(w, "load_skill", `{"name":"review-code"}`)
+			return
+		}
+		if call == 2 {
+			if !strings.Contains(string(body), "SKILL_INSTRUCTIONS") {
+				t.Error("missing native skill body")
 			}
-			found := 0
-			for _, file := range manifest.Included {
-				if strings.HasPrefix(file.Path, "project-skills/") && file.Hash != "" {
-					found++
-				}
-			}
-			if found != 2 {
-				t.Fatalf("skill provenance missing: %+v", manifest)
-			}
-			if _, err := os.Stat(filepath.Join(root, "SHOULD_NEVER_EXIST")); !os.IsNotExist(err) {
-				t.Fatal("skill script executed", err)
-			}
-			if len(service.changeAuthority) != 0 {
-				t.Fatal("skill granted source authority")
-			}
-		})
+			fmt.Fprintf(w, `{"choices":[{"index":0,"finish_reason":"tool_calls","message":{"role":"assistant","tool_calls":[{"id":"resource-2","type":"function","function":{"name":"load_skill_resource","arguments":%q}}]}}]}`, `{"skill_name":"review-code","resource_path":"scripts/check.sh"}`)
+			return
+		}
+		if !strings.Contains(string(body), "touch SHOULD_NEVER_EXIST") || !strings.Contains(string(body), "admitted_sources") {
+			t.Error("missing bounded resource provenance")
+		}
+		json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: validDeclarationExplanation}}}})
+	}))
+	defer server.Close()
+	service, root := newSemanticAnalysisService(t, server.URL, 0)
+	installSkillFixture(t, service, root)
+	result, err := service.ExplainDeclaration(t.Context(), declarationRequest(t, service))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := result.ContextManifest
+	if calls.Load() != 3 {
+		t.Fatalf("calls=%d", calls.Load())
+	}
+	found := 0
+	for _, file := range manifest.Included {
+		if strings.HasPrefix(file.Path, "project-skills/") && file.Hash != "" {
+			found++
+		}
+	}
+	if found != 2 {
+		t.Fatalf("skill provenance missing: %+v", manifest)
+	}
+	if _, err := os.Stat(filepath.Join(root, "SHOULD_NEVER_EXIST")); !os.IsNotExist(err) {
+		t.Fatal("skill script executed", err)
+	}
+	if len(service.changeAuthority) != 0 {
+		t.Fatal("skill granted source authority")
 	}
 }
 

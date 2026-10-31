@@ -187,43 +187,19 @@ func TestAnalysisHandlerPausedRunRejectsReplacementWithRecoveryMessage(t *testin
 	}
 }
 
-func TestAnalysisHandlerFeatureStepRequiresMatchingAdmission(t *testing.T) {
-	h, _, analysis, calls := newAnalysisHandlerFixture(t)
-	request := app.AnalysisPreviewRequest{IncludeFeatures: true, ProjectID: analysis.ProjectID, ProjectRevision: analysis.ProjectRevision,
-		Scope: "project", Limits: app.AnalysisRunLimits{BatchFiles: 100, BudgetSeconds: 30, MaxAttemptsPerStage: 2}}
-	w := analysisHandlerRequest(t, h.Preview, "POST", "/analysis/preview", request)
-	if w.Code != 200 || calls.Load() != 0 {
-		t.Fatalf("feature preview=%d %s calls=%d", w.Code, w.Body, calls.Load())
-	}
-	var preview app.AnalysisRunPreview
-	if err := json.Unmarshal(w.Body.Bytes(), &preview); err != nil || preview.Features == nil || preview.ExpectedModelRequests != 4 {
-		t.Fatalf("feature plan=%+v %v", preview, err)
-	}
-	start := app.AnalysisRunStartRequest{Identity: preview.Identity, PreviewID: preview.PreviewID, Limits: preview.Limits,
-		Confirmations: app.AnalysisRunConfirmations{SecurityReview: true}}
-	w = analysisHandlerRequest(t, h.Start, "POST", "/analysis/run", start)
-	if w.Code != 409 || calls.Load() != 0 {
-		t.Fatalf("different feature scope=%d %s calls=%d", w.Code, w.Body, calls.Load())
-	}
-	assertStructuredError(t, w)
-	start.IncludeFeatures = true
-	w = analysisHandlerRequest(t, h.Start, "POST", "/analysis/run", start)
-	if w.Code != 202 {
-		t.Fatalf("feature admission=%d %s", w.Code, w.Body)
-	}
-	run := waitHandlerAnalysis(t, h, analysis, app.AnalysisRunCompletedEmpty)
-	if run.Features == nil || run.Features.Status != app.AnalysisStageCompletedEmpty || run.Features.SuggestionCount == nil || *run.Features.SuggestionCount != 0 || calls.Load() != 4 {
-		t.Fatalf("empty feature evidence=%+v calls=%d", run.Features, calls.Load())
-	}
-}
-
 func TestAnalysisHandlerModelsRequireMatchingAdmission(t *testing.T) {
 	h, _, analysis, calls := newAnalysisHandlerFixture(t)
-	models := &app.AnalysisModels{Code: "code", Performance: "bug", Security: "code", Features: "analyze"}
-	request := app.AnalysisPreviewRequest{IncludeFeatures: true, Models: models,
+	models := &app.AnalysisModels{Code: "code", Performance: "bug", Security: "code"}
+	request := app.AnalysisPreviewRequest{Models: &app.AnalysisModels{Code: "code", Performance: "bug", Security: "code", Features: "analyze"},
 		ProjectID: analysis.ProjectID, ProjectRevision: analysis.ProjectRevision,
 		Scope: "project", Limits: app.AnalysisRunLimits{BatchFiles: 100, BudgetSeconds: 30, MaxAttemptsPerStage: 2}}
 	w := analysisHandlerRequest(t, h.Preview, "POST", "/analysis/preview", request)
+	if w.Code != http.StatusBadRequest || calls.Load() != 0 {
+		t.Fatalf("retired features model preview=%d %s calls=%d", w.Code, w.Body, calls.Load())
+	}
+	assertStructuredError(t, w)
+	request.Models = models
+	w = analysisHandlerRequest(t, h.Preview, "POST", "/analysis/preview", request)
 	if w.Code != http.StatusOK || calls.Load() != 0 {
 		t.Fatalf("model preview=%d %s calls=%d", w.Code, w.Body, calls.Load())
 	}
@@ -232,7 +208,7 @@ func TestAnalysisHandlerModelsRequireMatchingAdmission(t *testing.T) {
 		t.Fatalf("model plan=%+v %v", preview, err)
 	}
 	start := app.AnalysisRunStartRequest{Identity: preview.Identity, PreviewID: preview.PreviewID, Limits: preview.Limits,
-		IncludeFeatures: true, Models: &app.AnalysisModels{Code: "code", Performance: "bug", Security: "analyze", Features: "analyze"},
+		Models:        &app.AnalysisModels{Code: "code", Performance: "bug", Security: "analyze"},
 		Confirmations: app.AnalysisRunConfirmations{SecurityReview: true}}
 	w = analysisHandlerRequest(t, h.Start, "POST", "/analysis/run", start)
 	if w.Code != http.StatusConflict || calls.Load() != 0 {
@@ -251,7 +227,7 @@ func TestAnalysisHandlerModelsRequireMatchingAdmission(t *testing.T) {
 		t.Fatalf("model admission=%d %s", w.Code, w.Body)
 	}
 	run := waitHandlerAnalysis(t, h, analysis, app.AnalysisRunCompletedEmpty)
-	if run.Plan.Models == nil || *run.Plan.Models != *models || calls.Load() != 4 {
+	if run.Plan.Models == nil || *run.Plan.Models != *models || calls.Load() != 3 {
 		t.Fatalf("model run=%+v calls=%d", run.Plan.Models, calls.Load())
 	}
 }
@@ -342,7 +318,6 @@ func TestAnalysisHandlerRecoveryRequiresExplicitCompatibleAdmission(t *testing.T
 		func(r *app.AnalysisRunStartRequest) { r.Refresh = true },
 		func(r *app.AnalysisRunStartRequest) { r.ClearResults = true },
 		func(r *app.AnalysisRunStartRequest) { r.RetryStaleFailed = true },
-		func(r *app.AnalysisRunStartRequest) { r.IncludeFeatures = true },
 	} {
 		combined := start
 		combine(&combined)
@@ -371,7 +346,7 @@ func TestAnalysisHandlerRecoveryRequiresExplicitCompatibleAdmission(t *testing.T
 	}
 }
 
-func TestAnalysisHandlerPreflightStartControlsAndReadOnlySections(t *testing.T) {
+func TestAnalysisHandlerPreflightStartAndControls(t *testing.T) {
 	h, projectHandler, analysis, calls := newAnalysisHandlerFixture(t)
 	request := app.AnalysisPreviewRequest{ProjectID: analysis.ProjectID, ProjectRevision: analysis.ProjectRevision, Scope: "project", Limits: app.AnalysisRunLimits{BatchFiles: 100, BudgetSeconds: 30, MaxAttemptsPerStage: 2}}
 	w := analysisHandlerRequest(t, h.Preview, "POST", "/analysis/preview", request)
@@ -407,44 +382,6 @@ func TestAnalysisHandlerPreflightStartControlsAndReadOnlySections(t *testing.T) 
 	if err := json.Unmarshal(w.Body.Bytes(), &overview); err != nil || w.Code != 200 || overview.Coverage != (app.AnalysisCoverage{Total: 1, Fresh: 1}) {
 		t.Fatalf("overview=%d %s error=%v", w.Code, w.Body, err)
 	}
-	guarded := analysisResultsQuery(run.Identity)
-	for _, category := range []string{"bugs", "performance", "security"} {
-		guarded.Set("category", category)
-		guarded.Set("path", "main.go")
-		w = analysisHandlerRequest(t, h.Results, "GET", "/analysis/results?"+guarded.Encode(), nil)
-		if w.Code != 200 || calls.Load() != 3 {
-			t.Fatalf("results=%d %s calls=%d", w.Code, w.Body, calls.Load())
-		}
-		var result app.AnalysisSectionResults
-		_ = json.Unmarshal(w.Body.Bytes(), &result)
-		if result.Progress.FindingCount == nil || *result.Progress.FindingCount != 0 || result.SavedFindingCount == nil || *result.SavedFindingCount != 0 || result.Identity != run.Identity {
-			t.Fatalf("result=%+v", result)
-		}
-		if category == "performance" {
-			if len(result.Performance) != 1 {
-				t.Fatalf("performance reports=%+v", result.Performance)
-			}
-			report := result.Performance[0]
-			if report.Model != "resolved-model-version" || report.ConfiguredModel != preview.Providers[1].Model.Model || report.Status != "completed" {
-				t.Fatalf("performance provenance=%+v", report)
-			}
-		}
-	}
-	for _, test := range []struct {
-		name, value string
-		code        int
-	}{{"generation", "previous", 409}, {"provider_fingerprint", "other", 409}, {"queue_id", "other", 409}, {"project_revision", "other", 409}, {"path", "missing.go", 409}, {"path", "../main.go", 400}, {"category", "unknown", 400}, {"unexpected", "value", 400}} {
-		t.Run(test.name+test.value, func(t *testing.T) {
-			q := analysisResultsQuery(run.Identity)
-			q.Set("category", "bugs")
-			q.Set(test.name, test.value)
-			w := analysisHandlerRequest(t, h.Results, "GET", "/analysis/results?"+q.Encode(), nil)
-			if w.Code != test.code {
-				t.Fatalf("query=%d %s", w.Code, w.Body)
-			}
-			assertStructuredError(t, w)
-		})
-	}
 	identity := run.Identity
 	identity.Generation = "previous"
 	w = analysisHandlerRequest(t, h.Control, "POST", "/analysis/run/control", app.AnalysisRunControlRequest{Identity: identity, Action: app.AnalysisRunCancel})
@@ -455,10 +392,6 @@ func TestAnalysisHandlerPreflightStartControlsAndReadOnlySections(t *testing.T) 
 	if err != nil || string(source) != "package main\nfunc Run() {}\n" {
 		t.Fatalf("source changed: %s %v", source, err)
 	}
-}
-
-func analysisResultsQuery(identity app.AnalysisRunIdentity) url.Values {
-	return url.Values{"project_id": {identity.ProjectID}, "project_revision": {identity.ProjectRevision}, "policy_fingerprint": {identity.PolicyFingerprint}, "provider_fingerprint": {identity.ProviderFingerprint}, "queue_id": {identity.QueueID}, "id": {identity.ID}, "generation": {identity.Generation}}
 }
 
 func TestAnalysisHandlerRejectsMalformedBodiesAndAmbiguousGuards(t *testing.T) {

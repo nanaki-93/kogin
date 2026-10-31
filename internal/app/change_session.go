@@ -6,15 +6,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
-	"unicode/utf8"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/features"
 	"github.com/nanaki-93/mini-orca/v2/internal/config"
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/diff"
 )
 
 func (s *Service) OpenChangeSession(ctx context.Context, request ChangeCreateRequest) (*ChangeSession, error) {
@@ -124,7 +120,15 @@ func validChangeKind(kind string) bool {
 }
 
 func validateChangeCriteria(criteria []string) error {
-	return features.ValidateCriteria(criteria)
+	if len(criteria) > 16 {
+		return fmt.Errorf("at most sixteen acceptance criteria are supported")
+	}
+	for _, criterion := range criteria {
+		if strings.TrimSpace(criterion) == "" || len(criterion) > 1024 {
+			return fmt.Errorf("acceptance criteria must be non-empty bounded text")
+		}
+	}
+	return nil
 }
 
 // verifyChangeTargetsCurrent checks the active project and context policy,
@@ -241,43 +245,6 @@ func (s *Service) ChangeSession(ctx context.Context, id string) (*ChangeSession,
 	}
 	s.restoreChangeWorkflow(session)
 	s.estimateStageCosts(session)
-	return session, nil
-}
-
-// ResumeChange clears historical authority even when the captured source still
-// matches. Only a fresh check/review can authorize the restored candidate.
-func (s *Service) ResumeChange(ctx context.Context, id string) (*ChangeSession, error) {
-	s.changesMu.Lock()
-	defer s.changesMu.Unlock()
-	root := s.manager.Root()
-	s.changeWorkflow.mu.Lock()
-	job := s.changeWorkflow.getJob(id)
-	running := job != nil && !job.finished && job.root == root && job.sessionID == id
-	s.changeWorkflow.mu.Unlock()
-	if running {
-		return nil, fmt.Errorf("%w: cancel the workflow before restoring its conversation", project.ErrRevisionConflict)
-	}
-	session, err := s.ChangeSession(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	index, err := s.manager.Index()
-	if err != nil {
-		return nil, err
-	}
-	if s.manager.Root() != root || session.ProjectID != index.ProjectID {
-		return nil, project.ErrRevisionConflict
-	}
-	if isChangePipelineActive(session.Workflow) {
-		return nil, fmt.Errorf("%w: cancel the workflow before restoring its conversation", project.ErrRevisionConflict)
-	}
-	session.Checks, session.PinnedTests = []CheckResult{}, nil
-	revokeApproval(session)
-	invalidateChangeWorkflow(session, "Restored workflow evidence requires a new run.")
-	delete(s.changeAuthority, session.ProjectID+"/"+session.ID)
-	if err := storeChangeSession(root, session); err != nil {
-		return nil, err
-	}
 	return session, nil
 }
 
@@ -544,84 +511,4 @@ func preservePinnedTests(edits, pinned []ChangeEdit) []ChangeEdit {
 		}
 	}
 	return edits
-}
-
-func validateDirectProposal(request InstructionProposalRequest) error {
-	if len(request.Paths) != 1 || strings.TrimSpace(request.Content) == "" || !utf8.ValidString(request.Content) || strings.ContainsRune(request.Content, 0) {
-		return fmt.Errorf("provide one target path and non-empty bounded content")
-	}
-	if request.Kind == "instructions" && (filepath.Base(request.Paths[0]) != "AGENTS.md" || len(request.Content) > project.MaxInstructionBytes) {
-		return fmt.Errorf("provide one AGENTS.md path and non-empty bounded instructions")
-	}
-	if len(request.Content) > maxChangeBytes {
-		return fmt.Errorf("content exceeds 256 KiB")
-	}
-	return nil
-}
-
-type InstructionPreview struct {
-	ProjectID       string                        `json:"project_id"`
-	ProjectRevision string                        `json:"project_revision"`
-	Path            string                        `json:"path"`
-	ExistingContent string                        `json:"existing_content"`
-	Exists          bool                          `json:"exists"`
-	Effective       project.EffectiveInstructions `json:"effective"`
-	Presets         []project.InstructionPreset   `json:"presets"`
-}
-
-func (s *Service) PreviewInstructions(path string) (*InstructionPreview, error) {
-	index, err := s.manager.Index()
-	if err != nil {
-		return nil, err
-	}
-	root := s.manager.Root()
-	effective, err := project.ResolveInstructions(root, path)
-	if err != nil {
-		return nil, err
-	}
-	presets, err := project.SuggestInstructionPresets(root, path, index.Files)
-	if err != nil {
-		return nil, err
-	}
-	current, err := s.manager.Index()
-	if err != nil {
-		return nil, err
-	}
-	if s.manager.Root() != root || current.ProjectID != index.ProjectID || current.ProjectRevision != index.ProjectRevision {
-		return nil, project.ErrRevisionConflict
-	}
-	preview := &InstructionPreview{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Path: path, Effective: effective, Presets: presets}
-	for _, file := range effective.Files {
-		if file.Path == path {
-			preview.Exists, preview.ExistingContent = true, file.Content
-		}
-	}
-	return preview, nil
-}
-
-func (s *Service) ProposeInstructions(ctx context.Context, request InstructionProposalRequest) (*ChangeSession, error) {
-	if err := validateDirectProposal(request); err != nil {
-		return nil, err
-	}
-	root := s.manager.Root()
-	session, err := s.OpenChangeSession(ctx, request.ChangeCreateRequest)
-	if err != nil {
-		return nil, err
-	}
-	target := session.Targets[0]
-	if target.Exists && target.Content == request.Content {
-		return nil, fmt.Errorf("instructions are unchanged")
-	}
-	session.Changes = []ChangeEdit{{Path: target.Path, Content: request.Content, Hash: contentHash([]byte(request.Content)), Diff: diff.BuildUnifiedDiff(target.Path, target.Content, request.Content)}}
-	session.Hash, session.Revision = changeProposalHash(session.Changes), 1
-	session.Messages = []ChangeMessage{{Role: "assistant", Content: "Review the file changes before applying them.", CreatedAt: time.Now().UTC()}}
-	s.changesMu.Lock()
-	defer s.changesMu.Unlock()
-	if err := s.verifyChangeCurrent(ctx, root, session); err != nil {
-		return nil, err
-	}
-	if err := storeChangeSession(root, session); err != nil {
-		return nil, err
-	}
-	return session, nil
 }

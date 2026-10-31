@@ -17,7 +17,7 @@ func analysisModelsPreviewFor(t *testing.T, s *Service, models *AnalysisModels, 
 	if err != nil {
 		t.Fatal(err)
 	}
-	preview, err := s.PreviewAnalysisRun(context.Background(), AnalysisPreviewRequest{Models: models, IncludeFeatures: true,
+	preview, err := s.PreviewAnalysisRun(context.Background(), AnalysisPreviewRequest{Models: models,
 		ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Scope: AnalysisRunScopeProject, Limits: limits})
 	if err != nil {
 		t.Fatal(err)
@@ -26,26 +26,20 @@ func analysisModelsPreviewFor(t *testing.T, s *Service, models *AnalysisModels, 
 }
 
 func TestAnalysisModelsDispatchChosenProvidersAndRetainDefaults(t *testing.T) {
-	reply := func(stage AnalysisStage) string {
-		if stage == AnalysisStageFeatures {
-			return validFeatureResponse
-		}
-		return analysisReply(stage)
-	}
-	analyze, analyzeCalls := analysisResponseServer(t, reply)
-	bug, bugCalls := analysisResponseServer(t, reply)
-	function, functionCalls := analysisResponseServer(t, reply)
+	analyze, analyzeCalls := analysisResponseServer(t, analysisReply)
+	bug, bugCalls := analysisResponseServer(t, analysisReply)
+	function, functionCalls := analysisResponseServer(t, analysisReply)
 	base, _ := newSemanticAnalysisService(t, analyze.URL, 0)
 	cfg := scopedTestConfig(analyze.URL)
 	cfg.ModelScopes.Analyze.Model = "review-model"
 	cfg.ModelScopes.Bug.APIBaseURL, cfg.ModelScopes.Bug.Model = bug.URL, "code-model"
-	cfg.ModelScopes.Code.APIBaseURL, cfg.ModelScopes.Code.Model = function.URL, "feature-model"
+	cfg.ModelScopes.Code.APIBaseURL, cfg.ModelScopes.Code.Model = function.URL, "function-model"
 	s, err := New(cfg, base.manager)
 	if err != nil {
 		t.Fatal(err)
 	}
 	original := s.CurrentModelCatalog()
-	models := &AnalysisModels{Code: "code", Performance: "bug", Security: "analyze", Features: "analyze"}
+	models := &AnalysisModels{Code: "code", Performance: "bug", Security: "analyze"}
 	preview := analysisModelsPreviewFor(t, s, models, AnalysisRunLimits{100, 30, 2})
 	if analyzeCalls.Load()+bugCalls.Load()+functionCalls.Load() != 0 || len(preview.Providers) != 3 {
 		t.Fatalf("model preview dispatched or lost a provider: %+v", preview)
@@ -55,8 +49,8 @@ func TestAnalysisModelsDispatchChosenProvidersAndRetainDefaults(t *testing.T) {
 	}
 	models.Code = "bug" // Caller changes cannot retarget the admitted run.
 	run := completedAnalysisRun(t, s)
-	if run.Status != AnalysisRunCompleted || functionCalls.Load() != 1 || bugCalls.Load() != 1 || analyzeCalls.Load() != 2 {
-		t.Fatalf("chosen providers were not used: status=%s code=%d review=%d features=%d", run.Status, functionCalls.Load(), bugCalls.Load(), analyzeCalls.Load())
+	if run.Status != AnalysisRunCompleted || functionCalls.Load() != 1 || bugCalls.Load() != 1 || analyzeCalls.Load() != 1 {
+		t.Fatalf("chosen providers were not used: status=%s code=%d performance=%d security=%d", run.Status, functionCalls.Load(), bugCalls.Load(), analyzeCalls.Load())
 	}
 	if !reflect.DeepEqual(original, s.CurrentModelCatalog()) || run.Plan.Models.Code != "code" {
 		t.Fatal("run choices mutated configured defaults or captured input")
@@ -72,14 +66,18 @@ func TestAnalysisModelsDispatchChosenProvidersAndRetainDefaults(t *testing.T) {
 			}
 		}
 	}
+	saved := readSavedAnalysisResults(t, s, run)
 	for _, category := range []project.FindingCategory{project.FindingCategoryBugs, project.FindingCategoryPerformance, project.FindingCategorySecurity} {
-		results, err := s.ReadAnalysisSection(context.Background(), run.Identity, category, "")
-		if err != nil || results.SavedFindingCount == nil || *results.SavedFindingCount == 0 {
-			t.Fatalf("chosen-model evidence missing for %s: %+v, %v", category, results, err)
+		count := 0
+		for _, file := range saved {
+			count += file.findings(category)
 		}
-		if category == project.FindingCategoryPerformance && (results.Performance[0].Profile != "bug" || results.Performance[0].Scope != "analyze") {
-			t.Fatalf("review provenance lost chosen profile: %+v", results.Performance[0])
+		if count == 0 {
+			t.Fatalf("chosen-model evidence missing for %s: %+v", category, saved)
 		}
+	}
+	if performance := savedPerformanceReport(t, s, run, "main.go"); performance.Profile != "bug" || performance.Scope != "analyze" {
+		t.Fatalf("review provenance lost chosen profile: %+v", performance)
 	}
 	if fileAnalysis, err := s.CachedFileAnalysis("main.go"); err != nil || fileAnalysis.Status != project.AnalysisStatusFresh || fileAnalysis.Profile != "code" {
 		t.Fatalf("cached file analysis lost chosen Code model freshness: %+v, %v", fileAnalysis, err)
@@ -95,11 +93,12 @@ func TestAnalysisModelsDispatchChosenProvidersAndRetainDefaults(t *testing.T) {
 		t.Fatalf("reopened findings retired chosen Code model findings: %+v, %v", findings, err)
 	}
 	cached := analysisModelsPreviewFor(t, s, run.Plan.Models, preview.Limits)
-	if cached.ExpectedModelRequests != 1 { // Only new feature discovery; all file stages reuse evidence.
+	if cached.ExpectedModelRequests != 0 { // All file stages reuse evidence.
 		t.Fatalf("selected model caches were not reused: %+v", cached)
 	}
 	defaults := analysisModelsPreviewFor(t, s, nil, preview.Limits)
-	if defaults.ExpectedModelRequests != 3 || defaults.Identity.ProviderFingerprint == preview.Identity.ProviderFingerprint {
+	// Security AI already ran on its default Analyze model; Code and Performance did not.
+	if defaults.ExpectedModelRequests != 2 || defaults.Identity.ProviderFingerprint == preview.Identity.ProviderFingerprint {
 		t.Fatalf("default profiles reused another model's evidence: %+v", defaults)
 	}
 }
@@ -110,7 +109,7 @@ func TestAnalysisModelsUseSelectedTimeouts(t *testing.T) {
 	s.conf().runtimes.analyze.effective.Timeout = "30m"
 	s.conf().runtimes.function.effective.Timeout = "20m"
 	s.conf().runtimes.bug.effective.Timeout = "1m"
-	models := &AnalysisModels{Code: "analyze", Review: "code", Features: "bug"}
+	models := &AnalysisModels{Code: "analyze", Review: "code"}
 	prepared, err := s.prepareFileAnalysis("main.go")
 	if err != nil {
 		t.Fatal(err)
@@ -162,26 +161,21 @@ func TestAnalysisModelsUseSelectedTimeouts(t *testing.T) {
 }
 
 func TestAnalysisModelsRejectInvalidRetargetingAndRequireActualProviderConsent(t *testing.T) {
-	server, calls := analysisResponseServer(t, func(stage AnalysisStage) string {
-		if stage == AnalysisStageFeatures {
-			return `{"suggestions":[]}`
-		}
-		return emptyAnalysisReply(stage)
-	})
+	server, calls := analysisResponseServer(t, emptyAnalysisReply)
 	s, _ := newSemanticAnalysisService(t, server.URL, 0)
 	index, _ := s.manager.Index()
-	request := AnalysisPreviewRequest{Models: &AnalysisModels{Code: "unknown", Review: "analyze", Features: "analyze"},
+	request := AnalysisPreviewRequest{Models: &AnalysisModels{Code: "unknown", Review: "analyze"},
 		ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Scope: AnalysisRunScopeProject, Limits: AnalysisRunLimits{100, 30, 2}}
 	if _, err := s.PreviewAnalysisRun(context.Background(), request); err == nil || calls.Load() != 0 {
 		t.Fatalf("invalid profile was admitted: %v", err)
 	}
 	s.conf().runtimes.function.effective.RemoteProvider = true
-	models := &AnalysisModels{Code: "bug", Review: "analyze", Features: "code"}
+	models := &AnalysisModels{Code: "bug", Review: "code"}
 	preview := analysisModelsPreviewFor(t, s, models, request.Limits)
 	start := analysisStartFor(preview)
-	start.Models.Features = "analyze"
+	start.Models.Review = "analyze"
 	if _, err := s.StartAnalysisRun(context.Background(), start); !errors.Is(err, project.ErrRevisionConflict) || calls.Load() != 0 {
-		t.Fatalf("retargeted feature model was admitted: %v", err)
+		t.Fatalf("retargeted review model was admitted: %v", err)
 	}
 	start = analysisStartFor(preview)
 	start.Confirmations.ProviderIDs = nil
@@ -191,20 +185,15 @@ func TestAnalysisModelsRejectInvalidRetargetingAndRequireActualProviderConsent(t
 	if _, err := s.StartAnalysisRun(context.Background(), analysisStartFor(preview)); err != nil {
 		t.Fatal(err)
 	}
-	if run := completedAnalysisRun(t, s); run.Status != AnalysisRunCompletedEmpty || calls.Load() != 4 {
+	if run := completedAnalysisRun(t, s); run.Status != AnalysisRunCompletedEmpty || calls.Load() != 3 {
 		t.Fatalf("confirmed selected model failed: %+v calls=%d", run, calls.Load())
 	}
 }
 
 func TestAnalysisModelsPersistAcrossResumeAndRejectChangedProvider(t *testing.T) {
-	server, calls := analysisResponseServer(t, func(stage AnalysisStage) string {
-		if stage == AnalysisStageFeatures {
-			return validFeatureResponse
-		}
-		return emptyAnalysisReply(stage)
-	})
+	server, calls := analysisResponseServer(t, emptyAnalysisReply)
 	s, root := newSemanticAnalysisServiceWithHelper(t, server.URL, 0)
-	models := &AnalysisModels{Code: "code", Review: "bug", Features: "code"}
+	models := &AnalysisModels{Code: "code", Review: "bug"}
 	preview := analysisModelsPreviewFor(t, s, models, AnalysisRunLimits{1, 30, 2})
 	if _, err := s.StartAnalysisRun(context.Background(), analysisStartFor(preview)); err != nil {
 		t.Fatal(err)
@@ -214,7 +203,7 @@ func TestAnalysisModelsPersistAcrossResumeAndRejectChangedProvider(t *testing.T)
 	if err != nil || !reflect.DeepEqual(restored.Plan.Models, models) {
 		t.Fatalf("model selections were not persisted: %+v, %v", restored, err)
 	}
-	resume := featureAnalysisPreviewFor(t, s, preview.Limits, &paused.Identity)
+	resume := analysisRunPreviewFor(t, s, preview.Limits, &paused.Identity)
 	if !reflect.DeepEqual(resume.Models, models) || resume.ExpectedModelRequests != 3 {
 		t.Fatalf("resume lost selected models: %+v", resume)
 	}
@@ -222,13 +211,13 @@ func TestAnalysisModelsPersistAcrossResumeAndRejectChangedProvider(t *testing.T)
 	if _, err := s.ControlAnalysisRun(context.Background(), AnalysisRunControlRequest{Identity: paused.Identity, Action: AnalysisRunResume, PreviewID: resume.PreviewID, Confirmations: &confirmations}); err != nil {
 		t.Fatal(err)
 	}
-	if run := completedAnalysisRun(t, s); run.Status != AnalysisRunCompleted || calls.Load() != 7 {
+	if run := completedAnalysisRun(t, s); run.Status != AnalysisRunCompletedEmpty || calls.Load() != 6 {
 		t.Fatalf("resumed selected models did not complete: %+v calls=%d", run, calls.Load())
 	}
 	latest := analysisModelsPreviewFor(t, s, models, AnalysisRunLimits{100, 30, 2})
 	s.conf().runtimes.function = newModelRuntime(s.conf().runtimes.function.profile, s.conf().importTimeout, 4)
 	s.conf().runtimes.function.effective.ReasoningEffort = "changed"
-	if _, err := s.StartAnalysisRun(context.Background(), analysisStartFor(latest)); !errors.Is(err, project.ErrRevisionConflict) || calls.Load() != 7 {
+	if _, err := s.StartAnalysisRun(context.Background(), analysisStartFor(latest)); !errors.Is(err, project.ErrRevisionConflict) || calls.Load() != 6 {
 		t.Fatalf("changed selected provider was admitted: %v", err)
 	}
 	if runtime := s.analysisModelRuntime(AnalysisStageSemantic, nil); runtime.profile.Scope != config.BugModelScope {
@@ -241,9 +230,9 @@ func TestAnalysisIndependentModelsRejectInvalidSelections(t *testing.T) {
 	s, _ := newSemanticAnalysisService(t, server.URL, 0)
 	index, _ := s.manager.Index()
 	for _, models := range []AnalysisModels{
-		{Code: "bug", Performance: "code", Features: "analyze"},
-		{Code: "bug", Performance: "invalid", Security: "analyze", Features: "analyze"},
-		{Code: "bug", Performance: "code", Security: "configured:missing", Features: "analyze"},
+		{Code: "bug", Performance: "code"},
+		{Code: "bug", Performance: "invalid", Security: "analyze"},
+		{Code: "bug", Performance: "code", Security: "configured:missing"},
 	} {
 		_, err := s.PreviewAnalysisRun(context.Background(), AnalysisPreviewRequest{
 			Models: &models, ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision,

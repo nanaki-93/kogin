@@ -710,7 +710,6 @@ export interface AnalysisRunSummary {
     expected_model_requests?: number;
     max_model_requests?: number;
   };
-  features?: { status: string; reason?: string; suggestion_count?: number | null } | null;
   /** The docs refresh that ended the run. */
   docs?: DocsRefresh | null;
   elapsed_seconds?: number;

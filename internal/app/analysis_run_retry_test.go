@@ -457,3 +457,13 @@ func TestAnalysisRetryShowsSavedResultsAtOnceAndCancelKeepsThem(t *testing.T) {
 		t.Fatalf("after cancel, retry = %v", previewPaths(again))
 	}
 }
+
+func sectionFindings(run *AnalysisRun) int {
+	total := 0
+	for _, section := range run.Sections {
+		if section.FindingCount != nil {
+			total += *section.FindingCount
+		}
+	}
+	return total
+}

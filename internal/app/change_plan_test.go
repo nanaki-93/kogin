@@ -11,24 +11,31 @@ import (
 	"testing"
 )
 
-func plannedWorkflowFixture(t *testing.T, s *Service, session *ChangeSession) *ChangeSession {
+// plannedChangeFixture opens the workflow task with a captured plan.
+func plannedChangeFixture(t *testing.T, s *Service, plan ChangePlanInput) *ChangeSession {
 	t.Helper()
-	updated, err := s.UpdateChangePlan(context.Background(), session.ID, ChangePlanRequest{
-		ChangeIdentity: changeIdentity(session), Paths: []string{"new.go", "new_test.go"},
-		AcceptanceCriteria: []string{"Helper returns two."},
-		Plan:               ChangePlanInput{Problem: "Expose Helper", Approach: "Add Helper and cover its result.", NonGoals: []string{"Do not change Run."}, ReadPaths: []string{"main.go"}},
-	})
+	index, err := s.manager.Index()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return updated
+	session, err := s.OpenChangeSession(context.Background(), ChangeCreateRequest{Plan: &plan, ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision,
+		Kind: "feature", Title: "Implement a bounded task", Paths: []string{"new.go", "new_test.go"}, AcceptanceCriteria: []string{"Helper returns two."}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return session
+}
+
+func plannedWorkflowFixture(t *testing.T, s *Service) *ChangeSession {
+	t.Helper()
+	return plannedChangeFixture(t, s, ChangePlanInput{Problem: "Expose Helper", Approach: "Add Helper and cover its result.", NonGoals: []string{"Do not change Run."}, ReadPaths: []string{"main.go"}})
 }
 
 func TestPlanApprovalRejectsUnapprovedRevisedAndStaleSourceWithoutDispatch(t *testing.T) {
 	var calls atomic.Int32
 	reply := func() string { calls.Add(1); return workflowImplementation }
-	s, root, session := workflowService(t, [3]func() string{reply, reply, reply})
-	session = plannedWorkflowFixture(t, s, session)
+	s, root, _ := workflowService(t, [3]func() string{reply, reply, reply})
+	session := plannedWorkflowFixture(t, s)
 	ctx := context.Background()
 	if _, err := s.SendChangeMessage(ctx, session.ID, ChangeMessageRequest{ChangeIdentity: changeIdentity(session), Message: "Generate"}); err == nil {
 		t.Fatal("unapproved plan generated code")
@@ -37,25 +44,21 @@ func TestPlanApprovalRejectsUnapprovedRevisedAndStaleSourceWithoutDispatch(t *te
 	if _, err := s.StartChangeWorkflow(ctx, session.ID, request); err == nil {
 		t.Fatal("missing approval accepted")
 	}
-	oldHash := session.Plan.Hash
 	plan := session.Plan.ChangePlanInput
 	plan.Approach += " Keep the public signature stable."
-	updated, err := s.UpdateChangePlan(ctx, session.ID, ChangePlanRequest{ChangeIdentity: changeIdentity(session), Paths: []string{"new.go", "new_test.go"}, AcceptanceCriteria: session.AcceptanceCriteria, Plan: plan})
-	if err != nil {
-		t.Fatal(err)
+	revised := plannedChangeFixture(t, s, plan)
+	if revised.Plan.Hash == session.Plan.Hash || revised.Plan.ApprovedHash != "" {
+		t.Fatal("edited intent kept the plan's identity or approval")
 	}
-	if updated.Plan.Hash == oldHash || updated.Plan.ApprovedHash != "" {
-		t.Fatal("edited intent retained approval")
-	}
-	request = workflowRequest(updated)
-	request.PlanHash = oldHash
+	request = workflowRequest(session)
+	request.PlanHash = revised.Plan.Hash
 	if _, err := s.StartChangeWorkflow(ctx, session.ID, request); err == nil {
-		t.Fatal("old plan approved")
+		t.Fatal("another plan approved")
 	}
 	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\nfunc Changed() {}\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	request.PlanHash = updated.Plan.Hash
+	request.PlanHash = session.Plan.Hash
 	if _, err := s.StartChangeWorkflow(ctx, session.ID, request); err == nil {
 		t.Fatal("changed read context approved")
 	}
@@ -73,7 +76,7 @@ func TestPlanApprovalRejectsUnapprovedRevisedAndStaleSourceWithoutDispatch(t *te
 
 func TestPlannedWorkflowResumesCriticAndRequiresCurrentFileReview(t *testing.T) {
 	var calls [3]atomic.Int32
-	s, root, session := workflowService(t, [3]func() string{
+	s, root, _ := workflowService(t, [3]func() string{
 		func() string { calls[0].Add(1); return workflowImplementation },
 		func() string { calls[1].Add(1); return workflowTests },
 		func() string {
@@ -83,7 +86,7 @@ func TestPlannedWorkflowResumesCriticAndRequiresCurrentFileReview(t *testing.T) 
 			return workflowApproval
 		},
 	})
-	session = plannedWorkflowFixture(t, s, session)
+	session := plannedWorkflowFixture(t, s)
 	ctx := context.Background()
 	request := workflowRequest(session)
 	request.PlanHash = session.Plan.Hash
@@ -189,10 +192,10 @@ func TestRunnerRegressionBaselineTreatsAnUnreadableFailureAsReproduced(t *testin
 }
 
 func TestCriticRetryCannotReuseHistoricalCheckAuthority(t *testing.T) {
-	s, _, session := workflowService(t, [3]func() string{
+	s, _, _ := workflowService(t, [3]func() string{
 		func() string { return workflowImplementation }, func() string { return workflowTests }, func() string { return workflowApproval },
 	})
-	session = plannedWorkflowFixture(t, s, session)
+	session := plannedWorkflowFixture(t, s)
 	request := workflowRequest(session)
 	request.PlanHash = session.Plan.Hash
 	if _, err := s.StartChangeWorkflow(context.Background(), session.ID, request); err != nil {

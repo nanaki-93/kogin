@@ -3,10 +3,11 @@ package handlers
 import (
 	"context"
 	"errors"
+	"net/http"
+
 	"github.com/nanaki-93/mini-orca/v2/internal/api"
 	"github.com/nanaki-93/mini-orca/v2/internal/app"
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
-	"net/http"
 )
 
 type GitHandler struct{ service *app.Service }
@@ -30,29 +31,8 @@ func respondGit(w http.ResponseWriter, value any, err error) {
 	api.WriteJSON(w, http.StatusOK, value)
 }
 
-func (h *GitHandler) Repository(w http.ResponseWriter, r *http.Request) {
-	value, err := h.service.GitRepository(r.Context(), r.URL.Query().Get("project_id"), r.URL.Query().Get("project_revision"))
-	respondGit(w, value, err)
-}
-
 func (h *GitHandler) Workspace(w http.ResponseWriter, r *http.Request) {
 	value, err := h.service.GitWorkspace(r.Context(), r.URL.Query().Get("project_id"), r.URL.Query().Get("project_revision"))
-	respondGit(w, value, err)
-}
-func (h *GitHandler) CreateWorktree(w http.ResponseWriter, r *http.Request) {
-	var request app.GitMutationRequest
-	if !decodeWorkflowBody(w, r, &request) {
-		return
-	}
-	value, err := h.service.CreateGitWorktree(r.Context(), request)
-	respondGit(w, value, err)
-}
-func (h *GitHandler) Switch(w http.ResponseWriter, r *http.Request) {
-	var request app.GitMutationRequest
-	if !decodeWorkflowBody(w, r, &request) {
-		return
-	}
-	value, err := h.service.SwitchGitBranch(r.Context(), request)
 	respondGit(w, value, err)
 }
 func (h *GitHandler) PreviewMerge(w http.ResponseWriter, r *http.Request) {

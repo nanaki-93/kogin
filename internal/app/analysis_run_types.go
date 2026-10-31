@@ -133,7 +133,6 @@ func (identity AnalysisRunIdentity) Validate() error {
 
 type AnalysisPreviewRequest struct {
 	Models            *AnalysisModels      `json:"models,omitempty"`
-	IncludeFeatures   bool                 `json:"include_features,omitempty"`
 	RetryStaleFailed  bool                 `json:"retry_stale_failed,omitempty"`
 	StaleOnly         bool                 `json:"stale_only,omitempty"`
 	StalePath         string               `json:"stale_path,omitempty"`
@@ -154,8 +153,11 @@ func (request AnalysisPreviewRequest) Validate() error {
 	if request.RetryStaleFailed && request.Refresh {
 		return fmt.Errorf("stale/failed analysis cannot refresh fresh results")
 	}
-	if err := validateAnalysisSelectionOptions(request.RecoverIncomplete, request.Refresh, request.ClearResults, request.RetryStaleFailed, request.IncludeFeatures, request.StaleOnly, request.StalePath); err != nil {
+	if err := validateAnalysisSelectionOptions(request.RecoverIncomplete, request.Refresh, request.ClearResults, request.RetryStaleFailed, request.StaleOnly, request.StalePath); err != nil {
 		return err
+	}
+	if request.Models != nil && request.Models.Features != "" {
+		return fmt.Errorf("feature discovery was removed; analysis models cannot name a features model")
 	}
 	if request.ProjectID == "" || request.ProjectRevision == "" || request.Scope != AnalysisRunScopeProject {
 		return fmt.Errorf("analysis requires a project identity and whole-project scope")
@@ -246,7 +248,6 @@ type AnalysisRunConfirmations struct {
 
 type AnalysisRunStartRequest struct {
 	Models            *AnalysisModels          `json:"models,omitempty"`
-	IncludeFeatures   bool                     `json:"include_features,omitempty"`
 	RetryStaleFailed  bool                     `json:"retry_stale_failed,omitempty"`
 	StaleOnly         bool                     `json:"stale_only,omitempty"`
 	StalePath         string                   `json:"stale_path,omitempty"`
@@ -268,8 +269,11 @@ func (request AnalysisRunStartRequest) Validate() error {
 	if request.RetryStaleFailed && request.Refresh {
 		return fmt.Errorf("stale/failed analysis cannot refresh fresh results")
 	}
-	if err := validateAnalysisSelectionOptions(request.RecoverIncomplete, request.Refresh, request.ClearResults, request.RetryStaleFailed, request.IncludeFeatures, request.StaleOnly, request.StalePath); err != nil {
+	if err := validateAnalysisSelectionOptions(request.RecoverIncomplete, request.Refresh, request.ClearResults, request.RetryStaleFailed, request.StaleOnly, request.StalePath); err != nil {
 		return err
+	}
+	if request.Models != nil && request.Models.Features != "" {
+		return fmt.Errorf("feature discovery was removed; analysis models cannot name a features model")
 	}
 	if err := request.Identity.Validate(); err != nil {
 		return err
@@ -281,20 +285,20 @@ func (request AnalysisRunStartRequest) Validate() error {
 }
 
 // Recovery completes unfinished file stages only. It never refreshes current
-// results, reinterprets the stale/failed retry contract or discovers features.
-func validateAnalysisSelectionOptions(recoverIncomplete, refresh, clearResults, retryStaleFailed, includeFeatures, staleOnly bool, stalePath string) error {
+// results or reinterprets the stale/failed retry contract.
+func validateAnalysisSelectionOptions(recoverIncomplete, refresh, clearResults, retryStaleFailed, staleOnly bool, stalePath string) error {
 	if clearResults && !refresh {
 		return fmt.Errorf("clear_results requires refresh")
 	}
 	if stalePath != "" && ((!staleOnly && !recoverIncomplete) || !analysisMetadataPath(stalePath)) {
 		return fmt.Errorf("stale_path requires stale_only and a project-relative file path")
 	}
-	incompatible := refresh || clearResults || retryStaleFailed || includeFeatures
+	incompatible := refresh || clearResults || retryStaleFailed
 	if staleOnly && (incompatible || recoverIncomplete) {
-		return fmt.Errorf("stale-only analysis cannot be combined with refresh, retry_stale_failed, recover_incomplete or include_features")
+		return fmt.Errorf("stale-only analysis cannot be combined with refresh, retry_stale_failed or recover_incomplete")
 	}
 	if recoverIncomplete && incompatible {
-		return fmt.Errorf("incomplete-work recovery cannot be combined with refresh, retry_stale_failed or include_features")
+		return fmt.Errorf("incomplete-work recovery cannot be combined with refresh or retry_stale_failed")
 	}
 	return nil
 }
@@ -426,21 +430,6 @@ type AnalysisRun struct {
 	Reason               string                    `json:"reason,omitempty"`
 	CreatedAt            time.Time                 `json:"created_at"`
 	UpdatedAt            time.Time                 `json:"updated_at"`
-}
-
-// AnalysisSectionResults preserves each producer's evidence/triage shape. Semantic
-// risks are routed by explicit category; performance hypotheses and Security rule/AI
-// reports keep their existing identities. File filtering only changes this read view.
-type AnalysisSectionResults struct {
-	Identity          AnalysisRunIdentity             `json:"identity"`
-	Progress          AnalysisSectionProgress         `json:"progress"`
-	SavedFindingCount *int                            `json:"saved_finding_count"`
-	RetainedFiles     []AnalysisFileIdentity          `json:"retained_files,omitempty"`
-	Path              string                          `json:"path,omitempty"`
-	Semantic          []project.UnifiedFinding        `json:"semantic"`
-	Performance       []project.PerformanceFileReport `json:"performance"`
-	Security          []project.SecurityFileReport    `json:"security"`
-	Unclassified      []project.UnifiedFinding        `json:"unclassified"`
 }
 
 var errAnalysisRunPersistence = errors.New("analysis progress could not be saved; resume or cancel to recover")

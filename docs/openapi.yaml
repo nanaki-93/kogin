@@ -35,18 +35,6 @@ paths:
       responses:
         '200': {description: Project summary, content: {application/json: {schema: {$ref: '#/components/schemas/ProjectAnalysis'}}}}
         '400': {$ref: '#/components/responses/Error'}
-  /api/projects/current/plans/investigate:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    post:
-      tags: [Chat]
-      summary: Investigate explicitly captured plan scope without approving or changing source
-      description: Requires Code profile remote confirmation when applicable. Captured hashes, absent paths, project revision, policy and instructions are rechecked before publication. Cancel the request to stop investigation.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/PlanInvestigationRequest'}}}}
-      responses:
-        '200': {description: Bounded model suggestions with validated source citations, content: {application/json: {schema: {$ref: '#/components/schemas/PlanInvestigation'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/agent-settings:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -74,111 +62,6 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
         '500': {$ref: '#/components/responses/Error'}
-  /api/projects/current/agent-settings/skills/validate:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    post:
-      tags: [Projects]
-      summary: Explicitly inspect captured local skill text without execution or grants
-      description: Validates the manifest and indexed resources with current hashes/policy and the native parser. A valid result does not enable the skill or grant required tools; invocation-specific admission remains required.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AgentSkillValidationRequest'}}}}
-      responses:
-        '200': {description: Bounded metadata and source references without instruction/resource bodies; no-store, content: {application/json: {schema: {$ref: '#/components/schemas/AgentSkillValidation'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '403': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-        '500': {$ref: '#/components/responses/Error'}
-  /api/projects/current/agent-runs:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-      - {$ref: '#/components/parameters/AgentProjectID'}
-      - {$ref: '#/components/parameters/ProjectRevision'}
-    get:
-      tags: [Projects]
-      summary: Read source-free root invocation history
-      parameters:
-        - {in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
-        - {in: query, name: cursor, schema: {type: string}, description: Opaque project/revision-bound pagination cursor.}
-      responses:
-        '200': {description: Bounded retained roots, content: {application/json: {schema: {$ref: '#/components/schemas/AgentRunList'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-        '500': {$ref: '#/components/responses/Error'}
-  /api/projects/current/agent-runs/events:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-      - {$ref: '#/components/parameters/AgentProjectID'}
-      - {$ref: '#/components/parameters/ProjectRevision'}
-    get:
-      tags: [Projects]
-      summary: Replay durable progress or subscribe with SSE
-      description: Retains 2048 source-free events. Missing, expired, foreign or future cursors return a reset snapshot at the current cursor. SSE frames use agent_progress and are bounded to 1 MiB with ten-second write deadlines. No model text is streamed here.
-      parameters:
-        - {in: query, name: cursor, schema: {type: string, maxLength: 180}}
-        - {in: header, name: Last-Event-ID, schema: {type: string, maxLength: 180}, description: Alternative cursor; must match if both are provided.}
-      responses:
-        '200':
-          description: One replay batch or a sequence of agent_progress SSE frames.
-          content:
-            application/json: {schema: {$ref: '#/components/schemas/AgentEventBatch'}}
-            text/event-stream: {schema: {type: string}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-        '500': {$ref: '#/components/responses/Error'}
-  /api/projects/current/agent-runs/{runID}:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-      - {$ref: '#/components/parameters/AgentProjectID'}
-      - {$ref: '#/components/parameters/ProjectRevision'}
-      - {$ref: '#/components/parameters/AgentRunID'}
-    get:
-      tags: [Projects]
-      summary: Read invocation hierarchy and retained evidence references
-      parameters:
-        - {in: query, name: include_text, schema: {type: boolean, default: false}, description: Explicitly request private advisory model output.}
-      responses:
-        '200': {description: Bounded private detail with source-free metadata by default, content: {application/json: {schema: {$ref: '#/components/schemas/AgentRunDetail'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '404': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/agent-runs/{runID}/control:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-      - {$ref: '#/components/parameters/AgentRunID'}
-    post:
-      tags: [Projects]
-      summary: Cancel a current root invocation owned by this daemon
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AgentRunControl'}}}}
-      responses:
-        '200': {description: Cancellation requested; worker owns cleanup, content: {application/json: {schema: {$ref: '#/components/schemas/AgentRunDetail'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '404': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/agent-runs/{runID}/input:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-      - {$ref: '#/components/parameters/AgentRunID'}
-    post:
-      tags: [Projects]
-      summary: Respond to an exact native checkpoint through the proposal owner
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeInputResponse'}}}}
-      responses:
-        '200': {description: Guarded proposal review result; Apply remains explicit, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeSession'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/agent-runs/{runID}/export:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-      - {$ref: '#/components/parameters/AgentRunID'}
-    post:
-      tags: [Projects]
-      summary: Export one confirmed source-free trace snapshot
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AgentTraceExportRequest'}}}}
-      responses:
-        '200': {description: Explicit collector acknowledgement or unknown delivery; never automatically retried, content: {application/json: {schema: {$ref: '#/components/schemas/AgentTraceExportReceipt'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '404': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/changes:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -241,18 +124,6 @@ paths:
         '200': {description: Rules and budget state per task file, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeRules'}}}}
         '400': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/changes/{sessionID}/resume:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-      - {in: path, name: sessionID, required: true, schema: {type: string}}
-    post:
-      tags: [Chat]
-      description: Restore history and clear check/review authority; no provider request.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeIdentity'}}}}
-      responses:
-        '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeSession'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/changes/{sessionID}/messages:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -311,18 +182,6 @@ paths:
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeInputResponse'}}}}
       responses:
         '200': {description: Current guarded input result, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeSession'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/changes/{sessionID}/plan:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-      - {in: path, name: sessionID, required: true, schema: {type: string}}
-    post:
-      tags: [Chat]
-      description: Save revised intent and scope before proposal generation; clears approval. No provider or check execution.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangePlanRequest'}}}}
-      responses:
-        '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeSession'}}}}
         '400': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/changes/{sessionID}/review-file:
@@ -423,18 +282,6 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/changes/{sessionID}/commit:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-      - {in: path, name: sessionID, required: true, schema: {type: string}}
-    post:
-      tags: [Chat]
-      description: Retry a failed commit of the latest applied proposal without reapplying source.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeApplyRequest'}}}}
-      responses:
-        '200': {description: Applied source and separate commit outcome, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeMutationResult'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/git/workspace:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -446,28 +293,6 @@ paths:
         - {in: query, name: project_revision, required: true, schema: {type: string}}
       responses:
         '200': {description: Git workspace, content: {application/json: {schema: {$ref: '#/components/schemas/GitWorkspace'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/git/worktrees:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    post:
-      tags: [Projects]
-      description: Create a new branch and worktree at an unused absolute path directly inside the project's .worktrees directory; creates and locally ignores that directory without activating the worktree.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/GitMutationRequest'}}}}
-      responses:
-        '200': {description: Observed Git outcome, content: {application/json: {schema: {$ref: '#/components/schemas/GitMutationResult'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/git/switch:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    post:
-      tags: [Projects]
-      description: Switch to an existing local branch with a clean working tree.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/GitMutationRequest'}}}}
-      responses:
-        '200': {description: Observed Git outcome, content: {application/json: {schema: {$ref: '#/components/schemas/GitMutationResult'}}}}
         '400': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/git/merge-preview:
@@ -534,19 +359,6 @@ paths:
         '200': {description: Observed Git outcome, content: {application/json: {schema: {$ref: '#/components/schemas/GitMutationResult'}}}}
         '400': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/git/repository:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    get:
-      tags: [Projects]
-      description: Read repository identity and working-tree state without executing project code.
-      parameters:
-        - {in: query, name: project_id, required: true, schema: {type: string}}
-        - {in: query, name: project_revision, required: true, schema: {type: string}}
-      responses:
-        '200': {description: Current Git repository, content: {application/json: {schema: {$ref: '#/components/schemas/GitRepository'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/changes/{sessionID}/undo:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -557,90 +369,6 @@ paths:
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeApplyRequest'}}}}
       responses:
         '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeMutationResult'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/changes/{sessionID}/verify:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-      - {in: path, name: sessionID, required: true, schema: {type: string}}
-    post:
-      tags: [Chat]
-      description: Verify the latest applied source; Go tests/vet require fresh execution trust. No model request or source write.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeIdentity'}}}}
-      responses:
-        '200': {description: Persisted check outcome for the applied identity, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeVerification'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/instructions:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    get:
-      tags: [Chat]
-      description: Preview applicable AGENTS.md content, origins and instruction presets.
-      parameters:
-        - {in: query, name: project_id, required: true, schema: {type: string}}
-        - {in: query, name: project_revision, required: true, schema: {type: string}}
-        - {in: query, name: path, required: true, schema: {type: string}}
-      responses:
-        '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/InstructionPreview'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/instructions/proposal:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    post:
-      tags: [Chat]
-      description: Prepare an AGENTS.md proposal without a provider or source write.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/InstructionProposalRequest'}}}}
-      responses:
-        '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeSession'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/features:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    get:
-      tags: [Chat]
-      description: Read saved goals and advisory feature suggestions.
-      parameters:
-        - {in: query, name: project_id, required: true, schema: {type: string}}
-        - {in: query, name: project_revision, required: true, schema: {type: string}}
-      responses:
-        '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/FeatureReport'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/features/goals:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    post:
-      tags: [Chat]
-      description: Save goals; ideas generated for other goals become stale and are kept.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/FeatureRequest'}}}}
-      responses:
-        '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/FeatureReport'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/features/generate:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    post:
-      tags: [Chat]
-      description: Explicitly add new bounded feature ideas with Analyze consent, keeping existing ideas and their statuses.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/FeatureGenerateRequest'}}}}
-      responses:
-        '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/FeatureReport'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/features/{featureID}:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-      - {in: path, name: featureID, required: true, schema: {type: string}}
-    patch:
-      tags: [Chat]
-      description: Save, dismiss or reopen an advisory feature suggestion.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/FeatureStatusRequest'}}}}
-      responses:
-        '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/FeatureReport'}}}}
         '400': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/analysis/selection:
@@ -717,28 +445,6 @@ paths:
         '409': {$ref: '#/components/responses/Error'}
         '500': {$ref: '#/components/responses/Error'}
         '200': {description: Updated control state, content: {application/json: {schema: {$ref: '#/components/schemas/AnalysisRun'}}}}
-  /api/projects/current/analysis/results:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    get:
-      tags: [Projects]
-      parameters:
-        - {in: query, name: project_id, required: true, schema: {type: string, minLength: 1, maxLength: 4096}}
-        - {in: query, name: project_revision, required: true, schema: {type: string, minLength: 1, maxLength: 4096}}
-        - {in: query, name: policy_fingerprint, required: true, schema: {type: string, minLength: 1, maxLength: 4096}}
-        - {in: query, name: provider_fingerprint, required: true, schema: {type: string, minLength: 1, maxLength: 4096}}
-        - {in: query, name: queue_id, required: true, schema: {type: string, minLength: 1, maxLength: 4096}}
-        - {in: query, name: id, required: true, schema: {type: string, minLength: 1, maxLength: 4096}}
-        - {in: query, name: generation, required: true, schema: {type: string, minLength: 1, maxLength: 4096}}
-        - {in: query, name: category, required: true, schema: {$ref: '#/components/schemas/FindingCategory'}}
-        - {in: query, name: path, required: false, schema: {type: string, minLength: 1, maxLength: 4096}, description: Canonical project-relative path already captured by this run.}
-      description: Require all AnalysisRunIdentity fields and category as query guards; optional path only filters this read view.
-      responses:
-        '400': {$ref: '#/components/responses/Error'}
-        '404': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-        '500': {$ref: '#/components/responses/Error'}
-        '200': {description: Categorized producer evidence, content: {application/json: {schema: {$ref: '#/components/schemas/AnalysisSectionResults'}}}}
   /health:
     get:
       tags: [Daemon]
@@ -1177,36 +883,6 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/FileInfo'}
         '400': {$ref: '#/components/responses/Error'}
-  /api/projects/current/impact:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    get:
-      tags: [Projects]
-      summary: Advisory index-based impact preview for one selected file
-      parameters:
-        - {$ref: '#/components/parameters/ProjectPath'}
-      responses:
-        '200':
-          description: Source-free advisory references that do not alter model context
-          content:
-            application/json:
-              schema: {type: object}
-        '400': {$ref: '#/components/responses/Error'}
-  /api/projects/current/git:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    get:
-      tags: [Projects]
-      summary: Read-only Git status for one selected file
-      parameters:
-        - {$ref: '#/components/parameters/ProjectPath'}
-      responses:
-        '200':
-          description: Repository availability, branch, and target-file status
-          content:
-            application/json:
-              schema: {type: object}
-        '400': {$ref: '#/components/responses/Error'}
   /api/projects/current/files/analysis:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -1221,16 +897,6 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-    post:
-      tags: [Projects]
-      summary: Analyze exactly one selected file
-      requestBody:
-        required: true
-        content: {application/json: {schema: {$ref: '#/components/schemas/FileAnalysisRequest'}}}
-      responses:
-        '200': {description: Fresh or failed source-free analysis, content: {application/json: {schema: {$ref: '#/components/schemas/FileAnalysis'}}}}
-        '400': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/files/security-scan:
     parameters:
@@ -1441,44 +1107,6 @@ components:
           allOf:
             - {$ref: '#/components/schemas/AgentPreferences'}
           description: Required for replace and forbidden for reset; stale saved overrides require reset.
-    AgentSkillValidationRequest:
-      type: object
-      additionalProperties: false
-      required: [project_id, project_revision, configuration, version, directory]
-      properties:
-        project_id: {type: string}
-        project_revision: {type: string}
-        configuration: {type: string, pattern: '^[a-f0-9]{64}$'}
-        version: {type: integer, format: int64, minimum: 0}
-        directory: {type: string, maxLength: 192}
-    AgentSkillFile:
-      type: object
-      required: [path, hash, size_bytes]
-      properties:
-        path: {type: string, maxLength: 256}
-        hash: {type: string, pattern: '^sha256:[a-f0-9]{64}$'}
-        size_bytes: {type: integer, minimum: 1, maximum: 8192}
-    AgentSkillValidation:
-      type: object
-      required: [project_id, project_revision, configuration, version, directory, state, inspection]
-      properties:
-        project_id: {type: string}
-        project_revision: {type: string}
-        configuration: {type: string, pattern: '^[a-f0-9]{64}$'}
-        version: {type: integer, format: int64, minimum: 0}
-        directory: {type: string, maxLength: 192}
-        state: {type: string, enum: [valid]}
-        inspection:
-          type: object
-          required: [name, description, required_tools, manifest, resources]
-          properties:
-            name: {type: string}
-            description: {type: string, maxLength: 512}
-            license: {type: string, maxLength: 256}
-            compatibility: {type: string, maxLength: 500}
-            required_tools: {type: array, items: {type: string, maxLength: 64}}
-            manifest: {$ref: '#/components/schemas/AgentSkillFile'}
-            resources: {type: array, maxItems: 16, items: {$ref: '#/components/schemas/AgentSkillFile'}}
     AgentLimits:
       type: object
       additionalProperties: false
@@ -1491,183 +1119,6 @@ components:
         output_tokens: {type: integer, format: int64}
         elapsed_seconds: {type: integer}
         concurrent_calls: {type: integer}
-    AgentCheckpoint:
-      type: object
-      properties:
-        request_id: {type: string}
-        node_id: {type: string, enum: [human_review]}
-        invocation_id: {type: string}
-        expires_at: {type: string, format: date-time}
-        decision: {type: string, enum: [approve, reject, cancel, expire]}
-        received_at: {type: string, format: date-time}
-    AgentRun:
-      type: object
-      required: [id, root_id, project_id, project_revision, kind, status, active, stale, can_cancel, usage, limits, started_at, updated_at]
-      properties:
-        change_session_id: {type: string}
-        workflow_id: {type: string}
-        id: {type: string}
-        root_id: {type: string}
-        parent_id: {type: string}
-        project_id: {type: string}
-        project_revision: {type: string}
-        kind: {type: string}
-        status: {type: string, enum: [running, canceling, waiting_input, completed, failed, canceled, expired, interrupted, changes_requested]}
-        active: {type: boolean}
-        stale: {type: boolean}
-        can_cancel: {type: boolean}
-        started_at: {type: string, format: date-time}
-        updated_at: {type: string, format: date-time}
-        usage: {$ref: '#/components/schemas/AgentUsage'}
-        limits: {$ref: '#/components/schemas/AgentLimits'}
-        input: {$ref: '#/components/schemas/AgentCheckpoint'}
-    AgentRunList:
-      type: object
-      required: [project_id, project_revision, runs]
-      properties:
-        project_id: {type: string}
-        project_revision: {type: string}
-        runs: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/AgentRun'}}
-        next_cursor: {type: string}
-    AgentArtifactReference:
-      type: object
-      required: [session, name, version]
-      properties:
-        session:
-          type: object
-          required: [app, user, id]
-          properties:
-            app: {type: string}
-            user: {type: string}
-            id: {type: string}
-        name: {type: string, enum: [completion.json]}
-        version: {type: integer, format: int64, minimum: 1}
-    AgentRunEvent:
-      type: object
-      required: [sequence, run_id, invocation_id, project_id, project_revision, kind, state, time, usage]
-      properties:
-        sequence: {type: integer, minimum: 1}
-        run_id: {type: string, description: Root invocation identity.}
-        invocation_id: {type: string, description: Native child or root invocation identity.}
-        parent_id: {type: string}
-        project_id: {type: string}
-        project_revision: {type: string}
-        node_id: {type: string}
-        request_id: {type: string}
-        kind: {type: string, enum: [started, finished, node, input_requested, input_received, input_finished]}
-        state: {type: string}
-        time: {type: string, format: date-time}
-        usage: {$ref: '#/components/schemas/AgentUsage'}
-        evidence: {type: array, maxItems: 8, items: {$ref: '#/components/schemas/AgentArtifactReference'}}
-    AgentEventBatch:
-      type: object
-      required: [project_id, project_revision, epoch, cursor, reset, has_more, events]
-      properties:
-        project_id: {type: string}
-        project_revision: {type: string}
-        epoch: {type: string}
-        cursor: {type: string}
-        reset: {type: boolean, description: Replace local state with the current snapshot at this cursor.}
-        has_more: {type: boolean}
-        events: {type: array, maxItems: 128, items: {$ref: '#/components/schemas/AgentRunEvent'}}
-        snapshot: {$ref: '#/components/schemas/AgentRunList'}
-    AgentRunDetail:
-      type: object
-      required: [run, invocations, has_more, events, events_truncated]
-      properties:
-        trace: {$ref: '#/components/schemas/AgentTraceSummary'}
-        cost: {$ref: '#/components/schemas/AgentCostEstimate'}
-        run: {$ref: '#/components/schemas/AgentRun'}
-        invocations: {type: array, maxItems: 256, items: {$ref: '#/components/schemas/AgentRun'}}
-        has_more: {type: boolean}
-        events: {type: array, maxItems: 256, items: {$ref: '#/components/schemas/AgentRunEvent'}}
-        events_truncated: {type: boolean}
-        input: {$ref: '#/components/schemas/ChangeInput'}
-        text:
-          type: object
-          description: Present only with explicit include_text. Private model text is bounded to 64 KiB UTF-8; transient partial buffers cover at most 64 invocations. Tool disclosures contain at most 16 records from the selected invocation's last 128 events. Grounded research returns research_report_required without text so citations and Search suggestions remain together in its report.
-          required: [available, state, truncated]
-          properties:
-            available: {type: boolean}
-            state: {type: string, enum: [unavailable, partial_model_output, final_model_output]}
-            text: {type: string}
-            truncated: {type: boolean}
-            artifact: {$ref: '#/components/schemas/AgentArtifactReference'}
-            tools_truncated: {type: boolean}
-            tool_records:
-              type: array
-              maxItems: 16
-              items:
-                type: object
-                required: [event_id, name, kind, value, truncated]
-                properties:
-                  event_id: {type: string}
-                  call_id: {type: string, maxLength: 128}
-                  name: {type: string, maxLength: 128}
-                  kind: {type: string, enum: [arguments, result]}
-                  value: {type: string, description: JSON text bounded to 2048 UTF-8 bytes; credential-bearing keys are redacted and nested values are limited to 24 levels. Truncated text need not be valid JSON.}
-                  truncated: {type: boolean}
-    AgentTraceSummary:
-      type: object
-      required: [version, trace_id, snapshot, legacy, truncated, incomplete, omitted, spans]
-      properties:
-        export: {$ref: '#/components/schemas/AgentTraceExportPreview'}
-        version: {type: integer, enum: [1]}
-        trace_id: {type: string, pattern: '^[a-f0-9]{32}$'}
-        snapshot: {type: string, pattern: '^[a-f0-9]{64}$'}
-        legacy: {type: boolean}
-        truncated: {type: boolean}
-        incomplete: {type: boolean}
-        omitted: {type: integer, format: int64, minimum: 0}
-        spans: {type: array, maxItems: 256, items: {$ref: '#/components/schemas/AgentTraceSpan'}}
-    AgentTraceExportPreview:
-      type: object
-      required: [enabled, finished, unfinished]
-      properties:
-        enabled: {type: boolean}
-        destination: {type: string, maxLength: 2048}
-        fingerprint: {type: string, pattern: '^[a-f0-9]{64}$'}
-        finished: {type: integer, minimum: 0, maximum: 256}
-        unfinished: {type: integer, minimum: 0, maximum: 256}
-        reason: {type: string, enum: [not_configured, no_finished_spans]}
-    AgentTraceExportRequest:
-      type: object
-      additionalProperties: false
-      required: [project_id, project_revision, snapshot, destination_fingerprint, confirm]
-      properties:
-        project_id: {type: string}
-        project_revision: {type: string}
-        snapshot: {type: string, pattern: '^[a-f0-9]{64}$'}
-        destination_fingerprint: {type: string, pattern: '^[a-f0-9]{64}$'}
-        confirm: {type: boolean, enum: [true]}
-    AgentTraceExportReceipt:
-      type: object
-      required: [project_id, project_revision, run_id, snapshot, destination_fingerprint, state, sent]
-      properties:
-        project_id: {type: string}
-        project_revision: {type: string}
-        run_id: {type: string}
-        snapshot: {type: string, pattern: '^[a-f0-9]{64}$'}
-        destination_fingerprint: {type: string, pattern: '^[a-f0-9]{64}$'}
-        state: {type: string, enum: [exported, partial, warning, unknown]}
-        sent: {type: integer, minimum: 1, maximum: 256, description: Span count in the attempted payload; not proof of delivery}
-        accepted: {type: integer, minimum: 0, maximum: 256, description: Absent when acceptance is unknown.}
-        rejected: {type: integer, minimum: 0, maximum: 256, description: Absent when rejection is unknown.}
-        reason: {type: string, enum: [transport_error, canceled, deadline_exceeded, unexpected_response, invalid_acknowledgement, collector_warning, collector_rejected]}
-    AgentTraceSpan:
-      type: object
-      additionalProperties: false
-      required: [id, kind, status, started, elapsed_nanos]
-      properties:
-        id: {type: string, pattern: '^[a-f0-9]{16}$'}
-        parent_id: {type: string, pattern: '^[a-f0-9]{16}$'}
-        run_key: {type: string, pattern: '^[a-f0-9]{64}$'}
-        operation_key: {type: string, pattern: '^[a-f0-9]{64}$'}
-        kind: {type: string, enum: [invocation, node, tool, provider, retry, summary, delegation, check]}
-        status: {type: string, enum: [running, completed, failed, canceled, timed_out, interrupted, unfinished]}
-        started: {type: string, format: date-time}
-        ended: {type: string, format: date-time}
-        elapsed_nanos: {type: integer, format: int64, minimum: 0}
     AgentCostEstimate:
       type: object
       required: [status, known_subtotal, reasons]
@@ -1681,14 +1132,6 @@ components:
           type: array
           uniqueItems: true
           items: {type: string, enum: [price_table_unavailable, legacy_usage, model_rate_unavailable, usage_incomplete, cache_split_unknown]}
-    AgentRunControl:
-      type: object
-      additionalProperties: false
-      required: [project_id, project_revision, action]
-      properties:
-        project_id: {type: string}
-        project_revision: {type: string}
-        action: {type: string, enum: [cancel]}
     Error:
       type: object
       required: [type, message, user_message]
@@ -2198,14 +1641,6 @@ components:
       required: [project_revision]
       properties:
         project_revision: {type: string}
-    FileAnalysisRequest:
-      type: object
-      required: [path, project_revision]
-      properties:
-        path: {type: string}
-        project_revision: {type: string}
-        refresh: {type: boolean}
-        confirm_remote_provider: {type: boolean}
     SecurityScanRequest:
       type: object
       required: [path, project_revision]
@@ -2316,23 +1751,6 @@ components:
         context_policy_version: {type: string}
         instructions_fingerprint: {type: string, description: Identity of the applicable AGENTS.md guides used for analysis.}
         generated_at: {type: string, format: date-time}
-    PerformanceFinding:
-      type: object
-      required: [id, category, potential_impact, confidence, title, observed_pattern, workload_conditions, recommendation, tradeoff, verification_plan, start_line, end_line]
-      properties:
-        id: {type: string}
-        category: {type: string, enum: [cpu, memory, io, concurrency, caching, ui]}
-        potential_impact: {type: string, enum: [high, medium, low, unknown]}
-        confidence: {type: string, enum: [high, medium, low]}
-        title: {type: string}
-        observed_pattern: {type: string}
-        workload_conditions: {type: string}
-        recommendation: {type: string}
-        tradeoff: {type: string}
-        verification_plan: {type: string}
-        start_line: {type: integer}
-        end_line: {type: integer}
-        engineering_insight: {$ref: '#/components/schemas/EngineeringInsight'}
     Finding:
       type: object
       properties:
@@ -2532,33 +1950,32 @@ components:
     AnalysisModels:
       type: object
       additionalProperties: false
-      required: [code, features]
+      required: [code]
       anyOf:
         - required: [performance, security]
         - required: [review]
-      description: Independent model choices for one run. Legacy review supplies either missing Performance or Security choice. Omission uses Bug for Code and Analyze for reviews/features. Resume retains the captured choices; endpoints and credentials remain daemon-owned.
+      description: Independent model choices for one run. Legacy review supplies either missing Performance or Security choice. Omission uses Bug for Code and Analyze for reviews. Resume retains the captured choices; endpoints and credentials remain daemon-owned.
       properties:
         code: {$ref: '#/components/schemas/ModelSelection'}
         performance: {$ref: '#/components/schemas/ModelSelection'}
         security: {$ref: '#/components/schemas/ModelSelection'}
         review: {$ref: '#/components/schemas/ModelSelection'}
-        features: {$ref: '#/components/schemas/ModelSelection'}
+        features: {$ref: '#/components/schemas/ModelSelection', description: 'Read from saved runs of the retired feature-discovery step; a request that sets it is refused.'}
     AnalysisPreviewRequest:
       type: object
       additionalProperties: false
       required: [project_id, project_revision, scope, refresh, limits]
       properties:
-        include_features: {type: boolean, default: false, description: Add one project-wide advisory feature step using saved goals and honoring explicit file exclusions. Resume retains the original choice.}
         models: {$ref: '#/components/schemas/AnalysisModels'}
         project_id: {type: string, minLength: 1}
         project_revision: {type: string, minLength: 1}
         scope: {type: string, enum: [project]}
         refresh: {type: boolean}
-        stale_only: {type: boolean, default: false, description: Select only files with stale analysis; excludes unrelated failed or missing files. Incompatible with refresh, retry_stale_failed, recover_incomplete and include_features. Resume preserves the captured selection.}
+        stale_only: {type: boolean, default: false, description: Select only files with stale analysis; excludes unrelated failed or missing files. Incompatible with refresh, retry_stale_failed, and recover_incomplete. Resume preserves the captured selection.}
         stale_path: {type: string, maxLength: 4096, description: Optional exact project-relative file path to narrow stale_only analysis. Requires stale_only and an eligible saved selection target. Captured in both identities; start must echo it and resume preserves it. Other saved results remain available.}
         retry_stale_failed: {type: boolean, default: false, description: Select only files with stale or failed analysis; incompatible with refresh. Resume preserves the admitted selection.}
-        recover_incomplete: {type: boolean, default: false, description: 'Select only files with recoverable unfinished stages (stale, failed, partial, missing, canceled, interrupted or unavailable with a configured model); current stages stay cached and no source changes. Incompatible with refresh, retry_stale_failed and include_features. On resume the captured plan decides it; true for a non-recovery run returns 409.'}
-        clear_results: {type: boolean, default: false, description: 'Clear previously saved analysis findings and feature suggestions when starting a refreshed run from the beginning. Requires refresh and cannot be combined with stale_only, retry_stale_failed or recover_incomplete.'}
+        recover_incomplete: {type: boolean, default: false, description: 'Select only files with recoverable unfinished stages (stale, failed, partial, missing, canceled, interrupted or unavailable with a configured model); current stages stay cached and no source changes. Incompatible with refresh and retry_stale_failed. On resume the captured plan decides it; true for a non-recovery run returns 409.'}
+        clear_results: {type: boolean, default: false, description: 'Clear previously saved analysis findings when starting a refreshed run from the beginning. Requires refresh and cannot be combined with stale_only, retry_stale_failed or recover_incomplete.'}
         limits: {$ref: '#/components/schemas/AnalysisRunLimits'}
         resume_run: {$ref: '#/components/schemas/AnalysisRunIdentity'}
     AnalysisFileIdentity:
@@ -2607,18 +2024,18 @@ components:
       required: [schema_version, preview_id, identity, scope, refresh, limits, files, excluded, providers, expected_model_requests, max_model_requests, security_review_intent_required]
       properties:
         models: {$ref: '#/components/schemas/AnalysisModels'}
-        features: {$ref: '#/components/schemas/AnalysisFeaturePlan'}
+        features: {$ref: '#/components/schemas/AnalysisFeaturePlan', description: Only in runs saved before feature discovery was retired.}
         docs: {$ref: '#/components/schemas/AnalysisDocsPlan'}
         schema_version: {type: string, enum: ['1']}
         preview_id: {type: string, minLength: 1, description: Admission fingerprint including remaining work, cache dispositions and request bounds.}
         identity: {$ref: '#/components/schemas/AnalysisQueueIdentity'}
         scope: {type: string, enum: [project]}
         refresh: {type: boolean}
-        stale_only: {type: boolean, default: false, description: Select only files with stale analysis; excludes unrelated failed or missing files. Incompatible with refresh, retry_stale_failed, recover_incomplete and include_features. Resume preserves the captured selection.}
+        stale_only: {type: boolean, default: false, description: Select only files with stale analysis; excludes unrelated failed or missing files. Incompatible with refresh, retry_stale_failed, and recover_incomplete. Resume preserves the captured selection.}
         stale_path: {type: string, maxLength: 4096, description: Optional exact project-relative file path to narrow stale_only analysis. Requires stale_only and an eligible saved selection target. Captured in both identities; start must echo it and resume preserves it. Other saved results remain available.}
         retry_stale_failed: {type: boolean, default: false, description: Select only files with stale or failed analysis; incompatible with refresh. Resume preserves the admitted selection.}
-        recover_incomplete: {type: boolean, default: false, description: 'Select only files with recoverable unfinished stages (stale, failed, partial, missing, canceled, interrupted or unavailable with a configured model); current stages stay cached and no source changes. Incompatible with refresh, retry_stale_failed and include_features. On resume the captured plan decides it; true for a non-recovery run returns 409.'}
-        clear_results: {type: boolean, default: false, description: 'Clear previously saved analysis findings and feature suggestions when starting a refreshed run from the beginning.'}
+        recover_incomplete: {type: boolean, default: false, description: 'Select only files with recoverable unfinished stages (stale, failed, partial, missing, canceled, interrupted or unavailable with a configured model); current stages stay cached and no source changes. Incompatible with refresh and retry_stale_failed. On resume the captured plan decides it; true for a non-recovery run returns 409.'}
+        clear_results: {type: boolean, default: false, description: 'Clear previously saved analysis findings when starting a refreshed run from the beginning.'}
         limits: {$ref: '#/components/schemas/AnalysisRunLimits'}
         files: {type: array, description: 'Eligible files; in a scoped run, files outside the scope are retained. Remaining inventory is accounted for in excluded.', items: {$ref: '#/components/schemas/AnalysisPlannedFile'}}
         excluded: {type: array, items: {$ref: '#/components/schemas/AnalysisExcludedFile'}}
@@ -2638,17 +2055,16 @@ components:
       additionalProperties: false
       required: [identity, preview_id, limits, refresh, confirmations]
       properties:
-        include_features: {type: boolean, default: false, description: Must match the admitted preview.}
         models: {$ref: '#/components/schemas/AnalysisModels'}
         identity: {$ref: '#/components/schemas/AnalysisQueueIdentity'}
         preview_id: {type: string, minLength: 1}
         limits: {$ref: '#/components/schemas/AnalysisRunLimits'}
         refresh: {type: boolean}
-        stale_only: {type: boolean, default: false, description: Select only files with stale analysis; excludes unrelated failed or missing files. Incompatible with refresh, retry_stale_failed, recover_incomplete and include_features. Resume preserves the captured selection.}
+        stale_only: {type: boolean, default: false, description: Select only files with stale analysis; excludes unrelated failed or missing files. Incompatible with refresh, retry_stale_failed, and recover_incomplete. Resume preserves the captured selection.}
         stale_path: {type: string, maxLength: 4096, description: Optional exact project-relative file path to narrow stale_only analysis. Requires stale_only and an eligible saved selection target. Captured in both identities; start must echo it and resume preserves it. Other saved results remain available.}
         retry_stale_failed: {type: boolean, default: false, description: Select only files with stale or failed analysis; incompatible with refresh. Resume preserves the admitted selection.}
-        recover_incomplete: {type: boolean, default: false, description: 'Select only files with recoverable unfinished stages (stale, failed, partial, missing, canceled, interrupted or unavailable with a configured model); current stages stay cached and no source changes. Incompatible with refresh, retry_stale_failed and include_features. On resume the captured plan decides it; true for a non-recovery run returns 409.'}
-        clear_results: {type: boolean, default: false, description: 'Clear previously saved analysis findings and feature suggestions when starting a refreshed run from the beginning. Must match the admitted preview.'}
+        recover_incomplete: {type: boolean, default: false, description: 'Select only files with recoverable unfinished stages (stale, failed, partial, missing, canceled, interrupted or unavailable with a configured model); current stages stay cached and no source changes. Incompatible with refresh and retry_stale_failed. On resume the captured plan decides it; true for a non-recovery run returns 409.'}
+        clear_results: {type: boolean, default: false, description: 'Clear previously saved analysis findings when starting a refreshed run from the beginning. Must match the admitted preview.'}
         confirmations: {$ref: '#/components/schemas/AnalysisRunConfirmations'}
     AnalysisRunControlRequest:
       type: object
@@ -2703,7 +2119,7 @@ components:
       type: object
       required: [schema_version, identity, plan, status, files, sections, elapsed_seconds, window_elapsed_seconds, window_files_completed, created_at, updated_at]
       properties:
-        features: {$ref: '#/components/schemas/AnalysisFeatureProgress'}
+        features: {$ref: '#/components/schemas/AnalysisFeatureProgress', description: Only in runs saved before feature discovery was retired; such a run cannot resume.}
         docs: {$ref: '#/components/schemas/DocsRefresh'}
         schema_version: {type: string, enum: ['1']}
         identity: {$ref: '#/components/schemas/AnalysisRunIdentity'}
@@ -2720,7 +2136,7 @@ components:
     AnalysisFeaturePlan:
       type: object
       required: [expected_hash, goals_hash, workspace_hash, excluded_paths, provider_id, max_model_requests]
-      description: One independent project-wide step alongside file analysis; goals and report prose remain in the feature store. Discovery has at least ten minutes, honoring longer configured Analyze timeouts. Its requests count toward preview totals and need Analyze consent; file batch deadlines do not consume its deadline.
+      description: The retired feature-discovery step of a saved run, kept so such runs stay readable.
       properties:
         expected_hash: {type: string, description: Captured feature-store hash used for compare-and-swap publication.}
         goals_hash: {type: string}
@@ -2797,51 +2213,6 @@ components:
         suggestion_count: {type: integer, nullable: true, minimum: 0, maximum: 5, description: Ideas newly added by this run's generation, not the cumulative library; zero (completed_empty) means no new ideas. Unknown until a successful report. Separate from finding counts.}
         report_hash: {type: string}
         reason: {type: string}
-    AnalysisSectionResults:
-      type: object
-      required: [identity, progress, semantic, performance, security, unclassified]
-      description: Only the selected category is populated. Saved producer evidence survives unsuccessful replacement stages. Run progress remains separate from saved totals. Legacy unclassified evidence never contributes to category counts.
-      properties:
-        identity: {$ref: '#/components/schemas/AnalysisRunIdentity'}
-        progress: {$ref: '#/components/schemas/AnalysisSectionProgress'}
-        saved_finding_count: {type: integer, nullable: true, minimum: 0, description: "Count of the returned classified saved findings, including stale evidence; null when no saved evidence is available. Independent of this run's finding_count and coverage."}
-        retained_files:
-          type: array
-          description: Current indexed identities for files omitted only by stale/failed retry selection, included in unfiltered saved result reads. Never includes user or policy exclusions and never authorizes dispatch.
-          items:
-            type: object
-            required: [path, content_hash, language]
-            properties:
-              path: {type: string}
-              content_hash: {type: string}
-              language: {type: string}
-        path: {type: string, description: Optional read-only file filter; progress remains project-wide.}
-        semantic: {type: array, items: {$ref: '#/components/schemas/UnifiedFinding'}}
-        performance: {type: array, items: {$ref: '#/components/schemas/PerformanceFileReport'}}
-        security: {type: array, items: {$ref: '#/components/schemas/SecurityFileReport'}}
-        unclassified: {type: array, items: {$ref: '#/components/schemas/UnifiedFinding'}}
-    PerformanceFileReport:
-      type: object
-      required: [schema_version, project_id, project_revision, path, content_hash, status, findings, model, profile, scope, prompt_version, context_policy_version, generated_at]
-      properties:
-        schema_version: {type: string}
-        project_id: {type: string}
-        project_revision: {type: string}
-        path: {type: string}
-        content_hash: {type: string}
-        status: {type: string}
-        findings: {type: array, items: {$ref: '#/components/schemas/PerformanceFinding'}}
-        warning: {type: string}
-        model: {type: string}
-        configured_model: {type: string, description: Requested model used for cache identity. Older reports may omit this field.}
-        profile: {type: string}
-        scope: {type: string}
-        provider_origin: {type: string}
-        reasoning_effort: {type: string}
-        prompt_version: {type: string}
-        context_policy_version: {type: string}
-        instructions_fingerprint: {type: string, description: Identity of the applicable AGENTS.md guides used for review.}
-        generated_at: {type: string, format: date-time}
     ChangeIdentity:
       type: object
       required: [project_id, project_revision, revision, hash]
@@ -2876,7 +2247,7 @@ components:
       type: object
       required: [kind]
       properties:
-        kind: {type: string, enum: [workflow, project_index, analysis, findings, features, scan, agent_settings, agent_run]}
+        kind: {type: string, enum: [workflow, project_index, analysis, findings, docs, scan, configuration, agent_settings, agent_run]}
         session_id: {type: string}
         workflow_id: {type: string}
         title: {type: string}
@@ -2972,41 +2343,6 @@ components:
         end_line: {type: integer, minimum: 1}
         quote: {type: string, minLength: 1, maxLength: 1024}
         observation: {type: string, minLength: 1, maxLength: 512, description: Model interpretation; validated source provenance does not verify the interpretation.}
-    PlanInvestigationSource:
-      type: object
-      additionalProperties: false
-      required: [path, hash, exists]
-      properties:
-        path: {type: string}
-        hash: {type: string, description: Current indexed hash for existing source; empty for a new write path.}
-        exists: {type: boolean}
-    PlanInvestigationRequest:
-      type: object
-      additionalProperties: false
-      required: [project_id, project_revision, plan, paths, sources]
-      properties:
-        integrations: {type: array, maxItems: 2, items: {$ref: '#/components/schemas/IntegrationUse'}}
-        project_id: {type: string, minLength: 1}
-        project_revision: {type: string, minLength: 1}
-        plan: {$ref: '#/components/schemas/ChangePlanInput'}
-        paths: {type: array, minItems: 1, maxItems: 8, uniqueItems: true, items: {type: string}}
-        sources: {type: array, minItems: 1, maxItems: 16, items: {$ref: '#/components/schemas/PlanInvestigationSource'}}
-        acceptance_criteria: {type: array, maxItems: 16, items: {type: string, minLength: 1, maxLength: 1024}}
-        confirm_remote_provider: {type: boolean, default: false}
-    PlanInvestigation:
-      type: object
-      required: [version, project_id, project_revision, input_hash, context_manifest, approach, evidence, assumptions, suggested_scope, acceptance_criteria]
-      properties:
-        version: {type: string, enum: [v1]}
-        project_id: {type: string}
-        project_revision: {type: string}
-        input_hash: {type: string}
-        context_manifest: {$ref: '#/components/schemas/ContextManifest'}
-        approach: {type: string, minLength: 1, maxLength: 4096}
-        evidence: {type: array, maxItems: 8, items: {$ref: '#/components/schemas/PlanEvidence'}}
-        assumptions: {type: array, maxItems: 8, items: {type: string, minLength: 1, maxLength: 512}}
-        suggested_scope: {type: array, maxItems: 8, items: {type: string}, description: Advisory paths; never automatically added to read/write scope.}
-        acceptance_criteria: {type: array, minItems: 1, maxItems: 16, items: {type: string, minLength: 1, maxLength: 512}}
     ChangePlanInput:
       type: object
       required: [problem, approach]
@@ -3027,15 +2363,6 @@ components:
             hash: {type: string, description: "Captured intent, criteria, source, instructions and workspace identity."}
             approved_hash: {type: string}
             read_targets: {type: array, items: {$ref: '#/components/schemas/ChangeTarget'}}
-    ChangePlanRequest:
-      allOf:
-        - {$ref: '#/components/schemas/ChangeIdentity'}
-        - type: object
-          required: [plan, paths, acceptance_criteria]
-          properties:
-            plan: {$ref: '#/components/schemas/ChangePlanInput'}
-            paths: {type: array, minItems: 1, maxItems: 8, uniqueItems: true, items: {type: string}}
-            acceptance_criteria: {type: array, minItems: 1, maxItems: 16, items: {type: string, maxLength: 1024}}
     ChangeFileReviewRequest:
       allOf:
         - {$ref: '#/components/schemas/ChangeIdentity'}
@@ -3160,14 +2487,6 @@ components:
             worktree_path: {type: string, description: Absolute path of the task's worktree; later requests for the task carry it as worktree_path.}
             branch: {type: string}
             warnings: {type: array, items: {type: string}, description: For example that the worktree runs other check commands and needs its own trust.}
-    InstructionProposalRequest:
-      description: ChangeCreateRequest fields plus content; exactly one AGENTS.md path and instructions kind.
-      allOf:
-        - {$ref: '#/components/schemas/ChangeCreateRequest'}
-        - type: object
-          required: [content]
-          properties:
-            content: {type: string, minLength: 1, maxLength: 32768}
     ChangeMessageRequest:
       allOf:
         - {$ref: '#/components/schemas/ChangeIdentity'}
@@ -3466,129 +2785,6 @@ components:
         reason: {type: string}
         checks: {type: array, items: {type: object}}
         updated_at: {type: string, format: date-time}
-    InstructionPreview:
-      type: object
-      properties:
-        project_id: {type: string}
-        project_revision: {type: string}
-        path: {type: string}
-        exists: {type: boolean}
-        existing_content: {type: string}
-        effective:
-          type: object
-          properties:
-            text: {type: string}
-            fingerprint: {type: string}
-            excluded: {type: array, items: {type: object}}
-            files:
-              type: array
-              items: {type: object, properties: {path: {type: string}, scope: {type: string}, content: {type: string}, hash: {type: string}}}
-        presets:
-          type: array
-          description: Independently selectable guidelines grouped by common AGENTS.md sections, matched locally to eligible indexed source files, build manifests and imports in the target directory. Common project rules are also included. No provider request is made.
-          items:
-            type: object
-            required: [id, label, category, content]
-            properties:
-              id: {type: string}
-              label: {type: string}
-              category:
-                type: string
-                enum: [Project overview and architecture, Build and development, Code style and conventions, Testing and validation, Security and data, UI and accessibility, Documentation, Review and handoff]
-              content: {type: string}
-              reason: {type: string, description: Why the guideline matches this scope.}
-              evidence:
-                type: array
-                maxItems: 3
-                description: Sorted example project-relative paths from the current index; absent for general guidelines.
-                items: {type: string}
-    FeatureRequest:
-      type: object
-      properties:
-        project_id: {type: string}
-        project_revision: {type: string}
-        expected_hash: {type: string}
-        goals: {type: string, maxLength: 4096}
-        confirm_remote_provider: {type: boolean}
-      required: [project_id, project_revision, expected_hash]
-    FeatureGenerateRequest:
-      allOf:
-        - {$ref: '#/components/schemas/FeatureRequest'}
-        - type: object
-          properties:
-            profile: {$ref: '#/components/schemas/ModelSelection'}
-            analysis_selection_id: {type: string}
-    FeatureStatusRequest:
-      allOf:
-        - {$ref: '#/components/schemas/FeatureRequest'}
-        - type: object
-          required: [status]
-          properties:
-            status: {type: string, enum: [open, saved, dismissed]}
-    FeatureReport:
-      type: object
-      description: Additive advisory feature history. Report-level revision, workspace, manifest and freshness describe only the most recent generation; each idea carries its own derived freshness. Saved history is bounded at 64 KiB; version 1 history is returned with a legacy generation until its next successful write.
-      properties:
-        schema_version: {type: integer, enum: [1, 2], description: Version of the stored history; 1 is unconverted legacy history still on disk.}
-        project_id: {type: string}
-        project_revision: {type: string}
-        hash: {type: string}
-        goals: {type: string}
-        status: {type: string, enum: [not_generated, ready, failed]}
-        freshness: {type: string, enum: [current, stale], description: Freshness of the most recent generation context only; it never revalidates older ideas.}
-        failure: {type: string}
-        workspace_hash: {type: string}
-        context_manifest: {$ref: '#/components/schemas/ContextManifest'}
-        updated_at: {type: string, format: date-time}
-        generations:
-          type: array
-          description: Provenance of successful generations still referenced by an idea or by last_generation.
-          items: {$ref: '#/components/schemas/FeatureGeneration'}
-        last_generation: {$ref: '#/components/schemas/FeatureGenerationOutcome'}
-        suggestions:
-          type: array
-          description: Accumulated ideas in admission order, bounded by the 64 KiB history rather than an item count.
-          items:
-            type: object
-            required: [id, title, benefit, evidence, paths, effort, acceptance_criteria, status, generation_id, freshness]
-            properties:
-              id: {type: string}
-              title: {type: string}
-              benefit: {type: string}
-              evidence: {type: string}
-              paths: {type: array, items: {type: string}}
-              effort: {type: string, enum: [small, medium, large]}
-              acceptance_criteria: {type: array, items: {type: string}}
-              status: {type: string, enum: [open, saved, dismissed]}
-              generation_id: {type: string, description: Generation that admitted this idea; legacy for version 1 ideas.}
-              freshness: {type: string, enum: [current, stale], description: Derived on read; current only when this idea's generation matches the current revision, workspace fingerprint and goals.}
-    FeatureGeneration:
-      type: object
-      required: [id, generated_at, project_revision, workspace_hash, goals_hash, model]
-      properties:
-        id: {type: string}
-        generated_at: {type: string, format: date-time}
-        project_revision: {type: string}
-        workspace_hash: {type: string}
-        goals_hash: {type: string, description: Empty when the goals behind legacy ideas are unknown; such ideas are stale.}
-        model:
-          type: object
-          nullable: true
-          description: Model that produced the generation, without endpoints or credentials; null when unknown.
-          required: [profile, model, provider_origin, remote_provider]
-          properties:
-            profile: {type: string}
-            model: {type: string}
-            provider_origin: {type: string}
-            remote_provider: {type: boolean}
-    FeatureGenerationOutcome:
-      type: object
-      required: [generation_id, added_count, duplicate_count]
-      description: Result of the most recent successful generation. added_count zero means no new suggestions were found.
-      properties:
-        generation_id: {type: string}
-        added_count: {type: integer, minimum: 0, maximum: 5}
-        duplicate_count: {type: integer, minimum: 0, maximum: 5}
     GitIdentity:
       type: object
       required: [head, branch]

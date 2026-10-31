@@ -54,23 +54,3 @@ func TestRetryMessageKeepsFeedbackWhenTheRequestIsLong(t *testing.T) {
 		t.Fatal("review feedback was cut off by a long request")
 	}
 }
-
-func TestVerificationSaysWhenNothingCouldRun(t *testing.T) {
-	unavailable := []CheckResult{
-		{Name: "text: web/app.ts", Required: true, State: CheckPassed},
-		{Name: "post-Apply tests", Required: true, State: CheckUnavailable},
-	}
-	if status, _ := verificationOutcome(unavailable, nil); status != "unavailable" {
-		t.Fatalf("no executed tests must not read as verified or failed, got %s", status)
-	}
-	failed := append(unavailable, CheckResult{Name: "post-Apply lint", Required: true, State: CheckFailed})
-	if status, _ := verificationOutcome(failed, nil); status != "failed" {
-		t.Fatalf("a real failure still fails, got %s", status)
-	}
-	if changeHasCode([]ChangeEdit{{Path: "README.md"}, {Path: "docs/guide.rst"}}) {
-		t.Fatal("documentation-only edits have nothing to execute")
-	}
-	if !changeHasCode([]ChangeEdit{{Path: "README.md"}, {Path: "web/app.ts"}}) {
-		t.Fatal("a code edit needs executed verification")
-	}
-}

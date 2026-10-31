@@ -10,7 +10,9 @@ import (
 type AnalysisModels struct {
 	Code string `json:"code"`
 	// Review preserves model assignments in older clients and saved runs.
-	Review      string `json:"review,omitempty"`
+	Review string `json:"review,omitempty"`
+	// Features is the model of the retired feature-discovery step, read from
+	// saved runs; a request that names one is refused.
 	Features    string `json:"features"`
 	Performance string `json:"performance,omitempty"`
 	Security    string `json:"security,omitempty"`
@@ -56,7 +58,11 @@ func (models *AnalysisModels) profile(stage AnalysisStage) string {
 }
 
 func (models *AnalysisModels) selections() []string {
-	return []string{models.Code, models.profile(AnalysisStagePerformance), models.profile(AnalysisStageSecurityAI), models.Features}
+	selections := []string{models.Code, models.profile(AnalysisStagePerformance), models.profile(AnalysisStageSecurityAI)}
+	if models.Features != "" {
+		selections = append(selections, models.Features)
+	}
+	return selections
 }
 
 func (s *Service) analysisModelRuntime(stage AnalysisStage, models *AnalysisModels) modelRuntime {

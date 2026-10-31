@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/nanaki-93/mini-orca/v2/internal/app"
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +11,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/nanaki-93/mini-orca/v2/internal/app"
+	"github.com/nanaki-93/mini-orca/v2/internal/llm"
+	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
 
 func newChangeHandlerFixture(t *testing.T, baseURL string) *ChangeHandler {
@@ -122,59 +123,6 @@ func TestChangeHTTPPreservesFindingTargetsAndRejectsInvalidScope(t *testing.T) {
 	}
 }
 
-func TestChangeHTTPInstructionProposalRequiresChecksReviewAndConfirmation(t *testing.T) {
-	handler := newChangeHandlerFixture(t, "http://127.0.0.1:1")
-	index, _ := handler.manager.Index()
-	request := app.InstructionProposalRequest{ChangeCreateRequest: app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "instructions", Title: "Instructions", Paths: []string{"AGENTS.md"}}, Content: "Use deterministic tests.\n"}
-	response := workflowResponse(t, handler.ProposeInstructions, "POST", "/instructions/proposal", "", request)
-	if response.Code != 200 {
-		t.Fatalf("proposal: %d %s", response.Code, response.Body.String())
-	}
-	var session app.ChangeSession
-	if err := json.Unmarshal(response.Body.Bytes(), &session); err != nil {
-		t.Fatal(err)
-	}
-	identity := app.ChangeIdentity{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Revision: session.Revision, Hash: session.Hash}
-	rejected := workflowResponse(t, handler.Apply, "POST", "/changes/id/apply", session.ID, app.ChangeApplyRequest{ChangeIdentity: identity, Confirm: true})
-	if rejected.Code == 200 {
-		t.Fatal("Apply bypassed review")
-	}
-	if _, err := os.Stat(filepath.Join(handler.manager.Root(), "AGENTS.md")); !os.IsNotExist(err) {
-		t.Fatal("proposal wrote source")
-	}
-	for _, step := range []http.HandlerFunc{handler.Checks, handler.Review} {
-		response := workflowResponse(t, step, "POST", "/changes/id/action", session.ID, identity)
-		if response.Code != 200 {
-			t.Fatalf("preparation: %d %s", response.Code, response.Body.String())
-		}
-	}
-	applied := workflowResponse(t, handler.Apply, "POST", "/changes/id/apply", session.ID, app.ChangeApplyRequest{ChangeIdentity: identity, Confirm: true})
-	if applied.Code != 200 {
-		t.Fatalf("Apply: %d %s", applied.Code, applied.Body.String())
-	}
-	source, _ := os.ReadFile(filepath.Join(handler.manager.Root(), "AGENTS.md"))
-	if string(source) != request.Content {
-		t.Fatal("approved instructions were not applied")
-	}
-	var receipt app.ChangeMutationResult
-	if err := json.Unmarshal(applied.Body.Bytes(), &receipt); err != nil {
-		t.Fatal(err)
-	}
-	old := workflowResponse(t, handler.Verify, "POST", "/changes/id/verify", session.ID, identity)
-	if old.Code != 409 {
-		t.Fatal("verification accepted the pre-Apply project revision")
-	}
-	identity.ProjectRevision = receipt.ProjectRevision
-	verified := workflowResponse(t, handler.Verify, "POST", "/changes/id/verify", session.ID, identity)
-	if verified.Code != 200 {
-		t.Fatalf("text verification: %d %s", verified.Code, verified.Body.String())
-	}
-	var evidence app.ChangeVerification
-	if err := json.Unmarshal(verified.Body.Bytes(), &evidence); err != nil || evidence.Status != "verified" {
-		t.Fatalf("evidence: %+v, %v", evidence, err)
-	}
-}
-
 func TestChangeHTTPReadGuardsAndStrictRequests(t *testing.T) {
 	handler := newChangeHandlerFixture(t, "http://127.0.0.1:1")
 	index, _ := handler.manager.Index()
@@ -189,60 +137,12 @@ func TestChangeHTTPReadGuardsAndStrictRequests(t *testing.T) {
 			t.Fatalf("passive read: %d %s", response.Code, response.Body.String())
 		}
 	}
-	preview := workflowResponse(t, handler.Instructions, "GET", "/instructions"+query+"&path=AGENTS.md", "", nil)
-	if preview.Code != 200 {
-		t.Fatal(preview.Body.String())
-	}
 	bad := httptest.NewRecorder()
 	handler.Open(bad, httptest.NewRequest("POST", "/changes", bytes.NewBufferString(`{"paths":["main.go"],"unexpected":true}`)))
 	if bad.Code != 400 {
 		t.Fatal("unknown field accepted")
 	}
 	assertStructuredError(t, bad)
-	if response := workflowResponse(t, handler.ProposeInstructions, "POST", "/instructions/proposal", "", app.InstructionProposalRequest{ChangeCreateRequest: app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "instructions", Title: "Escape", Paths: []string{"../AGENTS.md"}}, Content: "Escape."}); response.Code != 400 {
-		t.Fatal("unsafe instruction path accepted")
-	}
-}
-
-func TestInstructionPreviewIncludesScopedRecommendationsWithoutProviderOrWrites(t *testing.T) {
-	handler := newChangeHandlerFixture(t, "http://127.0.0.1:1")
-	index, _ := handler.manager.Index()
-	query := "?project_id=" + index.ProjectID + "&project_revision=" + index.ProjectRevision
-	for _, path := range []string{"AGENTS.md", "docs/AGENTS.md"} {
-		response := workflowResponse(t, handler.Instructions, "GET", "/instructions"+query+"&path="+path, "", nil)
-		if response.Code != http.StatusOK {
-			t.Fatalf("preview: %d %s", response.Code, response.Body.String())
-		}
-		var preview InstructionPreview
-		if err := json.Unmarshal(response.Body.Bytes(), &preview); err != nil {
-			t.Fatal(err)
-		}
-		foundGo := false
-		foundGoTests := false
-		for _, preset := range preview.Presets {
-			if preset.ID == "go-tests" {
-				foundGoTests = preset.Category == "Testing and validation"
-			}
-			if preset.ID == "go" {
-				foundGo = true
-				if preset.Reason == "" || len(preset.Evidence) != 1 || preset.Evidence[0] != "main.go" {
-					t.Fatalf("missing recommendation evidence: %+v", preset)
-				}
-			}
-		}
-		if foundGo != (path == "AGENTS.md") || foundGoTests != foundGo || preview.ProjectRevision != index.ProjectRevision {
-			t.Fatalf("incorrect scoped preview: %+v", preview)
-		}
-		if _, err := os.Stat(filepath.Join(handler.manager.Root(), path)); !os.IsNotExist(err) {
-			t.Fatalf("preview wrote instructions: %v", err)
-		}
-	}
-	for _, query := range []string{query + "&path=../AGENTS.md", "?path=AGENTS.md", strings.Replace(query, index.ProjectRevision, "stale", 1) + "&path=AGENTS.md"} {
-		response := workflowResponse(t, handler.Instructions, "GET", "/instructions"+query, "", nil)
-		if response.Code == http.StatusOK {
-			t.Fatalf("unsafe or stale preview accepted: %s", query)
-		}
-	}
 }
 
 // The Web UI stops a long revision by closing its request: the daemon must

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
 
@@ -14,18 +15,17 @@ func TestAnalysisNativeWindowOwnsModelHistoryWithoutChangingEvidence(t *testing.
 	server, calls := analysisResponseServer(t, emptyAnalysisReply)
 	s, root := newSemanticAnalysisService(t, server.URL, 0)
 	preview := analysisRunPreviewFor(t, s, AnalysisRunLimits{100, 30, 2}, nil)
-	query := AgentRunQuery{ProjectID: preview.Identity.ProjectID, ProjectRevision: preview.Identity.ProjectRevision}
-	before, err := s.ListAgentRuns(t.Context(), query)
+	store, _, err := s.agentJournal(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := store.History(t.Context())
 	if err != nil || len(before.Runs) != 0 || calls.Load() != 0 {
 		t.Fatalf("passive history dispatched work: %+v %v", before, err)
 	}
 	run := startAndCompleteAnalysis(t, s, preview)
 	if run.Status != AnalysisRunCompletedEmpty || calls.Load() != 3 || run.Files[0].Stages[2].Attempts != 0 {
 		t.Fatalf("native graph changed evidence or deterministic rules: %+v calls=%d", run, calls.Load())
-	}
-	store, _, err := s.agentJournal(root)
-	if err != nil {
-		t.Fatal(err)
 	}
 	history, err := store.History(t.Context())
 	// Three more runs are the docs refresh after the window: a component
@@ -51,7 +51,11 @@ func TestAnalysisNativeWindowOwnsModelHistoryWithoutChangingEvidence(t *testing.
 		t.Fatal("missing native analysis root")
 	}
 	window, knowledge := 0, ""
+	var windowRoot agentstate.RunSnapshot
 	for _, invocation := range history.Runs {
+		if invocation.ID == parent {
+			windowRoot = invocation
+		}
 		switch {
 		case invocation.ID == parent || invocation.ParentID == parent:
 			window++
@@ -68,11 +72,16 @@ func TestAnalysisNativeWindowOwnsModelHistoryWithoutChangingEvidence(t *testing.
 	if window != 4 {
 		t.Fatalf("window runs = %d, want 4", window)
 	}
-	detail, err := s.AgentRunDetail(t.Context(), query, parent, false)
-	if err != nil || detail.Run.Active || detail.Run.Status != "completed" || detail.Text != nil || detail.Run.Usage.ModelCalls != 5 { // three stages, then the docs refresh's two requests
-		t.Fatalf("native window receipt=%+v %v", detail, err)
+	if windowRoot.Status != "completed" || windowRoot.Usage.ModelCalls != 5 { // three stages, then the docs refresh's two requests
+		t.Fatalf("native window receipt=%+v", windowRoot)
 	}
-	data, err := json.Marshal(detail.Events)
+	var events []agentstate.ProgressEvent
+	for _, event := range history.Events {
+		if event.RootID == parent {
+			events = append(events, event)
+		}
+	}
+	data, err := json.Marshal(events)
 	if err != nil || strings.Contains(string(data), "main.go") || strings.Contains(string(data), "package main") || !strings.Contains(string(data), "analysis_0002_security_rules") {
 		t.Fatalf("incorrect public progress: %s %v", data, err)
 	}
@@ -86,21 +95,21 @@ func TestAnalysisNativeCancellationPreservesCanceledDomainState(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitForTestSignal(t, started, "native analysis model request")
-	query := AgentRunQuery{ProjectID: preview.Identity.ProjectID, ProjectRevision: preview.Identity.ProjectRevision}
-	history, err := s.ListAgentRuns(t.Context(), query)
-	if err != nil {
-		t.Fatal(err)
-	}
+	history, _ := agentJournalHistory(t, s)
 	id := ""
 	for _, run := range history.Runs {
-		if run.Kind == "analysis-graph" && run.CanCancel {
+		if run.SchemaVersion == "analysis-graph-v1" && run.ParentID == "" && run.Status == "running" {
 			id = run.ID
 		}
 	}
 	if id == "" {
-		t.Fatal("active analysis has no cancellable native root")
+		t.Fatal("active analysis has no running native root")
 	}
-	if _, err := s.ControlAgentRun(t.Context(), id, AgentRunControl{ProjectID: query.ProjectID, ProjectRevision: query.ProjectRevision, Action: "cancel"}); err != nil {
+	admitted, err := s.currentTestAnalysisRun(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ControlAnalysisRun(t.Context(), AnalysisRunControlRequest{Identity: admitted.Identity, Action: AnalysisRunCancel}); err != nil {
 		t.Fatal(err)
 	}
 	settled := completedAnalysisRun(t, s)
@@ -108,9 +117,15 @@ func TestAnalysisNativeCancellationPreservesCanceledDomainState(t *testing.T) {
 	if settled.Status != AnalysisRunCanceled || stage.Status != AnalysisStageCanceled || stage.Attempts != 1 || stage.FindingCount != nil || calls.Load() != 1 {
 		t.Fatalf("cancel became paused or published evidence: %+v calls=%d", settled, calls.Load())
 	}
-	detail, err := s.AgentRunDetail(t.Context(), query, id, false)
-	if err != nil || detail.Run.Active || detail.Run.Status != "canceled" || detail.Run.Usage.ActiveCalls != 0 {
-		t.Fatalf("unsettled native cancellation: %+v %v", detail, err)
+	history, _ = agentJournalHistory(t, s)
+	var root agentstate.RunSnapshot
+	for _, run := range history.Runs {
+		if run.ID == id {
+			root = run
+		}
+	}
+	if root.Status != "canceled" || root.Usage.ActiveCalls != 0 {
+		t.Fatalf("unsettled native cancellation: %+v", root)
 	}
 }
 

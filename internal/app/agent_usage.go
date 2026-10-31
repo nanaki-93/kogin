@@ -1,81 +1,12 @@
 package app
 
 import (
-	"encoding/json"
-	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/app/agentruntime"
 	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
 	"github.com/nanaki-93/mini-orca/v2/internal/config"
 )
-
-func (s *Service) agentTraceSummary(history agentstate.History, run agentstate.RunSnapshot) (*AgentTraceSummary, error) {
-	record, exists := history.Traces[run.BudgetID]
-	result := &AgentTraceSummary{Version: 1, TraceID: agentruntime.TraceIdentity("mini-orca.trace.v1:" + run.BudgetID)[:32], Legacy: !exists, Incomplete: !exists, Omitted: record.Dropped, Spans: slices.Clone(record.Spans)}
-	active := map[string]bool{}
-	anyActive := false
-	for _, candidate := range history.Runs {
-		if candidate.BudgetID != run.BudgetID {
-			continue
-		}
-		owned, _ := s.agentRuns.state(candidate.ID)
-		active[agentruntime.TraceIdentity(candidate.ID)] = owned
-		anyActive = anyActive || owned
-	}
-	for i := range result.Spans {
-		span := &result.Spans[i]
-		if span.Status == "running" {
-			result.Incomplete = true
-			span.Status = unfinishedTraceStatus(*span, active, anyActive)
-		}
-	}
-	boundAgentTrace(result)
-	// Only this source-free projection and its shared accounting enter the
-	// snapshot identity. Reading it never loads private session events.
-	data, err := json.Marshal(struct {
-		Trace *AgentTraceSummary
-		Usage agentstate.BudgetUsage
-	}{result, run.Usage})
-	if err != nil {
-		return nil, fmt.Errorf("fingerprint source-free trace: %w", err)
-	}
-	result.Snapshot = agentruntime.TraceIdentity(string(data))
-	// Destination approval has its own identity; changing reporting settings
-	// must not change the identity of the retained source-free content.
-	result.Export = agentTraceExportPreview(result, s.conf().agentRuntime.Telemetry.Export)
-	return result, nil
-}
-
-func unfinishedTraceStatus(span agentstate.TraceSpan, active map[string]bool, anyActive bool) string {
-	if span.RunKey == "" && !anyActive {
-		// An attempt can be between invocations. Absence of a registered
-		// invocation cannot prove that its enclosing retry has stopped.
-		return "unfinished"
-	}
-	if span.RunKey != "" && !active[span.RunKey] {
-		return "interrupted"
-	}
-	return "running"
-}
-
-func boundAgentTrace(result *AgentTraceSummary) {
-	slices.SortFunc(result.Spans, func(a, b agentstate.TraceSpan) int {
-		if order := a.Started.Compare(b.Started); order != 0 {
-			return order
-		}
-		return strings.Compare(a.ID, b.ID)
-	})
-	if len(result.Spans) > 256 {
-		result.Omitted += uint64(len(result.Spans) - 256)
-		result.Spans = result.Spans[len(result.Spans)-256:]
-	}
-	result.Truncated = result.Omitted != 0
-	if result.Spans == nil {
-		result.Spans = []agentstate.TraceSpan{}
-	}
-}
 
 func agentCost(usage agentstate.BudgetUsage, table config.AgentPriceTable) *AgentCostEstimate {
 	result := &AgentCostEstimate{Status: "unknown", Currency: table.Currency, PriceVersion: table.Version, Reasons: []string{}}

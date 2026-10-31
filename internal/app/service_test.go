@@ -440,11 +440,11 @@ func TestScopedModelRuntimesRouteOnlyAssignedOperations(t *testing.T) {
 	if err := manager.Set(root, analysis); err != nil {
 		t.Fatal(err)
 	}
-	fileAnalysis, err := service.AnalyzeFile(context.Background(), "main.go", false, false)
-	if err != nil {
-		t.Fatal(err)
+	stage, err := semanticStageFor(t, service, "main.go", false)
+	if err != nil || stage.Semantic == nil {
+		t.Fatalf("file analysis = %+v, %v", stage, err)
 	}
-	if fileAnalysis.Scope != "bug" || fileAnalysis.ConfiguredModel != "bug-model" || fileAnalysis.Model != "bug-returned" || fileAnalysis.ProviderOrigin != bugServer.URL || fileAnalysis.ReasoningEffort != "medium" {
+	if fileAnalysis := stage.Semantic; fileAnalysis.Scope != "bug" || fileAnalysis.ConfiguredModel != "bug-model" || fileAnalysis.Model != "bug-returned" || fileAnalysis.ProviderOrigin != bugServer.URL || fileAnalysis.ReasoningEffort != "medium" {
 		t.Fatalf("file analysis provenance = %+v", fileAnalysis)
 	}
 	session := openChangeFixture(t, service, "main.go")

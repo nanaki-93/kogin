@@ -288,7 +288,11 @@ func validStoredAnalysisIdentity(run *AnalysisRun) bool {
 }
 
 func validStoredAnalysisIdentityPlan(plan *AnalysisRunPreview) bool {
-	if validateAnalysisSelectionOptions(plan.RecoverIncomplete, plan.Refresh, plan.ClearResults, plan.RetryStaleFailed, plan.Features != nil, plan.StaleOnly, plan.StalePath) != nil {
+	if validateAnalysisSelectionOptions(plan.RecoverIncomplete, plan.Refresh, plan.ClearResults, plan.RetryStaleFailed, plan.StaleOnly, plan.StalePath) != nil {
+		return false
+	}
+	// A saved run with feature discovery was never a scoped recovery.
+	if plan.Features != nil && (plan.StaleOnly || plan.RecoverIncomplete) {
 		return false
 	}
 	if plan.RetryStaleFailed && plan.Refresh {

@@ -201,38 +201,10 @@ func TestStaleSettingsRequireResetAndReindexRejectsOldEditors(t *testing.T) {
 	}
 }
 
-func TestSkillValidationIsExplicitBoundedAndReadOnly(t *testing.T) {
-	s, root := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
-	installSkillFixture(t, s, root)
-	control := settingsControl(t, s)
-	request := AgentSkillValidationRequest{ProjectID: control.ProjectID, ProjectRevision: control.ProjectRevision, Configuration: control.Configuration, Version: control.Version, Directory: "project-skills/review-code"}
-	result, err := s.ValidateAgentSkill(t.Context(), request)
-	if err != nil || result.State != "valid" || result.Inspection.Name != "review-code" || len(result.Inspection.RequiredTools) != 2 {
-		t.Fatal(result, err)
-	}
-	if _, err := os.Stat(filepath.Join(root, "SHOULD_NEVER_EXIST")); !os.IsNotExist(err) {
-		t.Fatal("inspection executed a resource", err)
-	}
-	if _, err := os.Stat(filepath.Join(root, ".mini-orca", "agents")); !os.IsNotExist(err) {
-		t.Fatal("inspection created a journal or grant", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "project-skills/review-code/scripts/check.sh"), []byte("changed\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.ValidateAgentSkill(t.Context(), request); err == nil {
-		t.Fatal("changed resource passed validation")
-	}
-	request.Directory = "not-configured"
-	if _, err := s.ValidateAgentSkill(t.Context(), request); err == nil {
-		t.Fatal("inspection acquired an unconfigured path")
-	}
-}
-
 func TestDisablingSkillDoesNotChangeAnAdmittedInvestigation(t *testing.T) {
 	started, release := make(chan struct{}), make(chan struct{})
 	var once sync.Once
 	var calls atomic.Int32
-	hash := ""
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		call := calls.Add(1)
 		body, _ := io.ReadAll(r.Body)
@@ -252,18 +224,16 @@ func TestDisablingSkillDoesNotChangeAnAdmittedInvestigation(t *testing.T) {
 		if call == 3 && strings.Contains(string(body), "list_skills") {
 			t.Error("future investigation retained disabled skill tools")
 		}
-		data, _ := json.Marshal(planInvestigationFixture(hash))
-		json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: string(data)}}}})
+		json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: validDeclarationExplanation}}}})
 	}))
 	t.Cleanup(func() { once.Do(func() { close(release) }); server.Close() })
 	s, root := newSemanticAnalysisService(t, server.URL, 0)
 	installSkillFixture(t, s, root)
-	request := planInvestigationRequest(t, s)
-	hash = request.Sources[0].Hash
+	request := declarationRequest(t, s)
 	done := make(chan error, 1)
 	work, cancel := context.WithCancel(t.Context())
 	var worker sync.WaitGroup
-	worker.Go(func() { _, err := s.InvestigatePlan(work, request); done <- err })
+	worker.Go(func() { _, err := s.ExplainDeclaration(work, request); done <- err })
 	t.Cleanup(func() { cancel(); once.Do(func() { close(release) }); worker.Wait() })
 	select {
 	case <-started:
@@ -287,7 +257,7 @@ func TestDisablingSkillDoesNotChangeAnAdmittedInvestigation(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("investigation did not finish")
 	}
-	if _, err := s.InvestigatePlan(t.Context(), request); err != nil || calls.Load() != 3 {
+	if _, err := s.ExplainDeclaration(t.Context(), request); err != nil || calls.Load() != 3 {
 		t.Fatal("future settings did not take effect", calls.Load(), err)
 	}
 }

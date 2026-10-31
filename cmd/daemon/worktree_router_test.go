@@ -34,10 +34,10 @@ func TestWorktreeRouterKeepsConcurrentCheckoutResponsesSeparate(t *testing.T) {
 		}
 		query := url.Values{"project_id": {index.ProjectID}, "project_revision": {index.ProjectRevision}}
 		response := httptest.NewRecorder()
-		router.handler(service, manager).ServeHTTP(response, httptest.NewRequest("GET", "/api/projects/current/agent-runs?"+query.Encode(), nil))
-		var history app.AgentRunList
-		if err := json.Unmarshal(response.Body.Bytes(), &history); err != nil || response.Code != 200 || history.ProjectID != index.ProjectID {
-			t.Fatalf("checkout history crossed scope: %s %v", response.Body.String(), err)
+		router.handler(service, manager).ServeHTTP(response, httptest.NewRequest("GET", "/api/projects/current/usage?"+query.Encode(), nil))
+		var usage app.ChangeUsageReport
+		if err := json.Unmarshal(response.Body.Bytes(), &usage); err != nil || response.Code != 200 || usage.ProjectID != index.ProjectID {
+			t.Fatalf("checkout agent usage crossed scope: %s %v", response.Body.String(), err)
 		}
 		for range 8 {
 			group.Add(1)

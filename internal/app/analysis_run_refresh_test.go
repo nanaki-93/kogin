@@ -104,13 +104,7 @@ func TestAnalysisClearResultsReplacesPausedRunAndRestartsFromZero(t *testing.T) 
 	var emptyReply atomic.Bool
 	server, _ := analysisResponseServer(t, func(stage AnalysisStage) string {
 		if emptyReply.Load() {
-			if stage == AnalysisStageFeatures {
-				return `{"suggestions":[]}`
-			}
 			return emptyAnalysisReply(stage)
-		}
-		if stage == AnalysisStageFeatures {
-			return `{"suggestions":[{"title":"Add batch export","benefit":"Helps users export reports.","evidence":"main.go defines Run.","paths":["main.go"],"effort":"small","acceptance_criteria":["Exports JSON report."]}]}`
 		}
 		return analysisReply(stage)
 	})
@@ -126,16 +120,9 @@ func TestAnalysisClearResultsReplacesPausedRunAndRestartsFromZero(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	initialFeatures, err := s.Features(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.SaveFeatureGoals(ctx, FeatureRequest{ProjectID: analysis.ProjectID, ProjectRevision: analysis.ProjectRevision, ExpectedHash: initialFeatures.Hash, Goals: "Keep the CLI simple."}); err != nil {
-		t.Fatal(err)
-	}
 	firstPreview, err := s.PreviewAnalysisRun(ctx, AnalysisPreviewRequest{
 		ProjectID: analysis.ProjectID, ProjectRevision: analysis.ProjectRevision,
-		Scope: AnalysisRunScopeProject, IncludeFeatures: true, Limits: AnalysisRunLimits{1, 30, 1},
+		Scope: AnalysisRunScopeProject, Limits: AnalysisRunLimits{1, 30, 1},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -148,14 +135,10 @@ func TestAnalysisClearResultsReplacesPausedRunAndRestartsFromZero(t *testing.T) 
 		t.Fatalf("expected paused run after 1 file, got %+v", paused)
 	}
 	assertSavedAnalysisCounts(t, s, paused, 1, 1, 2)
-	featuresAfterFirst, err := s.Features(ctx)
-	if err != nil || len(featuresAfterFirst.Suggestions) != 1 || featuresAfterFirst.Goals != "Keep the CLI simple." {
-		t.Fatalf("expected 1 feature suggestion and preserved goals, got %+v %v", featuresAfterFirst, err)
-	}
 
 	clearPreview, err := s.PreviewAnalysisRun(ctx, AnalysisPreviewRequest{
 		ProjectID: analysis.ProjectID, ProjectRevision: analysis.ProjectRevision,
-		Scope: AnalysisRunScopeProject, Refresh: true, ClearResults: true, IncludeFeatures: true,
+		Scope: AnalysisRunScopeProject, Refresh: true, ClearResults: true,
 		Limits: AnalysisRunLimits{1, 30, 1},
 	})
 	if err != nil {
@@ -168,7 +151,7 @@ func TestAnalysisClearResultsReplacesPausedRunAndRestartsFromZero(t *testing.T) 
 			}
 		}
 	}
-	// Preview is strictly read-only: old findings and feature suggestions remain until StartAnalysisRun.
+	// Preview is strictly read-only: old findings remain until StartAnalysisRun.
 	assertSavedAnalysisCounts(t, s, paused, 1, 1, 2)
 
 	emptyReply.Store(true)
@@ -180,10 +163,6 @@ func TestAnalysisClearResultsReplacesPausedRunAndRestartsFromZero(t *testing.T) 
 		t.Fatalf("restarted run did not replace paused run: %+v", restartedPaused)
 	}
 	assertSavedAnalysisCounts(t, s, restartedPaused, 0, 0, 0)
-	featuresAfterClear, err := s.Features(ctx)
-	if err != nil || len(featuresAfterClear.Suggestions) != 0 || featuresAfterClear.Goals != "Keep the CLI simple." {
-		t.Fatalf("expected 0 feature suggestions and preserved goals after clear, got %+v %v", featuresAfterClear, err)
-	}
 
 	resumePreview, err := s.PreviewAnalysisRun(ctx, AnalysisPreviewRequest{
 		ProjectID: analysis.ProjectID, ProjectRevision: analysis.ProjectRevision,
@@ -234,13 +213,22 @@ func TestAnalysisClearResultsPreservesInProgressIssues(t *testing.T) {
 	if _, err := s.StartAnalysisRun(ctx, analysisStartFor(firstPreview)); err != nil {
 		t.Fatal(err)
 	}
-	firstRun := completedAnalysisRun(t, s)
-	bugsBefore, err := s.ReadAnalysisSection(ctx, firstRun.Identity, project.FindingCategoryBugs, "")
-	if err != nil || len(bugsBefore.Semantic) != 2 {
-		t.Fatalf("expected 2 bugs before clear, got %+v %v", bugsBefore, err)
+	completedAnalysisRun(t, s)
+	findings, err := s.ListFindings(FindingFilter{Source: project.FindingSourceAI})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var bugsBefore []project.UnifiedFinding
+	for _, finding := range findings {
+		if finding.Category == project.FindingCategoryBugs {
+			bugsBefore = append(bugsBefore, finding)
+		}
+	}
+	if len(bugsBefore) != 2 {
+		t.Fatalf("expected 2 bugs before clear, got %+v", bugsBefore)
 	}
 	var inProgressID string
-	for _, f := range bugsBefore.Semantic {
+	for _, f := range bugsBefore {
 		if f.Message == "In-progress bug to keep." {
 			inProgressID = f.ID
 		}
@@ -276,9 +264,33 @@ func TestAnalysisClearResultsPreservesInProgressIssues(t *testing.T) {
 	if _, err := s.StartAnalysisRun(ctx, analysisStartFor(clearPreview)); err != nil {
 		t.Fatal(err)
 	}
-	secondRun := completedAnalysisRun(t, s)
-	bugsAfter, err := s.ReadAnalysisSection(ctx, secondRun.Identity, project.FindingCategoryBugs, "")
-	if err != nil || len(bugsAfter.Semantic) != 1 || bugsAfter.Semantic[0].ID != inProgressID || bugsAfter.Semantic[0].Status != project.FindingStatusInProgress {
-		t.Fatalf("expected only the in-progress bug to remain after ClearResults, got %+v %v", bugsAfter, err)
+	completedAnalysisRun(t, s)
+	bugsAfter := storedFindings(t, s, project.FindingCategoryBugs)
+	if len(bugsAfter) != 1 || bugsAfter[0].ID != inProgressID || bugsAfter[0].Status != project.FindingStatusInProgress {
+		t.Fatalf("expected only the in-progress bug to remain after ClearResults, got %+v", bugsAfter)
 	}
+}
+
+// storedFindings lists the active project's saved findings of one category.
+func storedFindings(t *testing.T, s *Service, category project.FindingCategory) []project.UnifiedFinding {
+	t.Helper()
+	index, err := s.manager.Index()
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := project.NewFindingStore(s.manager.Root())
+	if err != nil {
+		t.Fatal(err)
+	}
+	findings, err := store.Load(project.FindingInput{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := []project.UnifiedFinding{}
+	for _, finding := range findings {
+		if finding.Category == category {
+			result = append(result, finding)
+		}
+	}
+	return result
 }

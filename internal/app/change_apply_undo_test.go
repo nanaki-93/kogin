@@ -76,15 +76,13 @@ func TestChangeApplySerializesApprovalChangesDuringWrites(t *testing.T) {
 		applied <- err
 	}()
 	<-entered
-	resumed := make(chan *ChangeSession, 1)
-	resumeErr := make(chan error, 1)
+	reviewed := make(chan error, 1)
 	go func() {
-		result, err := service.ResumeChange(context.Background(), session.ID)
-		resumed <- result
-		resumeErr <- err
+		_, err := service.ReviewChange(context.Background(), session.ID, ChangeReviewRequest{ChangeIdentity: changeIdentity(session)})
+		reviewed <- err
 	}()
 	select {
-	case <-resumed:
+	case <-reviewed:
 		close(release)
 		t.Fatal("approval changed while reviewed files were being written")
 	case <-time.After(50 * time.Millisecond):
@@ -93,9 +91,10 @@ func TestChangeApplySerializesApprovalChangesDuringWrites(t *testing.T) {
 	if err := <-applied; err != nil {
 		t.Fatal(err)
 	}
-	result := <-resumed
-	if err := <-resumeErr; err != nil || result.State != "applied" {
-		t.Fatalf("resume lost applied state: %+v, %v", result, err)
+	<-reviewed
+	result, err := service.ChangeSession(context.Background(), session.ID)
+	if err != nil || result.State != "applied" {
+		t.Fatalf("review lost applied state: %+v, %v", result, err)
 	}
 }
 

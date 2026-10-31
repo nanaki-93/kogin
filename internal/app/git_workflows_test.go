@@ -156,37 +156,6 @@ func TestGitWorktreeCanBeCreatedFromAnExistingProjectWorktree(t *testing.T) {
 	}
 }
 
-func TestGitBranchSwitchRejectsDirtyAndCheckedOutBranches(t *testing.T) {
-	service, root, request := gitWorkflowFixture(t)
-	testGit(t, root, "branch", "other")
-	testGit(t, root, "tag", "other")
-	request.TargetBranch = "other"
-	if err := os.WriteFile(filepath.Join(root, "user.txt"), []byte("user work"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := service.SwitchGitBranch(context.Background(), request); err == nil {
-		t.Fatal("switched dirty tree")
-	}
-	if err := os.Remove(filepath.Join(root, "user.txt")); err != nil {
-		t.Fatal(err)
-	}
-	result, err := service.SwitchGitBranch(context.Background(), request)
-	if err != nil || result.State != "switched" || result.Repository.Branch != "other" || result.Index == nil {
-		t.Fatalf("switch: %+v %v", result, err)
-	}
-	trust, trustErr := service.ExecutionTrust(context.Background(), result.Index.ProjectRevision, "")
-	if trustErr != nil || !trust.Trusted || trust.WorkspaceHash == "" {
-		t.Fatalf("switch failed to rebind remembered project trust: %+v %v", trust, trustErr)
-	}
-	request = trustedGitRequest(t, service)
-	path := createWorkflowWorktree(t, service, request)
-	request.TargetBranch = "codex/fix"
-	result, err = service.SwitchGitBranch(context.Background(), request)
-	if err != nil || result.State != "failed" || result.Repository.Branch != "other" {
-		t.Fatalf("checked-out branch: %+v %v (%s)", result, err, path)
-	}
-}
-
 func TestGitMergePreviewSuccessAndConflictRecovery(t *testing.T) {
 	for _, conflict := range []bool{false, true} {
 		t.Run(map[bool]string{false: "success", true: "conflict"}[conflict], func(t *testing.T) {

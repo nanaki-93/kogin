@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -82,54 +80,5 @@ func TestAgentSettingsHTTPRequiresCurrentConfirmedCompleteValues(t *testing.T) {
 		if w.Code != http.StatusBadRequest {
 			t.Fatal("invalid settings query accepted", suffix, w.Code)
 		}
-	}
-}
-
-func TestAgentSkillValidationHTTPIsReadOnlyAndBoundToSettings(t *testing.T) {
-	fixture := newChangeHandlerFixture(t, "http://127.0.0.1:1")
-	root := fixture.manager.Root()
-	directory := filepath.Join(root, "skills", "review-code")
-	if err := os.MkdirAll(directory, 0700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(directory, "SKILL.md"), []byte("---\nname: review-code\ndescription: Review code.\nallowed-tools: read_snippet\n---\nInspect the captured sources.\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := fixture.service.Reindex(); err != nil {
-		t.Fatal(err)
-	}
-	cfg := scopedHandlerConfig("http://127.0.0.1:1")
-	cfg.AgentRuntime.Skills = []string{"skills/review-code"}
-	service, err := app.New(cfg, fixture.manager)
-	if err != nil {
-		t.Fatal(err)
-	}
-	index, err := fixture.manager.Index()
-	if err != nil {
-		t.Fatal(err)
-	}
-	view, err := service.AgentSettings(t.Context(), app.AgentRunQuery{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision})
-	if err != nil {
-		t.Fatal(err)
-	}
-	request := app.AgentSkillValidationRequest{ProjectID: view.ProjectID, ProjectRevision: view.ProjectRevision, Configuration: view.Configuration, Version: view.Version, Directory: "skills/review-code"}
-	handler := NewAgentSettingsHandler(service)
-	post := func() *httptest.ResponseRecorder {
-		data, _ := json.Marshal(request)
-		w := httptest.NewRecorder()
-		handler.ValidateSkill(w, httptest.NewRequest("POST", "/", bytes.NewReader(data)))
-		return w
-	}
-	w := post()
-	var result app.AgentSkillValidation
-	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil || w.Code != 200 || result.State != "valid" || len(result.Inspection.RequiredTools) != 1 || strings.Contains(w.Body.String(), "Inspect the captured sources") {
-		t.Fatal("validation", w.Code, w.Body.String(), err)
-	}
-	request.Version++
-	if w := post(); w.Code != http.StatusConflict {
-		t.Fatal("stale validation accepted", w.Code)
-	}
-	if _, err := os.Stat(filepath.Join(root, ".mini-orca", "agents")); !os.IsNotExist(err) {
-		t.Fatal("skill validation created state", err)
 	}
 }

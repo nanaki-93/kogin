@@ -30,55 +30,9 @@ type GitRepository struct {
 	Conflicts       []string `json:"conflicts"`
 }
 
-type GitStatus struct {
-	Available bool   `json:"available"`
-	Branch    string `json:"branch,omitempty"`
-	FileState string `json:"file_state,omitempty"`
-	DiffState string `json:"diff_state,omitempty"`
-}
-
 func nonGitRepositoryError(err error) bool {
 	var exit *exec.ExitError
 	return errors.Is(err, exec.ErrNotFound) || (errors.As(err, &exit) && strings.Contains(strings.ToLower(err.Error()), "not a git repository"))
-}
-
-// ReadFileStatus runs fixed read-only Git commands through the hardened Git runner.
-func ReadFileStatus(ctx context.Context, root, targetPath string) (GitStatus, error) {
-	if err := ctx.Err(); err != nil {
-		return GitStatus{}, err
-	}
-	inside, err := Read(ctx, root, "rev-parse", "--is-inside-work-tree")
-	if err != nil {
-		if nonGitRepositoryError(err) {
-			return GitStatus{}, nil
-		}
-		return GitStatus{}, err
-	}
-	if strings.TrimSpace(inside) != "true" {
-		return GitStatus{}, nil
-	}
-	branch, err := Read(ctx, root, "branch", "--show-current")
-	if err != nil {
-		return GitStatus{}, err
-	}
-	status, err := Read(ctx, root, "status", "--porcelain", "--", targetPath)
-	if err != nil {
-		return GitStatus{}, err
-	}
-	diff, err := Read(ctx, root, "diff", "--name-only", "--", targetPath)
-	if err != nil {
-		return GitStatus{}, err
-	}
-	diffState := "clean"
-	if strings.TrimSpace(diff) != "" {
-		diffState = "modified"
-	}
-	return GitStatus{
-		Available: true,
-		Branch:    strings.TrimSpace(branch),
-		FileState: strings.TrimSpace(status),
-		DiffState: diffState,
-	}, nil
 }
 
 func ReadRepository(ctx context.Context, root string) (*GitRepository, error) {

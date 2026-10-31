@@ -69,7 +69,7 @@ func validateStoredAnalysisDocs(run *AnalysisRun) error {
 func (s *Service) refreshDocsAfterRun(ctx context.Context, identity AnalysisRunIdentity) {
 	c := s.analysisRun
 	c.mu.Lock()
-	if c.run == nil || c.run.Identity != identity || c.fault != nil || c.run.Status != AnalysisRunRunning || ctx.Err() != nil || c.fileStopReason != "" || c.featureStopReason != "" || c.run.Plan.Docs == nil {
+	if c.run == nil || c.run.Identity != identity || c.fault != nil || c.run.Status != AnalysisRunRunning || ctx.Err() != nil || c.fileStopReason != "" || c.run.Plan.Docs == nil {
 		c.mu.Unlock()
 		return
 	}

@@ -111,9 +111,6 @@ func analysisModelResponseServer(t *testing.T, model string, reply func(Analysis
 		if strings.HasPrefix(request.Messages[0].Content, "Review exactly one supplied") {
 			stage = AnalysisStagePerformance
 		}
-		if request.ResponseFormat != nil && request.ResponseFormat.JSONSchema != nil && request.ResponseFormat.JSONSchema.Name == "feature_suggestions" {
-			stage = AnalysisStageFeatures
-		}
 		calls.Add(1)
 		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Model: model, Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Role: "assistant", Content: reply(stage)}, FinishReason: "stop"}}})
 	}))
@@ -489,7 +486,7 @@ func TestAnalysisFileRejectsCapturedFileMismatchAndReportsUnavailableModel(t *te
 	}
 }
 
-func TestAnalysisFileStandalonePreparationFailureDoesNotStoreModelFailure(t *testing.T) {
+func TestAnalysisFileSemanticPreparationFailureDoesNotStoreModelFailure(t *testing.T) {
 	server, calls := analysisResponseServer(t, analysisReply)
 	s, root := newSemanticAnalysisService(t, server.URL, 0)
 	source := "package main\nfunc Run() {}\n//" + strings.Repeat("x", maxSemanticAnalysisBytes)
@@ -499,8 +496,8 @@ func TestAnalysisFileStandalonePreparationFailureDoesNotStoreModelFailure(t *tes
 	if _, err := s.Reindex(); err != nil {
 		t.Fatal(err)
 	}
-	result, err := s.AnalyzeFile(context.Background(), "main.go", true, false)
-	if err == nil || result != nil || calls.Load() != 0 {
+	result, err := semanticStageFor(t, s, "main.go", true)
+	if err != nil || result.Progress.Status != AnalysisStageSkipped || result.Semantic != nil || calls.Load() != 0 {
 		t.Fatalf("oversized input=%+v, %v calls=%d", result, err, calls.Load())
 	}
 	entries, err := os.ReadDir(filepath.Join(root, ".mini-orca", "file-analysis"))

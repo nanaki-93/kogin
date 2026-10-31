@@ -176,28 +176,6 @@ func TestAnalysisRunKeepsConsentTransientAndProducerEvidenceTyped(t *testing.T) 
 	if err != nil || strings.Contains(string(persisted), `"confirmations"`) || strings.Contains(string(persisted), `"provider_ids"`) {
 		t.Fatalf("durable consent: %s, %v", persisted, err)
 	}
-	two := 2
-	results := AnalysisSectionResults{
-		Progress:     AnalysisSectionProgress{Category: project.FindingCategorySecurity, Status: AnalysisRunCompleted, Coverage: AnalysisRunCoverage{Total: 2, Succeeded: 2}, FindingCount: &two},
-		Semantic:     []project.UnifiedFinding{{ID: "semantic", Category: project.FindingCategorySecurity, Source: project.FindingSourceAI, Confidence: project.FindingConfidenceSuggested, Status: project.FindingStatusDismissed}},
-		Performance:  []project.PerformanceFileReport{},
-		Security:     []project.SecurityFileReport{{Path: "main.go", Source: project.SecuritySourceDeterministic, Findings: []project.SecurityFinding{{ID: "rule", Triage: project.SecurityTriageAccepted, VerificationState: project.SecurityVerificationUnverified}}}},
-		Unclassified: []project.UnifiedFinding{{ID: "old", Status: project.FindingStatusFixed}},
-	}
-	data, err := json.Marshal(results)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var restored AnalysisSectionResults
-	if err := json.Unmarshal(data, &restored); err != nil {
-		t.Fatal(err)
-	}
-	if restored.Semantic[0].Confidence != project.FindingConfidenceSuggested || restored.Semantic[0].Status != project.FindingStatusDismissed || restored.Security[0].Source != project.SecuritySourceDeterministic || restored.Security[0].Findings[0].Triage != project.SecurityTriageAccepted || restored.Unclassified[0].Category.Valid() || restored.Unclassified[0].Status != project.FindingStatusFixed {
-		t.Fatalf("lost evidence identity: %+v", restored)
-	}
-	if restored.Progress.Category != project.FindingCategorySecurity || len(restored.Performance) != 0 {
-		t.Fatal("Security read mixed result sections")
-	}
 	if got := AnalysisStageSemantic.Categories(); !reflect.DeepEqual(got, []project.FindingCategory{project.FindingCategoryBugs, project.FindingCategoryPerformance, project.FindingCategorySecurity}) {
 		t.Fatalf("semantic consumers = %v", got)
 	}
@@ -219,7 +197,7 @@ func TestAnalysisRunOpenAPIContractsAreRegisteredAndResolvable(t *testing.T) {
 		t.Fatal("registered operations remain in a planned extension")
 	}
 	paths := document["paths"].(map[string]any)
-	for _, path := range []string{"/api/projects/current/analysis/preview", "/api/projects/current/analysis/run", "/api/projects/current/analysis/run/control", "/api/projects/current/analysis/results"} {
+	for _, path := range []string{"/api/projects/current/analysis/preview", "/api/projects/current/analysis/run", "/api/projects/current/analysis/run/control"} {
 		if _, exists := paths[path]; !exists {
 			t.Fatalf("missing live route: %s", path)
 		}
@@ -286,7 +264,7 @@ func analysisStartFor(preview *AnalysisRunPreview) AnalysisRunStartRequest {
 	for _, provider := range preview.Providers {
 		confirmations.ProviderIDs = append(confirmations.ProviderIDs, provider.ID)
 	}
-	return AnalysisRunStartRequest{Models: cloneAnalysisModels(preview.Models), IncludeFeatures: preview.Features != nil, Identity: preview.Identity, PreviewID: preview.PreviewID, Limits: preview.Limits, RetryStaleFailed: preview.RetryStaleFailed, StaleOnly: preview.StaleOnly, StalePath: preview.StalePath, RecoverIncomplete: preview.RecoverIncomplete, Refresh: preview.Refresh, ClearResults: preview.ClearResults, Confirmations: confirmations}
+	return AnalysisRunStartRequest{Models: cloneAnalysisModels(preview.Models), Identity: preview.Identity, PreviewID: preview.PreviewID, Limits: preview.Limits, RetryStaleFailed: preview.RetryStaleFailed, StaleOnly: preview.StaleOnly, StalePath: preview.StalePath, RecoverIncomplete: preview.RecoverIncomplete, Refresh: preview.Refresh, ClearResults: preview.ClearResults, Confirmations: confirmations}
 }
 
 func waitAnalysisWindow(t *testing.T, s *Service) {
@@ -501,9 +479,6 @@ func analysisBlockingServer(t *testing.T) (*httptest.Server, *atomic.Int32, chan
 		reply := `{"findings":[]}`
 		if strings.HasPrefix(request.Messages[0].Content, "You summarize") {
 			reply = validSemanticAnalysis
-		}
-		if request.ResponseFormat != nil && request.ResponseFormat.JSONSchema != nil && request.ResponseFormat.JSONSchema.Name == "feature_suggestions" {
-			reply = validFeatureResponse
 		}
 		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: reply}}}})
 	}))
@@ -835,75 +810,5 @@ func TestAnalysisRunKeepsCategoryCountsAndPartialEvidenceAcrossFailedStages(t *t
 	overview, err := s.ProjectOverview()
 	if err != nil || overview.Run.Identity.ProjectID != overview.ProjectID || overview.Run.Identity.ProjectRevision != overview.ProjectRevision || !reflect.DeepEqual(overview.Run.Sections, run.Sections) {
 		t.Fatalf("overview=%+v %v", overview, err)
-	}
-}
-
-func TestAnalysisRunSectionReadsPreserveCategoriesTriageAndDoNotDispatch(t *testing.T) {
-	var calls atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var request llm.ChatRequest
-		_ = json.NewDecoder(r.Body).Decode(&request)
-		reply, docs := docsRefreshReply(request)
-		if docs {
-			_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: reply}}}})
-			return
-		}
-		calls.Add(1)
-		reply = `{"findings":[]}`
-		if strings.HasPrefix(request.Messages[0].Content, "You summarize") {
-			reply = `{"purpose":"Explains this file.","responsibilities":[],"dependencies":[],"side_effects":[],"risks":[{"category":"bugs","severity":"high","summary":"Error handling needs review."},{"category":"performance","severity":"low","summary":"Repeated work needs review."},{"category":"security","severity":"medium","summary":"Input trust needs review."}],"suggestions":[]}`
-		}
-		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: reply}}}})
-	}))
-	defer server.Close()
-	s, root := newSemanticAnalysisService(t, server.URL, 0)
-	preview := analysisRunPreviewFor(t, s, AnalysisRunLimits{100, 30, 2}, nil)
-	if _, err := s.StartAnalysisRun(context.Background(), analysisStartFor(preview)); err != nil {
-		t.Fatal(err)
-	}
-	run := completedAnalysisRun(t, s)
-	findings, err := s.ListFindings(FindingFilter{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(findings) != 3 {
-		t.Fatalf("semantic fixtures=%+v", findings)
-	}
-	if err := s.UpdateFindingStatus(run.Identity.ProjectRevision, findings[0].ID, project.FindingStatusDismissed); err != nil {
-		t.Fatal(err)
-	}
-	metadata, err := os.ReadFile(filepath.Join(root, analysisRunRelativePath))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, category := range []project.FindingCategory{project.FindingCategoryBugs, project.FindingCategoryPerformance, project.FindingCategorySecurity} {
-		result, err := s.ReadAnalysisSection(context.Background(), run.Identity, category, "main.go")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(result.Semantic) != 1 || result.Semantic[0].Category != category || result.Progress.FindingCount == nil || *result.Progress.FindingCount != 1 {
-			t.Fatalf("section=%+v", result)
-		}
-		if result.Semantic[0].ID == findings[0].ID && result.Semantic[0].Status != project.FindingStatusDismissed {
-			t.Fatal("triage lost")
-		}
-		if category != project.FindingCategoryPerformance && len(result.Performance) != 0 || category != project.FindingCategorySecurity && len(result.Security) != 0 {
-			t.Fatal("producer crossed sections")
-		}
-		if category == project.FindingCategorySecurity && len(result.Security) != 2 {
-			t.Fatalf("lost typed Security reports: %+v", result)
-		}
-	}
-	changed := run.Identity
-	changed.Generation = "old"
-	if _, err := s.ReadAnalysisSection(context.Background(), changed, project.FindingCategoryBugs, ""); !errors.Is(err, project.ErrRevisionConflict) {
-		t.Fatalf("old generation=%v", err)
-	}
-	if _, err := s.ReadAnalysisSection(context.Background(), run.Identity, project.FindingCategoryBugs, "missing.go"); !errors.Is(err, project.ErrRevisionConflict) {
-		t.Fatalf("uncaptured file=%v", err)
-	}
-	after, _ := os.ReadFile(filepath.Join(root, analysisRunRelativePath))
-	if string(after) != string(metadata) || calls.Load() != 3 {
-		t.Fatalf("read mutated progress or dispatched: calls=%d", calls.Load())
 	}
 }

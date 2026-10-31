@@ -64,20 +64,6 @@ func (s *FindingStore) Completions(projectID string) ([]FindingCompletion, error
 	return result, nil
 }
 
-func (s *FindingStore) Dismissed(projectID string) ([]FindingTarget, error) {
-	document, err := s.readDocumentSnapshot()
-	if err != nil {
-		return nil, err
-	}
-	result := []FindingTarget{}
-	for _, target := range document.Dismissed {
-		if target.ProjectID == projectID {
-			result = append(result, target)
-		}
-	}
-	return result, nil
-}
-
 // Complete records merged commits atomically with semantic finding triage. It
 // retains producer identities so completion cannot imply verified evidence.
 func (s *FindingStore) Complete(completions []FindingCompletion) error {

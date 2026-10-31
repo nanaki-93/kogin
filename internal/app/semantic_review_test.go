@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -36,7 +35,7 @@ func TestSemanticAnalysisRejectsUnknownParentFields(t *testing.T) {
 	}
 }
 
-func TestAnalyzeFileCachesStructuredOneFileSummary(t *testing.T) {
+func TestSemanticStageCachesStructuredOneFileSummary(t *testing.T) {
 	var prompt string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request llm.ChatRequest
@@ -52,10 +51,11 @@ func TestAnalyzeFileCachesStructuredOneFileSummary(t *testing.T) {
 	}))
 	defer server.Close()
 	service, root := newSemanticAnalysisServiceWithHelper(t, server.URL, 0)
-	result, err := service.AnalyzeFile(context.Background(), "main.go", false, false)
-	if err != nil {
-		t.Fatal(err)
+	stage, err := semanticStageFor(t, service, "main.go", false)
+	if err != nil || stage.Semantic == nil {
+		t.Fatalf("analysis = %+v, %v", stage, err)
 	}
+	result := stage.Semantic
 	if result.Status != project.AnalysisStatusFresh || result.Purpose == "" || result.Model != "fixture-model" || len(result.Risks) != 1 || result.Risks[0].Severity != "high" || result.Risks[0].Title != "Missing input validation" {
 		t.Fatalf("analysis = %+v", result)
 	}
@@ -72,9 +72,9 @@ func TestAnalyzeFileCachesStructuredOneFileSummary(t *testing.T) {
 	if file := findAppIndexFile(index, "main.go"); file == nil || file.AnalysisStatus != project.AnalysisStatusFresh {
 		t.Fatalf("index analysis status = %+v, want fresh", file)
 	}
-	second, err := service.AnalyzeFile(context.Background(), "main.go", false, false)
-	if err != nil || second.Status != project.AnalysisStatusFresh || len(second.Risks) != 1 || second.Risks[0].Title != "Missing input validation" {
-		t.Fatalf("cached analysis = %+v, %v", second, err)
+	cached, err := semanticStageFor(t, service, "main.go", false)
+	if second := cached.Semantic; err != nil || !cached.Progress.Cached || second == nil || second.Status != project.AnalysisStatusFresh || len(second.Risks) != 1 || second.Risks[0].Title != "Missing input validation" {
+		t.Fatalf("cached analysis = %+v, %v", cached, err)
 	}
 }
 
@@ -159,7 +159,7 @@ func TestSemanticCategoriesKeepGroundedTargetsAndOptionalDegradation(t *testing.
 	}
 }
 
-func TestAnalyzeFileRefreshClassifiesLegacyCacheWithoutPassiveModelCalls(t *testing.T) {
+func TestSemanticStageRefreshClassifiesLegacyCacheWithoutPassiveModelCalls(t *testing.T) {
 	var calls atomic.Int32
 	reply := strings.Replace(validSemanticAnalysis, `"risks":[]`, `"risks":[{"category":"security","severity":"low","summary":"A visible trust-boundary concern."}]`, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -183,9 +183,9 @@ func TestAnalyzeFileRefreshClassifiesLegacyCacheWithoutPassiveModelCalls(t *test
 			t.Fatalf("legacy read = %+v, %v; calls=%d", cached, err, calls.Load())
 		}
 	}
-	fresh, err := service.AnalyzeFile(context.Background(), "main.go", true, false)
-	if err != nil || fresh.Status != project.AnalysisStatusFresh || fresh.PromptVersion != "file-analysis-v17" || len(fresh.Risks) != 1 || fresh.Risks[0].Category != project.FindingCategorySecurity || calls.Load() != 1 {
-		t.Fatalf("explicit refresh = %+v, %v; calls=%d", fresh, err, calls.Load())
+	stage, err := semanticStageFor(t, service, "main.go", true)
+	if fresh := stage.Semantic; err != nil || fresh == nil || fresh.Status != project.AnalysisStatusFresh || fresh.PromptVersion != "file-analysis-v17" || len(fresh.Risks) != 1 || fresh.Risks[0].Category != project.FindingCategorySecurity || calls.Load() != 1 {
+		t.Fatalf("explicit refresh = %+v, %v; calls=%d", stage, err, calls.Load())
 	}
 	if _, err := service.CachedFileAnalysis("main.go"); err != nil || calls.Load() != 1 {
 		t.Fatal("reading categorized cache made another model call")
@@ -325,7 +325,7 @@ func TestFileAnalysisOverLimitInsightsPreserveParents(t *testing.T) {
 	}
 }
 
-func TestAnalyzeFileDoesNotRetryUnsupportedStructuredFormat(t *testing.T) {
+func TestSemanticStageDoesNotRetryUnsupportedStructuredFormat(t *testing.T) {
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		requests++
@@ -334,8 +334,10 @@ func TestAnalyzeFileDoesNotRetryUnsupportedStructuredFormat(t *testing.T) {
 	defer server.Close()
 	service, _ := newSemanticAnalysisService(t, server.URL, 0)
 	service.conf().runtimes.bug.effective.MaxRetries = 3
-	result, err := service.AnalyzeFile(context.Background(), "main.go", false, false)
-	if err != nil || result.Status != project.AnalysisStatusFailed || requests != 1 {
+	request := analysisStageRequestFor(t, service, "main.go", AnalysisStageSemantic)
+	request.RemainingAttempts = 4
+	result, err := service.analyzeFileStage(context.Background(), request, analysisStageAuthorityFor(t, request))
+	if err != nil || result.Progress.Status != AnalysisStageFailed || requests != 1 {
 		t.Fatalf("unsupported structured format result=%+v err=%v requests=%d", result, err, requests)
 	}
 }
@@ -372,7 +374,7 @@ func TestCachedFileAnalysisMarksV11PromptResultsStale(t *testing.T) {
 	}
 }
 
-func TestAnalyzeFileRequiresRemoteConfirmationBeforeSendingPrompt(t *testing.T) {
+func TestSemanticStageRequiresRemoteConfirmationBeforeSendingPrompt(t *testing.T) {
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		requests++
@@ -382,13 +384,15 @@ func TestAnalyzeFileRequiresRemoteConfirmationBeforeSendingPrompt(t *testing.T) 
 
 	service, _ := newSemanticAnalysisService(t, server.URL, 0)
 	service.conf().runtimes.bug.effective.RemoteProvider = true
-	if _, err := service.AnalyzeFile(context.Background(), "main.go", false, false); err == nil || !strings.Contains(err.Error(), "explicit confirmation") {
+	if _, err := semanticStageFor(t, service, "main.go", false); err == nil || !strings.Contains(err.Error(), "explicit confirmation") {
 		t.Fatalf("declined remote confirmation error = %v", err)
 	}
 	if requests != 0 {
 		t.Fatalf("declined confirmation sent %d provider requests", requests)
 	}
-	if _, err := service.AnalyzeFile(context.Background(), "main.go", false, true); err != nil {
+	request := analysisStageRequestFor(t, service, "main.go", AnalysisStageSemantic)
+	request.ConfirmRemoteProvider = true
+	if _, err := service.analyzeFileStage(context.Background(), request, analysisStageAuthorityFor(t, request)); err != nil {
 		t.Fatalf("confirmed analysis error = %v", err)
 	}
 	if requests != 1 {
@@ -396,7 +400,7 @@ func TestAnalyzeFileRequiresRemoteConfirmationBeforeSendingPrompt(t *testing.T) 
 	}
 }
 
-func TestAnalyzeFileValidatesAndCachesOneExactBugTaskWithoutAnotherModelCall(t *testing.T) {
+func TestSemanticStageValidatesAndCachesOneExactBugTaskWithoutAnotherModelCall(t *testing.T) {
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		calls++
@@ -405,11 +409,11 @@ func TestAnalyzeFileValidatesAndCachesOneExactBugTaskWithoutAnotherModelCall(t *
 	defer server.Close()
 	service, root := newSemanticAnalysisService(t, server.URL, 0)
 
-	first, err := service.AnalyzeFile(context.Background(), "main.go", false, false)
-	if err != nil {
-		t.Fatal(err)
+	stage, err := semanticStageFor(t, service, "main.go", false)
+	if err != nil || stage.Semantic == nil || len(stage.Semantic.Risks) != 1 {
+		t.Fatalf("analysis = %+v, %v", stage, err)
 	}
-	task := first.Risks[0].TaskSpec
+	task := stage.Semantic.Risks[0].TaskSpec
 	if task == nil || task.TargetPath != "main.go" || task.GoTestCandidate == nil {
 		t.Fatalf("validated task = %+v", task)
 	}
@@ -417,9 +421,9 @@ func TestAnalyzeFileValidatesAndCachesOneExactBugTaskWithoutAnotherModelCall(t *
 	if err != nil || string(content) != "package main\n\nimport \"fmt\"\n\nfunc Run() { fmt.Println(\"run\") }\n" {
 		t.Fatalf("analysis changed imported source: %q, %v", content, err)
 	}
-	second, err := service.AnalyzeFile(context.Background(), "main.go", false, false)
-	if err != nil || second.Risks[0].TaskSpec == nil || calls != 1 {
-		t.Fatalf("cached task = %+v, %v; calls = %d", second, err, calls)
+	cached, err := semanticStageFor(t, service, "main.go", false)
+	if err != nil || cached.Semantic == nil || cached.Semantic.Risks[0].TaskSpec == nil || calls != 1 {
+		t.Fatalf("cached task = %+v, %v; calls = %d", cached, err, calls)
 	}
 }
 
@@ -455,30 +459,7 @@ func TestSemanticBugTaskDropsUntrustedTargetsAndInvalidOptionalTests(t *testing.
 	}
 }
 
-func TestAnalyzeFileStoresActionableMalformedAndEmptyFailures(t *testing.T) {
-	for _, output := range []string{"not-json", ""} {
-		t.Run("output", func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: output}}}})
-			}))
-			defer server.Close()
-			service, _ := newSemanticAnalysisService(t, server.URL, 0)
-			result, err := service.AnalyzeFile(context.Background(), "main.go", false, false)
-			if err != nil || result.Status != project.AnalysisStatusFailed || result.Failure == "" {
-				t.Fatalf("malformed result = %+v, %v", result, err)
-			}
-			index, err := service.manager.Index()
-			if err != nil {
-				t.Fatal(err)
-			}
-			if file := findAppIndexFile(index, "main.go"); file == nil || file.AnalysisStatus != project.AnalysisStatusFailed {
-				t.Fatalf("index analysis status = %+v, want failed", file)
-			}
-		})
-	}
-}
-
-func TestAnalyzeFileHonorsTimeout(t *testing.T) {
+func TestSemanticStageHonorsTimeout(t *testing.T) {
 	handlerCanceled := make(chan struct{}, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
@@ -487,9 +468,9 @@ func TestAnalyzeFileHonorsTimeout(t *testing.T) {
 	}))
 	defer server.Close()
 	service, _ := newSemanticAnalysisService(t, server.URL, 1)
-	_, err := service.AnalyzeFile(context.Background(), "main.go", false, false)
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("analysis error = %v, want deadline exceeded", err)
+	result, err := semanticStageFor(t, service, "main.go", false)
+	if err != nil || result.Progress.Status != AnalysisStageFailed || result.Semantic != nil {
+		t.Fatalf("analysis = %+v, %v; want a failed stage after the deadline", result, err)
 	}
 	waitForTestSignal(t, handlerCanceled, "analysis provider cancellation")
 }

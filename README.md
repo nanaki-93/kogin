@@ -196,7 +196,7 @@ bundle is embedded in the binary.
 
 ### Project data (`.mini-orca/`)
 
-Project-local `.mini-orca/` stores `index.json`, `project-analysis.json`, `module-summaries.json`, `file-analysis/`, `findings.json`, `performance/files/`, and unified progress in `analysis/run.json`. Private `changes/` files retain conversations, captured source and proposals, feature goals/ideas, the latest grouped recovery journal, and verification evidence. Restore uses local persisted analysis without triggering model requests. See the [API guide](docs/api-contract.md) and [workflow migration](docs/api-contract.md#retired-workflows) for current contracts and boundaries.
+Project-local `.mini-orca/` stores `index.json`, `project-analysis.json`, `module-summaries.json`, `file-analysis/`, `findings.json`, `performance/files/`, and unified progress in `analysis/run.json`. Private `changes/` files retain conversations, captured source and proposals, and the latest grouped recovery journal. Restore uses local persisted analysis without triggering model requests. See the [API guide](docs/api-contract.md) and [workflow migration](docs/api-contract.md#retired-workflows) for current contracts and boundaries.
 
 ## Web UI development
 
@@ -258,11 +258,11 @@ and the [UI behavior contract](docs/ui-behavior.md).
 | Models and streaming | HTTP and native Gemini/Vertex adapters preserve tool identities, schemas, cancellation and usage. CLI profiles (pi, Claude Code, agy) provide completion and also run the tool-using coder and tester (below). Partial output never becomes an approved proposal. |
 | Plan limits | A CLI that reports its subscription plan's usage limit is not retried: the workflow pauses at that stage with the CLI and, when it said so, the reset time, and resumes from that stage. |
 | Task tools | A task in its own worktree whose creation or testing model runs in pi, Claude Code or agy gets a tool-using agent for that stage. Its only tools are Mini-Orca's, served by a per-run MCP server on a loopback port with a one-time token: read, list, search, outline, definitions and references, edit by exact text, create, delete, rename, run the checks, finish. Every call passes the context policy and the task's diff policy; the testing agent writes test files only. The worktree's diff becomes the proposal. |
-| Repository tools | Planning and file investigations use captured snippets, imports, search and impact evidence. Tools cannot widen their admitted scope or write source. |
+| Repository tools | File investigations use captured snippets, imports, search and impact evidence. Tools cannot widen their admitted scope or write source. |
 | Workflow graphs | Sequential stages, parallel specialist reviews, conditional branches, bounded repairs and durable human-input checkpoints run through ADK with host-owned checks and budgets. |
 | Sessions and artifacts | Private local journals and versioned evidence; restart keeps history and charges, not execution authority. |
 | Skills and context | Indexed ADK skill packages load within the admitted scope. Compaction and context caching are optional; remote cache retention needs consent. |
-| Observability | Local source-free traces, reported and estimated usage, optional versioned cost estimates and an explicitly confirmed telemetry export. Missing usage and unknown cost stay unknown. |
+| Observability | Local source-free traces, reported and estimated usage and optional versioned cost estimates. Missing usage and unknown cost stay unknown. |
 
 Unrestricted shell tools, implicit credentials, automatic source writes and
 automatic merges are outside the supported execution boundary. Conformance and

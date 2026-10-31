@@ -49,11 +49,6 @@ agent_runtime:
   # Optional user-maintained token prices; no prices or exporters are inferred.
   # See CONFIG.md for a complete versioned table and the unknown-usage rules.
   telemetry:
-    # Manual OTLP/HTTP JSON only; each export reviews and confirms one snapshot.
-    # HTTPS or literal loopback HTTP; include the collector's exact /v1/traces path.
-    export:
-      endpoint: ""
-      bearer_env: ""
     prices:
       version: ""
       currency: ""

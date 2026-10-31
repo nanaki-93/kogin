@@ -115,11 +115,6 @@ type ChangeMessageRequest struct {
 	sentComments    []string
 }
 
-type InstructionProposalRequest struct {
-	ChangeCreateRequest
-	Content string `json:"content"`
-}
-
 type ChangeCheckRequest struct {
 	ChangeIdentity
 	CheckOptions

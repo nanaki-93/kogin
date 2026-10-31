@@ -206,10 +206,6 @@ func TestWorkflowInputRestoreRequiresFreshChecksAndExplicitResponse(t *testing.T
 	if _, err := restarted.ReviewChange(t.Context(), ready.ID, ChangeReviewRequest{ChangeIdentity: identityForChange(ready)}); err == nil {
 		t.Fatal("saved checks restored review authority")
 	}
-	resumed, err := restarted.ResumeChange(t.Context(), ready.ID)
-	if err != nil || resumed.ReviewedHash != "" || len(resumed.Checks) != 0 {
-		t.Fatalf("restore: %+v %v", resumed, err)
-	}
 	if _, err := restarted.TrustProjectExecution(t.Context(), ready.ProjectRevision, true); err != nil {
 		t.Fatal(err)
 	}

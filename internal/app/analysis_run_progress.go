@@ -14,12 +14,6 @@ func newAnalysisRun(preview AnalysisRunPreview) *AnalysisRun {
 	now := time.Now().UTC()
 	run := &AnalysisRun{SchemaVersion: AnalysisRunSchemaVersion, Identity: AnalysisRunIdentity{AnalysisQueueIdentity: preview.Identity, ID: newOpaqueID("analysis"), Generation: newOpaqueID("generation")},
 		Plan: preview, Status: AnalysisRunQueued, Files: []AnalysisRunFile{}, Sections: []AnalysisSectionProgress{}, CreatedAt: now, UpdatedAt: now}
-	if preview.Features != nil {
-		run.Features = &AnalysisFeatureProgress{Status: AnalysisStagePending, Reason: preview.Features.Reason}
-		if preview.Features.MaxModelRequests == 0 {
-			run.Features.Status = AnalysisStageUnavailable
-		}
-	}
 	for _, file := range preview.Files {
 		progress := AnalysisRunFile{AnalysisFileIdentity: file.AnalysisFileIdentity, Stages: []AnalysisStageProgress{}}
 		for _, stage := range file.Stages {

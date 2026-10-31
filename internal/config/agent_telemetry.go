@@ -3,61 +3,16 @@ package config
 import (
 	"fmt"
 	"math"
-	"net"
-	"net/url"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"unicode"
 )
 
+// AgentTelemetry holds the optional price table that turns reported usage
+// into cost estimates.
 type AgentTelemetry struct {
-	Prices AgentPriceTable      `yaml:"prices"`
-	Export AgentTelemetryExport `yaml:"export"`
-}
-
-type AgentTelemetryExport struct {
-	Endpoint  string `yaml:"endpoint"`
-	BearerEnv string `yaml:"bearer_env"`
-}
-
-func (value AgentTelemetryExport) Validate() error {
-	if value.Endpoint == "" && value.BearerEnv == "" {
-		return nil
-	}
-	if err := validateExportEndpoint(value.Endpoint); err != nil {
-		return fmt.Errorf("agent telemetry export: %w", err)
-	}
-	u, err := url.Parse(value.Endpoint)
-	if err != nil || u.ForceQuery || strings.Contains(value.Endpoint, "#") || strings.TrimSpace(value.Endpoint) != value.Endpoint || strings.IndexFunc(value.Endpoint, unicode.IsControl) >= 0 {
-		return fmt.Errorf("agent telemetry export requires a URL without query, fragment or control characters")
-	}
-	if value.BearerEnv != "" && !exportEnvName.MatchString(value.BearerEnv) {
-		return fmt.Errorf("agent telemetry export bearer_env must name an explicit environment variable")
-	}
-	if u.Port() != "" {
-		port, err := strconv.Atoi(u.Port())
-		if err != nil || port < 1 || port > 65535 {
-			return fmt.Errorf("agent telemetry export port must be between 1 and 65535")
-		}
-	}
-	return nil
-}
-
-var exportEnvName = regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,63}$`)
-
-// validateExportEndpoint admits HTTPS, or HTTP only to a literal loopback address.
-func validateExportEndpoint(endpoint string) error {
-	u, err := url.Parse(endpoint)
-	if err != nil || len(endpoint) > 2048 || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Opaque != "" {
-		return fmt.Errorf("endpoint must be an absolute HTTP URL without credentials, query or fragment")
-	}
-	ip := net.ParseIP(u.Hostname())
-	if u.Scheme != "https" && !(u.Scheme == "http" && ip != nil && ip.IsLoopback()) {
-		return fmt.Errorf("endpoint requires HTTPS, except literal loopback HTTP")
-	}
-	return nil
+	Prices AgentPriceTable `yaml:"prices"`
 }
 
 type AgentPriceTable struct {
@@ -79,9 +34,6 @@ var priceVersion = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$`)
 var priceCurrency = regexp.MustCompile(`^[A-Z]{3}$`)
 
 func ResolveAgentTelemetry(value AgentTelemetry) (AgentTelemetry, error) {
-	if err := value.Export.Validate(); err != nil {
-		return value, err
-	}
 	table := &value.Prices
 	if table.Version == "" && table.Currency == "" && len(table.Rates) == 0 {
 		return value, nil

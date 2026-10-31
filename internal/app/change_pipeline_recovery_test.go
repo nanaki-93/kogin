@@ -65,19 +65,15 @@ func TestChangeWorkflowPersistenceFailureRemainsVisibleAndRestartDoesNotDispatch
 		t.Fatal(err)
 	}
 	read, err := restarted.ChangeSession(context.Background(), initial.ID)
-	if err != nil || read.Workflow.Status != "interrupted" || read.Workflow.Stages[0].Status != "interrupted" || read.Workflow.Stages[1].Status != "skipped" {
+	if err != nil || read.Workflow.Status != "interrupted" || read.Workflow.Stages[0].Status != "interrupted" || read.Workflow.Stages[1].Status != "skipped" || restarted.changeWorkflow.job != nil {
 		t.Fatalf("restart: %+v, %v", read, err)
 	}
 	history, err := restarted.ChangeHistory(context.Background())
 	if err != nil || history[0].WorkflowStatus != "interrupted" {
 		t.Fatalf("history: %+v, %v", history, err)
 	}
-	resumed, err := restarted.ResumeChange(context.Background(), initial.ID)
-	if err != nil || resumed.Workflow.Status != "outdated" || resumed.ReviewedHash != "" || len(resumed.Checks) != 0 || restarted.changeWorkflow.job != nil {
-		t.Fatalf("passive resume dispatched or retained authority: %+v, %v", resumed, err)
-	}
-	resumed.Workflow.Stages = nil
-	if err := storeChangeSession(root, resumed); err == nil {
+	read.Workflow.Stages = nil
+	if err := storeChangeSession(root, read); err == nil {
 		t.Fatal("corrupt workflow was accepted")
 	}
 }

@@ -17,11 +17,11 @@ func NewAgentSettingsHandler(service *app.Service) *AgentSettingsHandler {
 
 func (h *AgentSettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	query, ok := agentRunQuery(w, r)
+	query, ok := analysisQuery(w, r, []string{"project_id", "project_revision"}, nil)
 	if !ok {
 		return
 	}
-	value, err := h.service.AgentSettings(r.Context(), query)
+	value, err := h.service.AgentSettings(r.Context(), app.AgentRunQuery{ProjectID: query.Get("project_id"), ProjectRevision: query.Get("project_revision")})
 	respondAgentSettings(w, value, err)
 }
 
@@ -32,16 +32,6 @@ func (h *AgentSettingsHandler) Control(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	value, err := h.service.ControlAgentSettings(r.Context(), request)
-	respondAgentSettings(w, value, err)
-}
-
-func (h *AgentSettingsHandler) ValidateSkill(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	var request app.AgentSkillValidationRequest
-	if !decodeStrictJSON(w, r, &request, "invalid skill validation", "Provide the current project, configuration, settings version and configured skill directory.") {
-		return
-	}
-	value, err := h.service.ValidateAgentSkill(r.Context(), request)
 	respondAgentSettings(w, value, err)
 }
 

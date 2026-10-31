@@ -11,8 +11,33 @@ import (
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
 
+// appliedChangeFixture applies an approved task whose project has a passing test.
+func appliedChangeFixture(t *testing.T) (*Service, string, *ChangeSession, ChangeIdentity) {
+	t.Helper()
+	server := changeProvider(t, func() string { return groupedChangeResponse })
+	service, root := newSemanticAnalysisService(t, server.URL, 0)
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.test/verification\n\ngo 1.22\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	test := "package main\nimport \"testing\"\nfunc TestRun(t *testing.T) { Run() }\n"
+	if err := os.WriteFile(filepath.Join(root, "main_test.go"), []byte(test), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Reindex(); err != nil {
+		t.Fatal(err)
+	}
+	session := approveChangeFixture(t, service, prepareChangeFixture(t, service, "main.go", "docs/change.md"))
+	receipt, err := service.ApplyChange(context.Background(), session.ID, ChangeApplyRequest{ChangeIdentity: changeIdentity(session), Confirm: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := changeIdentity(session)
+	identity.ProjectRevision = receipt.ProjectRevision
+	return service, root, session, identity
+}
+
 func TestDeleteChangeKeepsATaskUndoNeeds(t *testing.T) {
-	service, root, applied, _ := appliedVerificationFixture(t, false)
+	service, root, applied, _ := appliedChangeFixture(t)
 	// The applied task's Apply can still be undone, and Undo restores it.
 	stored, err := loadChangeSession(root, applied.ID)
 	if err != nil {

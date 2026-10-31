@@ -3,13 +3,11 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -64,75 +62,8 @@ func TestAgentCostRequiresCompleteUsageRatesAndCacheKnowledge(t *testing.T) {
 	}
 }
 
-func TestAgentTraceProjectionIsPassiveScopedAndHonestAboutInterruption(t *testing.T) {
-	s, store, query := agentHistoryFixture(t)
-	run := seedAgentRun(t, s, store, "trace-run", "", time.Now().UTC())
-	legacy, err := s.AgentRunDetail(t.Context(), query, run.ID, false)
-	if err != nil || legacy.Trace == nil || !legacy.Trace.Legacy || !legacy.Trace.Incomplete || legacy.Cost.Total != nil {
-		t.Fatal("legacy projection invented measurements", err)
-	}
-	span := agentstate.TraceSpan{ID: "0123456789abcdef", Kind: "provider", Status: "running", Started: time.Now().UTC(), RunKey: agentruntime.TraceIdentity(run.ID), OperationKey: strings.Repeat("a", 64)}
-	if _, err := store.BeginSpan(t.Context(), run.BudgetID, span); err != nil {
-		t.Fatal(err)
-	}
-	first, err := s.AgentRunDetail(t.Context(), query, run.ID, false)
-	if err != nil || first.Text != nil || first.Trace.Legacy || !first.Trace.Incomplete || first.Trace.Spans[0].Status != "interrupted" {
-		t.Fatal("unfinished trace became success", err)
-	}
-	second, err := s.AgentRunDetail(t.Context(), query, run.ID, false)
-	if err != nil || first.Trace.Snapshot != second.Trace.Snapshot {
-		t.Fatal("passive snapshot changed", err)
-	}
-	data, err := json.Marshal(first)
-	if err != nil || strings.Contains(string(data), "PRIVATE_") {
-		t.Fatal("source escaped into projection", err)
-	}
-	if err := store.FinishSpan(t.Context(), run.BudgetID, span.ID, "failed", time.Now().UTC(), 1000); err != nil {
-		t.Fatal(err)
-	}
-	third, err := s.AgentRunDetail(t.Context(), query, run.ID, false)
-	if err != nil || third.Trace.Snapshot == first.Trace.Snapshot || third.Trace.Spans[0].Status != "failed" {
-		t.Fatal("trace change lost snapshot identity", err)
-	}
-	query.ProjectRevision = "foreign"
-	if _, err := s.AgentRunDetail(t.Context(), query, run.ID, false); err == nil {
-		t.Fatal("foreign trace scope accepted")
-	}
-}
-
-func TestAgentTraceProjectionBoundsHistoryWithoutChangingAccounting(t *testing.T) {
-	s, _, _ := agentHistoryFixture(t)
-	run := agentstate.RunSnapshot{Run: agentstate.Run{BudgetID: "budget"}, Usage: agentstate.BudgetUsage{ModelCalls: 300}}
-	record := agentstate.TraceRecord{Version: 1, Dropped: 9}
-	for i := range 300 {
-		record.Spans = append(record.Spans, agentstate.TraceSpan{ID: fmt.Sprintf("%016x", i+1), Kind: "provider", Status: "failed", Started: time.Unix(int64(i), 0), Ended: time.Unix(int64(i)+1, 0), ElapsedNanos: 1e9})
-	}
-	history := agentstate.History{Traces: map[string]agentstate.TraceRecord{"budget": record}}
-	result, err := s.agentTraceSummary(history, run)
-	if err != nil || len(result.Spans) != 256 || !result.Truncated || result.Omitted != 53 || run.Usage.ModelCalls != 300 || len(history.Traces["budget"].Spans) != 300 {
-		t.Fatal("bounded view altered history", err)
-	}
-}
-
-func TestAgentTraceDoesNotInventInterruptedRetryOwnership(t *testing.T) {
-	span := agentstate.TraceSpan{Kind: "retry", Status: "running"}
-	if got := unfinishedTraceStatus(span, nil, false); got != "unfinished" {
-		t.Fatal(got)
-	}
-	if got := unfinishedTraceStatus(span, nil, true); got != "running" {
-		t.Fatal(got)
-	}
-	span.RunKey = "owned"
-	if got := unfinishedTraceStatus(span, map[string]bool{"owned": true}, true); got != "running" {
-		t.Fatal(got)
-	}
-	if got := unfinishedTraceStatus(span, nil, false); got != "interrupted" {
-		t.Fatal(got)
-	}
-}
-
 func TestAgentReportingSettingsPreserveLegacyExecutionIdentity(t *testing.T) {
-	s, _, _ := agentHistoryFixture(t)
+	s, _ := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
 	before, err := s.agentConfiguration(s.conf().agentRuntime)
 	if err != nil {
 		t.Fatal(err)
@@ -169,7 +100,7 @@ func TestAgentTraceOverviewCancellationPreservesFactualInventory(t *testing.T) {
 		<-r.Context().Done()
 	}))
 	defer server.Close()
-	s, _, _ := agentHistoryFixture(t)
+	s, _ := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
 	configured, err := New(scopedTestConfig(server.URL), s.manager)
 	if err != nil {
 		t.Fatal(err)

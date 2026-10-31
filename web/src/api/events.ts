@@ -17,7 +17,6 @@ const INVALIDATES: Record<string, string[][]> = {
   project_index: [['project'], ['index'], ['changes'], ['session'], ['overview'], ['trust'], ['git'], ['file'], ['fileSummary'], ['usage'], ['rules'], ['changeRules']],
   findings: [['findings'], ['overview']],
   analysis: [['overview'], ['findings'], ['fileSummary'], ['usage']],
-  features: [['overview']],
   docs: [['overview']],
   scan: [['scan']],
   agent_settings: [['settings']],

@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/features"
+	"github.com/nanaki-93/mini-orca/v2/internal/storage"
 )
 
 var SessionIDPattern = regexp.MustCompile(`^change-[a-f0-9]{32}$`)
@@ -26,7 +26,7 @@ func NewOpaqueID(prefix string) string {
 
 // MetadataPath disallows metadata-directory aliases before either reads or writes.
 func MetadataPath(root, name string) (string, error) {
-	return features.MetadataPath(root, name)
+	return storage.MetadataPath(root, ".mini-orca", "changes", name)
 }
 
 // AtomicWriteSource writes content to a temporary file in the same directory,

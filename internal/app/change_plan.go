@@ -6,58 +6,10 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
-
-type ChangePlanRequest struct {
-	ChangeIdentity
-	Plan               ChangePlanInput `json:"plan"`
-	Paths              []string        `json:"paths"`
-	AcceptanceCriteria []string        `json:"acceptance_criteria"`
-}
-
-func (s *Service) UpdateChangePlan(ctx context.Context, id string, request ChangePlanRequest) (*ChangeSession, error) {
-	s.changesMu.Lock()
-	defer s.changesMu.Unlock()
-	session, root, err := s.loadChangeForAction(ctx, id, request.ChangeIdentity)
-	if err != nil {
-		return nil, err
-	}
-	if len(session.Changes) > 0 {
-		return nil, fmt.Errorf("start a new plan to change the intent of an existing proposal")
-	}
-	create := ChangeCreateRequest{Title: session.Title, Kind: session.Kind, Paths: request.Paths, AcceptanceCriteria: request.AcceptanceCriteria}
-	if err := validateChangeCreateRequest(create); err != nil {
-		return nil, err
-	}
-	session.Targets, session.Instructions = nil, map[string]string{}
-	session.AcceptanceCriteria = request.AcceptanceCriteria
-	if err := captureChangeScope(root, session, request.Paths); err != nil {
-		return nil, err
-	}
-	if err := captureChangePlan(root, session, &request.Plan); err != nil {
-		return nil, err
-	}
-	if err := captureFreshnessScope(root, session); err != nil {
-		return nil, err
-	}
-	_, manifest, err := composeChangePromptContext(root, session)
-	if err != nil {
-		return nil, err
-	}
-	session.ContextManifest = s.contextManifestForRuntime(manifest, s.conf().runtimes.function)
-	session.LastReviewedHash, session.FileReviewHash = "", ""
-	session.LastReviewedChanges, session.ReviewedFiles = nil, nil
-	session.Revision++
-	session.UpdatedAt = time.Now().UTC()
-	session.Workflow, session.Checks = nil, nil
-	revokeApproval(session)
-	delete(s.changeAuthority, session.ProjectID+"/"+id)
-	return session, storeChangeSession(root, session)
-}
 
 // ChangePlanInput is user-editable task intent, separate from proposed source.
 type ChangePlanInput struct {

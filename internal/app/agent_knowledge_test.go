@@ -130,34 +130,6 @@ func TestKnowledgeImportJournalFailurePreservesPriorReport(t *testing.T) {
 	}
 }
 
-func TestKnowledgeSemanticCacheReadIsPassiveAndLateSourceIsRejected(t *testing.T) {
-	var calls atomic.Int32
-	var change atomic.Bool
-	var root string
-	server := changeProvider(t, func() string {
-		calls.Add(1)
-		if change.Load() {
-			if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\nfunc Changed() {}\n"), 0600); err != nil {
-				t.Error(err)
-			}
-		}
-		return validSemanticAnalysis
-	})
-	s, root := newSemanticAnalysisService(t, server.URL, 0)
-	report, err := s.AnalyzeFile(t.Context(), "main.go", true, false)
-	if err != nil || report.Status != project.AnalysisStatusFresh {
-		t.Fatalf("semantic report=%+v %v", report, err)
-	}
-	assertKnowledgeHistory(t, s, root, "semantic", report.ProjectID, report.ProjectRevision)
-	if _, err := s.AnalyzeFile(t.Context(), "main.go", false, false); err != nil || calls.Load() != 1 {
-		t.Fatalf("cache read dispatched: %d %v", calls.Load(), err)
-	}
-	change.Store(true)
-	if result, err := s.AnalyzeFile(t.Context(), "main.go", true, false); result != nil || !errors.Is(err, project.ErrRevisionConflict) {
-		t.Fatalf("late semantic response published: %+v %v", result, err)
-	}
-}
-
 func TestKnowledgeSecurityRetainsNativeAncestry(t *testing.T) {
 	server, calls := analysisResponseServer(t, emptyAnalysisReply)
 	s, root := newSemanticAnalysisService(t, server.URL, 0)

@@ -8,13 +8,6 @@ import (
 	"github.com/nanaki-93/mini-orca/v2/internal/app"
 )
 
-type fileAnalysisRequest struct {
-	Path                  string `json:"path"`
-	ProjectRevision       string `json:"project_revision"`
-	Refresh               bool   `json:"refresh,omitempty"`
-	ConfirmRemoteProvider bool   `json:"confirm_remote_provider,omitempty"`
-}
-
 type securityScanRequest struct {
 	Path            string `json:"path"`
 	ProjectRevision string `json:"project_revision"`
@@ -44,23 +37,6 @@ func (h *ProjectHandler) FileAnalysis(w http.ResponseWriter, r *http.Request) {
 	analysis, err := h.service.CachedFileAnalysis(r.URL.Query().Get("path"))
 	if err != nil {
 		writeProjectError(w, "file analysis lookup failed", err)
-		return
-	}
-	api.WriteJSON(w, http.StatusOK, analysis)
-}
-
-// AnalyzeFile performs at most one selected-file model analysis.
-func (h *ProjectHandler) AnalyzeFile(w http.ResponseWriter, r *http.Request) {
-	request, ok := h.decodeFileAnalysisRequest(w, r)
-	if !ok || !requireCurrentRevision(w, h.manager, request.ProjectRevision) {
-		return
-	}
-	analysis, err := h.service.AnalyzeFile(r.Context(), request.Path, request.Refresh, request.ConfirmRemoteProvider)
-	if err != nil {
-		if writeContextError(w, "file analysis", err) {
-			return
-		}
-		writeProjectError(w, "file analysis failed", err)
 		return
 	}
 	api.WriteJSON(w, http.StatusOK, analysis)
@@ -133,13 +109,4 @@ func (h *ProjectHandler) ReviewSecurityFile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	api.WriteJSON(w, http.StatusOK, report)
-}
-
-func (h *ProjectHandler) decodeFileAnalysisRequest(w http.ResponseWriter, r *http.Request) (fileAnalysisRequest, bool) {
-	var request fileAnalysisRequest
-	if err := api.DecodeJSON(w, r, &request); err != nil {
-		api.WriteRequestError(w, err, "invalid file analysis request", "Provide path and project_revision.")
-		return request, false
-	}
-	return request, true
 }

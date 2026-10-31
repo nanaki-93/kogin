@@ -87,19 +87,18 @@ func TestAnalysisRecoverClassifiesStageObservations(t *testing.T) {
 	}
 }
 
-func TestAnalysisRecoverRejectsRefreshRetryAndFeatureCombinations(t *testing.T) {
+func TestAnalysisRecoverRejectsRefreshAndRetryCombinations(t *testing.T) {
 	server, calls := analysisResponseServer(t, emptyAnalysisReply)
 	s, _ := newSemanticAnalysisService(t, server.URL, 0)
 	ctx := context.Background()
 	limits := AnalysisRunLimits{100, 30, 2}
-	combinations := map[string]func(refresh, retry, features *bool){
-		"refresh":  func(refresh, _, _ *bool) { *refresh = true },
-		"retry":    func(_, retry, _ *bool) { *retry = true },
-		"features": func(_, _, features *bool) { *features = true },
+	combinations := map[string]func(refresh, retry *bool){
+		"refresh": func(refresh, _ *bool) { *refresh = true },
+		"retry":   func(_, retry *bool) { *retry = true },
 	}
 	for name, combine := range combinations {
 		request := recoveryRequestFor(t, s, limits, nil)
-		combine(&request.Refresh, &request.RetryStaleFailed, &request.IncludeFeatures)
+		combine(&request.Refresh, &request.RetryStaleFailed)
 		if _, err := s.PreviewAnalysisRun(ctx, request); err == nil || errors.Is(err, project.ErrRevisionConflict) {
 			t.Fatalf("%s preview accepted: %v", name, err)
 		}
@@ -107,7 +106,7 @@ func TestAnalysisRecoverRejectsRefreshRetryAndFeatureCombinations(t *testing.T) 
 	preview := recoveryPreviewFor(t, s, limits, nil)
 	for name, combine := range combinations {
 		start := analysisStartFor(preview)
-		combine(&start.Refresh, &start.RetryStaleFailed, &start.IncludeFeatures)
+		combine(&start.Refresh, &start.RetryStaleFailed)
 		if _, err := s.StartAnalysisRun(ctx, start); err == nil || errors.Is(err, project.ErrRevisionConflict) {
 			t.Fatalf("%s start accepted: %v", name, err)
 		}
@@ -181,9 +180,8 @@ func TestAnalysisRecoverSelectsIncompleteStagesAndReusesFreshOnes(t *testing.T) 
 	if run.Status != AnalysisRunCompletedEmpty || !run.Plan.RecoverIncomplete || run.Features != nil || calls.Load() != 15 {
 		t.Fatalf("recovery run=%s plan=%v calls=%d", run.Status, run.Plan.RecoverIncomplete, calls.Load())
 	}
-	result, err := s.ReadAnalysisSection(context.Background(), run.Identity, project.FindingCategoryBugs, "")
-	if err != nil || len(result.RetainedFiles) != 1 || result.RetainedFiles[0].Path != "fresh.go" {
-		t.Fatalf("recovery-omitted evidence not retained: %+v %v", result.RetainedFiles, err)
+	if retained := retainedAnalysisFiles(run); !reflect.DeepEqual(retained, []string{"fresh.go"}) {
+		t.Fatalf("recovery-omitted evidence not retained: %v", retained)
 	}
 	assertRecovery(t, readSelectionFor(t, s).Recovery, AnalysisRecoveryComplete, 0, 0, "")
 	if next := recoveryPreviewFor(t, s, limits, nil); len(scopedFiles(next)) != 0 || next.ExpectedModelRequests != 0 || calls.Load() != 15 {

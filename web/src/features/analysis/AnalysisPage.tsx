@@ -144,17 +144,6 @@ function RunDashboard({ run, coverage }: { run: AnalysisRunSummary; coverage?: R
             </div>
           </section>
         ))}
-        {run.features ? (
-          <section className="card" aria-label="Feature ideas">
-            <div className="card-head">
-              <span className="strong">Feature ideas</span>
-              <Badge tone={statusTone(run.features.status)}>{statusLabel(run.features.status)}</Badge>
-              <span className="spacer" />
-              <span className="xs muted">{run.features.suggestion_count ? plural(run.features.suggestion_count, 'idea') : '—'}</span>
-            </div>
-            {run.features.reason ? <div className="card-body small muted">{run.features.reason}</div> : null}
-          </section>
-        ) : null}
       </div>
       <ModelsUsed run={run} />
       <FileTable files={files} />

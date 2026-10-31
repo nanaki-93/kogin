@@ -220,9 +220,6 @@ func TestChangeWorkflowCancellationAndStalePublication(t *testing.T) {
 			if _, err := s.SendChangeMessage(context.Background(), initial.ID, ChangeMessageRequest{ChangeIdentity: changeIdentity(progress), Message: "Racing change"}); !errors.Is(err, project.ErrRevisionConflict) {
 				t.Fatalf("manual edit bypassed workflow ownership: %v", err)
 			}
-			if _, err := s.ResumeChange(context.Background(), initial.ID); err == nil {
-				t.Fatal("resume interrupted active workflow")
-			}
 			switch action {
 			case "cancel":
 				control := ChangeWorkflowControl{ProjectID: initial.ProjectID, ProjectRevision: initial.ProjectRevision, WorkflowID: "wrong"}
@@ -236,9 +233,6 @@ func TestChangeWorkflowCancellationAndStalePublication(t *testing.T) {
 			case "source":
 				if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("New guidance"), 0644); err != nil {
 					t.Fatal(err)
-				}
-				if _, err := s.ResumeChange(context.Background(), initial.ID); err == nil {
-					t.Fatal("stale read projection allowed a live worker's conversation to be replaced")
 				}
 			case "scope":
 				if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\n\nfunc Run() {}\n"), 0644); err != nil {

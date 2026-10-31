@@ -95,15 +95,9 @@ func TestAvailableModelsDeduplicatesJobsAndIncludesBothCLICatalogs(t *testing.T)
 }
 
 func TestCatalogModelsDispatchIndependentlyOfConfiguredJobsAndPersist(t *testing.T) {
-	reply := func(stage AnalysisStage) string {
-		if stage == AnalysisStageFeatures {
-			return validFeatureResponse
-		}
-		return analysisReply(stage)
-	}
-	analyze, analyzeCalls := analysisResponseServer(t, reply)
-	bug, bugCalls := analysisResponseServer(t, reply)
-	function, functionCalls := analysisResponseServer(t, reply)
+	analyze, analyzeCalls := analysisResponseServer(t, analysisReply)
+	bug, bugCalls := analysisResponseServer(t, analysisReply)
+	function, functionCalls := analysisResponseServer(t, analysisReply)
 	base, root := newSemanticAnalysisService(t, analyze.URL, 0)
 	cfg := scopedTestConfig(analyze.URL)
 	cfg.ModelScopes.Bug.APIBaseURL = bug.URL
@@ -118,7 +112,7 @@ func TestCatalogModelsDispatchIndependentlyOfConfiguredJobsAndPersist(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	models := &AnalysisModels{Code: catalog.Defaults["code"], Review: catalog.Defaults["bug"], Features: catalog.Defaults["analyze"]}
+	models := &AnalysisModels{Code: catalog.Defaults["code"], Review: catalog.Defaults["bug"]}
 	preview := analysisModelsPreviewFor(t, s, models, AnalysisRunLimits{100, 30, 2})
 	if analyzeCalls.Load()+bugCalls.Load()+functionCalls.Load() != 0 {
 		t.Fatal("preview dispatched inference")
@@ -127,7 +121,7 @@ func TestCatalogModelsDispatchIndependentlyOfConfiguredJobsAndPersist(t *testing
 		t.Fatal(err)
 	}
 	run := completedAnalysisRun(t, s)
-	if run.Status != AnalysisRunCompleted || functionCalls.Load() != 1 || bugCalls.Load() != 2 || analyzeCalls.Load() != 1 {
+	if run.Status != AnalysisRunCompleted || functionCalls.Load() != 1 || bugCalls.Load() != 2 || analyzeCalls.Load() != 0 {
 		t.Fatalf("dispatch = %s: %d/%d/%d", run.Status, functionCalls.Load(), bugCalls.Load(), analyzeCalls.Load())
 	}
 	restored, err := loadAnalysisRun(root)
@@ -139,7 +133,7 @@ func TestCatalogModelsDispatchIndependentlyOfConfiguredJobsAndPersist(t *testing
 		t.Fatal(err)
 	}
 	cached := analysisModelsPreviewFor(t, restarted, models, preview.Limits)
-	if cached.ExpectedModelRequests != 1 {
+	if cached.ExpectedModelRequests != 0 {
 		t.Fatalf("restart lost selected-model caches: %+v", cached)
 	}
 	retargeted := analysisStartFor(cached)
@@ -169,7 +163,7 @@ func testCLICatalogChoiceAdmission(t *testing.T, provider config.ModelProvider) 
 	if provider == config.PiProvider {
 		model = "lm-studio/local-model"
 	}
-	cfg.ModelScopes.Code = cliAppProfile(t, provider, model, validFeatureResponse, calls)
+	cfg.ModelScopes.Code = cliAppProfile(t, provider, model, `{"explanation":"Updates the message.","changes":[{"path":"main.go","content":"package main\nimport \"fmt\"\nfunc Run() { fmt.Println(\"updated\") }\n"}]}`, calls)
 	s, err := New(cfg, base.manager)
 	if err != nil {
 		t.Fatal(err)
@@ -178,20 +172,20 @@ func testCLICatalogChoiceAdmission(t *testing.T, provider config.ModelProvider) 
 	s.discoverPiModels = func(context.Context, string) ([]llm.PiModel, error) { return available, nil }
 	agyAvailable := []llm.AgyModel{{ID: model, Name: "Gemini New (High)"}}
 	s.discoverAgyModels = func(context.Context, string) ([]llm.AgyModel, error) { return agyAvailable, nil }
-	request := FeatureGenerateRequest{FeatureRequest: featureRequestFor(t, s, "Improve cancellation."), Profile: string(provider) + ":" + model}
-	if _, err := s.GenerateFeatures(context.Background(), request); err == nil {
+	session := openChangeFixture(t, s, "main.go")
+	request := ChangeMessageRequest{ChangeIdentity: changeIdentity(session), Message: "Update the message.", Profile: string(provider) + ":" + model}
+	if _, err := s.SendChangeMessage(context.Background(), session.ID, request); err == nil {
 		t.Fatal("CLI dispatched without consent")
 	}
 	if _, err := os.Stat(calls); !os.IsNotExist(err) {
 		t.Fatal("unconfirmed selection launched inference")
 	}
 	request.ConfirmRemoteProvider = true
-	report, err := s.GenerateFeatures(context.Background(), request)
-	if err != nil || report.Status != "ready" || len(report.Suggestions) != 1 || report.Generations[0].Model == nil || report.Generations[0].Model.Model != model || report.Generations[0].Model.ProviderOrigin != "cli://"+string(provider) {
-		t.Fatalf("CLI feature generation = %+v, %v", report, err)
+	proposal, err := s.SendChangeMessage(context.Background(), session.ID, request)
+	if err != nil || len(proposal.Changes) != 1 || proposal.ContextManifest.Model != model || proposal.ContextManifest.ProviderOrigin != "cli://"+string(provider) {
+		t.Fatalf("CLI proposal = %+v, %v", proposal, err)
 	}
-	excludeFeatureAnalysisFiles(t, s, []string{"main.go"})
-	models := &AnalysisModels{Code: "bug", Review: "analyze", Features: request.Profile}
+	models := &AnalysisModels{Code: "bug", Review: request.Profile}
 	preview := analysisModelsPreviewFor(t, s, models, AnalysisRunLimits{100, 30, 2})
 	available = nil
 	agyAvailable = nil
@@ -201,8 +195,9 @@ func testCLICatalogChoiceAdmission(t *testing.T, provider config.ModelProvider) 
 	if run, err := s.ReadAnalysisRun(context.Background(), preview.Identity.ProjectID, preview.Identity.ProjectRevision); err != nil || run != nil {
 		t.Fatal("invalid selection created a run")
 	}
-	if _, err := s.GenerateFeatures(context.Background(), request); !errors.Is(err, project.ErrRevisionConflict) {
-		t.Fatalf("removed CLI model generated features: %v", err)
+	request.ChangeIdentity = changeIdentity(proposal)
+	if _, err := s.SendChangeMessage(context.Background(), session.ID, request); !errors.Is(err, project.ErrRevisionConflict) {
+		t.Fatalf("removed CLI model generated a proposal: %v", err)
 	}
 	count, err := os.ReadFile(calls)
 	if err != nil || string(count) != "x" {
@@ -237,7 +232,7 @@ func TestModelSelectionsCheckBothCatalogsOnceAndPreserveLimits(t *testing.T) {
 		t.Fatalf("Agy operation limits = %+v", selected)
 	}
 	for _, selection := range []string{"agy:", "agy:--prompt", "agy:Gemini Flash", "agy:gemini\n", "agy:../model"} {
-		models := &AnalysisModels{Code: selection, Review: "analyze", Features: "code"}
+		models := &AnalysisModels{Code: selection, Review: "analyze"}
 		if err := models.Validate(); err == nil {
 			t.Fatalf("invalid selection accepted: %q", selection)
 		}

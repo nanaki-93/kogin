@@ -15,6 +15,9 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"google.golang.org/adk/v2/session"
+
+	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
 	"github.com/nanaki-93/mini-orca/v2/internal/config"
 	"github.com/nanaki-93/mini-orca/v2/internal/llm"
 )
@@ -137,9 +140,8 @@ func TestSkillsNativeToolsLoadLazilyAndPersistProvenance(t *testing.T) {
 			if !strings.Contains(string(data), "mini_orca.loaded_skill_files") {
 				t.Fatal("loaded skill provenance missing from native events")
 			}
-			records, _, err := InspectToolEvents(sessions[0].Events)
-			if err != nil || len(records) < 6 {
-				t.Fatalf("private tool records=%+v %v", records, err)
+			if parts := nativeToolParts(t, sessions[0].Events); parts < 6 {
+				t.Fatalf("native tool calls and results = %d", parts)
 			}
 			history, err := store.History(ctx)
 			if err != nil {
@@ -287,4 +289,29 @@ func TestSkillsConcurrentReadsKeepCapturedIdentity(t *testing.T) {
 	if files, err := investigation.SkillFiles(t.Context()); err != nil || len(files) != 2 {
 		t.Fatalf("files=%+v %v", files, err)
 	}
+}
+
+// nativeToolParts counts the tool calls and results recorded in persisted
+// native session events.
+func nativeToolParts(t *testing.T, events []agentstate.Event) int {
+	t.Helper()
+	count := 0
+	for _, stored := range events {
+		var event session.Event
+		if err := json.Unmarshal(stored.Data, &event); err != nil {
+			t.Fatalf("decode native event: %v", err)
+		}
+		if event.Content == nil {
+			continue
+		}
+		for _, part := range event.Content.Parts {
+			if part != nil && part.FunctionCall != nil {
+				count++
+			}
+			if part != nil && part.FunctionResponse != nil {
+				count++
+			}
+		}
+	}
+	return count
 }

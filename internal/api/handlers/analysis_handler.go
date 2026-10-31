@@ -3,12 +3,10 @@ package handlers
 import (
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/api"
 	"github.com/nanaki-93/mini-orca/v2/internal/app"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
 
 // AnalysisHandler exposes one project run and read-only categorized evidence.
@@ -69,25 +67,6 @@ func (h *AnalysisHandler) Control(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.WriteJSON(w, http.StatusOK, run)
-}
-func (h *AnalysisHandler) Results(w http.ResponseWriter, r *http.Request) {
-	query, ok := analysisQuery(w, r, []string{"project_id", "project_revision", "policy_fingerprint", "provider_fingerprint", "queue_id", "id", "generation", "category"}, []string{"path"})
-	if !ok {
-		return
-	}
-	identity := app.AnalysisRunIdentity{AnalysisQueueIdentity: app.AnalysisQueueIdentity{ProjectID: query.Get("project_id"), ProjectRevision: query.Get("project_revision"), PolicyFingerprint: query.Get("policy_fingerprint"), ProviderFingerprint: query.Get("provider_fingerprint"), QueueID: query.Get("queue_id")}, ID: query.Get("id"), Generation: query.Get("generation")}
-	category := project.FindingCategory(query.Get("category"))
-	file := query.Get("path")
-	if !category.Valid() || file != "" && (path.Clean(file) != file || path.IsAbs(file) || file == ".." || strings.HasPrefix(file, "../") || strings.ContainsAny(file, "\\\x00\r\n")) {
-		api.WriteAppError(w, api.BadRequest("invalid analysis results filter", "Use bugs, performance or security and a canonical project-relative path.", nil))
-		return
-	}
-	result, err := h.service.ReadAnalysisSection(r.Context(), identity, category, file)
-	if err != nil {
-		writeProjectError(w, "analysis results unavailable", err)
-		return
-	}
-	api.WriteJSON(w, http.StatusOK, result)
 }
 
 func validAnalysisRequest(w http.ResponseWriter, err error) bool {

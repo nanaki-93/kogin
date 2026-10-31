@@ -180,7 +180,7 @@ func TestFindingStoreDismissedTargetsPersistAcrossProducerTypesAndReopen(t *test
 			t.Fatalf("SetTargetStatus(%+v, dismissed): %v", target, err)
 		}
 	}
-	dismissed, err := store.Dismissed("p1")
+	dismissed, err := dismissedFindingTargets(store, "p1")
 	if err != nil || len(dismissed) != 3 {
 		t.Fatalf("expected 3 dismissed targets, got %+v, err=%v", dismissed, err)
 	}
@@ -188,10 +188,25 @@ func TestFindingStoreDismissedTargetsPersistAcrossProducerTypesAndReopen(t *test
 	if err := store.SetTargetStatus(perfTarget, FindingStatusOpen, ""); err != nil {
 		t.Fatalf("SetTargetStatus(open): %v", err)
 	}
-	dismissed, err = store.Dismissed("p1")
+	dismissed, err = dismissedFindingTargets(store, "p1")
 	if err != nil || len(dismissed) != 2 {
 		t.Fatalf("expected 2 dismissed targets after reopening perfTarget, got %+v, err=%v", dismissed, err)
 	}
+}
+
+// dismissedFindingTargets reads the persisted dismissed targets of one project.
+func dismissedFindingTargets(store *FindingStore, projectID string) ([]FindingTarget, error) {
+	document, err := store.readDocumentSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	result := []FindingTarget{}
+	for _, target := range document.Dismissed {
+		if target.ProjectID == projectID {
+			result = append(result, target)
+		}
+	}
+	return result, nil
 }
 
 func TestRulesFindingsAreRefreshedInPlaceAndSurviveAnalysisResets(t *testing.T) {

@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -13,8 +12,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentruntime"
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
 	"github.com/nanaki-93/mini-orca/v2/internal/llm"
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
@@ -174,32 +171,6 @@ type preparedFileAnalysis struct {
 	instructions project.EffectiveInstructions
 }
 
-// AnalyzeFile creates or refreshes a semantic summary for exactly one selected
-// file. It sends that file's source plus bounded, source-free project facts.
-func (s *Service) AnalyzeFile(ctx context.Context, targetFile string, refresh, confirmRemoteProvider bool) (*project.FileAnalysis, error) {
-	if err := s.RequireRemoteConfirmation(config.BugModelScope, confirmRemoteProvider); err != nil {
-		return nil, err
-	}
-	prepared, err := s.prepareFileAnalysis(targetFile)
-	if err != nil {
-		return nil, err
-	}
-	cached, err := prepared.cache.Load(prepared.input)
-	if err != nil {
-		return nil, err
-	}
-	if !refresh && reusableFileAnalysis(cached) {
-		return s.syncCachedFileAnalysis(prepared.input, cached)
-	}
-	return runKnowledge(ctx, s, prepared.runtime, agentruntime.KnowledgeSemantic, func(ctx context.Context) (*project.FileAnalysis, string, error) {
-		result, err := s.generateFileAnalysis(ctx, prepared)
-		if result == nil {
-			return nil, "failed", err
-		}
-		return result, knowledgeReportStatus(result.Status), err
-	})
-}
-
 func (s *Service) prepareFileAnalysis(targetFile string) (preparedFileAnalysis, error) {
 	indexedFile, err := s.manager.IndexedFile(targetFile)
 	if err != nil {
@@ -228,65 +199,6 @@ func (s *Service) prepareFileAnalysis(targetFile string) (preparedFileAnalysis, 
 		return preparedFileAnalysis{}, err
 	}
 	return preparedFileAnalysis{root: s.manager.Root(), runtime: s.semanticCacheRuntime(analysis), analysis: analysis, indexedFile: indexedFile, source: fileInfo.Content, cache: cache, input: input, instructions: instructions}, nil
-}
-
-func reusableFileAnalysis(cached *project.FileAnalysis) bool {
-	return cached.Status == project.AnalysisStatusFresh || cached.Status == project.AnalysisStatusFailed || cached.Status == project.AnalysisStatusRunning
-}
-
-func (s *Service) syncCachedFileAnalysis(input project.FileAnalysisInput, cached *project.FileAnalysis) (*project.FileAnalysis, error) {
-	if err := s.syncFileAnalysisStatus(input, cached.Status); err != nil {
-		return nil, err
-	}
-	return cached, nil
-}
-
-func (s *Service) generateFileAnalysis(ctx context.Context, prepared preparedFileAnalysis) (*project.FileAnalysis, error) {
-	dispatch := &analysisModelDispatch{maxAttempts: prepared.runtime.effective.MaxRetries + 1, beforeAttempt: func(ctx context.Context) error {
-		return s.validateFileAnalysisSnapshot(ctx, prepared)
-	}}
-	fresh, err := s.requestFileAnalysis(ctx, prepared, dispatch)
-	if err != nil {
-		if errors.Is(err, agentruntime.ErrBudgetExceeded) {
-			return nil, err
-		}
-		var modelErr *analysisModelError
-		if errors.As(err, &modelErr) {
-			return s.storeAnalysisFailure(ctx, prepared, err)
-		}
-		return nil, err
-	}
-	if err := s.validateFileAnalysisSnapshot(ctx, prepared); err != nil {
-		return nil, err
-	}
-	if err := prepared.cache.Store(*fresh); err != nil {
-		return nil, err
-	}
-	if err := s.syncFileAnalysisStatus(prepared.input, fresh.Status); err != nil {
-		return nil, err
-	}
-	return fresh, nil
-}
-
-func (s *Service) validateFileAnalysisSnapshot(ctx context.Context, prepared preparedFileAnalysis) error {
-	if err := context.Cause(ctx); err != nil {
-		return err
-	}
-	if s.manager.Root() != prepared.root {
-		return project.ErrRevisionConflict
-	}
-	input := prepared.input
-	if err := s.manager.ValidateMutableRequest(input.ProjectID, input.ProjectRevision, input.Path, input.ContentHash); err != nil {
-		return err
-	}
-	policy, err := project.NewContextPolicy(prepared.root)
-	if err != nil {
-		return err
-	}
-	if policy.Version() != input.ContextPolicyVersion {
-		return project.ErrRevisionConflict
-	}
-	return project.ValidateInstructions(prepared.root, input.Path, prepared.instructions.Fingerprint)
 }
 
 // Request and validation are separate from publication so a project run can
@@ -414,25 +326,6 @@ func semanticCacheInputForRuntime(analysis *project.Analysis, file *project.Inde
 
 func (s *Service) syncFileAnalysisStatus(input project.FileAnalysisInput, status string) error {
 	return s.manager.UpdateFileAnalysisStatus(input.ProjectID, input.ProjectRevision, input.Path, status)
-}
-
-func (s *Service) storeAnalysisFailure(ctx context.Context, prepared preparedFileAnalysis, cause error) (*project.FileAnalysis, error) {
-	if errors.Is(cause, context.Canceled) || errors.Is(cause, context.DeadlineExceeded) {
-		return nil, cause
-	}
-	if err := s.validateFileAnalysisSnapshot(ctx, prepared); err != nil {
-		return nil, err
-	}
-	input := prepared.input
-	failed := project.FileAnalysis{SchemaVersion: "1", ProjectID: input.ProjectID, ProjectRevision: input.ProjectRevision, Path: input.Path, ContentHash: input.ContentHash, Language: input.Language, Status: project.AnalysisStatusFailed, Failure: "The model returned an unusable file summary. Retry the analysis.", Model: input.Model, ConfiguredModel: input.Model, Profile: input.Profile, Scope: input.Scope, ProviderOrigin: input.ProviderOrigin, ReasoningEffort: input.ReasoningEffort, PromptVersion: input.PromptVersion, ContextPolicyVersion: input.ContextPolicyVersion, GeneratedAt: time.Now().UTC()}
-	failed.InstructionsFingerprint = prepared.instructions.Fingerprint
-	if err := prepared.cache.Store(failed); err != nil {
-		return nil, err
-	}
-	if err := s.syncFileAnalysisStatus(input, failed.Status); err != nil {
-		return nil, err
-	}
-	return &failed, nil
 }
 
 func semanticPrompt(source string, analysis project.Analysis, _ *project.ProjectIndex, target project.IndexFile, manifest project.ContextManifest) (string, error) {

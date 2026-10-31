@@ -169,32 +169,6 @@ func finishChangeCommit(ctx context.Context, root string, journal *changeJournal
 	}
 }
 
-func (s *Service) RetryChangeCommit(ctx context.Context, id string, request ChangeApplyRequest) (*ChangeMutationResult, error) {
-	s.jobLifecycleMu.Lock()
-	defer s.jobLifecycleMu.Unlock()
-	s.changesMu.Lock()
-	defer s.changesMu.Unlock()
-	root := s.manager.Root()
-	journal, err := readChangeJournal(root)
-	if err != nil {
-		return nil, err
-	}
-	index, err := s.manager.Index()
-	if err != nil {
-		return nil, err
-	}
-	if !request.Confirm || !matchesChangeUndo(journal, index, id, request) || journal.State != "applied" || journal.Commit == nil || journal.Commit.State != "failed" {
-		return nil, project.ErrRevisionConflict
-	}
-	if err := validateCommitMessage(request.CommitMessage); err != nil {
-		return nil, err
-	}
-	journal.Commit.State, journal.Commit.OID = "pending", ""
-	journal.Commit.Message, journal.Commit.Error = strings.TrimSpace(request.CommitMessage), ""
-	finishChangeCommit(ctx, root, journal)
-	return s.completeChangeMutation(root, journal, journal.Warnings), nil
-}
-
 // Recovery checks the recorded candidate before offering retry. Unknown outcomes
 // remain pending, including an externally advanced branch after the attempt.
 func reconcileChangeCommit(ctx context.Context, root string, commit *ChangeCommit) {

@@ -210,17 +210,6 @@ func (m *Manager) updateIndexedFileStatus(normalized, status string) error {
 	return fmt.Errorf("indexed file not found: %s", normalized)
 }
 
-func (m *Manager) ImpactPreview(relative string) (ImpactPreview, error) {
-	if _, err := m.IndexedFile(relative); err != nil {
-		return ImpactPreview{}, err
-	}
-	index, err := m.Index()
-	if err != nil {
-		return ImpactPreview{}, err
-	}
-	return BuildImpactPreview(index, relative), nil
-}
-
 // IndexedFile returns one active-project file after canonical-path and policy
 // checks. The final lock check prevents a file from a previously active project
 // being returned after a concurrent import or reindex.

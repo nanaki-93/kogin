@@ -13,135 +13,123 @@ import (
 
 func TestAnalysisRestartPreservesSavedResults(t *testing.T) {
 	for _, artifacts := range []string{"unchanged", "ignored file added", "ignored file removed"} {
-		for _, features := range []bool{false, true} {
-			name := artifacts
-			if features {
-				name += " with features"
+		t.Run(artifacts, func(t *testing.T) {
+			server, calls := analysisResponseServer(t, analysisReply)
+			base, root := newAnalysisFreshnessService(t, server.URL, false)
+			if err := os.WriteFile(filepath.Join(root, ".mini-orcaignore"), []byte("*.log\n.mini-orcaignore\n"), 0600); err != nil {
+				t.Fatal(err)
 			}
-			t.Run(name, func(t *testing.T) {
-				server, calls := analysisResponseServer(t, func(stage AnalysisStage) string {
-					if stage == AnalysisStageFeatures {
-						return validFeatureResponse
-					}
-					return analysisReply(stage)
-				})
-				base, root := newAnalysisFreshnessService(t, server.URL, false)
-				if err := os.WriteFile(filepath.Join(root, ".mini-orcaignore"), []byte("*.log\n.mini-orcaignore\n"), 0600); err != nil {
+			log := filepath.Join(root, "runtime.log")
+			if artifacts == "ignored file removed" {
+				if err := os.WriteFile(log, []byte("previous session\n"), 0600); err != nil {
 					t.Fatal(err)
 				}
-				log := filepath.Join(root, "runtime.log")
-				if artifacts == "ignored file removed" {
-					if err := os.WriteFile(log, []byte("previous session\n"), 0600); err != nil {
-						t.Fatal(err)
-					}
-				}
-				if _, err := base.Reindex(); err != nil {
-					t.Fatal(err)
-				}
-				cfg := scopedTestConfig(server.URL)
-				s, err := New(cfg, base.manager)
-				if err != nil {
-					t.Fatal(err)
-				}
-				index, err := s.manager.Index()
-				if err != nil {
-					t.Fatal(err)
-				}
-				preview, err := s.PreviewAnalysisRun(context.Background(), AnalysisPreviewRequest{
-					ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision,
-					Scope: AnalysisRunScopeProject, Limits: AnalysisRunLimits{100, 30, 2}, IncludeFeatures: features,
-				})
-				if err != nil {
-					t.Fatal(err)
-				}
-				if _, err := s.StartAnalysisRun(context.Background(), analysisStartFor(preview)); err != nil {
-					t.Fatal(err)
-				}
-				completed := completedAnalysisRun(t, s)
-				if completed.Status != AnalysisRunCompleted {
-					t.Fatalf("initial analysis status=%s", completed.Status)
-				}
-				before, err := s.ProjectOverview()
-				if err != nil {
-					t.Fatal(err)
-				}
-				results := savedAnalysisResults(t, s, completed.Identity)
-				metadata, err := os.ReadFile(filepath.Join(root, analysisRunRelativePath))
-				if err != nil {
-					t.Fatal(err)
-				}
-				requests := calls.Load()
-				switch artifacts {
-				case "ignored file added":
-					err = os.WriteFile(log, []byte("new session\n"), 0600)
-				case "ignored file removed":
-					err = os.Remove(log)
-				}
-				if err != nil {
-					t.Fatal(err)
-				}
-				manager, err := project.NewManager(root)
-				if err != nil {
-					t.Fatal(err)
-				}
-				reopened, err := New(cfg, manager)
-				if err != nil {
-					t.Fatal(err)
-				}
-				analysis, err := reopened.RestoreProject(root)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if err := reopened.RestoreActiveProject(root, analysis); err != nil {
-					t.Fatal(err)
-				}
-				after, err := reopened.ProjectOverview()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if !reflect.DeepEqual(after.Run, before.Run) || after.Coverage != before.Coverage {
-					t.Errorf("reopening changed saved progress: before=%s %+v after=%s %+v", before.Run.Status, before.Coverage, after.Run.Status, after.Coverage)
-				}
-				if !reflect.DeepEqual(savedAnalysisResults(t, reopened, completed.Identity), results) {
-					t.Error("reopening changed saved findings or their freshness")
-				}
-				restoredMetadata, err := os.ReadFile(filepath.Join(root, analysisRunRelativePath))
-				if err != nil || string(restoredMetadata) != string(metadata) {
-					t.Errorf("reopening rewrote saved progress: %v", err)
-				}
-				if calls.Load() != requests {
-					t.Fatal("restoration dispatched model requests")
-				}
+			}
+			if _, err := base.Reindex(); err != nil {
+				t.Fatal(err)
+			}
+			cfg := scopedTestConfig(server.URL)
+			s, err := New(cfg, base.manager)
+			if err != nil {
+				t.Fatal(err)
+			}
+			index, err := s.manager.Index()
+			if err != nil {
+				t.Fatal(err)
+			}
+			preview, err := s.PreviewAnalysisRun(context.Background(), AnalysisPreviewRequest{
+				ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision,
+				Scope: AnalysisRunScopeProject, Limits: AnalysisRunLimits{100, 30, 2},
 			})
-		}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.StartAnalysisRun(context.Background(), analysisStartFor(preview)); err != nil {
+				t.Fatal(err)
+			}
+			completed := completedAnalysisRun(t, s)
+			if completed.Status != AnalysisRunCompleted {
+				t.Fatalf("initial analysis status=%s", completed.Status)
+			}
+			before, err := s.ProjectOverview()
+			if err != nil {
+				t.Fatal(err)
+			}
+			results := savedAnalysisResults(t, s, completed)
+			metadata, err := os.ReadFile(filepath.Join(root, analysisRunRelativePath))
+			if err != nil {
+				t.Fatal(err)
+			}
+			requests := calls.Load()
+			switch artifacts {
+			case "ignored file added":
+				err = os.WriteFile(log, []byte("new session\n"), 0600)
+			case "ignored file removed":
+				err = os.Remove(log)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			manager, err := project.NewManager(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			reopened, err := New(cfg, manager)
+			if err != nil {
+				t.Fatal(err)
+			}
+			analysis, err := reopened.RestoreProject(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := reopened.RestoreActiveProject(root, analysis); err != nil {
+				t.Fatal(err)
+			}
+			after, err := reopened.ProjectOverview()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(after.Run, before.Run) || after.Coverage != before.Coverage {
+				t.Errorf("reopening changed saved progress: before=%s %+v after=%s %+v", before.Run.Status, before.Coverage, after.Run.Status, after.Coverage)
+			}
+			if !reflect.DeepEqual(savedAnalysisResults(t, reopened, completed), results) {
+				t.Error("reopening changed saved findings or their freshness")
+			}
+			restoredMetadata, err := os.ReadFile(filepath.Join(root, analysisRunRelativePath))
+			if err != nil || string(restoredMetadata) != string(metadata) {
+				t.Errorf("reopening rewrote saved progress: %v", err)
+			}
+			if calls.Load() != requests {
+				t.Fatal("restoration dispatched model requests")
+			}
+		})
 	}
 }
 
-func savedAnalysisResults(t *testing.T, s *Service, identity AnalysisRunIdentity) []*AnalysisSectionResults {
+// savedAnalysisResults reads a run's saved results, which must hold findings
+// of every category.
+func savedAnalysisResults(t *testing.T, s *Service, run *AnalysisRun) []savedFileResults {
 	t.Helper()
-	var results []*AnalysisSectionResults
+	results := readSavedAnalysisResults(t, s, run)
 	for _, category := range []project.FindingCategory{project.FindingCategoryBugs, project.FindingCategoryPerformance, project.FindingCategorySecurity} {
-		result, err := s.ReadAnalysisSection(context.Background(), identity, category, "")
-		if err != nil || result.SavedFindingCount == nil || *result.SavedFindingCount == 0 {
-			t.Fatalf("%s saved results=%+v error=%v", category, result, err)
+		count := 0
+		for _, file := range results {
+			count += file.findings(category)
 		}
-		results = append(results, result)
+		if count == 0 {
+			t.Fatalf("%s saved results=%+v", category, results)
+		}
 	}
 	return results
 }
 
 func TestSavedAnalysisDetectsLiveChangesOutsideSelectedFiles(t *testing.T) {
-	for _, change := range []string{"edited source", "added source", "deleted source", "policy", "provider", "goals"} {
+	for _, change := range []string{"edited source", "added source", "deleted source", "policy", "provider"} {
 		t.Run(change, func(t *testing.T) {
-			server, calls := analysisResponseServer(t, func(stage AnalysisStage) string {
-				if stage == AnalysisStageFeatures {
-					return `{"suggestions":[]}`
-				}
-				return emptyAnalysisReply(stage)
-			})
+			server, calls := analysisResponseServer(t, emptyAnalysisReply)
 			s, root := newAnalysisFreshnessService(t, server.URL, true)
-			excludeFeatureAnalysisFiles(t, s, []string{"helper.go"})
-			preview := featureAnalysisPreviewFor(t, s, AnalysisRunLimits{100, 30, 2}, nil)
+			excludeAnalysisFiles(t, s, []string{"helper.go"})
+			preview := analysisRunPreviewFor(t, s, AnalysisRunLimits{100, 30, 2}, nil)
 			if _, err := s.StartAnalysisRun(context.Background(), analysisStartFor(preview)); err != nil {
 				t.Fatal(err)
 			}
@@ -161,8 +149,6 @@ func TestSavedAnalysisDetectsLiveChangesOutsideSelectedFiles(t *testing.T) {
 				err = os.WriteFile(filepath.Join(root, ".mini-orca", "context-policy.json"), []byte(`{"exclude":["helper.go"]}`), 0600)
 			case "provider":
 				s.conf().runtimes.analyze.effective.Model = "replacement"
-			case "goals":
-				_, err = s.SaveFeatureGoals(context.Background(), featureRequestFor(t, s, "Changed goals."))
 			}
 			if err != nil {
 				t.Fatal(err)
@@ -170,7 +156,7 @@ func TestSavedAnalysisDetectsLiveChangesOutsideSelectedFiles(t *testing.T) {
 			// No reindex: freshness must inspect live source, including context
 			// outside the selected per-file analysis queue.
 			run, err := s.currentTestAnalysisRun(context.Background())
-			if err != nil || run.Status != AnalysisRunStale || run.Identity != completed.Identity || calls.Load() != 4 {
+			if err != nil || run.Status != AnalysisRunStale || run.Identity != completed.Identity || calls.Load() != 3 {
 				t.Fatalf("changed analysis=%+v calls=%d error=%v", run, calls.Load(), err)
 			}
 		})

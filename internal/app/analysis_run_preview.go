@@ -107,7 +107,7 @@ func (s *Service) analysisPreviewLocked(ctx context.Context, request AnalysisPre
 	if analysis.ProjectID != request.ProjectID || analysis.ProjectRevision != request.ProjectRevision {
 		return nil, project.ErrRevisionConflict
 	}
-	providers, err := s.analysisProviders(request.IncludeFeatures, request.Models)
+	providers, err := s.analysisProviders(false, request.Models)
 	if err != nil {
 		return nil, err
 	}
@@ -121,11 +121,6 @@ func (s *Service) analysisPreviewLocked(ctx context.Context, request AnalysisPre
 	root := s.manager.Root()
 	if err := s.planAnalysisFiles(ctx, root, *analysis, index.Files, policy, request, preview); err != nil {
 		return nil, err
-	}
-	if request.IncludeFeatures {
-		if err := s.planAnalysisFeatures(ctx, root, preview); err != nil {
-			return nil, err
-		}
 	}
 	s.planAnalysisDocs(index, preview)
 	return s.completeAnalysisPreviewLocked(ctx, root, preview, request)
@@ -153,7 +148,9 @@ func captureAnalysisResumeOptions(request *AnalysisPreviewRequest, run *Analysis
 		return project.ErrRevisionConflict
 	}
 	request.StalePath = run.Plan.StalePath
-	request.IncludeFeatures = run.Plan.Features != nil
+	if run.Plan.Features != nil {
+		return errAnalysisFeaturesRetired
+	}
 	request.Models = cloneAnalysisModels(run.Plan.Models)
 
 	return nil
@@ -213,9 +210,6 @@ func (s *Service) validateAnalysisQueue(ctx context.Context, root string, plan *
 		if err := validateAnalysisInventory(ctx, root, plan); err != nil {
 			return err
 		}
-	}
-	if err := s.validateAnalysisFeatureInputs(ctx, root, plan.Features, sources); err != nil {
-		return err
 	}
 	return validateAnalysisFiles(ctx, root, plan, index, policy, sources)
 }
