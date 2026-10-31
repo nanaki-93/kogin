@@ -180,7 +180,11 @@ every guard when the action arrives.
   confirmation names the tasks; project files never change. A worktree left
   with no tasks and no commits of its own is removed with its branch (as after
   a re-analysis that deletes the task), and the main checkout is selected again. Tasks with running
-  agents, and the task whose latest Apply can still be undone, are kept.
+  agents, and the task whose latest Apply can still be undone, are kept. A
+  worktree left with no tasks that still holds their work (uncommitted changes,
+  or commits the main branch lacks, as after an aborted merge) is offered for
+  **Discard worktree**: a second confirmation names what is lost; **Keep it**
+  leaves it on Branches.
 - **Undo.** Covers only the latest Apply in a checkout and restores files only
   when they still match the applied version; a commit stays in history.
 
@@ -288,6 +292,9 @@ every guard when the action arrives.
   all its tasks applied, together with its branch, after confirmation; when it
   has applied tasks (merged with this setting off, or merged in another Git
   tool) their linked issues are marked done, as a merge would.
+- A worktree with no tasks left that still holds work (uncommitted changes, or
+  commits the main branch lacks) cannot merge here; **Discard worktree** deletes
+  it with that work and its branch after a confirmation that names what is lost.
 - Merging needs execution trust (Git can run filters and merge drivers). The
   merge preview lists commits and the diff; the confirmation names overlapping
   paths. Overlap is a review hint, not a proven conflict.

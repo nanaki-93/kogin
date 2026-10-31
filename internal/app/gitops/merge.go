@@ -23,11 +23,23 @@ type WorktreeRemoval string
 const (
 	WorktreeMerged    WorktreeRemoval = "merged"
 	WorktreeDiscarded WorktreeRemoval = "discarded"
+	// WorktreeAbandoned removes a worktree with its uncommitted changes.
+	WorktreeAbandoned WorktreeRemoval = "abandoned"
 )
 
 var commitOIDPattern = regexp.MustCompile(`^(?:[a-f0-9]{40}|[a-f0-9]{64})$`)
 
 func MergeSource(ctx context.Context, repository *GitRepository, request GitMutationRequest) (*GitWorktree, error) {
+	return worktreeSource(ctx, repository, request, false)
+}
+
+// AbandonedSource is the worktree a discard throws away with its work: a
+// merge source that may have uncommitted changes.
+func AbandonedSource(ctx context.Context, repository *GitRepository, request GitMutationRequest) (*GitWorktree, error) {
+	return worktreeSource(ctx, repository, request, true)
+}
+
+func worktreeSource(ctx context.Context, repository *GitRepository, request GitMutationRequest, dirty bool) (*GitWorktree, error) {
 	trees, err := ReadWorktrees(ctx, repository.Root)
 	if err != nil {
 		return nil, err
@@ -43,6 +55,7 @@ func MergeSource(ctx context.Context, repository *GitRepository, request GitMuta
 		if err != nil {
 			return nil, err
 		}
+		source.Dirty = source.Dirty && !dirty
 		if err := RequireMergeSource(&tree, source); err != nil {
 			return nil, err
 		}
@@ -129,7 +142,7 @@ func ValidateWorktreeRemoval(ctx context.Context, root string, source *GitWorktr
 			return fmt.Errorf("verify the reviewed commit is merged: %w", err)
 		}
 	}
-	current, err := MergeSource(ctx, repository, GitMutationRequest{Path: source.Path, SourceHead: source.Head})
+	current, err := worktreeSource(ctx, repository, GitMutationRequest{Path: source.Path, SourceHead: source.Head}, removal == WorktreeAbandoned)
 	if err != nil {
 		return err
 	}

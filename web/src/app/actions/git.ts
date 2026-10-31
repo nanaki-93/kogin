@@ -3,7 +3,7 @@
 
 import { api, errorMessage, query } from '@/api/client';
 import type { GitMutationResult, GitWorkspace, GitWorktree, MergeChecks, MergePreview, Project } from '@/api/types';
-import { mergeRequest, worktreeRemovable, worktreeTasks } from '@/lib/workflow';
+import { mergeRequest, worktreeDiscardable, worktreeRemovable, worktreeTasks } from '@/lib/workflow';
 import { currentRoute } from '@/lib/router';
 import { getUI } from '@/app/store';
 import { forgetCheckouts, openWorkspace } from '@/app/checkout';
@@ -112,6 +112,64 @@ export function gitActions(context: ActionContext) {
     return removed;
   }
 
+  /**
+   * Discards a worktree left with no tasks together with its work: its
+   * checkout, its uncommitted changes and its branch, commits the main branch
+   * lacks included. Asks first, naming what is lost.
+   */
+  async function discardWorktree(workspace: GitWorkspace, worktree: GitWorktree, main: Project, why = 'No task is left on it.'): Promise<boolean> {
+    const lost = [worktree.dirty ? 'its uncommitted changes' : '', worktree.integration !== 'merged' ? `the commits ${workspace.branch || 'the main branch'} does not have` : ''].filter(Boolean).join(' and ');
+    const ok = await confirm({
+      title: `Discard the worktree ${worktree.branch || worktree.path}?`,
+      body: `${why} Its checkout and its branch are deleted${lost ? `, with ${lost}` : ''}. This cannot be undone; keep it to merge or recover that work with Git.`,
+      confirmLabel: 'Discard worktree',
+      cancelLabel: 'Keep it',
+      danger: true,
+    });
+    if (!ok) return false;
+    const discarded = await guarded('Discarding worktree…', async () => {
+      try {
+        const result = await api.post<GitMutationResult>('/api/projects/current/git/discard-worktree', { ...mergeRequest(workspace, worktree, main), discard_work: true });
+        if (result.state === 'failed') {
+          toast('Could not discard the worktree', 'danger', result.error);
+          return false;
+        }
+        toast(`Discarded ${worktree.branch || worktree.path}.`, 'success');
+        for (const warning of result.warnings ?? []) toast(warning, 'warning');
+        leaveRemovedCheckout([worktree.path]);
+        return true;
+      } catch (err) {
+        fail('Could not discard the worktree', err);
+        return false;
+      } finally {
+        await refreshAll();
+      }
+    });
+    return Boolean(discarded);
+  }
+
+  /**
+   * Offers to discard each worktree in `paths` that deleting its tasks left
+   * with work of its own (removeEmptyWorktrees keeps those), such as a branch
+   * whose merge was aborted. Returns the worktrees discarded.
+   */
+  async function discardAbandonedWorktrees(paths: string[]): Promise<string[]> {
+    const wanted = unique(paths.filter(Boolean));
+    if (!wanted.length) return [];
+    let main: Project, workspace: GitWorkspace;
+    try {
+      main = await api.get<Project>('/api/projects/current');
+      workspace = await api.get<GitWorkspace>('/api/projects/current/git/workspace' + query({ project_id: main.project_id, project_revision: main.project_revision }));
+    } catch {
+      return [];
+    }
+    const discarded: string[] = [];
+    for (const tree of workspace.worktrees ?? []) {
+      if (wanted.includes(tree.path) && worktreeDiscardable(tree) && (await discardWorktree(workspace, tree, main, 'Its tasks are deleted, but it still holds their work.'))) discarded.push(tree.path);
+    }
+    return discarded;
+  }
+
   /** Leaves a removed checkout: its pages return to the main one, a task page to the task list. */
   function leaveRemovedCheckout(paths: string[]) {
     forgetCheckouts(paths);
@@ -134,5 +192,5 @@ export function gitActions(context: ActionContext) {
     });
   }
 
-  return { previewMerge, merge, removeWorktree, removeEmptyWorktrees, abortMerge };
+  return { previewMerge, merge, removeWorktree, removeEmptyWorktrees, discardWorktree, discardAbandonedWorktrees, abortMerge };
 }

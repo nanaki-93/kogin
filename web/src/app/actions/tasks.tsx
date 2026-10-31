@@ -38,7 +38,15 @@ export interface DraftTask {
   findingTargets?: FindingTarget[];
 }
 
-export function taskActions(context: ActionContext, removeEmptyWorktrees: (paths: string[]) => Promise<string[]>) {
+/** What deleting tasks does with the worktrees it leaves without tasks. */
+interface LeftWorktrees {
+  /** Removes those with nothing to merge; returns them. */
+  removeEmptyWorktrees: (paths: string[]) => Promise<string[]>;
+  /** Offers to discard those still holding work; returns the ones discarded. */
+  discardAbandonedWorktrees: (paths: string[]) => Promise<string[]>;
+}
+
+export function taskActions(context: ActionContext, { removeEmptyWorktrees, discardAbandonedWorktrees }: LeftWorktrees) {
   const { client, confirm, toast, guarded, fail, setSession, confirmRemote } = context;
 
   // ---------------------------------------------------------------- tasks
@@ -195,6 +203,7 @@ export function taskActions(context: ActionContext, removeEmptyWorktrees: (paths
       const removed = await guarded('Removing its worktree…', () => removeEmptyWorktrees([session.checkout.worktreePath]));
       const dismissed = result.dismissed_issues ? ` and ${plural(result.dismissed_issues, 'linked issue')} dismissed` : '';
       toast(`No longer valid: “${session.title || session.id}” was deleted${dismissed}${removed?.length ? ', with its worktree' : ''}.`, 'info', result.reason);
+      if (!removed?.length) await discardAbandonedWorktrees([session.checkout.worktreePath]);
     }
     for (const warning of result.warnings ?? []) toast(warning, 'warning');
     return true;
@@ -276,7 +285,7 @@ export function taskActions(context: ActionContext, removeEmptyWorktrees: (paths
       danger: true,
     });
     if (!ok) return 0;
-    return (await guarded(one ? 'Deleting task…' : 'Deleting tasks…', async () => {
+    const done = await guarded(one ? 'Deleting task…' : 'Deleting tasks…', async () => {
       const deleted: string[] = [];
       const failures: string[] = [];
       for (const task of tasks) {
@@ -291,12 +300,17 @@ export function taskActions(context: ActionContext, removeEmptyWorktrees: (paths
       void client.invalidateQueries({ queryKey: ['changes'] });
       // Issues the deleted tasks were fixing are open again.
       void client.invalidateQueries({ queryKey: ['findings'] });
-      const removed = await removeEmptyWorktrees(tasks.filter(task => deleted.includes(task.id)).map(task => task.worktreePath));
+      const left = tasks.filter(task => deleted.includes(task.id)).map(task => task.worktreePath);
+      const removed = await removeEmptyWorktrees(left);
       const worktreeNote = removed.length ? ` ${removed.length === 1 ? 'Its worktree was' : `${removed.length} worktrees were`} removed too.` : '';
       if (deleted.length) toast((one ? 'Task deleted.' : `${plural(deleted.length, 'task')} deleted.`) + worktreeNote, 'success');
       if (failures.length) toast(`Could not delete ${plural(failures.length, 'task')}`, 'danger', failures.join('\n'));
-      return deleted.length;
-    })) ?? 0;
+      return { deleted: deleted.length, left: left.filter(path => !removed.includes(path)) };
+    });
+    // A worktree still holding the deleted tasks' work, such as a branch whose
+    // merge was aborted, is discarded only if the user says so.
+    if (done?.left.length) await discardAbandonedWorktrees(done.left);
+    return done?.deleted ?? 0;
   }
 
   return { createTask, startAgents, reanalyze, cancelAgents, refine, stopRevision, deleteTasks };

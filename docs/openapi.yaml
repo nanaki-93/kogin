@@ -341,7 +341,7 @@ paths:
       - {$ref: '#/components/parameters/WorktreePath'}
     post:
       tags: [Projects]
-      description: Remove the confirmed clean source worktree and its local task history without merging or forcing deletion, and reopen linked in-progress findings not owned by another task. Includes applied but unmerged fixes. Requires source_head and source_branch; keeps the current checkout, and keeps the branch unless the current branch already contains its commits (then it is deleted and returned as removed_branch). Status persistence failures return warnings alongside the removal receipt.
+      description: Remove the confirmed clean source worktree and its local task history without merging or forcing deletion, and reopen linked in-progress findings not owned by another task. Includes applied but unmerged fixes. Requires source_head and source_branch; keeps the current checkout, and keeps the branch unless the current branch already contains its commits (then it is deleted and returned as removed_branch). With discard_work, a worktree left with no tasks is removed even with uncommitted changes, and its branch is deleted even with commits of its own (refused while it has tasks). Status persistence failures return warnings alongside the removal receipt.
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/GitMutationRequest'}}}}
       responses:
         '200': {description: Observed removal outcome, content: {application/json: {schema: {$ref: '#/components/schemas/GitMutationResult'}}}}
@@ -2697,6 +2697,7 @@ components:
             source_branch: {type: string, description: Required source branch identity for discard or cleanup-merged}
             merge_head: {type: string, description: Identified MERGE_HEAD for abort}
             keep_worktree: {type: boolean, description: Merge only; keep the merged worktree and its branch instead of removing them.}
+            discard_work: {type: boolean, description: Discard only; remove a worktree with no tasks together with its uncommitted changes and its branch, commits the current branch lacks included.}
     GitMutationResult:
       type: object
       required: [state, warnings]

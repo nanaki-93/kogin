@@ -104,6 +104,47 @@ test('deleting a task removes the worktree created for it', async ({ page, daemo
   await expect(page).toHaveURL(/#\/tasks$/);
 });
 
+test('deleting a task offers to discard the worktree still holding its work', async ({ page, daemon }) => {
+  await page.goto('/#/tasks');
+  await page.keyboard.press('c');
+  const dialog = page.getByRole('dialog');
+  await dialog.getByPlaceholder('What should change?').fill('Drop the unused helper');
+  await dialog.getByLabel('Search files to add').fill('webui');
+  await dialog.getByRole('option', { name: /internal\/api\/handlers\/webui\.go/ }).first().click();
+  await dialog.getByRole('button', { name: 'Save draft' }).click();
+  await expect(page).toHaveURL(/wt=/);
+  // Its work was committed and the merge into main aborted, and edits are left over.
+  const path = '/work/mini-orca/.worktrees/drop-the-unused-helper-a1b2c3';
+  daemon.patchWorktree(path, { head: 'cc33dd44', integration: 'up_to_date', dirty: true });
+
+  await page.getByRole('button', { name: 'Delete task' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete task' }).click();
+  await expect(page.getByText('Task deleted.', { exact: true })).toBeVisible();
+  const discard = page.getByRole('alertdialog');
+  await expect(discard).toContainText('Discard the worktree orca/drop-the-unused-helper-a1b2c3?');
+  await expect(discard).toContainText('with its uncommitted changes and the commits main does not have');
+  await discard.getByRole('button', { name: 'Discard worktree' }).click();
+  await expect(page.getByText('Discarded orca/drop-the-unused-helper-a1b2c3.')).toBeVisible();
+  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path, source_head: 'cc33dd44', discard_work: true });
+  await expect(page).toHaveURL(/#\/tasks$/);
+});
+
+test('Branches discards a worktree left with no task but work of its own', async ({ page, daemon }) => {
+  daemon.addWorktree({ path: '/work/.mini-orca/wt/old', head: 'dd44', branch: 'orca/old-fix', integration: 'up_to_date', mergeable: false, sessions: [] });
+  await page.goto('/#/git');
+  await page.getByRole('listitem').filter({ hasText: 'orca/old-fix' }).click();
+  const detail = page.getByRole('complementary', { name: 'Worktree' });
+  await expect(detail).toContainText('No task is left on this branch to merge.');
+  await detail.getByRole('button', { name: 'Discard worktree' }).click();
+  await expect(page.getByRole('alertdialog')).toContainText('the commits main does not have');
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Keep it' }).click();
+  expect(daemon.mutations('/discard-worktree')).toHaveLength(0);
+  await detail.getByRole('button', { name: 'Discard worktree' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Discard worktree' }).click();
+  await expect(page.getByText('Discarded orca/old-fix.')).toBeVisible();
+  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/.mini-orca/wt/old', discard_work: true });
+});
+
 test('a task scope can name a file that does not exist yet', async ({ page, daemon }) => {
   await page.goto('/#/tasks');
   await page.keyboard.press('c');

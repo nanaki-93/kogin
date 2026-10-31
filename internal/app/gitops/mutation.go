@@ -24,6 +24,10 @@ type GitMutationRequest struct {
 	// KeepWorktree keeps a merged worktree and its branch; by default a
 	// merge removes both.
 	KeepWorktree bool `json:"keep_worktree,omitempty"`
+	// DiscardWork discards a worktree left with no tasks together with its
+	// work: its uncommitted changes and its branch, commits the current
+	// branch lacks included.
+	DiscardWork bool `json:"discard_work,omitempty"`
 }
 
 type GitMutationResult struct {

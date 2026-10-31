@@ -4,7 +4,7 @@ import { ancestors, buildTree, visibleRows } from './tree';
 import { buildHash, parseHash } from './router';
 import { escapeHtml, highlightLines } from './highlight';
 import { companionTestPath, explainable, formatElapsed, isTestPath, newFilePath, timeAgo } from './util';
-import { changeOverlaps, composerStartBlocker, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stageToolsLabel, taskFixingIssue, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeRemovable, worktreeTasks } from './workflow';
+import { changeOverlaps, composerStartBlocker, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stageToolsLabel, taskFixingIssue, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeDiscardable, worktreeRemovable, worktreeTasks } from './workflow';
 import type { ChangeHistoryEntry, Finding, GitWorkspace, GitWorktree } from '@/api/types';
 import { isInProgressFinding, isOpenFinding, isUnresolvedFinding } from '@/components/domain';
 import { limitErrors, modelLocation, roleModelOptions, selectedModel } from './agentSettings';
@@ -146,6 +146,16 @@ describe('task worktrees', () => {
     expect(worktreeRemovable(tree({ sessions: [task('draft')] }))).toBe(false);
     for (const extra of [{ integration: 'up_to_date' }, { integration: 'behind' }, { dirty: true }, { locked: true }, { error: 'x' }, { branch: '' }, { current: true }]) {
       expect(worktreeRemovable(tree(extra)), JSON.stringify(extra)).toBe(false);
+    }
+  });
+
+  it('discards with its work only a worktree left with no tasks that is not simply removable', () => {
+    expect(worktreeDiscardable(tree({ integration: 'up_to_date' }))).toBe(true);
+    expect(worktreeDiscardable(tree({ dirty: true }))).toBe(true);
+    // Nothing to lose: removed without asking.
+    expect(worktreeDiscardable(tree())).toBe(false);
+    for (const extra of [{ sessions: [task('draft')] }, { locked: true }, { error: 'x' }, { branch: '' }, { current: true }, { prunable: true }]) {
+      expect(worktreeDiscardable(tree({ integration: 'up_to_date', ...extra })), JSON.stringify(extra)).toBe(false);
     }
   });
 

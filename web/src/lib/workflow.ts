@@ -304,6 +304,16 @@ export function worktreeRemovable(tree: GitWorktree): boolean {
   return tree.integration === 'merged' && worktreeTasks(tree).every(integrated);
 }
 
+/**
+ * Whether a worktree left with no tasks still holds work of its own (changes
+ * not committed, or commits the main branch lacks): it can only be discarded
+ * with that work, or merged with Git.
+ */
+export function worktreeDiscardable(tree: GitWorktree): boolean {
+  if (tree.current || tree.locked || tree.prunable || tree.error || !tree.branch) return false;
+  return !worktreeTasks(tree).length && !worktreeRemovable(tree);
+}
+
 /** The guarded merge (or preview) request for a worktree into the main checkout. */
 export function mergeRequest(workspace: GitWorkspace, worktree: GitWorktree, project: ProjectIdentity) {
   return {

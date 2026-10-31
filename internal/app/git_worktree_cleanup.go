@@ -44,7 +44,12 @@ func (s *Service) removeGitWorktree(ctx context.Context, root string, source *Gi
 	if err := gitops.AddLocalExclude(ctx, root, "/.mini-orca/"); err != nil {
 		return err
 	}
-	if _, err := gitRead(ctx, root, "worktree", "remove", "--", source.Path); err != nil {
+	remove := []string{"worktree", "remove"}
+	if removal == gitops.WorktreeAbandoned {
+		// Its uncommitted changes go with it; a locked worktree still stays.
+		remove = append(remove, "--force")
+	}
+	if _, err := gitRead(ctx, root, append(remove, "--", source.Path)...); err != nil {
 		return err
 	}
 	_ = os.Remove(filepath.Join(root, ".worktrees"))
@@ -69,7 +74,7 @@ func (s *Service) DiscardGitWorktree(ctx context.Context, request GitMutationReq
 	if err != nil {
 		return nil, err
 	}
-	source, err := gitops.MergeSource(ctx, repository, request)
+	source, removal, err := discardSource(ctx, repository, request)
 	if err != nil {
 		return nil, err
 	}
@@ -80,12 +85,15 @@ func (s *Service) DiscardGitWorktree(ctx context.Context, request GitMutationReq
 	if err != nil {
 		return nil, fmt.Errorf("read discarded worktree findings: %w", err)
 	}
+	if request.DiscardWork && len(history) > 0 {
+		return nil, fmt.Errorf("delete the worktree's tasks before discarding its work")
+	}
 	var targets []project.FindingTarget
 	for _, entry := range history {
 		targets = append(targets, entry.FindingTargets...)
 	}
 	result := &GitMutationResult{State: "discarded", Path: source.Path, Repository: repository, Warnings: []string{}}
-	if err := s.removeGitWorktree(ctx, repository.Root, source, gitops.WorktreeDiscarded); err != nil {
+	if err := s.removeGitWorktree(ctx, repository.Root, source, removal); err != nil {
 		result.State, result.Error = "failed", err.Error()
 		return result, nil
 	}
@@ -93,13 +101,37 @@ func (s *Service) DiscardGitWorktree(ctx context.Context, request GitMutationReq
 	if err := s.reopenDiscardedWorktreeFindings(ctx, repository.Root, repository.ProjectID, targets); err != nil {
 		result.Warnings = append(result.Warnings, fmt.Sprintf("Worktree discarded, but linked issues could not be reopened: %v. Refresh Issues and retry their status update.", err))
 	}
-	switch deleted, err := deleteBranchWithoutOwnCommits(ctx, repository.Root, source.GitIdentity); {
+	deleteDiscardedBranch(ctx, repository.Root, source.GitIdentity, request.DiscardWork, result)
+	return result, nil
+}
+
+// discardSource is the worktree a discard removes: one whose work goes with
+// it may have uncommitted changes.
+func discardSource(ctx context.Context, repository *GitRepository, request GitMutationRequest) (*GitWorktree, gitops.WorktreeRemoval, error) {
+	if request.DiscardWork {
+		source, err := gitops.AbandonedSource(ctx, repository, request)
+		return source, gitops.WorktreeAbandoned, err
+	}
+	source, err := gitops.MergeSource(ctx, repository, request)
+	return source, gitops.WorktreeDiscarded, err
+}
+
+// deleteDiscardedBranch deletes a discarded worktree's branch: always when
+// its work was discarded with it, otherwise only when it has no commits of
+// its own.
+func deleteDiscardedBranch(ctx context.Context, root string, source gitops.GitIdentity, abandoned bool, result *GitMutationResult) {
+	deleted, err := true, error(nil)
+	if abandoned {
+		err = gitops.DeleteAbandonedBranch(ctx, root, source)
+	} else {
+		deleted, err = deleteBranchWithoutOwnCommits(ctx, root, source)
+	}
+	switch {
 	case err != nil:
 		result.Warnings = append(result.Warnings, fmt.Sprintf("Worktree discarded, but branch %s was retained: %v.", source.Branch, err))
 	case deleted:
 		result.RemovedBranch = source.Branch
 	}
-	return result, nil
 }
 
 // deleteBranchWithoutOwnCommits deletes a discarded worktree's branch only

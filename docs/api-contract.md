@@ -105,7 +105,7 @@ untrusted networks.
 | POST | `/api/projects/current/git/merge` | Merge the captured worktree HEAD into the current clean branch, then remove the merged worktree and branch unless `keep_worktree`. The result names `previous_head`, the commit before the merge. |
 | POST | `/api/projects/current/git/merge-checks` | Run the tests and lint of the subprojects a merge changed (`from` → `to`) on a copy of the merged checkout; failures that already happened before the merge pass as `known_failures`. Needs execution trust; never changes the checkout. |
 | POST | `/api/projects/current/git/cleanup-merged` | Reconcile an external merge and safely remove the integrated worktree and branch. |
-| POST | `/api/projects/current/git/discard-worktree` | Remove a confirmed clean worktree without merging; keep its branch unless the current branch contains its commits. |
+| POST | `/api/projects/current/git/discard-worktree` | Remove a confirmed clean worktree without merging; keep its branch unless the current branch contains its commits. With `discard_work`, a worktree left with no tasks goes with its uncommitted changes and its branch, commits of its own included. |
 | POST | `/api/projects/current/git/abort-merge` | Abort the identified merge and discard conflict resolutions. |
 | GET | `/api/projects/current/files/analysis` | Read cached semantic analysis for one selected file and revision. |
 | POST | `/api/projects/current/files/explanation` | Explicitly explain one selected Go file using transient Code-scope context. |

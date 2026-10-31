@@ -8,6 +8,17 @@ import (
 // DeleteMergedBranch removes only the captured ref, after its checkout has been
 // removed. The compare-and-delete protects newer commits from concurrent Git work.
 func DeleteMergedBranch(ctx context.Context, root string, source GitIdentity) error {
+	return deleteBranch(ctx, root, source, true)
+}
+
+// DeleteAbandonedBranch deletes the branch of a worktree discarded with its
+// work, commits of its own included, while it still points at the reviewed
+// head.
+func DeleteAbandonedBranch(ctx context.Context, root string, source GitIdentity) error {
+	return deleteBranch(ctx, root, source, false)
+}
+
+func deleteBranch(ctx context.Context, root string, source GitIdentity, merged bool) error {
 	if source.Branch == "" || !commitOIDPattern.MatchString(source.Head) {
 		return fmt.Errorf("missing reviewed branch identity")
 	}
@@ -24,8 +35,10 @@ func DeleteMergedBranch(ctx context.Context, root string, source GitIdentity) er
 			return fmt.Errorf("branch is still checked out at %s", tree.Path)
 		}
 	}
-	if _, err := Read(ctx, root, "merge-base", "--is-ancestor", source.Head, "HEAD"); err != nil {
-		return fmt.Errorf("verify branch commit is integrated: %w", err)
+	if merged {
+		if _, err := Read(ctx, root, "merge-base", "--is-ancestor", source.Head, "HEAD"); err != nil {
+			return fmt.Errorf("verify branch commit is integrated: %w", err)
+		}
 	}
 	if _, err := Read(ctx, root, "update-ref", "--no-deref", "-d", ref, source.Head); err != nil {
 		return fmt.Errorf("delete reviewed branch: %w", err)

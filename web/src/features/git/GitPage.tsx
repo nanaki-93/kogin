@@ -8,7 +8,7 @@ import type { GitWorktree, MergePreview } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { navigate, setParam, useRoute } from '@/lib/router';
 import { parseGitDiff } from '@/lib/diff';
-import { parseCommits, worktreeRemovable, worktreeTasks } from '@/lib/workflow';
+import { parseCommits, worktreeDiscardable, worktreeRemovable, worktreeTasks } from '@/lib/workflow';
 import { basename, languageOf, plural, shortHash } from '@/lib/util';
 import { Badge, Button, Callout, EmptyState, IconButton, Skeleton, Spinner, Tip, cx } from '@/components/ui';
 import { TaskStatusBadge } from '@/components/domain';
@@ -149,6 +149,7 @@ function IntegrationBadge({ tree }: { tree: GitWorktree }) {
 function notMergeableReason(tree: GitWorktree): string {
   if (tree.dirty) return 'Commit or discard the uncommitted changes in this worktree before merging.';
   if (tree.integration === 'merged') return (tree.completed ?? []).length ? 'This branch is already part of the main branch.' : 'This branch has no commits that the main branch lacks yet.';
+  if (!worktreeTasks(tree).length) return 'No task is left on this branch to merge. Discard it with its work, or merge it with Git.';
   return 'Merge becomes available when the tasks on this branch are applied and committed.';
 }
 
@@ -196,11 +197,15 @@ function WorktreeDetail({ tree, trusted }: { tree: GitWorktree; trusted: boolean
           <Button variant="secondary" icon={Trash2} onClick={() => void actions.removeWorktree(git, tree, main)} disabled={!trusted || Boolean(busy) || Boolean(git.merge_head)} loading={busy === 'Removing worktree…'}>
             Remove worktree
           </Button>
+        ) : worktreeDiscardable(tree) ? (
+          <Button variant="secondary" icon={Trash2} onClick={() => void actions.discardWorktree(git, tree, main)} disabled={!trusted || Boolean(busy) || Boolean(git.merge_head)} loading={busy === 'Discarding worktree…'}>
+            Discard worktree
+          </Button>
         ) : null}
       </div>
       <div className="xs faint mono truncate">{tree.path}</div>
       {!tree.mergeable ? <p className="small muted">{notMergeableReason(tree)}</p> : null}
-      {!trusted && (tree.mergeable || worktreeRemovable(tree)) ? <Callout tone="warning" icon={ShieldOff} title={tree.mergeable ? 'Merging needs trust' : 'Removing needs trust'}>Git can run repository filters and merge drivers. Allow checks in Settings first.</Callout> : null}
+      {!trusted && (tree.mergeable || worktreeRemovable(tree) || worktreeDiscardable(tree)) ? <Callout tone="warning" icon={ShieldOff} title={tree.mergeable ? 'Merging needs trust' : 'Removing needs trust'}>Git can run repository filters and merge drivers. Allow checks in Settings first.</Callout> : null}
       {tree.integration === 'behind' && (tree.overlap_paths ?? []).length ? (
         <Callout tone="warning" icon={AlertTriangle} title={`${plural(tree.overlap_paths!.length, 'file')} changed on both branches`}>{tree.overlap_paths!.join(', ')}</Callout>
       ) : null}
