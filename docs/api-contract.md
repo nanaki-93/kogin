@@ -912,6 +912,10 @@ Local `.mini-orca/changes/` history intentionally contains source, proposed cont
 and conversations in private files; it is excluded from prompt context and Git
 source indexing. Limits are eight paths, 256 KiB prompt/response content, forty
 messages, 2 MiB per conversation/recovery journal and two hundred conversations.
+A stage prompt carries a file the current proposal changes once, as its
+proposed content, and at most 48 KiB of the conversation: the task as first
+asked (up to 16 KiB) and the newest messages that fit (up to 8 KiB each), with a
+note counting the messages left out. The stored conversation stays whole.
 History lists return summaries (`id`, project identity, kind, title, revision,
 hash, state, freshness and updated time); selected reads return full contents.
 History reads are passive; stale history is readable but cannot be applied.

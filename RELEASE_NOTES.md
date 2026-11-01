@@ -17,6 +17,11 @@ are listed here as they land.
   out of date, paused) or an analysis run ends; clicking opens that page.
   Analysis events now carry the run's ID and status, and a task's events from
   its worktree carry `worktree_path`.
+- **Fixed:** a task fixing several issues of one file could fail its review
+  with "conversation context exceeds 256 KiB": the prompt carried each changed
+  file twice (as captured and as proposed) and the whole conversation. A
+  changed file is now carried once, as proposed, and a stage gets at most
+  48 KiB of the conversation: the task as first asked and the newest messages.
 - The `mini-orca` launcher and the desktop app share `internal/launcher`.
 
 ## v5.0.0 — Web-first workspace

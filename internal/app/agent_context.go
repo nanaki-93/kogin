@@ -72,7 +72,8 @@ func composedChangeContext(ctx context.Context, root string, session *ChangeSess
 	if session.Plan != nil {
 		readTargets = session.Plan.ReadTargets
 	}
-	identity := []any{"change-composition-v2", session.ProjectID, session.ProjectRevision, session.WorkspaceHash, session.PolicyFingerprint, session.Targets, readTargets, session.Instructions, stageZero}
+	// The proposal hash: a file the proposal changes is composed as a pointer.
+	identity := []any{"change-composition-v3", session.ProjectID, session.ProjectRevision, session.WorkspaceHash, session.PolicyFingerprint, session.Targets, readTargets, session.Instructions, stageZero, session.Hash}
 	data, err := agentruntime.CachedContext(ctx, identity, func() (json.RawMessage, error) {
 		text, manifest, err := composeChangeStagePromptContext(root, session, stageZero)
 		if err != nil {

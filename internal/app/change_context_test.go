@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -116,5 +117,106 @@ func TestChangePromptListsTheWritablePaths(t *testing.T) {
 	want := "Write only these exact paths: cmd/master_test.go, cmd/util_test.go (new file). Any other path, including a new helper file, rejects the whole proposal"
 	if !strings.Contains(messages[0].Content, want) {
 		t.Fatalf("system prompt does not list the writable paths:\n%s", messages[0].Content)
+	}
+}
+
+// source returns Go-like text of about n bytes, with the quotes and newlines
+// that JSON escaping grows.
+func source(marker string, n int) string {
+	line := "\tfmt.Println(\"" + marker + "\")\n"
+	return strings.Repeat(line, max(1, n/len(line)))
+}
+
+func TestAChangedFileIsInTheStagePromptOnce(t *testing.T) {
+	session := &ChangeSession{
+		Kind: "fix",
+		Targets: []ChangeTarget{
+			{Path: "a.go", Content: source("ORIGINAL-A", 400), Exists: true},
+			{Path: "b.go", Content: source("ORIGINAL-B", 400), Exists: true},
+			{Path: "c.go", Content: source("ORIGINAL-C", 400), Exists: true},
+		},
+		Changes: []ChangeEdit{
+			{Path: "a.go", Content: source("PROPOSED-A", 400), Status: "modified"},
+			{Path: "c.go", Status: "deleted"},
+		},
+	}
+	session.Hash = changeProposalHash(session.Changes)
+	text, _, err := composeChangePromptContext(t.TempDir(), session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	messages, err := changeMessages(session, "Review the proposal", text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prompt := messages[1].Content
+	if strings.Contains(prompt, "ORIGINAL-A") || !strings.Contains(prompt, "PROPOSED-A") || !strings.Contains(prompt, "a.go: the current proposal changes it") {
+		t.Fatal("a changed file is not carried once, as its proposal")
+	}
+	if !strings.Contains(prompt, "ORIGINAL-B") || !strings.Contains(prompt, "ORIGINAL-C") {
+		t.Fatal("an unchanged or deleted file lost its captured content")
+	}
+}
+
+func TestTheConversationAStageCarriesIsBounded(t *testing.T) {
+	short := []ChangeMessage{{Role: "user", Content: "Fix it"}, {Role: "assistant", Content: "Fixed"}}
+	if got := promptConversation(short); len(got) != 2 || got[1].Content != "Fixed" {
+		t.Fatalf("a short conversation changed: %+v", got)
+	}
+	if got := promptConversation(nil); got == nil || len(got) != 0 {
+		t.Fatalf("no conversation = %#v", got)
+	}
+	long := []ChangeMessage{{Role: "user", Content: strings.Repeat("t", 20*1024)}}
+	for i := range 30 {
+		long = append(long, ChangeMessage{Role: []string{"user", "assistant"}[i%2], Content: fmt.Sprintf("%02d", i) + strings.Repeat("a", 5*1024)})
+	}
+	long = append(long, ChangeMessage{Role: "assistant", Content: "last" + strings.Repeat("b", 10*1024)})
+	got := promptConversation(long)
+	total := 0
+	for _, message := range got {
+		total += len(message.Content)
+	}
+	if total > maxPromptConversationBytes+64 {
+		t.Fatalf("conversation of %d bytes", total)
+	}
+	if !strings.HasPrefix(got[0].Content, "ttt") || !strings.HasSuffix(got[0].Content, "[clipped]") || len(got[0].Content) > maxPromptTaskBytes+16 {
+		t.Fatal("the task as first asked is not kept, clipped")
+	}
+	last := got[len(got)-1]
+	if !strings.HasPrefix(last.Content, "last") || len(last.Content) > maxPromptMessageBytes+16 {
+		t.Fatalf("the newest message is not kept, clipped: %d bytes", len(last.Content))
+	}
+	if got[1].Role != "note" || !strings.Contains(got[1].Content, "earlier messages are left out") {
+		t.Fatalf("no note for the messages left out: %+v", got[1])
+	}
+	if !strings.HasPrefix(got[2].Content, "2") {
+		t.Fatalf("the kept messages are not the newest, in order: %.4s", got[2].Content)
+	}
+}
+
+// The sizes of a task that fixed 8 issues of one file and failed its review
+// with "conversation context exceeds 256 KiB": its files, its proposal, its
+// conversation and the review's diff.
+func TestAGroupedFixTaskFitsItsReview(t *testing.T) {
+	session := &ChangeSession{Kind: "fix"}
+	for i, size := range []int{6685, 28765, 15803, 13096, 18916} {
+		session.Targets = append(session.Targets, ChangeTarget{Path: fmt.Sprintf("f%d.go", i), Content: source("before", size), Exists: true})
+	}
+	session.Targets = append(session.Targets, ChangeTarget{Path: "f5_test.go"}, ChangeTarget{Path: "f6_test.go"})
+	for i, size := range []int{15812, 4906, 23385, 20796, 18916, 11871, 9005} {
+		session.Changes = append(session.Changes, ChangeEdit{Path: fmt.Sprintf("f%d.go", i), Content: source("after", size), Status: "modified"})
+	}
+	session.Changes[5].Path, session.Changes[6].Path = "f5_test.go", "f6_test.go"
+	for i, size := range []int{6520, 7056, 8191, 5460, 4282, 5078} {
+		session.Messages = append(session.Messages, ChangeMessage{Role: []string{"user", "assistant"}[i%2], Content: source("message", size)})
+	}
+	session.Hash = changeProposalHash(session.Changes)
+	text, _, err := composeChangePromptContext(t.TempDir(), session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	review := "Review the complete checked proposal:\n" + strings.Repeat("c", 4096) + "\n" + source("diff", maxReviewDiffBytes)
+	if _, err := changeMessages(session, review, text); err != nil {
+		t.Fatalf("the review of a grouped fix does not fit: %v", err)
 	}
 }

@@ -98,13 +98,7 @@ func composeChangeStagePromptContext(root string, session *ChangeSession, stageZ
 			text.WriteString("\nGuide " + file.Path + " (applies within " + file.Scope + "):\n" + file.Content + "\n")
 			manifest.Included = append(manifest.Included, project.ContextFile{Path: file.Path, Hash: file.Hash, SizeBytes: int64(len(file.Content))})
 		}
-		if changeTarget(session, target.Path) == nil {
-			text.WriteString("\nRead-only context " + target.Path + ":\n" + target.Content + "\n")
-		} else if omitTestBodies && isTestTarget(target) {
-			text.WriteString("\nCaptured test target " + target.Path + " (handled by Stage 2 testing agent):\n" + summarizeTestTargetDecls(target) + "\n")
-		} else {
-			text.WriteString("\nCaptured target " + target.Path + ":\n" + target.Content + "\n")
-		}
+		text.WriteString(promptTarget(session, target, omitTestBodies))
 		manifest.Included = append(manifest.Included, project.ContextFile{Path: target.Path, Hash: target.Hash, SizeBytes: int64(len(target.Content))})
 	}
 	text.WriteString(budgetBrief(root, session.Targets))
@@ -126,6 +120,77 @@ func hasNonTestTarget(targets []ChangeTarget) bool {
 		}
 	}
 	return false
+}
+
+// promptTarget is how a stage prompt shows one file of the task.
+func promptTarget(session *ChangeSession, target ChangeTarget, omitTestBodies bool) string {
+	switch {
+	case changeTarget(session, target.Path) == nil:
+		return "\nRead-only context " + target.Path + ":\n" + target.Content + "\n"
+	case omitTestBodies && isTestTarget(target):
+		return "\nCaptured test target " + target.Path + " (handled by Stage 2 testing agent):\n" + summarizeTestTargetDecls(target) + "\n"
+	case proposedInPrompt(session, target.Path, omitTestBodies):
+		// The prompt carries the proposed file whole; its captured version
+		// again would double the largest part of the context.
+		return "\nCaptured target " + target.Path + ": the current proposal changes it; its proposed content is in previous_proposal.\n"
+	default:
+		return "\nCaptured target " + target.Path + ":\n" + target.Content + "\n"
+	}
+}
+
+// proposedInPrompt reports whether a stage prompt carries the current
+// proposal's content for path: an edit that keeps the file, and is not a test
+// file left out of a first stage that writes implementation first.
+func proposedInPrompt(session *ChangeSession, path string, omitTestBodies bool) bool {
+	if omitTestBodies && isTestEditPath(session, path) {
+		return false
+	}
+	for _, edit := range session.Changes {
+		if edit.Path == path {
+			return !edit.Deleted()
+		}
+	}
+	return false
+}
+
+// The task's conversation is carried into every stage. The stages' answers
+// repeat the task and grow with each repair, so a stage gets the task as first
+// asked and the newest messages that fit, each clipped.
+const (
+	maxPromptConversationBytes = 48 * 1024
+	maxPromptTaskBytes         = 16 * 1024
+	maxPromptMessageBytes      = 8 * 1024
+)
+
+// promptConversation is the conversation a stage prompt carries.
+func promptConversation(messages []ChangeMessage) []ChangeMessage {
+	if len(messages) == 0 {
+		return []ChangeMessage{}
+	}
+	first := clippedMessage(messages[0], maxPromptTaskBytes)
+	budget := maxPromptConversationBytes - len(first.Content)
+	var recent []ChangeMessage
+	for i := len(messages) - 1; i > 0; i-- {
+		message := clippedMessage(messages[i], maxPromptMessageBytes)
+		if len(message.Content) > budget {
+			break
+		}
+		budget -= len(message.Content)
+		recent = append(recent, message)
+	}
+	slices.Reverse(recent)
+	result := []ChangeMessage{first}
+	if left := len(messages) - 1 - len(recent); left > 0 {
+		result = append(result, ChangeMessage{Role: "note", Content: fmt.Sprintf("%d earlier messages are left out; previous_proposal is current.", left)})
+	}
+	return append(result, recent...)
+}
+
+func clippedMessage(message ChangeMessage, limit int) ChangeMessage {
+	if len(message.Content) > limit {
+		message.Content = textutil.Truncate(message.Content, limit) + "\n[clipped]"
+	}
+	return message
 }
 
 func summarizeTestTargetDecls(target ChangeTarget) string {
@@ -179,7 +244,7 @@ func changeStageMessages(session *ChangeSession, message, text string, stageZero
 		Criteria     []string          `json:"acceptance_criteria"`
 		Conversation []ChangeMessage   `json:"conversation"`
 		Previous     []ChangeEditInput `json:"previous_proposal"`
-	}{plan, message, session.AcceptanceCriteria, session.Messages, previous})
+	}{plan, message, session.AcceptanceCriteria, promptConversation(session.Messages), previous})
 	if err != nil {
 		return nil, err
 	}
