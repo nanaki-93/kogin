@@ -82,7 +82,7 @@ func (c *ProviderClient) reserveDispatch(ctx context.Context, request any) (*mod
 
 func newPolicyPlugin() (*plugin.Plugin, error) {
 	return plugin.New(plugin.Config{
-		Name:              "mini_orca_policy",
+		Name:              "kasuri_policy",
 		BeforeRunCallback: func(ctx agent.InvocationContext) (*genai.Content, error) { return nil, context.Cause(ctx) },
 		BeforeModelCallback: func(ctx agent.Context, _ *model.LLMRequest) (*model.LLMResponse, error) {
 			return nil, context.Cause(ctx)

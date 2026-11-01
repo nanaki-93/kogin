@@ -99,7 +99,7 @@ func loadCleanCanonicalRecoveryBase(root string) (string, error) {
 }
 
 func validateRecoveryCoordinatorBoundary(root string) error {
-	data, err := os.ReadFile(filepath.Join(root, ".mini-orca", "autopilot", "coordinator", "RCV-recovery.json"))
+	data, err := os.ReadFile(filepath.Join(root, ".kasuri", "autopilot", "coordinator", "RCV-recovery.json"))
 	if err != nil || ValidateStrictJSONDocument(data) != nil {
 		return fmt.Errorf("recovery coordinator boundary is invalid")
 	}

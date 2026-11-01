@@ -48,7 +48,7 @@ func (s *Service) acceptWorktreeChange(ctx context.Context, root string, session
 // base to it only if nothing else moved it, and finally lines the worktree's
 // own index up with the new commit.
 func commitWorktreeProposal(ctx context.Context, root string, session *ChangeSession, message string) (string, error) {
-	temporary, err := os.MkdirTemp("", "mini-orca-git-index-")
+	temporary, err := os.MkdirTemp("", "kasuri-git-index-")
 	if err != nil {
 		return "", err
 	}
@@ -72,7 +72,7 @@ func commitWorktreeProposal(ctx context.Context, root string, session *ChangeSes
 		return "", err
 	}
 	oid = strings.TrimSpace(oid)
-	if _, err := gitRead(ctx, root, "update-ref", "-m", "mini-orca: "+strings.Split(message, "\n")[0], "refs/heads/"+session.Worktree.Branch, oid, base); err != nil {
+	if _, err := gitRead(ctx, root, "update-ref", "-m", "kasuri: "+strings.Split(message, "\n")[0], "refs/heads/"+session.Worktree.Branch, oid, base); err != nil {
 		return "", fmt.Errorf("%w: the task branch moved while it was accepted: %v", project.ErrRevisionConflict, err)
 	}
 	if _, err := gitRead(ctx, root, "reset", "--quiet"); err != nil {

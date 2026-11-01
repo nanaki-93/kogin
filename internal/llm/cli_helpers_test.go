@@ -31,7 +31,7 @@ func serveCLIHelperChild(t *testing.T) {
 	}
 	defer listener.Close()
 	data, _ := json.Marshal(cliChildCapture{PID: os.Getpid(), Address: listener.Addr().String()})
-	if err := os.WriteFile(os.Getenv("MINI_ORCA_TEST_CAPTURE")+".child", data, 0600); err != nil {
+	if err := os.WriteFile(os.Getenv("KASURI_TEST_CAPTURE")+".child", data, 0600); err != nil {
 		t.Fatal(err)
 	}
 	for {
@@ -59,10 +59,10 @@ func cliFixture(t *testing.T, provider config.ModelProvider, mode string) (confi
 	if runtime.GOOS == "windows" {
 		t.Skip("CLI providers require process-group support")
 	}
-	t.Setenv("MINI_ORCA_TEST_CLI", mode)
-	t.Setenv("MINI_ORCA_TEST_PROVIDER", string(provider))
+	t.Setenv("KASURI_TEST_CLI", mode)
+	t.Setenv("KASURI_TEST_PROVIDER", string(provider))
 	capture := filepath.Join(t.TempDir(), "capture.json")
-	t.Setenv("MINI_ORCA_TEST_CAPTURE", capture)
+	t.Setenv("KASURI_TEST_CAPTURE", capture)
 	executable, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -76,7 +76,7 @@ func cliFixture(t *testing.T, provider config.ModelProvider, mode string) (confi
 }
 
 func TestCLIHelperProcess(t *testing.T) {
-	mode := os.Getenv("MINI_ORCA_TEST_CLI")
+	mode := os.Getenv("KASURI_TEST_CLI")
 	if mode == "" {
 		return
 	}
@@ -86,17 +86,17 @@ func TestCLIHelperProcess(t *testing.T) {
 	}
 	if mode == "success-child" || mode == "wait-child" {
 		child := exec.Command(os.Args[0], "-test.run=^TestCLIHelperProcess$")
-		child.Env = append(os.Environ(), "MINI_ORCA_TEST_CLI=child")
+		child.Env = append(os.Environ(), "KASURI_TEST_CLI=child")
 		if err := child.Start(); err != nil {
 			t.Fatal(err)
 		}
-		waitForCLIFile(t, os.Getenv("MINI_ORCA_TEST_CAPTURE")+".child")
+		waitForCLIFile(t, os.Getenv("KASURI_TEST_CAPTURE")+".child")
 	}
 	input, _ := io.ReadAll(os.Stdin)
 	directory, _ := os.Getwd()
 	info, _ := os.Stat(directory)
-	agentFile := ".agents/agents/mini-orca/agent.md"
-	if provider := os.Getenv("MINI_ORCA_TEST_PROVIDER"); provider == "pi" || provider == "claude" {
+	agentFile := ".agents/agents/kasuri/agent.md"
+	if provider := os.Getenv("KASURI_TEST_PROVIDER"); provider == "pi" || provider == "claude" {
 		agentFile = "system.txt"
 	}
 	system, _ := os.ReadFile(filepath.Join(directory, agentFile))
@@ -108,13 +108,13 @@ func TestCLIHelperProcess(t *testing.T) {
 		}
 	}
 	capture, _ := json.Marshal(cliCapture{os.Args[4:], directory, uint32(info.Mode().Perm()), string(input), string(system), string(settings), anthropic})
-	if os.WriteFile(os.Getenv("MINI_ORCA_TEST_CAPTURE"), capture, 0600) != nil {
+	if os.WriteFile(os.Getenv("KASURI_TEST_CAPTURE"), capture, 0600) != nil {
 		os.Exit(99)
 	}
 	fmt.Fprint(os.Stderr, "credential-private-marker source-private-marker")
 	switch mode {
 	case "catalog":
-		if os.Getenv("MINI_ORCA_TEST_PROVIDER") == "agy" {
+		if os.Getenv("KASURI_TEST_PROVIDER") == "agy" {
 			fmt.Print(agyCatalogFixture)
 		} else {
 			fmt.Print(piCatalogFixture)
@@ -132,7 +132,7 @@ func TestCLIHelperProcess(t *testing.T) {
 	case "stderr-limit":
 		fmt.Fprint(os.Stderr, strings.Repeat("x", 64*1024+1))
 	default:
-		fmt.Print(cliFixtureOutput(config.ModelProvider(os.Getenv("MINI_ORCA_TEST_PROVIDER")), mode))
+		fmt.Print(cliFixtureOutput(config.ModelProvider(os.Getenv("KASURI_TEST_PROVIDER")), mode))
 		if strings.HasPrefix(mode, "plan-limit") {
 			os.Exit(1)
 		}
@@ -172,7 +172,7 @@ func cliFixtureOutput(provider config.ModelProvider, mode string) string {
 	}
 	if provider == config.AgyProvider {
 		// Agy reports its global catalog even when the custom agent denies these tools.
-		init := `{"event":"init","init":{"agent":"mini-orca","model":"fixture-model","tools":["view_file","run_command","finish"]}}` + "\n"
+		init := `{"event":"init","init":{"agent":"kasuri","model":"fixture-model","tools":["view_file","run_command","finish"]}}` + "\n"
 		if mode == "partial" {
 			return init
 		}
@@ -220,7 +220,7 @@ func assertCLIFlags(t *testing.T, provider config.ModelProvider, args []string) 
 	if provider == config.PiProvider {
 		flags = append(flags, "--print", "--mode json", "--no-tools", "--no-session", "--no-extensions", "--no-skills", "--no-context-files", "--offline", "--thinking high")
 	} else {
-		flags = append(flags, "--input-format stream-json", "--output-format stream-json", "--agent mini-orca", "--disable-slash-commands", "--effort high")
+		flags = append(flags, "--input-format stream-json", "--output-format stream-json", "--agent kasuri", "--disable-slash-commands", "--effort high")
 	}
 	for _, flag := range flags {
 		if !strings.Contains(joined, flag) {

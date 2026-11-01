@@ -64,7 +64,7 @@ class QualityTests(unittest.TestCase):
                 "DEADCODE_STDOUT": stdout,
                 "DEADCODE_STDERR": stderr,
                 "DEADCODE_STATUS": str(status),
-                "MINI_ORCA_QUALITY_FAIL_STAGE": forced_failure,
+                "KASURI_QUALITY_FAIL_STAGE": forced_failure,
             },
             capture_output=True,
             text=True,
@@ -155,7 +155,7 @@ class ValidationTests(unittest.TestCase):
                             **os.environ,
                             "PATH": str(bin_dir),
                             "VALIDATION_CALLS": str(calls),
-                            "MINI_ORCA_VALIDATE_FAIL_STAGE": failure,
+                            "KASURI_VALIDATE_FAIL_STAGE": failure,
                         },
                         capture_output=True, text=True, timeout=10,
                     )

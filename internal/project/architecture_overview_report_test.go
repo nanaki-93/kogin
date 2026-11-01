@@ -139,7 +139,7 @@ func TestAnalyzerFailureKeepsInventoryAndWritesCanonicalReport(t *testing.T) {
 	if analysis.AIStatus != ProjectAnalysisStatusFailed || analysis.FileCount != 1 || analysis.SourceFileCount != 1 || analysis.Report.Failure == "" {
 		t.Fatalf("failed analysis = %+v", analysis)
 	}
-	if _, err := os.Stat(filepath.Join(root, ".mini-orca", "analysis.md")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(root, ".kasuri", "analysis.md")); !os.IsNotExist(err) {
 		t.Fatalf("legacy markdown report was generated: %v", err)
 	}
 	stored, err := LoadProjectAnalysisReport(root, ProjectAnalysisInput{ProjectID: analysis.ProjectID, ProjectRevision: analysis.ProjectRevision, Model: "fixture-model", Profile: "analysis", PromptVersion: projectAnalysisPromptVersion})

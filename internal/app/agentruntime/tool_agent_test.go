@@ -42,7 +42,7 @@ func TestInvestigationRoundTripPersistsToolEventsAndScope(t *testing.T) {
 	if err != nil || result.Content != "done" || calls != 2 || budget.Snapshot().ToolCalls != 1 || budget.Snapshot().ModelCalls != 2 {
 		t.Fatalf("result=%+v error=%v calls=%d budget=%+v", result, err, calls, budget.Snapshot())
 	}
-	list, err := store.Sessions(t.Context(), "mini-orca", "local")
+	list, err := store.Sessions(t.Context(), "kasuri", "local")
 	if err != nil || len(list) != 1 || len(list[0].Events) != 4 {
 		t.Fatalf("history=%+v error=%v", list, err)
 	}

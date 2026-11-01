@@ -166,7 +166,7 @@ every guard when the action arrives.
   message in the conversation.
 - **Task in its own worktree.** The proposal is the worktree's diff against the
   task's base commit; Files changed marks new, deleted and moved files. Edits
-  made in the worktree outside Mini-Orca become a new version of the proposal
+  made in the worktree outside Kasuri become a new version of the proposal
   (its checks and approval reset, and the conversation says so); files outside
   the task's scope join it, and its plan stays approved. Edits that cannot
   become the proposal (more files than a task holds) leave the task stale with
@@ -206,7 +206,7 @@ every guard when the action arrives.
 
 - **Open a project.** Restores saved data for a known path, otherwise imports
   and indexes it. No model request is made, and the project's own
-  `.mini-orca/config.yaml` is applied when it has one.
+  `.kasuri/config.yaml` is applied when it has one.
 - **Setup.** The first time a project without its own configuration opens, the
   Web UI opens Setup (once per window): Models (provider, model, address, key,
   reasoning effort, CLI path, with a connection test; "Same as Analyze" copies
@@ -226,7 +226,7 @@ every guard when the action arrives.
   applies them at once, keeping agent settings; it is refused while work runs.
   Failures that timed out point here.
 - **Set-aside files.** When the daemon set aside an unreadable agent journal,
-  task file or saved analysis progress, or skipped one a newer Mini-Orca wrote,
+  task file or saved analysis progress, or skipped one a newer Kasuri wrote,
   the Inbox says so and Settings → Project lists each file with where its bytes
   went and the remedy.
 - **Agent models.** Settings → Models & agents chooses the model each role runs

@@ -7,10 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/launcher"
-	"github.com/nanaki-93/mini-orca/v2/internal/version"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/notifications"
+
+	"github.com/nanaki-93/mini-orca/v2/internal/brand"
+	"github.com/nanaki-93/mini-orca/v2/internal/launcher"
+	"github.com/nanaki-93/mini-orca/v2/internal/version"
 )
 
 // startupWait bounds how long quitting waits for a launch in progress, so a
@@ -39,7 +41,7 @@ type shell struct {
 }
 
 func newShell() *shell {
-	return &shell{state: launchStatus{Title: "Starting Mini-Orca…"}}
+	return &shell{state: launchStatus{Title: "Starting Kasuri…"}}
 }
 
 // openWindow shows the status page; the Web UI replaces it once the daemon
@@ -50,7 +52,7 @@ func (s *shell) openWindow() {
 		background = application.NewRGB(239, 239, 242)
 	}
 	s.window = s.app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:            "Mini-Orca",
+		Title:            "Kasuri",
 		Width:            1360,
 		Height:           880,
 		MinWidth:         900,
@@ -70,7 +72,7 @@ func (s *shell) start() {
 	if project == "" {
 		folder, err := s.firstProject()
 		if err != nil {
-			s.fail("Mini-Orca could not show the folder dialog", err.Error())
+			s.fail("Kasuri could not show the folder dialog", err.Error())
 			return
 		}
 		if folder == "" {
@@ -79,7 +81,7 @@ func (s *shell) start() {
 		}
 		project = folder
 	}
-	s.status("Starting Mini-Orca", "Opening "+project+"…")
+	s.status("Starting Kasuri", "Opening "+project+"…")
 	launching := make(chan struct{})
 	s.mu.Lock()
 	s.launching = launching
@@ -87,7 +89,7 @@ func (s *shell) start() {
 	session, err := s.open(project)
 	close(launching)
 	if err != nil {
-		s.fail("Mini-Orca could not start", err.Error())
+		s.fail("Kasuri could not start", err.Error())
 		return
 	}
 	s.mu.Lock()
@@ -114,8 +116,8 @@ func (s *shell) checkVersion(session *launcher.Session) {
 	}
 	s.note("The daemon already running at %s is version %s; this app is %s.", session.Client.Base, running, version.Version)
 	dialog := s.app.Dialog.Warning().
-		SetTitle("Another version of Mini-Orca is running").
-		SetMessage(fmt.Sprintf("The daemon already running at %s is version %s, and this app is %s, so the window shows that version's pages.\n\nTo use this version, stop that daemon (Ctrl+C where mini-orca or just dev runs it) and open Mini-Orca again.", session.Client.Base, running, version.Version))
+		SetTitle("Another version of Kasuri is running").
+		SetMessage(fmt.Sprintf("The daemon already running at %s is version %s, and this app is %s, so the window shows that version's pages.\n\nTo use this version, stop that daemon (Ctrl+C where kasuri or just dev runs it) and open Kasuri again.", session.Client.Base, running, version.Version))
 	dialog.AddButton("Quit").OnClick(s.app.Quit)
 	dialog.AddButton("Use It").SetAsDefault()
 	dialog.AttachToWindow(s.window).Show()
@@ -136,7 +138,7 @@ func (s *shell) open(project string) (*launcher.Session, error) {
 	s.log = log
 	s.mu.Unlock()
 	session, err := launcher.Open(s.app.Context(), launcher.Options{
-		URL:            os.Getenv("MINI_ORCA_URL"),
+		URL:            brand.Getenv("KASURI_URL"),
 		Project:        project,
 		Notes:          log,
 		Stdout:         log,
@@ -144,7 +146,7 @@ func (s *shell) open(project string) (*launcher.Session, error) {
 		LoginShellPath: true,
 	})
 	if err == nil && session.Daemon == nil {
-		fmt.Fprintf(log, "Using the daemon already running at %s; its log is where it was started, and it keeps running when Mini-Orca quits.\n", session.Client.Base)
+		fmt.Fprintf(log, "Using the daemon already running at %s; its log is where it was started, and it keeps running when Kasuri quits.\n", session.Client.Base)
 	}
 	return session, err
 }
@@ -157,7 +159,7 @@ func (s *shell) chooseProject() {
 	}
 	path, err := s.askFolder("Choose the project to open.")
 	if err != nil {
-		s.alert("Mini-Orca could not show the folder dialog", err.Error())
+		s.alert("Kasuri could not show the folder dialog", err.Error())
 		return
 	}
 	if path == "" {
@@ -165,13 +167,13 @@ func (s *shell) chooseProject() {
 	}
 	folder, err := launcher.Folder(path)
 	if err != nil {
-		s.alert("Mini-Orca could not open "+filepath.Base(path), err.Error())
+		s.alert("Kasuri could not open "+filepath.Base(path), err.Error())
 		return
 	}
 	s.status("Opening "+filepath.Base(folder), folder)
 	s.window.SetURL(statusURL)
 	if err := session.Client.OpenProject(s.app.Context(), folder); err != nil {
-		s.alert("Mini-Orca could not open "+filepath.Base(folder), err.Error())
+		s.alert("Kasuri could not open "+filepath.Base(folder), err.Error())
 	} else {
 		s.remember(folder)
 	}
@@ -181,10 +183,10 @@ func (s *shell) chooseProject() {
 // firstProject asks for the project on a first launch until the user picks
 // a folder or cancels (empty).
 func (s *shell) firstProject() (string, error) {
-	detail := "Mini-Orca opens the folder of a project you work on."
+	detail := "Kasuri opens the folder of a project you work on."
 	for {
 		s.prompt("Choose the project to open", detail)
-		path, err := s.askFolder("Choose the project Mini-Orca opens.")
+		path, err := s.askFolder("Choose the project Kasuri opens.")
 		if err != nil || path == "" {
 			return "", err
 		}
@@ -217,7 +219,7 @@ func (s *shell) watch(daemon *launcher.Daemon) {
 	if s.app.Context().Err() != nil {
 		return // Quitting stopped it.
 	}
-	s.fail("The Mini-Orca daemon stopped", fmt.Sprintf("It exited unexpectedly (%v).", daemon.Err()))
+	s.fail("The Kasuri daemon stopped", fmt.Sprintf("It exited unexpectedly (%v).", daemon.Err()))
 }
 
 // fail shows what went wrong, with the daemon log at hand, and quits.
@@ -267,7 +269,7 @@ func (s *shell) launch() launchStatus {
 
 func (s *shell) remember(folder string) {
 	if err := launcher.RememberProject(folder); err != nil {
-		s.alert("Mini-Orca will not reopen this project", err.Error())
+		s.alert("Kasuri will not reopen this project", err.Error())
 	}
 }
 
@@ -282,7 +284,7 @@ func (s *shell) openBrowser() {
 func (s *shell) showLog() {
 	path := s.logPath()
 	if path == "" {
-		s.alert("No daemon log yet", "The log starts when Mini-Orca starts the daemon.")
+		s.alert("No daemon log yet", "The log starts when Kasuri starts the daemon.")
 		return
 	}
 	if err := s.app.Browser.OpenFile(path); err != nil {

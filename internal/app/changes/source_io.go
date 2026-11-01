@@ -26,7 +26,7 @@ func NewOpaqueID(prefix string) string {
 
 // MetadataPath disallows metadata-directory aliases before either reads or writes.
 func MetadataPath(root, name string) (string, error) {
-	return storage.MetadataPath(root, ".mini-orca", "changes", name)
+	return storage.MetadataPath(root, ".kasuri", "changes", name)
 }
 
 // AtomicWriteSource writes content to a temporary file in the same directory,
@@ -39,7 +39,7 @@ func AtomicWriteSource(path string, content []byte) error {
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	temp, err := os.CreateTemp(filepath.Dir(path), ".mini-orca-*.tmp")
+	temp, err := os.CreateTemp(filepath.Dir(path), ".kasuri-*.tmp")
 	if err != nil {
 		return err
 	}

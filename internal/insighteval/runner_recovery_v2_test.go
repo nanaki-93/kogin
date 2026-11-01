@@ -324,7 +324,7 @@ func TestEngineeringInsightRecoveryV2PeriodJSONIsStrict(t *testing.T) {
 
 func TestEngineeringInsightRecoveryV2CoordinatorBoundaryIsExact(t *testing.T) {
 	root := t.TempDir()
-	directory := filepath.Join(root, ".mini-orca", "autopilot", "coordinator")
+	directory := filepath.Join(root, ".kasuri", "autopilot", "coordinator")
 	if err := os.MkdirAll(directory, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -394,7 +394,7 @@ func recoveryV2TestRoot(t *testing.T) (string, string) {
 		return strings.TrimSpace(string(output))
 	}
 	gitCommand("checkout", "-b", "codex/autopilot")
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".mini-orca/\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kasuri/\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	gitCommand("add", ".gitignore")

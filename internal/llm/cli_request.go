@@ -23,7 +23,7 @@ func (c *Client) chatCLI(ctx context.Context, messages []ChatMessage, format *Re
 	if err != nil {
 		return nil, err
 	}
-	directory, err := os.MkdirTemp("", "mini-orca-provider-")
+	directory, err := os.MkdirTemp("", "kasuri-provider-")
 	if err != nil {
 		return nil, fmt.Errorf("llm client: cannot create private CLI working directory")
 	}
@@ -89,7 +89,7 @@ func prepareCLIInvocation(profile config.ModelProfile, messages []ChatMessage, f
 }
 
 func cliPrompt(messages []ChatMessage, format *ResponseFormat) (string, string, error) {
-	system := "You are Mini-Orca's model provider. Answer the final user message in the supplied JSON conversation. Use only the supplied context. Return the requested answer, without file access, commands, or external tools."
+	system := "You are Kasuri's model provider. Answer the final user message in the supplied JSON conversation. Use only the supplied context. Return the requested answer, without file access, commands, or external tools."
 	conversation := make([]ChatMessage, 0, len(messages))
 	for _, message := range messages {
 		switch message.Role {
@@ -138,11 +138,11 @@ func preparePi(directory string, profile config.ModelProfile, system string) ([]
 func prepareAgy(directory string, profile config.ModelProfile, system string) ([]string, error) {
 	// Native --json-schema requires finish, which user tool hooks can deny.
 	// Keep this a text completion, with the prompted schema enforced by chatCLI.
-	agent := "---\nname: mini-orca\ndescription: Mini-Orca completion provider\ntools: []\nmainAgent: true\nsubagent: false\ninheritMcp: false\ncommandExecutionPolicy: off\nmcpServers: []\nskills: []\nplugins: []\n---\n# System Prompt\n" + system
-	if err := writeCLIFile(directory, ".agents/agents/mini-orca/agent.md", agent); err != nil {
+	agent := "---\nname: kasuri\ndescription: Kasuri completion provider\ntools: []\nmainAgent: true\nsubagent: false\ninheritMcp: false\ncommandExecutionPolicy: off\nmcpServers: []\nskills: []\nplugins: []\n---\n# System Prompt\n" + system
+	if err := writeCLIFile(directory, ".agents/agents/kasuri/agent.md", agent); err != nil {
 		return nil, err
 	}
-	args := []string{"--input-format", "stream-json", "--output-format", "stream-json", "--agent", "mini-orca", "--disable-slash-commands", "--model", profile.Model, "--log-file", os.DevNull}
+	args := []string{"--input-format", "stream-json", "--output-format", "stream-json", "--agent", "kasuri", "--disable-slash-commands", "--model", profile.Model, "--log-file", os.DevNull}
 	if profile.ReasoningEffort != "" {
 		args = append(args, "--effort", profile.ReasoningEffort)
 	}
@@ -182,7 +182,7 @@ func compileCLISchema(format *ResponseFormat) (*jsonschema.Schema, error) {
 	}
 	compiler := jsonschema.NewCompiler()
 	compiler.UseLoader(cliSchemaLoader{})
-	const location = "urn:mini-orca:response"
+	const location = "urn:kasuri:response"
 	if err := compiler.AddResource(location, document); err != nil {
 		return nil, fmt.Errorf("llm client: %w: invalid CLI response schema", ErrStructuredRequestRejected)
 	}

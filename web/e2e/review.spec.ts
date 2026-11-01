@@ -161,14 +161,14 @@ test('a task whose files a merge changed is re-analyzed and retaken from main', 
   await expect(page).toHaveURL(/#\/tasks\/chg-101\?wt=.*d4e5f6/);
   expect(daemon.mutations('/retake')[0].body).toMatchObject({ project_id: 'p1', confirm_execution: true, confirm_remote_provider: false });
   // The old worktree held no work of its own, so it goes without asking.
-  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/mini-orca/.worktrees/reject-nested-asset-a1b2c3' });
+  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/kasuri/.worktrees/reject-nested-asset-a1b2c3' });
   await expect(page.getByText('main changed 1 file')).toHaveCount(0);
 });
 
 test('a retaken task that is no longer valid is deleted, and its work discarded only if asked', async ({ page, daemon }) => {
   await draftInItsOwnWorktree(page);
   daemon.overtake('chg-100', ['internal/api/handlers/webui.go']);
-  daemon.patchWorktree('/work/mini-orca/.worktrees/reject-nested-asset-a1b2c3', { dirty: true });
+  daemon.patchWorktree('/work/kasuri/.worktrees/reject-nested-asset-a1b2c3', { dirty: true });
   daemon.retakeOutcome = 'not_valid';
   await page.reload();
   await page.getByRole('button', { name: 'Re-analyze & retake' }).click();
@@ -317,7 +317,7 @@ test('a comment can be deleted before it is sent', async ({ page, daemon }) => {
 test('a page from an earlier daemon launch is told to reload', async ({ page, daemon }) => {
   daemon.expectedConsole.push(/status of 401/);
   await page.goto('/#/tasks/chg-1/files');
-  await page.evaluate(() => document.querySelector('meta[name="mini-orca-write-token"]')?.setAttribute('content', 'previous-launch'));
+  await page.evaluate(() => document.querySelector('meta[name="kasuri-write-token"]')?.setAttribute('content', 'previous-launch'));
   await page.keyboard.press('v');
   await expect(page.getByText("Reload the Web UI to get this daemon's write token.")).toBeVisible();
   expect(daemon.sessions.get('chg-1')!.reviewed_files).toEqual([]);

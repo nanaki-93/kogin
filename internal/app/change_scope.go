@@ -22,7 +22,7 @@ import (
 // instructions), plus the files recorded here: the other Go files of each
 // target package and of the local packages the targets import (their
 // declarations reach the prompt), and the build manifests in the target
-// directories and their ancestors. Files that .gitignore or .mini-orcaignore
+// directories and their ancestors. Files that .gitignore or .kasuriignore
 // exclude are not part of the scope.
 //
 // The whole-tree fingerprint still validates every check copy and binds check

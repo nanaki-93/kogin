@@ -26,7 +26,7 @@ func (s *shell) notifyOutcomes(session *launcher.Session) {
 	s.notifications = service
 	s.mu.Unlock()
 	if granted, err := service.RequestNotificationAuthorization(); err != nil || !granted {
-		s.note("Notifications are off: the system did not allow them (%v). Allow Mini-Orca in System Settings → Notifications and restart it.", err)
+		s.note("Notifications are off: the system did not allow them (%v). Allow Kasuri in System Settings → Notifications and restart it.", err)
 		return
 	}
 	service.OnNotificationResponse(func(result notifications.NotificationResult) {
@@ -71,6 +71,6 @@ func (s *shell) note(format string, args ...any) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.log != nil {
-		fmt.Fprintf(s.log, "Mini-Orca: "+format+"\n", args...)
+		fmt.Fprintf(s.log, "Kasuri: "+format+"\n", args...)
 	}
 }

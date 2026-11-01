@@ -10,9 +10,10 @@ import type { ProxyOptions } from 'vite';
 // token into it; the proxy reads the daemon's token file and adds the token to
 // requests that change state, as the served Web UI does itself.
 function daemonTokenFile(): string {
-  if (process.env.MINI_ORCA_TOKEN_FILE) return process.env.MINI_ORCA_TOKEN_FILE;
+  const explicit = process.env.KASURI_TOKEN_FILE ?? process.env.MINI_ORCA_TOKEN_FILE;
+  if (explicit) return explicit;
   const config = process.platform === 'darwin' ? join(homedir(), 'Library', 'Application Support') : process.platform === 'win32' ? (process.env.APPDATA ?? homedir()) : (process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'));
-  return join(config, 'mini-orca', 'daemon-token');
+  return join(config, 'kasuri', 'daemon-token');
 }
 
 const daemon: ProxyOptions = {
@@ -21,7 +22,7 @@ const daemon: ProxyOptions = {
     proxy.on('proxyReq', (proxyReq, req) => {
       if (req.method === 'GET' || req.method === 'HEAD') return;
       try {
-        proxyReq.setHeader('X-Mini-Orca-Token', readFileSync(daemonTokenFile(), 'utf8').trim());
+        proxyReq.setHeader('X-Kasuri-Token', readFileSync(daemonTokenFile(), 'utf8').trim());
       } catch {
         // Without the file the daemon refuses the request and says why.
       }

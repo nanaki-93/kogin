@@ -1,6 +1,6 @@
 # Docker deployment
 
-The container runs the Mini-Orca daemon, which serves the Web UI at `/ui`. It
+The container runs the Kasuri daemon, which serves the Web UI at `/ui`. It
 is not a multi-user service. The daemon is loopback-only by
 default. The container binds inside its network namespace so Docker can forward
 the port, while every maintained host mapping is restricted to host loopback.
@@ -12,7 +12,7 @@ required model scopes, then build the image:
 
 ```bash
 cp config.example.yaml config.yaml
-docker build -t mini-orca:6.0.0-dev .
+docker build -t kasuri:6.0.0-dev .
 ```
 
 The runtime image contains the static daemon binary plus Alpine's certificate
@@ -21,29 +21,29 @@ project files. Mount the configuration and only the project directories that
 the daemon may inspect:
 
 ```bash
-docker run --rm --name mini-orca \
+docker run --rm --name kasuri \
   -p 127.0.0.1:9090:9090 \
   -v "$(pwd)/config.yaml:/app/config.yaml:ro" \
   -v "$(pwd)/projects:/app/projects:rw" \
-  -e MINI_ORCA_CONFIG=/app/config.yaml \
-  -e MINI_ORCA_BIND_ADDRESS=0.0.0.0:9090 \
-  mini-orca:6.0.0-dev
+  -e KASURI_CONFIG=/app/config.yaml \
+  -e KASURI_BIND_ADDRESS=0.0.0.0:9090 \
+  kasuri:6.0.0-dev
 ```
 
 Use a project path inside the mounted `/app/projects` directory. A mounted
-project receives local `.mini-orca/` metadata and, after an explicit Apply,
+project receives local `.kasuri/` metadata and, after an explicit Apply,
 the one reviewed source-file change. Keep `config.yaml` and its credentials
 outside Git.
 
 To publish beyond the host deliberately, change the port mapping yourself, for
-example `-p 0.0.0.0:9090:9090`, and set `MINI_ORCA_BIND_ADDRESS` to a
+example `-p 0.0.0.0:9090:9090`, and set `KASURI_BIND_ADDRESS` to a
 non-loopback address if it is not already set by the container command. With a
 non-loopback bind the daemon accepts requests addressed to loopback names and
-IP addresses; list any other host names you use in `MINI_ORCA_ALLOWED_HOSTS`
-(comma-separated, for example `MINI_ORCA_ALLOWED_HOSTS=devbox.lan`). Unlisted
+IP addresses; list any other host names you use in `KASURI_ALLOWED_HOSTS`
+(comma-separated, for example `KASURI_ALLOWED_HOSTS=devbox.lan`). Unlisted
 names are rejected so a web page cannot reach the API by DNS rebinding. This
 is still an unauthenticated API: provide network isolation and access controls
-outside Mini-Orca. Do not use a public or untrusted network for this service.
+outside Kasuri. Do not use a public or untrusted network for this service.
 
 ## Compose
 
@@ -66,8 +66,8 @@ After starting a container, verify both liveness and its runtime contents:
 
 ```bash
 curl --fail http://localhost:9090/health
-docker inspect --format='{{.State.Health.Status}}' mini-orca
-docker image inspect mini-orca:6.0.0-dev
+docker inspect --format='{{.State.Health.Status}}' kasuri
+docker image inspect kasuri:6.0.0-dev
 ```
 
 Before release, build the image without cleanup commands and confirm the health

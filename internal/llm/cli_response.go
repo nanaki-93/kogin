@@ -84,7 +84,7 @@ func (d *cliResponseDecoder) agyEvent(data []byte) error {
 	switch event.Event {
 	case "init":
 		// init.tools is the CLI's catalog, not the custom agent's allowed tools.
-		if d.started || event.Init.Tools == nil || event.Init.Agent != "mini-orca" || event.Init.Model != d.profile.Model {
+		if d.started || event.Init.Tools == nil || event.Init.Agent != "kasuri" || event.Init.Model != d.profile.Model {
 			return unusableCLIResponse("agy did not select the configured model and agent")
 		}
 		d.started = true

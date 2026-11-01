@@ -59,7 +59,7 @@ func (s *Service) MergeGitWorktree(ctx context.Context, request GitMutationReque
 	return result, nil
 }
 
-// CleanupMergedWorktree reconciles a merge completed outside Mini-Orca. It never
+// CleanupMergedWorktree reconciles a merge completed outside Kasuri. It never
 // attempts a merge; ancestry must prove integration before checkout/branch cleanup.
 func (s *Service) CleanupMergedWorktree(ctx context.Context, request GitMutationRequest) (*GitMutationResult, error) {
 	s.jobLifecycleMu.Lock()

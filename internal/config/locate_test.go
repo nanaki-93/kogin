@@ -11,8 +11,8 @@ func TestFindSearchesTheUserThenTheInstallNotTheProject(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "xdg"))
 	t.Setenv(ConfigEnv, "")
-	link := filepath.Join(t.TempDir(), "mini-orca-daemon")
-	binary := filepath.Join(install, "mini-orca-daemon")
+	link := filepath.Join(t.TempDir(), "kasuri-daemon")
+	binary := filepath.Join(install, "kasuri-daemon")
 	write := func(path string) string {
 		t.Helper()
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
@@ -38,7 +38,7 @@ func TestFindSearchesTheUserThenTheInstallNotTheProject(t *testing.T) {
 	if got, want := Find(link), installed; !sameFile(t, got, want) {
 		t.Fatalf("installed config: %q", got)
 	}
-	user := write(filepath.Join(home, ".config", "mini-orca", "config.yaml"))
+	user := write(filepath.Join(home, ".config", "kasuri", "config.yaml"))
 	if got := Find(link); got != user {
 		t.Fatalf("user config: %q", got)
 	}
@@ -69,6 +69,37 @@ func TestLoadConfigRecordsItsSourceAndRefusesAMissingExplicitFile(t *testing.T) 
 	}
 	t.Setenv(ConfigEnv, filepath.Join(dir, "missing.yaml"))
 	if _, err := LoadConfig(); err == nil {
-		t.Fatal("a missing MINI_ORCA_CONFIG fell back to defaults")
+		t.Fatal("a missing KASURI_CONFIG fell back to defaults")
+	}
+}
+
+func TestFindReadsTheMiniOrcaConfigFromBeforeTheRename(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "xdg"))
+	t.Setenv(ConfigEnv, "")
+	write := func(path string) string {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("{}"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	legacy := write(filepath.Join(home, ".config", "mini-orca", "config.yaml"))
+	if got := Find(""); got != legacy {
+		t.Fatalf("legacy user config: %q", got)
+	}
+	current := write(filepath.Join(home, ".config", "kasuri", "config.yaml"))
+	if got := Find(""); got != current {
+		t.Fatalf("the Kasuri config comes first: %q", got)
+	}
+	os.Unsetenv(ConfigEnv)
+	explicit := filepath.Join(home, "old-explicit.yaml")
+	t.Setenv("MINI_ORCA_CONFIG", explicit)
+	if got := Find(""); got != explicit {
+		t.Fatalf("MINI_ORCA_CONFIG still selects the file: %q", got)
 	}
 }

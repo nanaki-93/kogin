@@ -19,13 +19,13 @@ import (
 // Unreadable records must not block a checkout. An unreadable agent journal,
 // task file or saved analysis progress is set aside: its bytes move next to it under a quarantined
 // name, the move is recorded, and work continues without it. Records written
-// by a newer Mini-Orca are never moved; they are skipped and reported with
+// by a newer Kasuri are never moved; they are skipped and reported with
 // the remedy. The change recovery journal is never set aside, because it may
 // describe a half-finished Apply; its errors name the file and the remedy.
 
 const (
 	maxSetAsideRecords = 32
-	setAsideLogPath    = ".mini-orca/quarantine.json"
+	setAsideLogPath    = ".kasuri/quarantine.json"
 )
 
 // QuarantinedFile is a record that was set aside or skipped.
@@ -45,8 +45,8 @@ type QuarantineReport struct {
 }
 
 const (
-	remedySetAside = "Mini-Orca no longer reads the set-aside file. Inspect it if you need its history, then delete it."
-	remedyUpgrade  = "Upgrade Mini-Orca to use it, or move it away."
+	remedySetAside = "Kasuri no longer reads the set-aside file. Inspect it if you need its history, then delete it."
+	remedyUpgrade  = "Upgrade Kasuri to use it, or move it away."
 )
 
 // changeFileError names an unreadable or newer task file.
@@ -58,7 +58,7 @@ type changeFileError struct {
 
 func (e *changeFileError) Error() string {
 	if e.newer {
-		return fmt.Sprintf("task file %s was written by a newer Mini-Orca; %s", e.path, strings.ToLower(remedyUpgrade[:1])+remedyUpgrade[1:])
+		return fmt.Sprintf("task file %s was written by a newer Kasuri; %s", e.path, strings.ToLower(remedyUpgrade[:1])+remedyUpgrade[1:])
 	}
 	return fmt.Sprintf("task file %s is unreadable: %v", e.path, e.cause)
 }
@@ -73,7 +73,7 @@ func relativeMetadata(root, path string) string {
 }
 
 // openAgentJournal opens the checkout's agent journal, setting an unreadable
-// one aside first. A journal from a newer Mini-Orca stays an error.
+// one aside first. A journal from a newer Kasuri stays an error.
 func openAgentJournal(root string) (*agentstate.Store, error) {
 	store, err := agentstate.Open(root)
 	if err == nil || !errors.Is(err, agentstate.ErrCorrupt) || errors.Is(err, agentstate.ErrNewerJournal) {
@@ -108,7 +108,7 @@ func quarantineAnalysisRun(root string) error {
 		return err
 	}
 	return setAside(root, "analysis_run", analysisRunRelativePath, from, func(stamp string) (string, error) {
-		return storage.MetadataPath(root, ".mini-orca", "analysis", "run.quarantined-"+stamp+".json")
+		return storage.MetadataPath(root, ".kasuri", "analysis", "run.quarantined-"+stamp+".json")
 	}, errAnalysisRunCorrupt.Error())
 }
 
@@ -170,7 +170,7 @@ func (s *Service) Quarantine(ctx context.Context) (*QuarantineReport, error) {
 	root := s.manager.Root()
 	report := &QuarantineReport{Files: []QuarantinedFile{}, Skipped: []QuarantinedFile{}}
 	if _, err := listChangeSessionsWith(root, sessionListing{lenient: true, skipped: func(problem *changeFileError) {
-		report.Skipped = append(report.Skipped, QuarantinedFile{Kind: "task", File: problem.path, Reason: "written by a newer Mini-Orca", Remedy: remedyUpgrade})
+		report.Skipped = append(report.Skipped, QuarantinedFile{Kind: "task", File: problem.path, Reason: "written by a newer Kasuri", Remedy: remedyUpgrade})
 	}}); err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (s *Service) Quarantine(ctx context.Context) (*QuarantineReport, error) {
 	report.Files = append(report.Files, records...)
 	slices.SortFunc(report.Files, func(a, b QuarantinedFile) int { return b.At.Compare(a.At) })
 	if _, err := loadAnalysisRun(root); errors.Is(err, ErrNewerAnalysisRun) {
-		report.Skipped = append(report.Skipped, QuarantinedFile{Kind: "analysis_run", File: analysisRunRelativePath, Reason: "written by a newer Mini-Orca", Remedy: remedyUpgrade})
+		report.Skipped = append(report.Skipped, QuarantinedFile{Kind: "analysis_run", File: analysisRunRelativePath, Reason: "written by a newer Kasuri", Remedy: remedyUpgrade})
 	}
 	if _, err := agentstate.Open(root); errors.Is(err, agentstate.ErrNewerJournal) {
 		var problem *agentstate.JournalError

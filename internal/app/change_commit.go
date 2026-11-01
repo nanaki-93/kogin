@@ -112,7 +112,7 @@ func commitChangeFiles(ctx context.Context, root string, journal *changeJournal)
 	if err := writeChangeJournal(root, journal); err != nil {
 		return err
 	}
-	if _, err := gitRead(ctx, root, "update-ref", "-m", "mini-orca: "+strings.Split(commit.Message, "\n")[0], "refs/heads/"+commit.Branch, commit.OID, commit.Head); err != nil {
+	if _, err := gitRead(ctx, root, "update-ref", "-m", "kasuri: "+strings.Split(commit.Message, "\n")[0], "refs/heads/"+commit.Branch, commit.OID, commit.Head); err != nil {
 		return err
 	}
 	commit.State = "committed"
@@ -208,7 +208,7 @@ func verifyCommittedChange(ctx context.Context, root string, journal *changeJour
 }
 
 func writeReviewedGitTree(ctx context.Context, root string, session *ChangeSession, head string) (string, error) {
-	temporary, err := os.MkdirTemp("", "mini-orca-git-index-")
+	temporary, err := os.MkdirTemp("", "kasuri-git-index-")
 	if err != nil {
 		return "", err
 	}

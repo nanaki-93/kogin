@@ -27,7 +27,7 @@ EFFORT = "high"
 POLICY_IDENTITY = "AUTO-04"
 POLICY_VERSION = 2
 BRANCH = "codex/autopilot"
-STATE_DIR = Path(".mini-orca/autopilot")
+STATE_DIR = Path(".kasuri/autopilot")
 VALIDATOR = Path("Makefile")
 MAX_ATTEMPTS = 6  # Terra initial attempt plus two repairs, then Sol initial attempt plus two repairs.
 MAX_CARD_BYTES = 24 * 1024
@@ -163,9 +163,9 @@ def clean_environment(*, auth: bool, temporary_home: Path | None = None) -> dict
                 "GOPATH",
                 "GRADLE_USER_HOME",
                 "JAVA_HOME",
-                "MINI_ORCA_JBR25_HOME",
-                "MINI_ORCA_JAVA25_HOME",
-                "MINI_ORCA_JDK21_HOME",
+                "KASURI_JBR25_HOME",
+                "KASURI_JAVA25_HOME",
+                "KASURI_JDK21_HOME",
             }
         )
     environment = {key: os.environ[key] for key in allowed if key in os.environ}
@@ -188,7 +188,7 @@ def clean_environment(*, auth: bool, temporary_home: Path | None = None) -> dict
             environment["GRADLE_USER_HOME"] = str(Path(os.environ["HOME"]) / ".gradle")
         for key in (
             "GOCACHE", "GOMODCACHE", "GOPATH", "GRADLE_USER_HOME", "JAVA_HOME",
-            "MINI_ORCA_JDK21_HOME", "MINI_ORCA_JBR25_HOME", "MINI_ORCA_JAVA25_HOME",
+            "KASURI_JDK21_HOME", "KASURI_JBR25_HOME", "KASURI_JAVA25_HOME",
         ):
             if key in environment:
                 environment[key] = str(Path(environment[key]).resolve())
@@ -198,7 +198,7 @@ def clean_environment(*, auth: bool, temporary_home: Path | None = None) -> dict
             "TMPDIR": scratch,
             "GRADLE_OPTS": f"-Dorg.gradle.daemon=false -Djava.io.tmpdir={scratch} -Duser.home={scratch}",
             "JAVA_TOOL_OPTIONS": f"-Djava.io.tmpdir={scratch} -Duser.home={scratch}",
-            "MINI_ORCA_AUTOPILOT_VALIDATION": "1",
+            "KASURI_AUTOPILOT_VALIDATION": "1",
         })
         if environment.get("GOMODCACHE"):
             environment.update({
@@ -1301,7 +1301,7 @@ class Dispatcher:
         scratch_git = git_bytes(scratch_parent, "rev-parse", "--is-inside-work-tree", check=False)
         if scratch_git.strip() == b"true":
             raise DispatchError("validation scratch parent is inside a Git worktree")
-        with tempfile.TemporaryDirectory(prefix="mini-orca-validation-", dir=scratch_parent) as directory:
+        with tempfile.TemporaryDirectory(prefix="kasuri-validation-", dir=scratch_parent) as directory:
             home = Path(directory)
             os.chmod(home, 0o700)
             environment = clean_environment(auth=False, temporary_home=home)
@@ -1416,7 +1416,7 @@ class Dispatcher:
                 readable.add(sdkman_java.resolve())
         for key in (
             "GOCACHE", "GOMODCACHE", "GOPATH", "GRADLE_USER_HOME", "JAVA_HOME",
-            "MINI_ORCA_JDK21_HOME", "MINI_ORCA_JBR25_HOME", "MINI_ORCA_JAVA25_HOME",
+            "KASURI_JDK21_HOME", "KASURI_JBR25_HOME", "KASURI_JAVA25_HOME",
         ):
             if environment.get(key):
                 readable.add(Path(environment[key]).resolve())
@@ -1546,9 +1546,9 @@ class Dispatcher:
             git_bytes(
                 worktree,
                 "-c",
-                "user.name=Mini-Orca Autopilot",
+                "user.name=Kasuri Autopilot",
                 "-c",
-                "user.email=autopilot@mini-orca.invalid",
+                "user.email=autopilot@kasuri.invalid",
                 "commit",
                 "-m",
                 f"chore: complete {self.state['task']}",

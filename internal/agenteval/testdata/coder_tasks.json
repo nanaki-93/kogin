@@ -74,14 +74,14 @@
         "No hyphen at the start or the end."
       ],
       "files": {
-        "AGENTS.md": "# textkit\n\n```mini-orca\nchecks:\n  test: python3 -m unittest discover -s tests -t . -q\n```\n",
+        "AGENTS.md": "# textkit\n\n```kasuri\nchecks:\n  test: python3 -m unittest discover -s tests -t . -q\n```\n",
         "textkit/__init__.py": "",
         "textkit/slug.py": "def slugify(text):\n    \"\"\"Return text as a URL slug.\"\"\"\n    return text.lower().replace(\" \", \"-\")\n",
         "tests/__init__.py": "",
         "tests/test_slug.py": "import unittest\n\nfrom textkit.slug import slugify\n\n\nclass SlugTest(unittest.TestCase):\n    def test_words(self):\n        self.assertEqual(slugify(\"Hello World\"), \"hello-world\")\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n"
       },
       "hidden": {
-        "tests/test_hidden.py": "import unittest\n\nfrom textkit.slug import slugify\n\n\nclass HiddenSlugTest(unittest.TestCase):\n    def test_cases(self):\n        for text, want in [(\"Hello,  World!\", \"hello-world\"), (\"  --Mini Orca__v2-- \", \"mini-orca-v2\"), (\"\", \"\"), (\"A\", \"a\")]:\n            self.assertEqual(slugify(text), want, text)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n"
+        "tests/test_hidden.py": "import unittest\n\nfrom textkit.slug import slugify\n\n\nclass HiddenSlugTest(unittest.TestCase):\n    def test_cases(self):\n        for text, want in [(\"Hello,  World!\", \"hello-world\"), (\"  --Kasuri__v2-- \", \"kasuri-v2\"), (\"\", \"\"), (\"A\", \"a\")]:\n            self.assertEqual(slugify(text), want, text)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n"
       },
       "test": [
         "python3",

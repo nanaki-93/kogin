@@ -178,7 +178,7 @@ func TestAFileAlreadyOverBudgetMayChangeWithoutGrowingAndOpensOneIssue(t *testin
 	if err := os.WriteFile(filepath.Join(root, "legacy.py"), []byte(legacy), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("```mini-orca\nbudgets:\n  file_lines: 3\n```\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("```kasuri\nbudgets:\n  file_lines: 3\n```\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	manager, err := project.NewManager(root)

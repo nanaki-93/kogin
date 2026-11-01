@@ -26,7 +26,7 @@ func TestChangeWorkflowPersistenceFailureRemainsVisibleAndRestartDoesNotDispatch
 		t.Fatal(err)
 	}
 	<-entered
-	directory, backup := filepath.Join(root, ".mini-orca", "changes"), filepath.Join(root, "saved-changes")
+	directory, backup := filepath.Join(root, ".kasuri", "changes"), filepath.Join(root, "saved-changes")
 	if err := os.Rename(directory, backup); err != nil {
 		t.Fatal(err)
 	}

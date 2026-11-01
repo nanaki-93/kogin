@@ -14,7 +14,7 @@ import (
 
 func TestOpenAttachesToARunningDaemonAndSwitchesItsProject(t *testing.T) {
 	token := filepath.Join(t.TempDir(), "daemon-token")
-	t.Setenv("MINI_ORCA_TOKEN_FILE", token)
+	t.Setenv("KASURI_TOKEN_FILE", token)
 	if err := os.WriteFile(token, []byte("launch-token\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}

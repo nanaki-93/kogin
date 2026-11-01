@@ -28,7 +28,7 @@ func TestAnalysisGraphPersistsOrderedStagesAndTruthfulOutcomes(t *testing.T) {
 	statuses := []string{"completed_empty", "partial", "completed", "failed"}
 	var order []AnalysisWork
 	result, err := RunAnalysisGraph(ctx, input, func(ctx context.Context, work AnalysisWork) (AnalysisOutcome, error) {
-		records, err := store.Sessions(ctx, "mini-orca", "local")
+		records, err := store.Sessions(ctx, "kasuri", "local")
 		if err != nil || len(records) != 1 || len(records[0].Events) != 2*len(order)+1 {
 			return AnalysisOutcome{}, fmt.Errorf("analysis dispatched without its durable start: %v", err)
 		}
@@ -179,7 +179,7 @@ func TestAnalysisGraphJournalFailureStopsBeforeNextStage(t *testing.T) {
 	calls := 0
 	_, err := RunAnalysisGraph(ctx, analysisGraphFixture(), func(context.Context, AnalysisWork) (AnalysisOutcome, error) {
 		calls++
-		journal := filepath.Join(root, ".mini-orca", "agents")
+		journal := filepath.Join(root, ".kasuri", "agents")
 		if err := os.Rename(journal, filepath.Join(root, "saved")); err != nil {
 			return AnalysisOutcome{}, err
 		}

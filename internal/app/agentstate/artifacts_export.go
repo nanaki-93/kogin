@@ -38,7 +38,7 @@ func (s *Store) ExportArtifactFile(ctx context.Context, key ArtifactKey, version
 		if err != nil {
 			return err
 		}
-		path, err = storage.MetadataPath(s.root, ".mini-orca", "exports", "artifacts", "artifact-"+rand.Text()+".bin")
+		path, err = storage.MetadataPath(s.root, ".kasuri", "exports", "artifacts", "artifact-"+rand.Text()+".bin")
 		if err != nil {
 			return err
 		}

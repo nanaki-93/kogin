@@ -21,7 +21,7 @@ export function OpenProject() {
         if (value && value !== project?.path) void actions.openProject(value);
       }}
     >
-      <Field label="Project folder" hint="An absolute path on this machine. Mini-Orca restores its saved data or indexes it the first time." htmlFor="project-path">
+      <Field label="Project folder" hint="An absolute path on this machine. Kasuri restores its saved data or indexes it the first time." htmlFor="project-path">
         <Input id="project-path" icon={FolderOpen} value={path} onChange={e => setPath(e.target.value)} placeholder="/Users/you/code/project" spellCheck={false} />
       </Field>
       <Button type="submit" variant="primary" disabled={!value || value === project?.path || Boolean(busy)} loading={busy === 'Opening project…'}>

@@ -102,7 +102,7 @@ func (c *Client) ConfigNote(ctx context.Context) string {
 		return "Restart the daemon to load another configuration."
 	}
 	if *catalog.ConfigFile == "" {
-		return "The running daemon found no config.yaml and uses the built-in local model defaults; stop it and run mini-orca again after adding one."
+		return "The running daemon found no config.yaml and uses the built-in local model defaults; stop it and run kasuri again after adding one."
 	}
 	return "The running daemon uses " + *catalog.ConfigFile + "; restart it to load another configuration."
 }

@@ -37,7 +37,7 @@ func TestChangeGraphOrdersTypedNodesAndPersistsBeforeHostDispatch(t *testing.T) 
 	ctx, budget, store := persistedContext(t, t.TempDir())
 	var order []ChangeNode
 	result, err := RunChangeGraph(ctx, changeGraphFixture(), func(ctx context.Context, input ChangeNodeInput) (ChangeNodeResult, error) {
-		records, err := store.Sessions(ctx, "mini-orca", "local")
+		records, err := store.Sessions(ctx, "kasuri", "local")
 		if err != nil || len(records) != 1 || len(records[0].Events) != len(order)*2+1 {
 			return ChangeNodeResult{}, fmt.Errorf("node dispatched before its start event was durable: %v", err)
 		}
@@ -54,7 +54,7 @@ func TestChangeGraphOrdersTypedNodesAndPersistsBeforeHostDispatch(t *testing.T) 
 	if result.Nodes[4].Snapshot.Revision != 9007199254740995 || budget.Snapshot().ModelCalls != 0 || budget.Snapshot().ToolCalls != 0 {
 		t.Fatal("graph lost exact identity or charged a host node as a model/tool call")
 	}
-	records, err := store.Sessions(t.Context(), "mini-orca", "local")
+	records, err := store.Sessions(t.Context(), "kasuri", "local")
 	if err != nil || len(records[0].Events) != 10 || records[0].State["mini_orca.change_graph"] == nil {
 		t.Fatalf("missing durable graph: %+v %v", records, err)
 	}
@@ -163,10 +163,10 @@ func TestChangeGraphPersistenceFailureStopsSuccessors(t *testing.T) {
 	calls := 0
 	result, err := RunChangeGraph(ctx, changeGraphFixture(), func(ctx context.Context, input ChangeNodeInput) (ChangeNodeResult, error) {
 		calls++
-		if err := os.Rename(filepath.Join(root, ".mini-orca", "agents"), filepath.Join(root, "saved-agents")); err != nil {
+		if err := os.Rename(filepath.Join(root, ".kasuri", "agents"), filepath.Join(root, "saved-agents")); err != nil {
 			return ChangeNodeResult{}, err
 		}
-		if err := os.WriteFile(filepath.Join(root, ".mini-orca", "agents"), []byte("blocked"), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(root, ".kasuri", "agents"), []byte("blocked"), 0600); err != nil {
 			return ChangeNodeResult{}, err
 		}
 		return changeGraphHost(ctx, input)

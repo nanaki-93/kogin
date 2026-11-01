@@ -16,7 +16,7 @@ const (
 	EngineeringInsightCollectRunMode         = "collect"
 	EngineeringInsightDevelopmentRunMode     = "development"
 	EngineeringInsightQualificationRunMode   = "qualification"
-	runnerRelativeDirectory                  = ".mini-orca/autopilot/engineering-insight-evaluation"
+	runnerRelativeDirectory                  = ".kasuri/autopilot/engineering-insight-evaluation"
 	defaultDevelopmentRequestCap             = 6
 	extendedDevelopmentRequestCap            = 12
 	recoveryDevelopmentRequestCap            = 18

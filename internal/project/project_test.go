@@ -80,7 +80,7 @@ func TestAnalyzerWritesCanonicalReportAndContextIncludesInventory(t *testing.T) 
 	if _, err := os.Stat(filepath.Join(root, projectAnalysisReportPath)); err != nil {
 		t.Fatalf("canonical report was not persisted: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(root, ".mini-orca", "analysis.md")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(root, ".kasuri", "analysis.md")); !os.IsNotExist(err) {
 		t.Fatalf("legacy markdown report was generated: %v", err)
 	}
 
@@ -123,7 +123,7 @@ func TestContextPolicyExcludesSecretsIgnoredAndGeneratedFiles(t *testing.T) {
 	root := t.TempDir()
 	files := map[string]string{
 		".gitignore":        "ignored.go\n",
-		".mini-orcaignore":  "private/**\n",
+		".kasuriignore":     "private/**\n",
 		"main.go":           "package main\nfunc main() {}\n",
 		".env":              "DATABASE_PASSWORD=must-not-leak\n",
 		"private/server.go": "package private\nconst Key = \"must-not-leak\"\n",
@@ -191,11 +191,11 @@ func TestContextPolicyExcludesSymlink(t *testing.T) {
 
 func TestContextPolicyProjectOverrides(t *testing.T) {
 	root := t.TempDir()
-	if err := os.Mkdir(filepath.Join(root, ".mini-orca"), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(root, ".kasuri"), 0755); err != nil {
 		t.Fatal(err)
 	}
 	config := `{"include":["ignored.go"],"exclude":["drafts/**"]}`
-	if err := os.WriteFile(filepath.Join(root, ".mini-orca", "context-policy.json"), []byte(config), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".kasuri", "context-policy.json"), []byte(config), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("ignored.go\n"), 0644); err != nil {

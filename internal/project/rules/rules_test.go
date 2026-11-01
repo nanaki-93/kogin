@@ -19,12 +19,12 @@ func writeGuide(t *testing.T, root, dir, content string) {
 	}
 }
 
-const rootGuide = "# Guide\n\nSome prose.\n\n```mini-orca\nbudgets:\n  file_lines: 800\n  function_lines: 80\nimports:\n  - from: internal/app\n    never: [internal/api]\ntest_files:\n  - \"e2e/**/*.ts\"\n```\n"
+const rootGuide = "# Guide\n\nSome prose.\n\n```kasuri\nbudgets:\n  file_lines: 800\n  function_lines: 80\nimports:\n  - from: internal/app\n    never: [internal/api]\ntest_files:\n  - \"e2e/**/*.ts\"\n```\n"
 
 func TestTheNearestGuideWinsForEachBudget(t *testing.T) {
 	root := t.TempDir()
 	writeGuide(t, root, "", rootGuide)
-	writeGuide(t, root, "web", "```mini-orca\nbudgets:\n  file_lines: 400\nimports:\n  - from: src/api\n    never: [src/db]\n```\n")
+	writeGuide(t, root, "web", "```kasuri\nbudgets:\n  file_lines: 400\nimports:\n  - from: src/api\n    never: [src/db]\n```\n")
 	resolver := NewResolver(root)
 
 	rootRules := resolver.For("internal/app/service.go")
@@ -60,7 +60,7 @@ func TestPlainLanguageGuidesStillDeclareRules(t *testing.T) {
 
 func TestABlockReplacesThePlainLanguageLinesOfItsGuide(t *testing.T) {
 	root := t.TempDir()
-	writeGuide(t, root, "", "Max file lines: 300\n\n```mini-orca\nbudgets:\n  function_complexity: 0\n```\n")
+	writeGuide(t, root, "", "Max file lines: 300\n\n```kasuri\nbudgets:\n  function_complexity: 0\n```\n")
 	rules := NewResolver(root).For("a.py")
 	if rules.Budgets != (Budgets{}) {
 		t.Fatalf("budgets = %+v, want none", rules.Budgets)
@@ -69,10 +69,10 @@ func TestABlockReplacesThePlainLanguageLinesOfItsGuide(t *testing.T) {
 
 func TestBrokenBlocksAreReportedAndDeclareNothing(t *testing.T) {
 	for name, guide := range map[string]string{
-		"unknown field": "```mini-orca\nbudget:\n  file_lines: 10\n```\n",
-		"not closed":    "```mini-orca\nbudgets:\n  file_lines: 10\n",
-		"no never":      "```mini-orca\nimports:\n  - from: a\n```\n",
-		"negative":      "```mini-orca\nbudgets:\n  file_lines: -1\n```\n",
+		"unknown field": "```kasuri\nbudget:\n  file_lines: 10\n```\n",
+		"not closed":    "```kasuri\nbudgets:\n  file_lines: 10\n",
+		"no never":      "```kasuri\nimports:\n  - from: a\n```\n",
+		"negative":      "```kasuri\nbudgets:\n  file_lines: -1\n```\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			root := t.TempDir()
@@ -92,7 +92,7 @@ func TestBrokenBlocksAreReportedAndDeclareNothing(t *testing.T) {
 func TestTestFilesFollowConventionsAndDeclaredPatterns(t *testing.T) {
 	root := t.TempDir()
 	writeGuide(t, root, "", rootGuide)
-	writeGuide(t, root, "svc", "```mini-orca\ntest_files: [\"*.it.ts\"]\n```\n")
+	writeGuide(t, root, "svc", "```kasuri\ntest_files: [\"*.it.ts\"]\n```\n")
 	resolver := NewResolver(root)
 	for file, want := range map[string]bool{
 		"internal/app/service_test.go":    true,
@@ -144,8 +144,8 @@ func TestGlobs(t *testing.T) {
 
 func TestGuidesDeclareCheckCommandsForTheirSubproject(t *testing.T) {
 	root := t.TempDir()
-	writeGuide(t, root, "", "```mini-orca\nchecks:\n  test: go test ./...\n  lint: \"\"\n```\n")
-	writeGuide(t, root, "web", "```mini-orca\nchecks:\n  test: npx vitest run --reporter 'dot'\n```\n")
+	writeGuide(t, root, "", "```kasuri\nchecks:\n  test: go test ./...\n  lint: \"\"\n```\n")
+	writeGuide(t, root, "web", "```kasuri\nchecks:\n  test: npx vitest run --reporter 'dot'\n```\n")
 	resolver := NewResolver(root)
 	rootChecks := resolver.ChecksIn("")
 	if !reflect.DeepEqual(rootChecks.Test, []string{"go", "test", "./..."}) || !rootChecks.LintDeclared || rootChecks.Lint != nil {
@@ -163,7 +163,7 @@ func TestGuidesDeclareCheckCommandsForTheirSubproject(t *testing.T) {
 			t.Errorf("SplitCommand(%q) = %q, want refusal", command, args)
 		}
 	}
-	writeGuide(t, root, "bad", "```mini-orca\nchecks:\n  test: go test ./... | tee log\n```\n")
+	writeGuide(t, root, "bad", "```kasuri\nchecks:\n  test: go test ./... | tee log\n```\n")
 	if bad := resolver.ChecksIn("bad"); bad.TestDeclared || len(resolver.Problems()) != 1 {
 		t.Fatalf("shell syntax accepted: %+v, %+v", bad, resolver.Problems())
 	}

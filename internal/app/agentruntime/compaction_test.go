@@ -165,7 +165,7 @@ func TestNativeCompactionRetainsOriginalPromptAndPersistsSummary(t *testing.T) {
 	if budget.Snapshot().ModelCalls != int(turns.Load()+summaries.Load()) {
 		t.Fatal("summaries escaped shared budget")
 	}
-	sessions, err := store.Sessions(t.Context(), "mini-orca", "local")
+	sessions, err := store.Sessions(t.Context(), "kasuri", "local")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +205,7 @@ func TestCompactionSessionFailureStopsFurtherDispatch(t *testing.T) {
 	ctx, _, store := persistedContext(t, t.TempDir())
 	ctx = configuredContext(t, ctx, compactSettings())
 	service := compactionSessionService{&localSessionService{store: store}}
-	_, err := service.Get(ctx, &session.GetRequest{AppName: "mini-orca", UserID: "local", SessionID: "missing"})
+	_, err := service.Get(ctx, &session.GetRequest{AppName: "kasuri", UserID: "local", SessionID: "missing"})
 	if err == nil || context.Cause(ctx) == nil {
 		t.Fatal("SDK bookkeeping failure would be swallowed")
 	}

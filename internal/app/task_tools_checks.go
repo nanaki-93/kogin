@@ -83,7 +83,7 @@ func (run *taskToolRun) runChecks(ctx context.Context, arguments json.RawMessage
 // task's base commit.
 func (s *Service) checkToolProposal(ctx context.Context, root string, snapshot *ChangeSession) ([]CheckResult, error) {
 	checks, _ := changeSourceChecks(root, snapshot.Targets, snapshot.Changes)
-	workspace, err := os.MkdirTemp("", "mini-orca-tool-check-")
+	workspace, err := os.MkdirTemp("", "kasuri-tool-check-")
 	if err != nil {
 		return nil, err
 	}

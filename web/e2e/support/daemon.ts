@@ -86,7 +86,7 @@ export class FakeDaemon {
     // dev server cannot, so the test writes it once the document is parsed.
     await page.addInitScript(token => {
       document.addEventListener('DOMContentLoaded', () => {
-        document.querySelector<HTMLMetaElement>('meta[name="mini-orca-write-token"]')?.setAttribute('content', token);
+        document.querySelector<HTMLMetaElement>('meta[name="kasuri-write-token"]')?.setAttribute('content', token);
       });
     }, WRITE_TOKEN);
   }
@@ -295,10 +295,10 @@ export class FakeDaemon {
       const frames = this.pending.map(event => `event: update\ndata: ${JSON.stringify(event)}\n\n`).join('');
       return route.fulfill({ status: 200, contentType: 'text/event-stream', body: ': connected\n\n' + frames });
     }
-    if (request.headers()['x-mini-orca-web-ui'] !== '1') {
+    if (request.headers()['x-kasuri-web-ui'] !== '1') {
       return json(route, 403, { user_message: 'Missing the Web UI request marker.' });
     }
-    if (method !== 'GET' && request.headers()['x-mini-orca-token'] !== WRITE_TOKEN) {
+    if (method !== 'GET' && request.headers()['x-kasuri-token'] !== WRITE_TOKEN) {
       return json(route, 401, { user_message: 'Reload the Web UI to get this daemon\'s write token.' });
     }
     try {

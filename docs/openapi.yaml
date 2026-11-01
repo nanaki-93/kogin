@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Mini-Orca local daemon API
+  title: Kasuri local daemon API
   version: 6.0.0-dev
   description: |
-    Local REST API used by the Mini-Orca Web UI. The daemon is the LLM
+    Local REST API used by the Kasuri Web UI. The daemon is the LLM
     boundary. Shared conversations capture up to eight Go/Markdown paths, produce
     checked proposals and require diff review and explicit Apply. Legacy one-file
     declaration APIs remain compatible. Source and diff views are read-only.
@@ -559,7 +559,7 @@ paths:
         '409': {$ref: '#/components/responses/Error'}
     post:
       tags: [Projects]
-      description: Write the project's .mini-orca/config.yaml (0600, kept out of Git) and apply it without a restart. Refused with 409 while work runs.
+      description: Write the project's .kasuri/config.yaml (0600, kept out of Git) and apply it without a restart. Refused with 409 while work runs.
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProjectSetupRequest'}}}}
       responses:
         '200': {description: The saved setup, content: {application/json: {schema: {$ref: '#/components/schemas/ProjectSetup'}}}}
@@ -568,7 +568,7 @@ paths:
   /api/projects/current/setup/timeouts:
     post:
       tags: [Projects]
-      description: Write only the time limits to the project's .mini-orca/config.yaml and apply them without a restart; agent overrides are kept. Refused with 409 while work runs.
+      description: Write only the time limits to the project's .kasuri/config.yaml and apply them without a restart; agent overrides are kept. Refused with 409 while work runs.
       requestBody:
         required: true
         content:
@@ -688,7 +688,7 @@ paths:
     post:
       tags: [Projects]
       summary: Ask the codebase a question
-      description: 'The Review role''s model runs as an agent (Claude Code, Agy or Pi) with read-only tools over the checkout, starting from the docs, and ends with an answer and citations. Mini-Orca checks each citation: the file is readable under the context policy, the lines exist and contain the quote (white space aside). Synchronous, at most five minutes; nothing is written or kept. A CLI model is remote and needs confirm_remote_provider.'
+      description: 'The Review role''s model runs as an agent (Claude Code, Agy or Pi) with read-only tools over the checkout, starting from the docs, and ends with an answer and citations. Kasuri checks each citation: the file is readable under the context policy, the lines exist and contain the quote (white space aside). Synchronous, at most five minutes; nothing is written or kept. A CLI model is remote and needs confirm_remote_provider.'
       requestBody:
         required: true
         content:
@@ -1393,7 +1393,7 @@ components:
             properties:
               text: {type: string}
               path: {type: string, description: A file the project has.}
-              symbol: {type: string, description: "The function, method or type the step happens in, only when Mini-Orca found its declaration in the file."}
+              symbol: {type: string, description: "The function, method or type the step happens in, only when Kasuri found its declaration in the file."}
               line: {type: integer, description: The line of that declaration.}
     DocsComponentFiles:
       type: object
@@ -1627,7 +1627,7 @@ components:
         severity: {type: string}
         title: {type: string, description: Short content-specific name; older reports may omit it.}
         summary: {type: string}
-        start_line: {type: integer, minimum: 1, description: 'Where the risk is: the line of the source the model copied as its anchor, found by Mini-Orca. Absent when it copied none that is in the file.'}
+        start_line: {type: integer, minimum: 1, description: 'Where the risk is: the line of the source the model copied as its anchor, found by Kasuri. Absent when it copied none that is in the file.'}
         end_line: {type: integer, minimum: 1}
         task_spec: {$ref: '#/components/schemas/BugTaskSpec'}
         engineering_insight: {$ref: '#/components/schemas/EngineeringInsight'}
@@ -2055,7 +2055,7 @@ components:
         project_id: {type: string}
         project_revision: {type: string}
         question: {type: string}
-        answer: {type: string, maxLength: 12000, description: Model-written; the citations are what Mini-Orca checked.}
+        answer: {type: string, maxLength: 12000, description: Model-written; the citations are what Kasuri checked.}
         citations: {type: array, minItems: 1, maxItems: 16, items: {$ref: '#/components/schemas/AskCitation'}}
         model: {type: string}
         turns: {type: integer, minimum: 0}
@@ -2809,7 +2809,7 @@ components:
                       path: {type: string}
                       current: {type: boolean}
                       locked: {type: boolean}
-                      lock_reason: {type: string, description: "Mini-Orca locks a task's worktree while agents run there; a lock it left behind is released when this list is read."}
+                      lock_reason: {type: string, description: "Kasuri locks a task's worktree while agents run there; a lock it left behind is released when this list is read."}
                       prunable: {type: boolean}
                       dirty: {type: boolean, description: Omitted when status cannot be read}
                       mergeable: {type: boolean, description: Clean local branches with shared history and incoming commits; excludes current or locked or prunable worktrees and in-progress Git operations. Does not predict conflicts.}

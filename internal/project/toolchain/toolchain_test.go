@@ -64,9 +64,9 @@ func TestAGENTSChecksOverrideAndTaskRunnersBeatDefaults(t *testing.T) {
 	root, files := writeFiles(t, map[string]string{
 		"go.mod":           "module example.test/m\n",
 		"Makefile":         "test:\n\tgo test -v ./...\ncheck: test\n",
-		"AGENTS.md":        "```mini-orca\nchecks:\n  lint: go vet ./...\n```\n",
+		"AGENTS.md":        "```kasuri\nchecks:\n  lint: go vet ./...\n```\n",
 		"web/package.json": `{"scripts":{"test":"vitest run"}}`,
-		"web/AGENTS.md":    "```mini-orca\nchecks:\n  test: \"\"\n```\n",
+		"web/AGENTS.md":    "```kasuri\nchecks:\n  test: \"\"\n```\n",
 	})
 	got := Detect(root, files, rules.NewResolver(root))
 	want := []Profile{{Dir: "", Kind: "make", Source: "AGENTS.md", Test: []string{"make", "test"}, Lint: []string{"go", "vet", "./..."}}}

@@ -158,7 +158,7 @@ func TestGitMergeDoesNotCompleteUncommittedUndoneUnmergedOrForeignTargets(t *tes
 func TestGitMergeFindingCompletionFailureRetainsHistoryForRetry(t *testing.T) {
 	service, root, request := gitWorkflowFixture(t)
 	path, session := recordedFindingFix(t, service, request)
-	file := filepath.Join(root, ".mini-orca", "findings.json")
+	file := filepath.Join(root, ".kasuri", "findings.json")
 	if err := os.Mkdir(file, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +219,7 @@ func TestGitMergeRejectedOrFailedDoesNotCompleteFindings(t *testing.T) {
 			case "unconfirmed":
 				request.Confirm = false
 			case "corrupt history":
-				if err := os.WriteFile(filepath.Join(path, ".mini-orca", "changes", session.ID+".json"), []byte("{corrupt"), 0600); err != nil {
+				if err := os.WriteFile(filepath.Join(path, ".kasuri", "changes", session.ID+".json"), []byte("{corrupt"), 0600); err != nil {
 					t.Fatal(err)
 				}
 			}

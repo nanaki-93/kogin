@@ -17,7 +17,7 @@ const (
 	projectAnalysisSchemaVersion = "1"
 	// v7: short prose, walkthroughs checked against the files, no diagrams.
 	projectAnalysisPromptVersion = "project-analysis-v7"
-	projectAnalysisReportPath    = ".mini-orca/project-analysis.json"
+	projectAnalysisReportPath    = ".kasuri/project-analysis.json"
 	maxProjectAnalysisBytes      = 64 * 1024
 	maxProjectAnalysisItems      = 32
 	maxProjectAnalysisItemBytes  = 2048

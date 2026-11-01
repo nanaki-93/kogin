@@ -32,7 +32,7 @@ func TestUnreadableJournalIsNamedAndSetAside(t *testing.T) {
 	path := writeJournal(t, s, `{"version":2,`)
 	_, err = Open(root)
 	var problem *JournalError
-	if !errors.As(err, &problem) || !errors.Is(err, ErrCorrupt) || problem.Newer || !strings.HasPrefix(problem.Path, ".mini-orca/agents/") || !strings.Contains(err.Error(), "not valid JSON") {
+	if !errors.As(err, &problem) || !errors.Is(err, ErrCorrupt) || problem.Newer || !strings.HasPrefix(problem.Path, ".kasuri/agents/") || !strings.Contains(err.Error(), "not valid JSON") {
 		t.Fatalf("corrupt journal error: %v", err)
 	}
 	record, err := Quarantine(t.Context(), root)
@@ -65,7 +65,7 @@ func TestNewerJournalIsNeverSetAside(t *testing.T) {
 	}
 	path := writeJournal(t, s, `{"version":9,"future_field":true}`)
 	_, err = Open(root)
-	if !errors.Is(err, ErrNewerJournal) || !strings.Contains(err.Error(), "upgrade Mini-Orca") || !strings.Contains(err.Error(), "format 9") {
+	if !errors.Is(err, ErrNewerJournal) || !strings.Contains(err.Error(), "upgrade Kasuri") || !strings.Contains(err.Error(), "format 9") {
 		t.Fatalf("newer journal error: %v", err)
 	}
 	if record, err := Quarantine(t.Context(), root); record != nil || !errors.Is(err, ErrNewerJournal) {

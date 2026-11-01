@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/nanaki-93/mini-orca/v2/internal/brand"
 	"github.com/nanaki-93/mini-orca/v2/internal/storage"
 )
 
@@ -18,11 +19,11 @@ type DesktopState struct {
 }
 
 func desktopStatePath() (string, error) {
-	directory, err := os.UserConfigDir()
+	directory, err := brand.UserConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("locate the desktop app's settings: %w", err)
 	}
-	return filepath.Join(directory, "mini-orca", "desktop.json"), nil
+	return filepath.Join(directory, "desktop.json"), nil
 }
 
 // LastProject is the folder the desktop app opened last, when it still exists.
@@ -63,20 +64,20 @@ func RememberProject(folder string) error {
 }
 
 // DesktopLogFolder is where the desktop app writes the daemon's log:
-// ~/Library/Logs/Mini-Orca on macOS, the user cache folder elsewhere.
+// ~/Library/Logs/Kasuri on macOS, the user cache folder elsewhere.
 func DesktopLogFolder() (string, error) {
 	if runtime.GOOS == "darwin" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return "", err
 		}
-		return filepath.Join(home, "Library", "Logs", "Mini-Orca"), nil
+		return filepath.Join(home, "Library", "Logs", "Kasuri"), nil
 	}
 	cache, err := os.UserCacheDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(cache, "mini-orca"), nil
+	return filepath.Join(cache, "kasuri"), nil
 }
 
 // OpenDesktopLog starts this launch's daemon log in folder, keeping the

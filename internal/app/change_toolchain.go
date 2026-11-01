@@ -80,7 +80,7 @@ func (run *checkRun) base() (string, error) {
 	if run.baseDir != "" || run.baseErr != nil {
 		return run.baseDir, run.baseErr
 	}
-	dir, err := os.MkdirTemp("", "mini-orca-change-base-")
+	dir, err := os.MkdirTemp("", "kasuri-change-base-")
 	if err != nil {
 		run.baseErr = err
 		return "", err
@@ -188,7 +188,7 @@ func (run *checkRun) compared(workspace string, profile toolchain.Profile, kind 
 		after.Output = fmt.Sprintf("New failures: %s. Already failing before this change: %s.\n\n%s", listNames(added), listNames(known), after.Output)
 	default:
 		after.Outcome = "also_failed_before"
-		after.Output = "This also failed before the change, and Mini-Orca could not tell which failures are new, so it still blocks. Fix or skip the failing checks, or declare a narrower command in AGENTS.md.\n\n" + after.Output
+		after.Output = "This also failed before the change, and Kasuri could not tell which failures are new, so it still blocks. Fix or skip the failing checks, or declare a narrower command in AGENTS.md.\n\n" + after.Output
 	}
 	return after
 }

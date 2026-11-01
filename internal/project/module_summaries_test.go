@@ -10,7 +10,7 @@ import (
 
 func TestModuleSummariesRoundTripAndSetAsideWhatTheyCannotRead(t *testing.T) {
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, ".mini-orca"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, ".kasuri"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	empty, err := LoadModuleSummaries(root, "p")
@@ -29,14 +29,14 @@ func TestModuleSummariesRoundTripAndSetAsideWhatTheyCannotRead(t *testing.T) {
 	if other, err := LoadModuleSummaries(root, "q"); err != nil || len(other.Entries) != 0 {
 		t.Fatalf("other project = %+v, %v", other, err)
 	}
-	path := filepath.Join(root, ".mini-orca", "module-summaries.json")
+	path := filepath.Join(root, ".kasuri", "module-summaries.json")
 	if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if corrupt, err := LoadModuleSummaries(root, "p"); err != nil || len(corrupt.Entries) != 0 {
 		t.Fatalf("corrupt file = %+v, %v", corrupt, err)
 	}
-	entries, err := os.ReadDir(filepath.Join(root, ".mini-orca"))
+	entries, err := os.ReadDir(filepath.Join(root, ".kasuri"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,10 +48,10 @@ func TestModuleSummariesRoundTripAndSetAsideWhatTheyCannotRead(t *testing.T) {
 		t.Fatalf("the unreadable file was not set aside: %v", entries)
 	}
 	// A write that cannot land says so.
-	if err := os.Chmod(filepath.Join(root, ".mini-orca"), 0o500); err != nil {
+	if err := os.Chmod(filepath.Join(root, ".kasuri"), 0o500); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.Chmod(filepath.Join(root, ".mini-orca"), 0o755) })
+	t.Cleanup(func() { _ = os.Chmod(filepath.Join(root, ".kasuri"), 0o755) })
 	if os.Geteuid() != 0 {
 		if err := StoreModuleSummaries(root, stored); err == nil {
 			t.Fatal("a failed write was reported as saved")

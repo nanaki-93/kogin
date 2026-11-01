@@ -31,7 +31,7 @@ func (s *Service) shouldAutoRepairWorkflow(ctx context.Context, job *changeWorkf
 }
 
 // existingTestsFail reports a failure that predates the proposal and that
-// Mini-Orca could not separate from new ones: repairing the proposal cannot
+// Kasuri could not separate from new ones: repairing the proposal cannot
 // fix it, so automatic repair would only spend budget. Failures it could
 // separate never block (outcome known_failures).
 func existingTestsFail(checks []CheckResult) bool {

@@ -1,4 +1,4 @@
-// Records Mini-Orca set aside because it could not read them, or skipped
+// Records Kasuri set aside because it could not read them, or skipped
 // because a newer version wrote them. Work continues without them.
 
 import { FileWarning } from 'lucide-react';
@@ -19,7 +19,7 @@ export function QuarantineNotice() {
   const count = quarantineCount(useQuarantine().data);
   if (!count) return null;
   return (
-    <Callout tone="warning" icon={FileWarning} title={`Mini-Orca set aside or skipped ${plural(count, 'file')} it could not read`} action={<Button size="sm" onClick={() => navigate('/settings/project')}>Review</Button>}>
+    <Callout tone="warning" icon={FileWarning} title={`Kasuri set aside or skipped ${plural(count, 'file')} it could not read`} action={<Button size="sm" onClick={() => navigate('/settings/project')}>Review</Button>}>
       Work continues without them. Review what they held and what to do.
     </Callout>
   );

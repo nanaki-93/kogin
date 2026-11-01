@@ -69,7 +69,7 @@ type Walkthrough struct {
 
 // WalkthroughStep is one step of a walkthrough. Symbol is the function,
 // method or type the step happens in, and Line its declaration, both only
-// when Mini-Orca found that declaration in the file.
+// when Kasuri found that declaration in the file.
 type WalkthroughStep struct {
 	Text   string `json:"text"`
 	Path   string `json:"path"`

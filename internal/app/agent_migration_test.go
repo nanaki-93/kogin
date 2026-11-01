@@ -19,7 +19,7 @@ import (
 
 func rewriteMigrationJournal(t *testing.T, root string, edit func(map[string]json.RawMessage)) (string, []byte) {
 	t.Helper()
-	paths, err := filepath.Glob(filepath.Join(root, ".mini-orca", "agents", "*", "journal.json"))
+	paths, err := filepath.Glob(filepath.Join(root, ".kasuri", "agents", "*", "journal.json"))
 	if err != nil || len(paths) != 1 {
 		t.Fatal("expected one journal", paths, err)
 	}
@@ -48,7 +48,7 @@ func seedAgentRun(t *testing.T, s *Service, store *agentstate.Store, id, parent 
 	if err != nil {
 		t.Fatal(err)
 	}
-	key := agentstate.Key{App: "mini-orca", User: "local", ID: id}
+	key := agentstate.Key{App: "kasuri", User: "local", ID: id}
 	if _, err := store.CreateSession(t.Context(), key, agentstate.State{"private": json.RawMessage(`"PRIVATE_PROMPT"`)}); err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestAgentMigrationFailureAndCancellationPreventProviderDispatch(t *testing.
 			if err == nil {
 				t.Fatal("failed migration became admitted work")
 			}
-			if kind == "future" && !strings.Contains(err.Error(), "upgrade Mini-Orca") {
+			if kind == "future" && !strings.Contains(err.Error(), "upgrade Kasuri") {
 				t.Fatalf("newer journal error has no remedy: %v", err)
 			}
 			read, err := os.ReadFile(path)

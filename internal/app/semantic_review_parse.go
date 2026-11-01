@@ -38,7 +38,7 @@ type semanticAnalysisFinding struct {
 	Severity string                  `json:"severity"`
 	Title    string                  `json:"title"`
 	Summary  string                  `json:"summary"`
-	// Anchor copies the line of TARGET_SOURCE the risk is at; Mini-Orca
+	// Anchor copies the line of TARGET_SOURCE the risk is at; Kasuri
 	// finds its line number.
 	Anchor   string          `json:"anchor"`
 	TaskSpec json.RawMessage `json:"task_spec"`

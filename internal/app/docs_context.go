@@ -74,7 +74,7 @@ func writeDocsBrief(components []projectmap.Component, edges []projectmap.Edge, 
 	if brief.Len() == 0 {
 		return ""
 	}
-	return "\nWhere these files sit (Mini-Orca's docs; summaries are model-written from earlier file summaries and may be out of date, the code decides):\n" + brief.String()
+	return "\nWhere these files sit (Kasuri's docs; summaries are model-written from earlier file summaries and may be out of date, the code decides):\n" + brief.String()
 }
 
 // componentLinks are the imports between components, both ways.

@@ -136,7 +136,7 @@ func TestAnalysisSelectionFailuresPreservePriorChoice(t *testing.T) {
 func TestAnalysisSelectionInventoryKeepsEligibilityAndNewFiles(t *testing.T) {
 	server, _ := analysisResponseServer(t, emptyAnalysisReply)
 	s, root := newSemanticAnalysisService(t, server.URL, 0)
-	for name, source := range map[string]string{".env": "TOKEN=private", "ignored.go": "package main", ".mini-orcaignore": "ignored.go\n", "asset.bin": "\x00\x01", "new.go": "package main"} {
+	for name, source := range map[string]string{".env": "TOKEN=private", "ignored.go": "package main", ".kasuriignore": "ignored.go\n", "asset.bin": "\x00\x01", "new.go": "package main"} {
 		if err := os.WriteFile(filepath.Join(root, name), []byte(source), 0600); err != nil {
 			t.Fatal(err)
 		}

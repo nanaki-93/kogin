@@ -38,7 +38,7 @@ func verifyWorktreeProposal(ctx context.Context, root string, session *ChangeSes
 		return fmt.Errorf("%w: %v", project.ErrRevisionConflict, err)
 	}
 	if !sameProposal(read, session.Changes) {
-		return fmt.Errorf("%w: files in the task's worktree changed outside Mini-Orca", project.ErrRevisionConflict)
+		return fmt.Errorf("%w: files in the task's worktree changed outside Kasuri", project.ErrRevisionConflict)
 	}
 	return nil
 }
@@ -98,7 +98,7 @@ func (s *Service) adoptWorktreeEdits(ctx context.Context, root string, session *
 	delete(s.changeAuthority, current.ProjectID+"/"+current.ID)
 	now := time.Now().UTC()
 	if len(current.Messages) < maxChangeMessages {
-		current.Messages = append(current.Messages, ChangeMessage{Role: "assistant", Content: "Mini-Orca picked up edits made directly in this task's worktree; they are now part of the proposal.", CreatedAt: now})
+		current.Messages = append(current.Messages, ChangeMessage{Role: "assistant", Content: "Kasuri picked up edits made directly in this task's worktree; they are now part of the proposal.", CreatedAt: now})
 	}
 	current.UpdatedAt = now
 	if err := storeChangeSession(root, current); err != nil {

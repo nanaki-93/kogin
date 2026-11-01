@@ -5,13 +5,13 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleName</key>
-    <string>Mini-Orca</string>
+    <string>Kasuri</string>
     <key>CFBundleDisplayName</key>
-    <string>Mini-Orca</string>
+    <string>Kasuri</string>
     <key>CFBundleExecutable</key>
-    <string>mini-orca-desktop</string>
+    <string>kasuri-desktop</string>
     <key>CFBundleIdentifier</key>
-    <string>io.github.nanaki-93.mini-orca</string>
+    <string>io.github.nanaki-93.kasuri</string>
     <key>CFBundleShortVersionString</key>
     <string>__SHORT_VERSION__</string>
     <key>CFBundleVersion</key>

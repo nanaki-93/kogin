@@ -51,7 +51,7 @@ func (m *scriptedModel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.mu.Unlock()
 	delta := map[string]any{"role": "assistant", "content": "Done."}
 	finish := "stop"
-	if call := [][2]string{{"mcp__mini_orca__read_file", `{"path":"notes.txt"}`}, {"mcp__mini_orca__finish", `{"summary":"Read the notes."}`}}; turn < len(call) {
+	if call := [][2]string{{"mcp__kasuri__read_file", `{"path":"notes.txt"}`}, {"mcp__kasuri__finish", `{"summary":"Read the notes."}`}}; turn < len(call) {
 		delta = map[string]any{"role": "assistant", "tool_calls": []any{map[string]any{"index": 0, "id": fmt.Sprintf("call_%d", turn), "type": "function", "function": map[string]any{"name": call[turn][0], "arguments": call[turn][1]}}}}
 		finish = "tool_calls"
 	}
@@ -72,14 +72,14 @@ func (m *scriptedModel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "data: [DONE]\n\n")
 }
 
-// TestRealPiReachesOnlyMiniOrcasTools runs the pi installed on this machine
+// TestRealPiReachesOnlyKasurisTools runs the pi installed on this machine
 // against a scripted local model, with its own empty configuration, so it
-// costs no plan usage. It needs pi and runs only with MINI_ORCA_PI_SMOKE=1:
+// costs no plan usage. It needs pi and runs only with KASURI_PI_SMOKE=1:
 //
-//	MINI_ORCA_PI_SMOKE=1 go test ./internal/app -run TestRealPi -v
-func TestRealPiReachesOnlyMiniOrcasTools(t *testing.T) {
-	if os.Getenv("MINI_ORCA_PI_SMOKE") != "1" {
-		t.Skip("set MINI_ORCA_PI_SMOKE=1 to run the installed pi against a scripted local model")
+//	KASURI_PI_SMOKE=1 go test ./internal/app -run TestRealPi -v
+func TestRealPiReachesOnlyKasurisTools(t *testing.T) {
+	if os.Getenv("KASURI_PI_SMOKE") != "1" {
+		t.Skip("set KASURI_PI_SMOKE=1 to run the installed pi against a scripted local model")
 	}
 	model := &scriptedModel{}
 	endpoint := httptest.NewServer(model)
@@ -110,7 +110,7 @@ func TestRealPiReachesOnlyMiniOrcasTools(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
-	cli := os.Getenv("MINI_ORCA_PI_SMOKE_CLI")
+	cli := os.Getenv("KASURI_PI_SMOKE_CLI")
 	if cli == "" {
 		cli = "pi"
 	}
@@ -130,8 +130,8 @@ func TestRealPiReachesOnlyMiniOrcasTools(t *testing.T) {
 	model.mu.Lock()
 	defer model.mu.Unlock()
 	for _, declared := range model.declared {
-		if !slices.Equal(declared, []string{"mcp__mini_orca__finish", "mcp__mini_orca__read_file"}) {
-			t.Fatalf("pi declared %v to the model; only Mini-Orca's tools may reach it", declared)
+		if !slices.Equal(declared, []string{"mcp__kasuri__finish", "mcp__kasuri__read_file"}) {
+			t.Fatalf("pi declared %v to the model; only Kasuri's tools may reach it", declared)
 		}
 	}
 }

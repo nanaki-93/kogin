@@ -77,7 +77,7 @@ export function useDaemonEvents(): Connection {
         controller = new AbortController();
         try {
           const response = await fetch('/api/projects/current/events', {
-            headers: { Accept: 'text/event-stream', 'X-Mini-Orca-Web-UI': '1' },
+            headers: { Accept: 'text/event-stream', 'X-Kasuri-Web-UI': '1' },
             signal: controller.signal,
           });
           if (!response.ok || !response.body) throw new Error('events unavailable');

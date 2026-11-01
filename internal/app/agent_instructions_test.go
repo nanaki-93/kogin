@@ -66,7 +66,7 @@ func TestAnalysisAgentsUseGuidesAndInvalidateChangedGuidance(t *testing.T) {
 			if prompt := <-prompts; !strings.Contains(prompt, "Preserve error propagation instead.") || strings.Contains(prompt, "Preserve the cancellation boundary.") {
 				t.Fatal("refreshed analysis used outdated guidance")
 			}
-			if err := os.WriteFile(filepath.Join(root, ".mini-orcaignore"), []byte("AGENTS.md\n"), 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(root, ".kasuriignore"), []byte("AGENTS.md\n"), 0644); err != nil {
 				t.Fatal(err)
 			}
 			run()

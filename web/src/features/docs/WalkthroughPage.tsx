@@ -15,7 +15,7 @@ export function WalkthroughsIndex({ docs }: { docs: ProjectDocs }) {
     <article className="doc">
       <DocsStatusNote status={docs.status} />
       <div className="row"><h1 className="grow">How it works</h1>{walkthroughs.length ? <ModelWritten /> : null}</div>
-      <p className="small muted">The main things the project does, traced step by step through its files by the analyze model. Mini-Orca kept only the steps whose files exist, and links a function only where the file declares it.</p>
+      <p className="small muted">The main things the project does, traced step by step through its files by the analyze model. Kasuri kept only the steps whose files exist, and links a function only where the file declares it.</p>
       {walkthroughs.length ? (
         <ol className="walkthrough-list">
           {walkthroughs.map((walkthrough, index) => (

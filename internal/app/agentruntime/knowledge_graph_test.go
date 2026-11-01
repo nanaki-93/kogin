@@ -19,7 +19,7 @@ func TestKnowledgeGraphPersistsStartAndTruthfulOutcome(t *testing.T) {
 				calls := 0
 				result, err := RunKnowledgeGraph(ctx, kind, func(ctx context.Context) (string, error) {
 					calls++
-					sessions, err := store.Sessions(ctx, "mini-orca", "local")
+					sessions, err := store.Sessions(ctx, "kasuri", "local")
 					if err != nil || len(sessions) != 1 || len(sessions[0].Events) != 1 {
 						return "", fmt.Errorf("host ran before its durable start: %v", err)
 					}
@@ -107,7 +107,7 @@ func TestKnowledgeGraphPersistenceFailureIsNotSuccess(t *testing.T) {
 	root := t.TempDir()
 	ctx, _, _ := persistedContext(t, root)
 	result, err := RunKnowledgeGraph(ctx, KnowledgeOverview, func(context.Context) (string, error) {
-		journal := filepath.Join(root, ".mini-orca", "agents")
+		journal := filepath.Join(root, ".kasuri", "agents")
 		if err := os.Rename(journal, filepath.Join(root, "saved")); err != nil {
 			return "", err
 		}

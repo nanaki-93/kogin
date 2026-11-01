@@ -5,7 +5,7 @@
 
 /** The write token from the document; empty when the daemon did not serve it. */
 export function documentWriteToken(doc: Document | undefined = globalThis.document): string {
-  const token = doc?.querySelector<HTMLMetaElement>('meta[name="mini-orca-write-token"]')?.content ?? '';
+  const token = doc?.querySelector<HTMLMetaElement>('meta[name="kasuri-write-token"]')?.content ?? '';
   return token.startsWith('__') ? '' : token;
 }
 
@@ -55,10 +55,10 @@ export function errorMessage(err: unknown): string {
 
 export function createApi(fetchImpl: Fetch = (...args) => fetch(...args), writeToken: () => string = () => documentWriteToken()) {
   async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    const headers: Record<string, string> = { 'X-Mini-Orca-Web-UI': '1' };
+    const headers: Record<string, string> = { 'X-Kasuri-Web-UI': '1' };
     const init: RequestInit = { method: options.method ?? 'GET', headers, signal: options.signal };
     const token = init.method === 'GET' ? '' : writeToken();
-    if (token) headers['X-Mini-Orca-Token'] = token;
+    if (token) headers['X-Kasuri-Token'] = token;
     if (options.body !== undefined) {
       headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(options.body);

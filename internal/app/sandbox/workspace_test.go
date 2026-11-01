@@ -17,20 +17,20 @@ func TestCopyCheckWorkspaceExcludesCachesAndIgnoredOutputAndKeepsTrackedOutput(t
 	source := t.TempDir()
 	destination := filepath.Join(t.TempDir(), "workspace")
 	for path, content := range map[string]string{
-		"main.go":                               "package fixture\n",
-		".git":                                  "gitdir: /outside/worktree\n",
-		"node_modules/dependency/index.js":      "cache",
-		"desktop/build/generated.txt":           "ignored output",
-		".gitignore":                            "build/\n",
-		"internal/webui/dist/index.js":          "embedded bundle",
-		"target/classes/App.class":              "tracked output",
-		".worktrees/fix/main.go":                "package ignored\n",
-		".mini-orca/check.json":                 "metadata",
-		"testdata/node_modules/fixture.txt":     "required fixture",
-		"testdata/nested/.git":                  "gitdir: /outside/fixture-worktree\n",
-		"testdata/nested/.hg/store":             "metadata fixture",
-		"testdata/nested/.svn/entries":          "metadata fixture",
-		"testdata/nested/.mini-orca/check.json": "metadata fixture",
+		"main.go":                            "package fixture\n",
+		".git":                               "gitdir: /outside/worktree\n",
+		"node_modules/dependency/index.js":   "cache",
+		"desktop/build/generated.txt":        "ignored output",
+		".gitignore":                         "build/\n",
+		"internal/webui/dist/index.js":       "embedded bundle",
+		"target/classes/App.class":           "tracked output",
+		".worktrees/fix/main.go":             "package ignored\n",
+		".kasuri/check.json":                 "metadata",
+		"testdata/node_modules/fixture.txt":  "required fixture",
+		"testdata/nested/.git":               "gitdir: /outside/fixture-worktree\n",
+		"testdata/nested/.hg/store":          "metadata fixture",
+		"testdata/nested/.svn/entries":       "metadata fixture",
+		"testdata/nested/.kasuri/check.json": "metadata fixture",
 	} {
 		full := filepath.Join(source, path)
 		if err := os.MkdirAll(filepath.Dir(full), 0700); err != nil {
@@ -54,7 +54,7 @@ func TestCopyCheckWorkspaceExcludesCachesAndIgnoredOutputAndKeepsTrackedOutput(t
 	if info, err := os.Lstat(filepath.Join(destination, "node_modules")); err != nil || info.Mode()&os.ModeSymlink == 0 {
 		t.Fatalf("installed dependencies are linked, not copied: %v, %v", info, err)
 	}
-	for _, path := range []string{".git", ".worktrees", "desktop/build", ".mini-orca", "linked.go", "testdata/nested/.git", "testdata/nested/.hg", "testdata/nested/.svn", "testdata/nested/.mini-orca"} {
+	for _, path := range []string{".git", ".worktrees", "desktop/build", ".kasuri", "linked.go", "testdata/nested/.git", "testdata/nested/.hg", "testdata/nested/.svn", "testdata/nested/.kasuri"} {
 		if _, err := os.Lstat(filepath.Join(destination, path)); !os.IsNotExist(err) {
 			t.Fatalf("excluded path %q has error %v", path, err)
 		}
@@ -229,10 +229,10 @@ func TestFingerprintCheckWorkspaceCancelsDuringRead(t *testing.T) {
 func TestWorkspaceFingerprintMatchesCopiedCheckWorkspace(t *testing.T) {
 	root := t.TempDir()
 	writeBenchmarkFile(t, root, "main.go", "package main\n")
-	if err := os.MkdirAll(filepath.Join(root, ".mini-orca"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, ".kasuri"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	writeBenchmarkFile(t, root, filepath.Join(".mini-orca", "state.json"), "{}")
+	writeBenchmarkFile(t, root, filepath.Join(".kasuri", "state.json"), "{}")
 	if err := os.MkdirAll(filepath.Join(root, "node_modules", "pkg"), 0700); err != nil {
 		t.Fatal(err)
 	}

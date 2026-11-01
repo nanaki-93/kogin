@@ -27,7 +27,7 @@ func TestFindingClassificationPreservesLegacyIDsTriageAndProvenance(t *testing.T
 			if strings.Contains(string(data), `"category"`) {
 				t.Fatal("legacy fixture unexpectedly classified")
 			}
-			if err := os.MkdirAll(filepath.Join(root, ".mini-orca"), 0700); err != nil {
+			if err := os.MkdirAll(filepath.Join(root, ".kasuri"), 0700); err != nil {
 				t.Fatal(err)
 			}
 			if err := os.WriteFile(filepath.Join(root, findingStorePath), data, 0600); err != nil {

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/nanaki-93/mini-orca/v2/internal/brand"
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 	"github.com/nanaki-93/mini-orca/v2/internal/project/rules"
 )
@@ -39,12 +40,12 @@ func ownsWorktree(session *ChangeSession) bool {
 // worktreeMetadata is never part of a proposal.
 func worktreeMetadata(file string) bool {
 	first := strings.SplitN(file, "/", 2)[0]
-	return first == ".mini-orca" || first == ".worktrees" || first == ".git"
+	return first == brand.MetadataDir || first == brand.LegacyMetadataDir || first == ".worktrees" || first == ".git"
 }
 
 // worktreeWritable is the diff policy that replaces the target list for a
 // task in its own worktree: any project file the context policy admits,
-// except Mini-Orca and Git metadata and, unless the task edits instructions,
+// except Kasuri and Git metadata and, unless the task edits instructions,
 // the AGENTS.md files whose rules govern the task.
 func worktreeWritable(policy *project.ContextPolicy, session *ChangeSession, file string) error {
 	clean := path.Clean(filepath.ToSlash(file))
@@ -52,7 +53,7 @@ func worktreeWritable(policy *project.ContextPolicy, session *ChangeSession, fil
 	case clean != file || clean == "." || strings.HasPrefix(clean, "../") || path.IsAbs(clean):
 		return fmt.Errorf("proposal wrote %s, which is not a plain project-relative path", boundedProposalPath(file))
 	case worktreeMetadata(clean):
-		return fmt.Errorf("proposal wrote %s, which belongs to Git or Mini-Orca", boundedProposalPath(file))
+		return fmt.Errorf("proposal wrote %s, which belongs to Git or Kasuri", boundedProposalPath(file))
 	case path.Base(clean) == "AGENTS.md" && session.Kind != "instructions":
 		return fmt.Errorf("proposal wrote %s; a task cannot change the rules it is checked against", boundedProposalPath(file))
 	}

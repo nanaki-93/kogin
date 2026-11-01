@@ -222,7 +222,7 @@ func boundedReason(reason string) string {
 // scoreCoderAttempt rebuilds the project with the coder's changes and the
 // hidden tests in a scratch directory and runs the task's test command.
 func scoreCoderAttempt(ctx context.Context, item coderCase, changes []app.CoderFile) (string, string, []string) {
-	dir, err := os.MkdirTemp("", "mini-orca-coder-score-")
+	dir, err := os.MkdirTemp("", "kasuri-coder-score-")
 	if err != nil {
 		return "unavailable", err.Error(), nil
 	}

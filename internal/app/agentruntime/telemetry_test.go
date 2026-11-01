@@ -164,7 +164,7 @@ func TestLocalTraceCapturesGraphChecksAndRejectsFailedJournalWrites(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	paths, err := filepath.Glob(filepath.Join(root, ".mini-orca", "agents", "*", "journal.json"))
+	paths, err := filepath.Glob(filepath.Join(root, ".kasuri", "agents", "*", "journal.json"))
 	if err != nil || len(paths) != 1 {
 		t.Fatal("missing journal", err)
 	}

@@ -25,7 +25,7 @@ func SyntaxCheck(targets []ChangeTarget, edit ChangeEdit) CheckResult {
 			return check
 		}
 		check.State = CheckFailed
-		check.Output = proposed.SyntaxError + ". Fix the syntax; if the code is valid, Mini-Orca's " + proposed.Grammar + " parser may not know this syntax yet."
+		check.Output = proposed.SyntaxError + ". Fix the syntax; if the code is valid, Kasuri's " + proposed.Grammar + " parser may not know this syntax yet."
 	}
 	return check
 }

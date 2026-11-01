@@ -121,7 +121,7 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
 
 function ProjectSwitcher({ collapsed }: { collapsed: boolean }) {
   const project = useMainProject().data;
-  const name = project?.name || (project?.path ? basename(project.path) : 'Mini-Orca');
+  const name = project?.name || (project?.path ? basename(project.path) : 'Kasuri');
   return (
     <button type="button" className="project-switcher" onClick={() => navigate('/settings/project')} title={project?.path}>
       <span className="project-mark" aria-hidden>

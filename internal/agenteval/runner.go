@@ -1,4 +1,4 @@
-// Package agenteval runs bounded synthetic tasks through Mini-Orca's native
+// Package agenteval runs bounded synthetic tasks through Kasuri's native
 // agent boundary. Its receipts deliberately exclude prompts and model output.
 package agenteval
 

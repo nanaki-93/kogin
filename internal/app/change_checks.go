@@ -177,7 +177,7 @@ func changeSourceChecks(root string, targets []ChangeTarget, edits []ChangeEdit)
 // checkChangeWorkspace runs checks in an isolated copy and returns the
 // whole-tree fingerprint of the project the copy reproduces.
 func (s *Service) checkChangeWorkspace(ctx context.Context, root string, session *ChangeSession, options CheckOptions) ([]CheckResult, string, error) {
-	workspace, err := os.MkdirTemp("", "mini-orca-change-check-")
+	workspace, err := os.MkdirTemp("", "kasuri-change-check-")
 	if err != nil {
 		return nil, "", err
 	}

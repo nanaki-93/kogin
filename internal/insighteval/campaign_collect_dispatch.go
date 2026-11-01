@@ -27,7 +27,7 @@ func executeRunnerAttempt(parent context.Context, cfg EngineeringInsightRunnerCo
 }
 
 func buildRunnerPrompt(cfg EngineeringInsightRunnerConfig, item EngineeringInsightRunnerCase) (string, string, *project.IndexFile, error) {
-	root, err := os.MkdirTemp("", "mini-orca-insight-fixture-")
+	root, err := os.MkdirTemp("", "kasuri-insight-fixture-")
 	if err != nil {
 		return "", "", nil, fmt.Errorf("create private evaluation fixture")
 	}

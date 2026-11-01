@@ -227,7 +227,7 @@ func TestWorkflowInputJournalStateCannotGrantReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	records, err := store.Sessions(t.Context(), "mini-orca", "local")
+	records, err := store.Sessions(t.Context(), "kasuri", "local")
 	if err != nil {
 		t.Fatal(err)
 	}

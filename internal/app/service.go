@@ -16,9 +16,12 @@ import (
 	"github.com/nanaki-93/mini-orca/v2/internal/app/agentruntime"
 	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
 	"github.com/nanaki-93/mini-orca/v2/internal/app/changes"
+	"github.com/nanaki-93/mini-orca/v2/internal/app/gitops"
+	"github.com/nanaki-93/mini-orca/v2/internal/brand"
 	"github.com/nanaki-93/mini-orca/v2/internal/config"
 	"github.com/nanaki-93/mini-orca/v2/internal/llm"
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/mini-orca/v2/internal/storage"
 )
 
 // EffectiveModel is the non-secret metadata for one configured generation scope.
@@ -166,6 +169,9 @@ func (s *Service) ValidateMutableRequest(id, revision, targetFile, baseFileHash 
 // its remote provider; otherwise it records the deterministic inventory, and
 // a later analysis writes the overview.
 func (s *Service) ImportProject(ctx context.Context, root string, confirmRemote bool) (*project.Analysis, error) {
+	if err := migrateLegacyMetadata(ctx, root); err != nil {
+		return nil, err
+	}
 	target := s.importConfiguration(root)
 	runtime := target.runtimes.analyze
 	if !runtime.effective.RemoteProvider || confirmRemote {
@@ -186,6 +192,19 @@ func (s *Service) ImportProject(ctx context.Context, root string, confirmRemote 
 	return analysis, project.StoreProjectAnalysisReport(analysis.Path, analysis.Report)
 }
 
+// migrateLegacyMetadata moves the project's data from .mini-orca, its folder
+// before the rename to Kasuri, to .kasuri. When it moves it, Git is told
+// locally to ignore .kasuri as it may have ignored .mini-orca; a project that
+// is not a Git repository is fine.
+func migrateLegacyMetadata(ctx context.Context, root string) error {
+	moved, err := storage.MigrateLegacyMetadata(root)
+	if err != nil || !moved {
+		return err
+	}
+	_ = gitops.AddLocalExclude(ctx, root, "/"+brand.MetadataDir+"/")
+	return nil
+}
+
 const importWithoutOverview = "The project overview was not requested from the remote analyze model. Run an analysis to write it."
 
 // importConfiguration is the configuration root will run with once active.
@@ -199,6 +218,9 @@ func (s *Service) importConfiguration(root string) *configuration {
 // RestoreProject reopens a previously imported project from local persisted
 // analysis without making a model request.
 func (s *Service) RestoreProject(root string) (*project.Analysis, error) {
+	if err := migrateLegacyMetadata(context.Background(), root); err != nil {
+		return nil, err
+	}
 	if _, err := agentstate.Open(root); err != nil {
 		return nil, fmt.Errorf("inspect saved agent journal: %w", err)
 	}

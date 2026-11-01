@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode"
+
+	"github.com/nanaki-93/mini-orca/v2/internal/brand"
 )
 
 // CanonicalRoot validates a project directory and resolves symlinks.
@@ -103,7 +105,7 @@ func validateWritePath(relative string) error {
 	}
 	for _, part := range strings.Split(relative, "/") {
 		switch part {
-		case "..", ".git", ".mini-orca", ".aws", ".codex", ".agents":
+		case "..", ".git", brand.MetadataDir, brand.LegacyMetadataDir, ".aws", ".codex", ".agents":
 			return fmt.Errorf("file path targets protected metadata")
 		}
 	}

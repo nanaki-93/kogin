@@ -45,7 +45,7 @@ export function docsActions(context: ActionContext) {
     if (remote) {
       const ok = await confirm({
         title: 'Ask the codebase?',
-        body: `${model?.model || 'The Review role’s model'}${model?.provider_origin ? ` at ${model.provider_origin}` : ''} reads the project's files through Mini-Orca's read-only tools to answer, then cites the lines it used. File contents leave your machine; it can take a few minutes and changes nothing.`,
+        body: `${model?.model || 'The Review role’s model'}${model?.provider_origin ? ` at ${model.provider_origin}` : ''} reads the project's files through Kasuri's read-only tools to answer, then cites the lines it used. File contents leave your machine; it can take a few minutes and changes nothing.`,
         confirmLabel: 'Ask',
       });
       if (!ok) return null;

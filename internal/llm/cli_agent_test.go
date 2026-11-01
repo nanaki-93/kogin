@@ -19,10 +19,10 @@ func TestPiAgentRunsOfferOnlyTheRunsToolServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	args := launch.args
-	if !slices.Contains(launch.env, "MINI_ORCA_MCP_TOKEN=secret-token") || !slices.Contains(launch.env, "MINI_ORCA_TOOL_TIMEOUT=60") {
+	if !slices.Contains(launch.env, "KASURI_MCP_TOKEN=secret-token") || !slices.Contains(launch.env, "KASURI_TOOL_TIMEOUT=60") {
 		t.Fatal("the token and limits reach the extension through its environment")
 	}
-	for _, pair := range [][2]string{{"--mode", "json"}, {"--tools", "mcp__mini_orca__*"}, {"--model", "openai-codex/gpt-5.5"}, {"--thinking", "off"}} {
+	for _, pair := range [][2]string{{"--mode", "json"}, {"--tools", "mcp__kasuri__*"}, {"--model", "openai-codex/gpt-5.5"}, {"--thinking", "off"}} {
 		if index := slices.Index(args, pair[0]); index < 0 || args[index+1] != pair[1] {
 			t.Fatalf("%s is not %s in %v", pair[0], pair[1], args)
 		}
@@ -35,11 +35,11 @@ func TestPiAgentRunsOfferOnlyTheRunsToolServer(t *testing.T) {
 	if excluded := args[slices.Index(args, "--exclude-tools")+1]; !strings.Contains(excluded, "codemode") || !strings.Contains(excluded, "tool_search") {
 		t.Fatalf("excluded tools = %s", excluded)
 	}
-	extension, err := os.ReadFile(filepath.Join(directory, "mini-orca-tools.ts"))
-	if err != nil || !strings.Contains(string(extension), `pi.registerMcpServer("mini-orca"`) || !strings.Contains(string(extension), `exposure: "direct"`) || !strings.Contains(string(extension), `block: true`) {
+	extension, err := os.ReadFile(filepath.Join(directory, "kasuri-tools.ts"))
+	if err != nil || !strings.Contains(string(extension), `pi.registerMcpServer("kasuri"`) || !strings.Contains(string(extension), `exposure: "direct"`) || !strings.Contains(string(extension), `block: true`) {
 		t.Fatalf("extension = %s, %v", extension, err)
 	}
-	if strings.Contains(string(extension), "MINI_ORCA_MCP_TOKEN=") {
+	if strings.Contains(string(extension), "KASURI_MCP_TOKEN=") {
 		t.Fatal("the token must come from the environment, not the file")
 	}
 }
@@ -56,8 +56,8 @@ func TestAnAgentRunCountsTurnsToolsAndUsage(t *testing.T) {
 		`{"type":"agent_start"}`,
 		`{"type":"message_end","message":{"role":"user","content":"Task"}}`,
 		`{"type":"message_end","message":{"role":"assistant","model":"gpt-5.5","stopReason":"toolUse","content":[{"type":"toolCall"}],"usage":{"input":1200,"output":80,"totalTokens":1280}}}`,
-		`{"type":"tool_execution_end","toolName":"mcp__mini_orca__read_file","isError":false}`,
-		`{"type":"tool_execution_end","toolName":"mcp__mini_orca__edit_file","isError":true}`,
+		`{"type":"tool_execution_end","toolName":"mcp__kasuri__read_file","isError":false}`,
+		`{"type":"tool_execution_end","toolName":"mcp__kasuri__edit_file","isError":true}`,
 		`{"type":"turn_end"}`,
 		`{"type":"message_end","message":{"role":"assistant","model":"gpt-5.5","stopReason":"stop","content":[{"type":"text","text":"Done."}],"usage":{"input":1500,"output":20,"totalTokens":1520}}}`,
 		`{"type":"turn_end"}`,

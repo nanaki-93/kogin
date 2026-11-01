@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	findingStorePath   = ".mini-orca/findings.json"
+	findingStorePath   = ".kasuri/findings.json"
 	findingStoreSchema = "1"
 
 	FindingSourceAI     = "ai"

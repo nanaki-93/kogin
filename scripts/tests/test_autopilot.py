@@ -146,7 +146,7 @@ class RepositoryFixture:
         self.run("git", "config", "user.name", "Autopilot Test")
         (self.repo / "PLAN.md").write_text(PLAN)
         (self.repo / "AGENTS.md").write_text("# Test rules\n")
-        (self.repo / ".gitignore").write_text(".mini-orca/autopilot/\nignored/\n")
+        (self.repo / ".gitignore").write_text(".kasuri/autopilot/\nignored/\n")
         (self.repo / "mode.txt").write_text("accept\n")
         (self.repo / "Makefile").write_text("check:\n\t@./scripts/validate.sh\n")
         scripts = self.repo / "scripts"
@@ -209,7 +209,7 @@ control.setdefault("validation_home_modes", []).append(validation_home.stat().st
 control.setdefault("validation_java_options", []).append(
     {{"gradle": os.environ["GRADLE_OPTS"], "java": os.environ["JAVA_TOOL_OPTIONS"]}}
 )
-control.setdefault("validation_java25_homes", []).append(os.environ.get("MINI_ORCA_JAVA25_HOME"))
+control.setdefault("validation_java25_homes", []).append(os.environ.get("KASURI_JAVA25_HOME"))
 home_git = subprocess.run(
     ["git", "-C", str(validation_home), "rev-parse", "--is-inside-work-tree"],
     text=True,
@@ -276,7 +276,7 @@ raise SystemExit(1 if failed else 0)
         )
 
     def state_path(self, task: str = "TST-01") -> Path:
-        return self.repo / ".mini-orca" / "autopilot" / "runs" / f"{task}.json"
+        return self.repo / ".kasuri" / "autopilot" / "runs" / f"{task}.json"
 
     def state(self, task: str = "TST-01") -> dict[str, object]:
         return json.loads(self.state_path(task).read_text())
@@ -310,7 +310,7 @@ class DispatcherTest(unittest.TestCase):
         selected = self.fixture.dispatch("--dry-run")
         self.assertEqual(selected.returncode, 0, selected.stderr)
         self.assertEqual(json.loads(selected.stdout), {"phase": "selected", "resume": False, "task": "TST-01"})
-        self.assertFalse((self.fixture.repo / ".mini-orca").exists())
+        self.assertFalse((self.fixture.repo / ".kasuri").exists())
         self.assert_failed(self.fixture.dispatch("--dry-run", "--task", "TST-02"), "incomplete dependencies")
         self.assert_failed(self.fixture.dispatch("--dry-run", "--task", "BAD-99"), "unknown task")
 
@@ -323,7 +323,7 @@ class DispatcherTest(unittest.TestCase):
         self.assert_failed(self.fixture.dispatch("--dry-run"), "requires branch")
 
     def test_active_and_stale_leases_stop_duplicate_schedules(self) -> None:
-        lease = self.fixture.repo / ".mini-orca" / "autopilot" / "lease"
+        lease = self.fixture.repo / ".kasuri" / "autopilot" / "lease"
         lease.mkdir(parents=True)
         owner = {"pid": os.getpid(), "child_pid": None, "acquired_at": now_iso()}
         (lease / "owner.json").write_text(json.dumps(owner))
@@ -380,7 +380,7 @@ class DispatcherTest(unittest.TestCase):
             path = fixture.repo / failure["diagnostics"][key]
             self.assertTrue(path.is_file())
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
-        diagnostics = fixture.repo / ".mini-orca" / "autopilot" / "diagnostics"
+        diagnostics = fixture.repo / ".kasuri" / "autopilot" / "diagnostics"
         self.assertEqual(diagnostics.stat().st_mode & 0o777, 0o700)
 
     def test_partial_controlled_failure_is_bound_before_the_next_writer(self) -> None:
@@ -549,7 +549,7 @@ class DispatcherTest(unittest.TestCase):
         result = fixture.dispatch(
             environment={
                 "OPENAI_API_KEY": "must-not-reach-validation",
-                "MINI_ORCA_JAVA25_HOME": str(fixture.root),
+                "KASURI_JAVA25_HOME": str(fixture.root),
             }
         )
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -768,7 +768,7 @@ class DispatcherTest(unittest.TestCase):
         result = fixture.dispatch(*arguments)
         self.assertEqual(result.returncode, 0, result.stderr)
         authorization_digest = hashlib.sha256(b"authorization-0002").hexdigest()
-        journal = fixture.repo / ".mini-orca" / "autopilot" / "recoveries" / f"{authorization_digest}.json"
+        journal = fixture.repo / ".kasuri" / "autopilot" / "recoveries" / f"{authorization_digest}.json"
         value = json.loads(journal.read_text())
         value["complete"] = False
         journal.write_text(json.dumps(value))
@@ -818,7 +818,7 @@ class DispatcherTest(unittest.TestCase):
 
         leased = self.fresh("auth_failure")
         self.assert_failed(leased.dispatch(), "exit status 7")
-        lease = leased.repo / ".mini-orca" / "autopilot" / "lease"
+        lease = leased.repo / ".kasuri" / "autopilot" / "lease"
         lease.mkdir()
         (lease / "owner.json").write_text(json.dumps({"pid": os.getpid(), "child_pid": None, "acquired_at": now_iso()}))
         self.assert_failed(leased.dispatch(
@@ -932,12 +932,12 @@ class DispatcherTest(unittest.TestCase):
         self.assertNotIn("--sandbox-exec", help_result.stdout)
         self.assertNotIn("--token-budget", help_result.stdout)
         outside = self.fixture.root / "outside-state"
-        (self.fixture.repo / ".mini-orca").symlink_to(outside, target_is_directory=True)
+        (self.fixture.repo / ".kasuri").symlink_to(outside, target_is_directory=True)
         self.assert_failed(self.fixture.dispatch("--dry-run"), "must not contain symlinks")
 
     @unittest.skipUnless(sys.platform == "darwin", "production validator uses macOS sandbox-exec")
     def test_production_validation_sandbox_denies_external_writes(self) -> None:
-        if os.environ.get("MINI_ORCA_AUTOPILOT_VALIDATION") == "1":
+        if os.environ.get("KASURI_AUTOPILOT_VALIDATION") == "1":
             self.skipTest("nested sandbox is unavailable")
         dispatcher = autopilot.Dispatcher(
             autopilot.arguments(["--repo", str(self.fixture.repo), "--codex", str(self.fixture.codex)])

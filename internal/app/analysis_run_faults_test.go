@@ -101,7 +101,7 @@ func TestAnalysisRunRejectsSourcePolicyProviderAndProjectReplacement(t *testing.
 					t.Fatal(err)
 				}
 			case "policy":
-				if err := os.WriteFile(filepath.Join(root, ".mini-orcaignore"), []byte("main.go\n"), 0600); err != nil {
+				if err := os.WriteFile(filepath.Join(root, ".kasuriignore"), []byte("main.go\n"), 0600); err != nil {
 					t.Fatal(err)
 				}
 			case "provider":
@@ -139,7 +139,7 @@ func TestAnalysisRunRejectsSourcePolicyProviderAndProjectReplacement(t *testing.
 			} else if run == nil || run.Status != AnalysisRunStale {
 				t.Fatalf("stale=%+v", run)
 			}
-			entries, err := os.ReadDir(filepath.Join(root, ".mini-orca/file-analysis"))
+			entries, err := os.ReadDir(filepath.Join(root, ".kasuri/file-analysis"))
 			if err != nil && !os.IsNotExist(err) {
 				t.Fatal(err)
 			}

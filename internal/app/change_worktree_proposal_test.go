@@ -143,7 +143,7 @@ func TestEditsMadeInTheWorktreeBecomePartOfTheProposal(t *testing.T) {
 func TestTheDiffPolicyKeepsRulesAndMetadataOutOfAProposal(t *testing.T) {
 	for name, reply := range map[string]string{
 		"rules":    `{"explanation":"Loosen the budget.","changes":[{"path":"AGENTS.md","content":"Max file lines: 9999\n"}]}`,
-		"metadata": `{"explanation":"Edit history.","changes":[{"path":".mini-orca/changes/x.json","content":"{}"}]}`,
+		"metadata": `{"explanation":"Edit history.","changes":[{"path":".kasuri/changes/x.json","content":"{}"}]}`,
 		"escape":   `{"explanation":"Escape.","changes":[{"path":"../outside.go","content":"package main\n"}]}`,
 	} {
 		t.Run(name, func(t *testing.T) {

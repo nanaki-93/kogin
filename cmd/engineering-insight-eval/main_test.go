@@ -19,7 +19,7 @@ import (
 func TestRunEvaluationModeCompletesOfflineDevelopmentLifecycle(t *testing.T) {
 	root := t.TempDir()
 	git(t, root, "init")
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".mini-orca/\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kasuri/\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	git(t, root, "add", ".gitignore")
@@ -122,7 +122,7 @@ func TestRunEvaluationModeCompletesOfflineDevelopmentLifecycle(t *testing.T) {
 	if err := runEvaluationMode(badID); err == nil || calls != 3 {
 		t.Fatal("path-like run ID dispatched a request")
 	}
-	stateDirectory := filepath.Join(root, ".mini-orca", "autopilot", "engineering-insight-evaluation")
+	stateDirectory := filepath.Join(root, ".kasuri", "autopilot", "engineering-insight-evaluation")
 	campaign := filepath.Join(stateDirectory, "campaign.json")
 	campaignData, err := os.ReadFile(campaign)
 	if err != nil {
@@ -161,7 +161,7 @@ func TestGrantDevelopmentModeRequiresOneUniqueAuthorization(t *testing.T) {
 	if err := runEvaluationMode(grant); err == nil {
 		t.Fatal("grant before original budget exhaustion was accepted")
 	}
-	state := filepath.Join(root, ".mini-orca", "autopilot", "engineering-insight-evaluation")
+	state := filepath.Join(root, ".kasuri", "autopilot", "engineering-insight-evaluation")
 	if err := os.WriteFile(filepath.Join(state, "campaign.json"), []byte(`{"development_requests":6,"qualification_requests":0}`), 0600); err != nil {
 		t.Fatal(err)
 	}

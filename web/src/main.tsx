@@ -11,7 +11,7 @@ import { App } from './App';
 
 // Dialog scroll locking injects a <style> tag; the CSP admits it only with the
 // per-response nonce the daemon writes into the document.
-const nonce = document.querySelector<HTMLMetaElement>('meta[name="mini-orca-style-nonce"]')?.content;
+const nonce = document.querySelector<HTMLMetaElement>('meta[name="kasuri-style-nonce"]')?.content;
 if (nonce && !nonce.startsWith('__')) setNonce(nonce);
 
 const root = document.getElementById('root');

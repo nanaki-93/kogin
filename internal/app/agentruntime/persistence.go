@@ -120,7 +120,7 @@ func createRuntimeSession(ctx context.Context, initial map[string]any, schemaVer
 	if p != nil {
 		service = &localSessionService{store: p.store}
 	}
-	created, err := service.Create(ctx, &session.CreateRequest{AppName: "mini-orca", UserID: "local", State: initial})
+	created, err := service.Create(ctx, &session.CreateRequest{AppName: "kasuri", UserID: "local", State: initial})
 	if err != nil {
 		return nil, fmt.Errorf("create runtime session: %w", err)
 	}
@@ -130,7 +130,7 @@ func createRuntimeSession(ctx context.Context, initial map[string]any, schemaVer
 	}
 	result.runID = rand.Text()
 	now := time.Now().UTC()
-	run := agentstate.Run{ID: result.runID, Session: agentstate.Key{App: "mini-orca", User: "local", ID: created.Session.ID()}, BudgetID: p.budgetID, RequestHash: requestHash, SchemaHash: schemaHash, ProviderBinding: providerBinding, SchemaVersion: schemaVersion, Status: "running", Started: now, Updated: now}
+	run := agentstate.Run{ID: result.runID, Session: agentstate.Key{App: "kasuri", User: "local", ID: created.Session.ID()}, BudgetID: p.budgetID, RequestHash: requestHash, SchemaHash: schemaHash, ProviderBinding: providerBinding, SchemaVersion: schemaVersion, Status: "running", Started: now, Updated: now}
 	run.ParentID, _ = ctx.Value(invocationKey{}).(string)
 	if scope, ok := ctx.Value(changeScopeKey{}).(changeRunScope); ok {
 		run.ChangeSessionID, run.WorkflowID = scope.SessionID, scope.WorkflowID

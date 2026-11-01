@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/app/gitops"
+	"github.com/nanaki-93/mini-orca/v2/internal/brand"
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
 
@@ -41,8 +42,11 @@ func (s *Service) removeGitWorktree(ctx context.Context, root string, source *Gi
 	}
 	// Private task history can be untracked even though the checkout is clean.
 	// Ignore only that metadata so Git still refuses other uncommitted files.
-	if err := gitops.AddLocalExclude(ctx, root, "/.mini-orca/"); err != nil {
-		return err
+	// A checkout made before the rename to Kasuri may still hold .mini-orca/.
+	for _, pattern := range []string{"/" + brand.MetadataDir + "/", "/" + brand.LegacyMetadataDir + "/"} {
+		if err := gitops.AddLocalExclude(ctx, root, pattern); err != nil {
+			return err
+		}
 	}
 	remove := []string{"worktree", "remove"}
 	if removal == gitops.WorktreeAbandoned {

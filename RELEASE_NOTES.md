@@ -1,16 +1,37 @@
-# Mini-Orca release notes
+# Kasuri release notes
+
+Kasuri was called Mini-Orca until v6; the notes for earlier versions keep that name.
 
 ## v6.0.0-dev — In development
 
 Version 6 starts from the stable v5.0.0 tag on the `v6` branch. Its changes
 are listed here as they land.
 
-- **Desktop app (macOS):** `just desktop` builds Mini-Orca.app into
+- **Mini-Orca is now Kasuri** (絣, a Japanese weave whose pattern appears only
+  once the threads are woven together). New name, woven logo, app icon and a
+  default **Kasuri** palette (midnight violet; emerald for actions, violet for
+  navigation; Midnight stays in Settings → Appearance), and the brand kit in
+  `brand/`. Commands are `kasuri` and `kasuri-daemon`, the app is Kasuri.app
+  (`io.github.nanaki-93.kasuri`, so macOS asks again to allow notifications).
+  What was made under the old name keeps working:
+  - a project's `.mini-orca/` folder moves to `.kasuri/` the first time Kasuri
+    opens the project, and `.mini-orcaignore` is still read next to
+    `.kasuriignore`;
+  - `~/.config/mini-orca/config.yaml` is still found (after
+    `~/.config/kasuri/config.yaml`), and the settings folder in the platform
+    configuration directory moves from `mini-orca` to `kasuri`;
+  - every `MINI_ORCA_*` environment variable still works when its `KASURI_*`
+    name is not set;
+  - Web UI preferences carry over, except the dark palette, which starts on
+    Kasuri.
+  The Go module path stays `github.com/nanaki-93/mini-orca/v2` until the
+  repository is renamed.
+- **Desktop app (macOS):** `just desktop` builds Kasuri.app into
   `/Applications`: the Web UI in a window of its own. It reopens the last
   project (or asks for one), starts the daemon beside it with your login
   shell's `PATH`, or uses one that is already running, and stops the daemon it
   started when it quits. File → Open Project… switches projects; the daemon's
-  log is in `~/Library/Logs/Mini-Orca`. Built with Wails v3 in `desktop/`, a Go
+  log is in `~/Library/Logs/Kasuri`. Built with Wails v3 in `desktop/`, a Go
   module of its own. See [DESKTOP.md](DESKTOP.md).
 - **Desktop notifications:** while its window is not in front, the app tells
   you when agents finish a task (ready for review, changes requested, failed,
@@ -26,7 +47,7 @@ are listed here as they land.
   words with the file and a quoted line; the daemon finds the line, and the
   task page shows `master.go:42` as a link to that line in the diff, with the
   reason behind **Why**. Reviews saved with text findings still read.
-- The `mini-orca` launcher and the desktop app share `internal/launcher`.
+- The `kasuri` launcher and the desktop app share `internal/launcher`.
 
 ## v5.0.0 — Web-first workspace
 

@@ -13,19 +13,19 @@ import (
 
 func TestRecoveryJournalErrorsNameTheFileAndRemedy(t *testing.T) {
 	service, root := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
-	path := filepath.Join(root, ".mini-orca", "changes", "last-mutation.json")
+	path := filepath.Join(root, ".kasuri", "changes", "last-mutation.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	for content, want := range map[string]string{
 		"broken":        "is unreadable",
-		`{"version":7}`: "written by a newer Mini-Orca",
+		`{"version":7}`: "written by a newer Kasuri",
 	} {
 		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		_, err := service.ChangeRecovery()
-		if err == nil || !strings.Contains(err.Error(), ".mini-orca/changes/last-mutation.json") || !strings.Contains(err.Error(), want) {
+		if err == nil || !strings.Contains(err.Error(), ".kasuri/changes/last-mutation.json") || !strings.Contains(err.Error(), want) {
 			t.Fatalf("%s: %v", content, err)
 		}
 		if kept, _ := os.ReadFile(path); string(kept) != content {
@@ -38,7 +38,7 @@ func TestNewerTaskFilesAreSkippedNotSetAside(t *testing.T) {
 	server := changeProvider(t, func() string { return workflowImplementation })
 	service, root := newSemanticAnalysisService(t, server.URL, 0)
 	session := prepareChangeFixture(t, service, "new.go")
-	path := filepath.Join(root, ".mini-orca", "changes", session.ID+".json")
+	path := filepath.Join(root, ".kasuri", "changes", session.ID+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +55,7 @@ func TestNewerTaskFilesAreSkippedNotSetAside(t *testing.T) {
 		t.Fatalf("newer task listed or failed the list: %+v %v", history, err)
 	}
 	report, err := service.Quarantine(context.Background())
-	if err != nil || len(report.Files) != 0 || len(report.Skipped) != 1 || !strings.Contains(report.Skipped[0].Remedy, "Upgrade Mini-Orca") {
+	if err != nil || len(report.Files) != 0 || len(report.Skipped) != 1 || !strings.Contains(report.Skipped[0].Remedy, "Upgrade Kasuri") {
 		t.Fatalf("report: %+v %v", report, err)
 	}
 	if kept, _ := os.ReadFile(path); string(kept) != newer {
@@ -67,7 +67,7 @@ func TestUnreadableAnalysisProgressIsSetAsideSoAnalysisCanStart(t *testing.T) {
 	server, _ := analysisResponseServer(t, emptyAnalysisReply)
 	service, root := newSemanticAnalysisService(t, server.URL, 0)
 	path := filepath.Join(root, analysisRunRelativePath)
-	broken := `{"schema_version":"1","written_by":"an older Mini-Orca"}`
+	broken := `{"schema_version":"1","written_by":"an older Kasuri"}`
 	if err := storage.WriteFile(path, []byte(broken), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestUnreadableAnalysisProgressIsSetAsideSoAnalysisCanStart(t *testing.T) {
 		t.Fatalf("report: %+v %v", report, err)
 	}
 	record := report.Files[0]
-	if record.Kind != "analysis_run" || record.File != analysisRunRelativePath || !strings.HasPrefix(record.QuarantinedAs, ".mini-orca/analysis/run.quarantined-") {
+	if record.Kind != "analysis_run" || record.File != analysisRunRelativePath || !strings.HasPrefix(record.QuarantinedAs, ".kasuri/analysis/run.quarantined-") {
 		t.Fatalf("record: %+v", record)
 	}
 	if kept, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(record.QuarantinedAs))); err != nil || string(kept) != broken {

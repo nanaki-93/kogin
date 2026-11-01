@@ -86,10 +86,10 @@ func resolveToolSchema(raw json.RawMessage) (*jsonschema.Schema, error) {
 	}
 	compiler := jsonschema.NewCompiler()
 	compiler.UseLoader(toolSchemaLoader{})
-	if err := compiler.AddResource("urn:mini-orca:tool", schema); err != nil {
+	if err := compiler.AddResource("urn:kasuri:tool", schema); err != nil {
 		return nil, err
 	}
-	resolved, err := compiler.Compile("urn:mini-orca:tool")
+	resolved, err := compiler.Compile("urn:kasuri:tool")
 	if err != nil {
 		return nil, fmt.Errorf("resolve tool schema: %w", err)
 	}

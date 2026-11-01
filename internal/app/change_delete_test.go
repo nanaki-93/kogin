@@ -110,7 +110,7 @@ func TestDeleteChangeReadsAJournalFromBeforeTheCodeScopeRename(t *testing.T) {
 	if _, err := s.ApplyChange(context.Background(), reviewed.ID, ChangeApplyRequest{ChangeIdentity: changeIdentity(reviewed), Confirm: true}); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(root, ".mini-orca", "changes", "last-mutation.json")
+	path := filepath.Join(root, ".kasuri", "changes", "last-mutation.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

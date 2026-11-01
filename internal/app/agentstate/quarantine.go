@@ -14,10 +14,10 @@ import (
 // An unreadable journal blocks every agent run in its checkout. The host may
 // set it aside: its bytes move to a quarantined file next to it, a record of
 // the move is kept, and the next run starts a new journal. A journal written
-// by a newer Mini-Orca is never set aside; it needs that version.
+// by a newer Kasuri is never set aside; it needs that version.
 
 // ErrNewerJournal marks a journal in a format this version cannot read.
-var ErrNewerJournal = errors.New("agent journal was written by a newer Mini-Orca")
+var ErrNewerJournal = errors.New("agent journal was written by a newer Kasuri")
 
 const maxQuarantineRecords = 32
 
@@ -31,7 +31,7 @@ type JournalError struct {
 
 func (e *JournalError) Error() string {
 	if e.Newer {
-		return fmt.Sprintf("agent journal %s was written by a newer Mini-Orca (%s); upgrade Mini-Orca to use it, or move the file away to start a new journal", e.Path, e.Reason)
+		return fmt.Sprintf("agent journal %s was written by a newer Kasuri (%s); upgrade Kasuri to use it, or move the file away to start a new journal", e.Path, e.Reason)
 	}
 	return fmt.Sprintf("agent journal %s is unreadable: %s; existing data was preserved", e.Path, e.Reason)
 }

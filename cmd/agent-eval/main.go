@@ -159,14 +159,14 @@ func runCoderSuite(ctx context.Context, options commandOptions, output, diagnost
 		fmt.Fprintln(diagnostics, "inspect this disclosure and add --confirm-live to dispatch")
 		return 2
 	}
-	trust, err := os.MkdirTemp("", "mini-orca-coder-eval-trust-")
+	trust, err := os.MkdirTemp("", "kasuri-coder-eval-trust-")
 	if err != nil {
 		fmt.Fprintln(diagnostics, err)
 		return 2
 	}
 	defer os.RemoveAll(trust)
 	// The scratch projects' execution trust never reaches the user's own store.
-	if err := os.Setenv("MINI_ORCA_TRUST_DIR", trust); err != nil {
+	if err := os.Setenv("KASURI_TRUST_DIR", trust); err != nil {
 		fmt.Fprintln(diagnostics, err)
 		return 2
 	}

@@ -253,7 +253,7 @@ func TestAnalysisFilePublicationRejectsStaleCanceledOrReplacedWork(t *testing.T)
 							return err
 						}
 					case "policy":
-						if err := os.WriteFile(filepath.Join(root, ".mini-orcaignore"), []byte("main.go\n"), 0600); err != nil {
+						if err := os.WriteFile(filepath.Join(root, ".kasuriignore"), []byte("main.go\n"), 0600); err != nil {
 							return err
 						}
 					case "cancel":
@@ -274,7 +274,7 @@ func TestAnalysisFilePublicationRejectsStaleCanceledOrReplacedWork(t *testing.T)
 					t.Fatalf("rejected publication=%+v, %v", result, err)
 				}
 				for _, directory := range []string{"file-analysis", "performance/files", "security/files"} {
-					entries, err := os.ReadDir(filepath.Join(root, ".mini-orca", directory))
+					entries, err := os.ReadDir(filepath.Join(root, ".kasuri", directory))
 					if err != nil && !os.IsNotExist(err) {
 						t.Fatal(err)
 					}
@@ -399,7 +399,7 @@ func TestAnalysisFileSemanticPreparationFailureDoesNotStoreModelFailure(t *testi
 	if err != nil || result.Progress.Status != AnalysisStageSkipped || result.Semantic != nil || calls.Load() != 0 {
 		t.Fatalf("oversized input=%+v, %v calls=%d", result, err, calls.Load())
 	}
-	entries, err := os.ReadDir(filepath.Join(root, ".mini-orca", "file-analysis"))
+	entries, err := os.ReadDir(filepath.Join(root, ".kasuri", "file-analysis"))
 	if err != nil && !os.IsNotExist(err) {
 		t.Fatal(err)
 	}

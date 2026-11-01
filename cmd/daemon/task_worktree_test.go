@@ -29,7 +29,7 @@ func TestTaskInItsOwnWorktreeIsServedThroughItsScope(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# Fixture\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".mini-orca/\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kasuri/\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{{"init", "-b", "main"}, {"add", "README.md", ".gitignore"}, {"-c", "user.name=Test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgSign=false", "-c", "core.hooksPath=" + os.DevNull, "commit", "-m", "Initial"}} {

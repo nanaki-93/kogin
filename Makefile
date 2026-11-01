@@ -1,13 +1,13 @@
-# Mini-Orca Makefile
+# Kasuri Makefile
 
 # Variables
-APP_NAME := mini-orca
+APP_NAME := kasuri
 VERSION := $(shell sed -n 's/.*Version = "\([^"]*\)"/\1/p' internal/version/version.go)
 IMAGE_NAME := $(APP_NAME)
 IMAGE_TAG := $(VERSION)
 DOCKER_IMAGE := $(IMAGE_NAME):$(IMAGE_TAG)
 BUILD_DIR := build
-DESKTOP_APP := $(BUILD_DIR)/Mini-Orca.app
+DESKTOP_APP := $(BUILD_DIR)/Kasuri.app
 # The Applications folder the Finder shows when this user can write there (an
 # administrator can), else the one in the home folder.
 DESKTOP_INSTALL_DIR ?= $(shell [ -w /Applications ] && echo /Applications || echo "$(HOME)/Applications")
@@ -37,42 +37,46 @@ all: help
 
 # ─── Help ──────────────────────────────────────────────────────────────────────
 help: ## Show this help message
-	@echo "$(COLOR_BLUE)Mini-Orca $(VERSION) - Makefile Targets$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)Kasuri $(VERSION) - Makefile Targets$(COLOR_RESET)"
 	@echo ""
 	@echo "$(COLOR_GREEN)Build Targets:$(COLOR_RESET)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(COLOR_BLUE)%-20s$(COLOR_RESET) %s\n", $$1, $$2}'
 	@echo ""
 
 # ─── Local Build ───────────────────────────────────────────────────────────────
-build: build-agents ## Build the mini-orca launcher, the daemon (which serves the Web UI) and the evaluation and inspector commands
+build: build-agents ## Build the kasuri launcher, the daemon (which serves the Web UI) and the evaluation and inspector commands
 	@echo "$(COLOR_GREEN)Building $(APP_NAME) $(VERSION)...$(COLOR_RESET)"
 	@mkdir -p $(BUILD_DIR)
 	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/mini-orca/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME)-daemon ./cmd/daemon
-	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/mini-orca/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME) ./cmd/mini-orca
+	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/mini-orca/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME) ./cmd/kasuri
 	@cp -f $(BUILD_DIR)/$(APP_NAME) ./$(APP_NAME)
 	@cp -f $(BUILD_DIR)/$(APP_NAME)-daemon ./$(APP_NAME)-daemon
-	@echo "$(COLOR_GREEN)Build complete: ./$(APP_NAME), ./$(APP_NAME)-daemon ($(BUILD_DIR)/); run mini-orca in a project folder$(COLOR_RESET)"
+	@echo "$(COLOR_GREEN)Build complete: ./$(APP_NAME), ./$(APP_NAME)-daemon ($(BUILD_DIR)/); run kasuri in a project folder$(COLOR_RESET)"
 
-install: build ## Build and copy mini-orca and mini-orca-daemon into ~/DEV/lab/mini-orca and MINI_ORCA_HOME (or ~/DEV/programs/mini-orca)
-	@target_dir="$$HOME/DEV/lab/mini-orca"; \
+install: build ## Build and copy kasuri and kasuri-daemon into ~/DEV/lab/kasuri and KASURI_HOME (or ~/DEV/programs/kasuri, else the earlier ~/DEV/programs/mini-orca)
+	@target_dir="$$HOME/DEV/lab/kasuri"; \
 	if [ -d "$$target_dir" ] && [ "$$(cd "$$target_dir" && pwd)" != "$$(pwd)" ]; then \
 		cp -f $(BUILD_DIR)/$(APP_NAME) $(BUILD_DIR)/$(APP_NAME)-daemon "$$target_dir/"; \
 	fi
-	@if [ -n "$${MINI_ORCA_HOME:-}" ] && [ -d "$${MINI_ORCA_HOME}" ]; then \
-		cp -f $(BUILD_DIR)/$(APP_NAME) $(BUILD_DIR)/$(APP_NAME)-daemon "$${MINI_ORCA_HOME}/"; \
-		echo "$(COLOR_GREEN)Installed $(APP_NAME) and $(APP_NAME)-daemon into $${MINI_ORCA_HOME}$(COLOR_RESET)"; \
-	elif [ -d "$$HOME/DEV/programs/mini-orca" ]; then \
-		cp -f $(BUILD_DIR)/$(APP_NAME) $(BUILD_DIR)/$(APP_NAME)-daemon "$$HOME/DEV/programs/mini-orca/"; \
-		echo "$(COLOR_GREEN)Installed $(APP_NAME) and $(APP_NAME)-daemon into $$HOME/DEV/programs/mini-orca$(COLOR_RESET)"; \
+	@home="$${KASURI_HOME:-$${MINI_ORCA_HOME:-}}"; \
+	if [ -n "$$home" ] && [ -d "$$home" ]; then :; \
+	elif [ -d "$$HOME/DEV/programs/kasuri" ]; then home="$$HOME/DEV/programs/kasuri"; \
+	elif [ -d "$$HOME/DEV/programs/mini-orca" ]; then home="$$HOME/DEV/programs/mini-orca"; \
+	else home=""; fi; \
+	if [ -n "$$home" ]; then \
+		cp -f $(BUILD_DIR)/$(APP_NAME) $(BUILD_DIR)/$(APP_NAME)-daemon "$$home/"; \
+		echo "$(COLOR_GREEN)Installed $(APP_NAME) and $(APP_NAME)-daemon into $$home$(COLOR_RESET)"; \
 	fi
-	@user_config="$$HOME/.config/mini-orca/config.yaml"; \
-	if [ -f config.yaml ] && [ ! -e "$$user_config" ]; then \
+	@user_config="$$HOME/.config/kasuri/config.yaml"; \
+	if [ -e "$$HOME/.config/mini-orca/config.yaml" ] && [ ! -e "$$user_config" ]; then \
+		echo "$(COLOR_GREEN)Using $$HOME/.config/mini-orca/config.yaml from before the rename (move it to $$user_config when you like)$(COLOR_RESET)"; \
+	elif [ -f config.yaml ] && [ ! -e "$$user_config" ]; then \
 		mkdir -p "$$(dirname "$$user_config")" && cp config.yaml "$$user_config" && chmod 600 "$$user_config"; \
 		echo "$(COLOR_GREEN)Copied config.yaml to $$user_config$(COLOR_RESET)"; \
 	elif [ ! -e "$$user_config" ]; then \
 		echo "$(COLOR_YELLOW)No config.yaml: copy config.example.yaml to $$user_config and fill the model scopes$(COLOR_RESET)"; \
 	fi
-	@echo "$(COLOR_GREEN)Run mini-orca in a project folder to open it in the Web UI$(COLOR_RESET)"
+	@echo "$(COLOR_GREEN)Run kasuri in a project folder to open it in the Web UI$(COLOR_RESET)"
 
 build-linux: build-agents-linux ## Build all Linux amd64 release command binaries
 	@mkdir -p $(BUILD_DIR)
@@ -97,12 +101,12 @@ clean: ## Remove build artifacts
 	@echo "$(COLOR_YELLOW)Clean complete$(COLOR_RESET)"
 
 # ─── Desktop App ───────────────────────────────────────────────────────────────
-desktop: ## Build the desktop app's program (build/mini-orca-desktop) for this machine; it starts the daemon found beside it or on PATH
+desktop: ## Build the desktop app's program (build/kasuri-desktop) for this machine; it starts the daemon found beside it or on PATH
 	@mkdir -p $(BUILD_DIR)
 	@cd desktop && CGO_ENABLED=1 $(GO) build -tags production -trimpath -ldflags="-w -s" -o ../$(BUILD_DIR)/$(APP_NAME)-desktop .
 	@echo "$(COLOR_GREEN)Built $(BUILD_DIR)/$(APP_NAME)-desktop$(COLOR_RESET)"
 
-desktop-app: ## Build build/Mini-Orca.app (macOS): the desktop app with its daemon inside
+desktop-app: ## Build build/Kasuri.app (macOS): the desktop app with its daemon inside
 	@[ "$$(uname)" = Darwin ] || { echo "desktop-app builds a macOS app: run it on a Mac (make desktop builds the program elsewhere)"; exit 1; }
 	@rm -rf $(DESKTOP_APP)
 	@mkdir -p $(DESKTOP_APP)/Contents/MacOS $(DESKTOP_APP)/Contents/Resources
@@ -114,16 +118,20 @@ desktop-app: ## Build build/Mini-Orca.app (macOS): the desktop app with its daem
 	@codesign --force --sign - $(DESKTOP_APP)
 	@echo "$(COLOR_GREEN)Built $(DESKTOP_APP) $(VERSION)$(COLOR_RESET)"
 
-install-desktop: desktop-app ## Build Mini-Orca.app and copy it into /Applications (or ~/Applications; DESKTOP_INSTALL_DIR)
+install-desktop: desktop-app ## Build Kasuri.app and copy it into /Applications (or ~/Applications; DESKTOP_INSTALL_DIR)
 	@mkdir -p "$(DESKTOP_INSTALL_DIR)"
-	@rm -rf "$(DESKTOP_INSTALL_DIR)/Mini-Orca.app"
-	@ditto $(DESKTOP_APP) "$(DESKTOP_INSTALL_DIR)/Mini-Orca.app"
+	@rm -rf "$(DESKTOP_INSTALL_DIR)/Kasuri.app"
+	@ditto $(DESKTOP_APP) "$(DESKTOP_INSTALL_DIR)/Kasuri.app"
 	@# An earlier install went to ~/Applications; keep a single copy.
-	@if [ "$(DESKTOP_INSTALL_DIR)" != "$(HOME)/Applications" ] && [ -d "$(HOME)/Applications/Mini-Orca.app" ]; then \
-		rm -rf "$(HOME)/Applications/Mini-Orca.app" && echo "Removed the earlier copy in $(HOME)/Applications"; \
+	@if [ "$(DESKTOP_INSTALL_DIR)" != "$(HOME)/Applications" ] && [ -d "$(HOME)/Applications/Kasuri.app" ]; then \
+		rm -rf "$(HOME)/Applications/Kasuri.app" && echo "Removed the earlier copy in $(HOME)/Applications"; \
 	fi
-	@echo "$(COLOR_GREEN)Installed $(DESKTOP_INSTALL_DIR)/Mini-Orca.app$(COLOR_RESET)"
-	@echo "Open it from Launchpad or Spotlight, or with: open \"$(DESKTOP_INSTALL_DIR)/Mini-Orca.app\""
+	@# Kasuri was called Mini-Orca: remove the app installed under the old name.
+	@for old in "$(DESKTOP_INSTALL_DIR)/Mini-Orca.app" "$(HOME)/Applications/Mini-Orca.app"; do \
+		if [ -d "$$old" ]; then rm -rf "$$old" && echo "Removed $$old (Kasuri was called Mini-Orca)"; fi; \
+	done
+	@echo "$(COLOR_GREEN)Installed $(DESKTOP_INSTALL_DIR)/Kasuri.app$(COLOR_RESET)"
+	@echo "Open it from Launchpad or Spotlight, or with: open \"$(DESKTOP_INSTALL_DIR)/Kasuri.app\""
 
 desktop-check: ## Vet and cross-build the desktop app for macOS and Linux without cgo (no Xcode or GTK needed)
 	@cd desktop && for target in darwin/arm64 darwin/amd64 linux/amd64; do \
@@ -201,8 +209,8 @@ docker-run: ## Run container in detached mode
 		-v $$(pwd)/config.yaml:/app/config.yaml:ro \
 		-v $$(pwd)/projects:/app/projects:rw \
 		-v $$(pwd)/logs:/app/logs:rw \
-		-e MINI_ORCA_CONFIG=/app/config.yaml \
-		-e MINI_ORCA_BIND_ADDRESS=0.0.0.0:9090 \
+		-e KASURI_CONFIG=/app/config.yaml \
+		-e KASURI_BIND_ADDRESS=0.0.0.0:9090 \
 		$(DOCKER_IMAGE)
 	@echo "$(COLOR_GREEN)Container started: $(APP_NAME)$(COLOR_RESET)"
 	@echo "$(COLOR_BLUE)Web UI available at: http://localhost:9090/ui$(COLOR_RESET)"
@@ -268,7 +276,7 @@ dev-watch: ## Run with air for hot reload (if installed)
 
 # ─── Version Info ──────────────────────────────────────────────────────────────
 version: ## Show version information
-	@echo "$(COLOR_BLUE)Mini-Orca Version: $(VERSION)$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)Kasuri Version: $(VERSION)$(COLOR_RESET)"
 	@echo "$(COLOR_BLUE)Go Version: $$(go version)$(COLOR_RESET)"
 	@echo "$(COLOR_BLUE)Docker Version: $$(docker --version 2>/dev/null || echo 'not installed')$(COLOR_RESET)"
 	@echo "$(COLOR_BLUE)Docker Compose: $$(docker compose version 2>/dev/null || echo 'not installed')$(COLOR_RESET)"

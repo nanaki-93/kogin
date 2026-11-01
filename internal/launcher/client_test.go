@@ -49,7 +49,7 @@ func (f *fakeDaemon) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func TestOpenProjectSwitchesARunningDaemonOnlyWhenNeeded(t *testing.T) {
 	token := filepath.Join(t.TempDir(), "daemon-token")
-	t.Setenv("MINI_ORCA_TOKEN_FILE", token)
+	t.Setenv("KASURI_TOKEN_FILE", token)
 	daemon := &fakeDaemon{current: "/projects/other"}
 	server := httptest.NewServer(daemon)
 	defer server.Close()
@@ -86,9 +86,9 @@ func TestStartedDaemonThatExitsEarlyIsReported(t *testing.T) {
 
 func TestConfigNoteNamesTheRunningDaemonsConfiguration(t *testing.T) {
 	for body, want := range map[string]string{
-		`{"scopes":{},"config_file":"/home/me/.config/mini-orca/config.yaml"}`: "uses /home/me/.config/mini-orca/config.yaml",
-		`{"scopes":{},"config_file":""}`:                                       "built-in local model defaults",
-		`{"scopes":{}}`:                                                        "Restart the daemon",
+		`{"scopes":{},"config_file":"/home/me/.config/kasuri/config.yaml"}`: "uses /home/me/.config/kasuri/config.yaml",
+		`{"scopes":{},"config_file":""}`:                                    "built-in local model defaults",
+		`{"scopes":{}}`:                                                     "Restart the daemon",
 	} {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, body) }))
 		if got := NewClient(server.URL).ConfigNote(t.Context()); !strings.Contains(got, want) {
@@ -102,9 +102,9 @@ func TestConfigurationNoteNamesTheProjectFileFirst(t *testing.T) {
 	home, project, install := t.TempDir(), t.TempDir(), t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "xdg"))
-	t.Setenv("MINI_ORCA_CONFIG", "")
+	t.Setenv("KASURI_CONFIG", "")
 	binary := filepath.Join(install, DaemonBinary)
-	if note := ConfigurationNote(project, binary); !strings.Contains(note, "built-in local defaults") || !strings.Contains(note, ".mini-orca/config.yaml") {
+	if note := ConfigurationNote(project, binary); !strings.Contains(note, "built-in local defaults") || !strings.Contains(note, ".kasuri/config.yaml") {
 		t.Fatalf("no configuration: %q", note)
 	}
 	if err := os.WriteFile(filepath.Join(install, "config.yaml"), []byte("{}"), 0o600); err != nil {
@@ -113,13 +113,13 @@ func TestConfigurationNoteNamesTheProjectFileFirst(t *testing.T) {
 	if note := ConfigurationNote(project, binary); !strings.HasPrefix(note, "Configuration: "+filepath.Join(install, "config.yaml")) || !strings.Contains(note, "set this project up") {
 		t.Fatalf("daemon configuration: %q", note)
 	}
-	if err := os.MkdirAll(filepath.Join(project, ".mini-orca"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(project, ".kasuri"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(project, ".mini-orca", "config.yaml"), []byte("{}"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(project, ".kasuri", "config.yaml"), []byte("{}"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if note := ConfigurationNote(project, binary); note != "Project configuration: "+filepath.Join(project, ".mini-orca", "config.yaml") {
+	if note := ConfigurationNote(project, binary); note != "Project configuration: "+filepath.Join(project, ".kasuri", "config.yaml") {
 		t.Fatalf("project configuration: %q", note)
 	}
 }

@@ -28,7 +28,7 @@ export function InboxPage() {
       <div className="page-scroll">
         <div className="page-inner page-narrow">
           <EmptyState icon={FolderOpen} title="Open a project to start">
-            Mini-Orca works on one local repository at a time. Choose its folder to index it.
+            Kasuri works on one local repository at a time. Choose its folder to index it.
           </EmptyState>
           <OpenProject />
         </div>
@@ -195,7 +195,7 @@ function SetupNotice() {
   if (setup?.state === 'invalid') {
     return (
       <Callout tone="danger" icon={Wrench} title="The project’s configuration could not be applied" action={<Button size="sm" onClick={() => navigate('/setup')}>Fix in setup</Button>}>
-        {setup.error} Mini-Orca uses the daemon’s configuration until it is fixed.
+        {setup.error} Kasuri uses the daemon’s configuration until it is fixed.
       </Callout>
     );
   }

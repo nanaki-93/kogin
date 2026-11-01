@@ -72,7 +72,7 @@ func TestWorktreeImplementationsRunConcurrentlyAndApplyInIsolation(t *testing.T)
 		if err != nil {
 			t.Fatal(err)
 		}
-		records, err := store.Sessions(context.Background(), "mini-orca", "local")
+		records, err := store.Sessions(context.Background(), "kasuri", "local")
 		if err != nil || len(records) != 3 {
 			t.Fatalf("worktree journal is not isolated: %d records, %v", len(records), err)
 		}

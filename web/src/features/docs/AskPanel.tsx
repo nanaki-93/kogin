@@ -66,7 +66,7 @@ export function AskPanel({ project, worktreePath }: { project: Project | undefin
     <article className="doc">
       <h1>Ask the code</h1>
       <p className="small muted">
-        The Review role's agent reads the project's files with Mini-Orca's read-only tools, starting from these docs, and answers with the lines it used. Mini-Orca checks that each cited line range holds its quote. Nothing changes.
+        The Review role's agent reads the project's files with Kasuri's read-only tools, starting from these docs, and answers with the lines it used. Kasuri checks that each cited line range holds its quote. Nothing changes.
       </p>
       <form className="ask-form" onSubmit={e => { e.preventDefault(); void ask(); }}>
         <label className="sr-only" htmlFor="ask-question">Question about the code</label>

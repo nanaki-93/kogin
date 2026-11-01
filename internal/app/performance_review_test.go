@@ -28,7 +28,7 @@ func TestReviewPerformanceFileRejectsChangedSourceOrPolicyBeforePublication(t *t
 		}},
 		{name: "policy", change: func(t *testing.T, root string) {
 			t.Helper()
-			if err := os.WriteFile(filepath.Join(root, ".mini-orcaignore"), []byte("main.go\n"), 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(root, ".kasuriignore"), []byte("main.go\n"), 0644); err != nil {
 				t.Fatal(err)
 			}
 		}},
@@ -81,7 +81,7 @@ func TestReviewPerformanceFileRechecksSnapshotDuringPublicationAuthorization(t *
 		}, want: project.ErrRevisionConflict},
 		{name: "policy change", authorize: func(t *testing.T, root string, publish func() error) error {
 			t.Helper()
-			if err := os.WriteFile(filepath.Join(root, ".mini-orcaignore"), []byte("main.go\n"), 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(root, ".kasuriignore"), []byte("main.go\n"), 0644); err != nil {
 				t.Fatal(err)
 			}
 			return publish()
@@ -158,7 +158,7 @@ func TestReviewPerformanceFileCancellationPreventsPublication(t *testing.T) {
 
 func assertNoPerformanceReport(t *testing.T, root string) {
 	t.Helper()
-	entries, err := os.ReadDir(filepath.Join(root, ".mini-orca", "performance", "files"))
+	entries, err := os.ReadDir(filepath.Join(root, ".kasuri", "performance", "files"))
 	if os.IsNotExist(err) {
 		return
 	}

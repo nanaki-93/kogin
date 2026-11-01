@@ -22,7 +22,7 @@ const (
 	stopGrace      = 20 * time.Second
 	// A login shell that reads slow startup files must not hold up the launch.
 	loginShellTimeout = 5 * time.Second
-	pathMarker        = "__MINI_ORCA_PATH__"
+	pathMarker        = "__KASURI_PATH__"
 )
 
 // Daemon is a daemon process a launcher started.
@@ -63,7 +63,7 @@ func FindDaemon() (string, error) {
 	if path, err := exec.LookPath(DaemonBinary); err == nil {
 		return path, nil
 	}
-	return "", fmt.Errorf("%s was not found beside this program or on PATH; run `just build` in the Mini-Orca repository", DaemonBinary)
+	return "", fmt.Errorf("%s was not found beside this program or on PATH; run `just build` in the Kasuri repository", DaemonBinary)
 }
 
 // StartDaemon runs binary in the project folder, so the folder is its

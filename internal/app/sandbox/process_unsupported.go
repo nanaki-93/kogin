@@ -7,7 +7,7 @@ import (
 	"os/exec"
 )
 
-// The runner refuses to start where Mini-Orca cannot own descendants.
+// The runner refuses to start where Kasuri cannot own descendants.
 func ConfigureCommand(_ *exec.Cmd) error {
 	return fmt.Errorf("project command execution is unavailable: descendant cancellation is unsupported on this platform")
 }

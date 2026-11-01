@@ -19,7 +19,7 @@ import (
 // and every other key it sets replaces the daemon's value for that key.
 
 // ProjectConfigPath is the project configuration file, relative to the project.
-const ProjectConfigPath = ".mini-orca/config.yaml"
+const ProjectConfigPath = ".kasuri/config.yaml"
 
 const maxProjectConfigBytes = 1 << 20
 
@@ -32,7 +32,7 @@ var modelScopeKeys = []ModelScope{AnalyzeModelScope, BugModelScope, CodeModelSco
 // ProjectFile is the absolute path of root's configuration file, refusing
 // metadata paths that escape root through symlinks.
 func ProjectFile(root string) (string, error) {
-	return storage.MetadataPath(root, ".mini-orca", "config.yaml")
+	return storage.MetadataPath(root, ".kasuri", "config.yaml")
 }
 
 // LoadProject returns the configuration root runs with: global with root's

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/nanaki-93/mini-orca/v2/internal/brand"
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
 
@@ -279,7 +280,7 @@ func pythonEnvironment(path string) bool {
 
 func isCheckWorkspaceMetadata(relative string) bool {
 	switch filepath.Base(relative) {
-	case ".mini-orca", ".worktrees", ".git", ".hg", ".svn":
+	case brand.MetadataDir, brand.LegacyMetadataDir, ".worktrees", ".git", ".hg", ".svn":
 		return true
 	default:
 		return false

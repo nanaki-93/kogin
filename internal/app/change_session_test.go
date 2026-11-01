@@ -33,11 +33,11 @@ func TestChangeHistoryLimitCountsOnlyConversationsAndRejectsCorruption(t *testin
 	}
 	// Remove the initial random entry; keep exactly 200 conversations plus
 	// metadata owned by other workflows.
-	if err := os.Remove(filepath.Join(root, ".mini-orca/changes", initialID+".json")); err != nil {
+	if err := os.Remove(filepath.Join(root, ".kasuri/changes", initialID+".json")); err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"features.json", "last-mutation.json"} {
-		if err := os.WriteFile(filepath.Join(root, ".mini-orca/changes", name), []byte("other metadata"), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(root, ".kasuri/changes", name), []byte("other metadata"), 0600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -59,7 +59,7 @@ func TestChangeHistoryLimitCountsOnlyConversationsAndRejectsCorruption(t *testin
 func TestTaskFilesWithRetiredFieldsStillLoad(t *testing.T) {
 	service, root := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
 	session := openChangeFixture(t, service, "main.go")
-	path := filepath.Join(root, ".mini-orca", "changes", session.ID+".json")
+	path := filepath.Join(root, ".kasuri", "changes", session.ID+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -261,7 +261,7 @@ func TestChangeGenerationHistoryAndRevision(t *testing.T) {
 	if err != nil || len(history) != 1 || calls.Load() != 1 {
 		t.Fatalf("passive history: %+v, %v", history, err)
 	}
-	info, err := os.Stat(filepath.Join(root, ".mini-orca/changes", session.ID+".json"))
+	info, err := os.Stat(filepath.Join(root, ".kasuri/changes", session.ID+".json"))
 	if err != nil || info.Mode().Perm() != 0600 {
 		t.Fatalf("history permissions: %v, %v", info, err)
 	}
@@ -323,10 +323,10 @@ func TestChangeLateGenerationAndCancellationDoNotPublish(t *testing.T) {
 func TestChangeCorruptHistoryIsSetAside(t *testing.T) {
 	service, root := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
 	proposal := openChangeFixture(t, service, "AGENTS.md")
-	if err := os.WriteFile(filepath.Join(root, ".mini-orca/changes", proposal.ID+".json"), []byte("broken"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".kasuri/changes", proposal.ID+".json"), []byte("broken"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.ChangeSession(context.Background(), proposal.ID); err == nil || !strings.Contains(err.Error(), ".mini-orca/changes/"+proposal.ID+".json is unreadable") {
+	if _, err := service.ChangeSession(context.Background(), proposal.ID); err == nil || !strings.Contains(err.Error(), ".kasuri/changes/"+proposal.ID+".json is unreadable") {
 		t.Fatalf("corrupt task error does not name its file: %v", err)
 	}
 	if _, err := listChangeSessions(root); err == nil {
@@ -337,7 +337,7 @@ func TestChangeCorruptHistoryIsSetAside(t *testing.T) {
 		t.Fatalf("task list did not set the corrupt task aside: %+v %v", history, err)
 	}
 	report, err := service.Quarantine(context.Background())
-	if err != nil || len(report.Files) != 1 || report.Files[0].Kind != "task" || report.Files[0].File != ".mini-orca/changes/"+proposal.ID+".json" {
+	if err != nil || len(report.Files) != 1 || report.Files[0].Kind != "task" || report.Files[0].File != ".kasuri/changes/"+proposal.ID+".json" {
 		t.Fatalf("quarantine report: %+v %v", report, err)
 	}
 	if kept, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(report.Files[0].QuarantinedAs))); err != nil || string(kept) != "broken" {
@@ -354,7 +354,7 @@ func TestChangeScopeAndRemoteConsent(t *testing.T) {
 	if _, err := service.SendChangeMessage(context.Background(), session.ID, ChangeMessageRequest{ChangeIdentity: changeIdentity(session), Message: "Implement."}); err == nil || !strings.Contains(err.Error(), "confirmation") {
 		t.Fatalf("missing remote consent: %v", err)
 	}
-	for _, paths := range [][]string{{"main.go", "main.go"}, {"../escape.go"}, {"config.yaml"}, {".mini-orca/state.md"}} {
+	for _, paths := range [][]string{{"main.go", "main.go"}, {"../escape.go"}, {"config.yaml"}, {".kasuri/state.md"}} {
 		if _, err := service.OpenChangeSession(context.Background(), ChangeCreateRequest{ProjectID: session.ProjectID, ProjectRevision: session.ProjectRevision, Kind: "feature", Title: "Invalid", Paths: paths}); err == nil {
 			t.Fatalf("accepted scope: %v", paths)
 		}

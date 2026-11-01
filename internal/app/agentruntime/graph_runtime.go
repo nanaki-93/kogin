@@ -43,7 +43,7 @@ func runGraph[T any](ctx context.Context, name, version string, input, schema an
 	if err != nil {
 		return result, err
 	}
-	runtime, err := runner.New(runner.Config{AppName: "mini-orca", Agent: worker, SessionService: invocation.service, PluginConfig: runner.PluginConfig{Plugins: []*plugin.Plugin{policy}}})
+	runtime, err := runner.New(runner.Config{AppName: "kasuri", Agent: worker, SessionService: invocation.service, PluginConfig: runner.PluginConfig{Plugins: []*plugin.Plugin{policy}}})
 	if err != nil {
 		return result, fmt.Errorf("create %s runner: %w", name, err)
 	}

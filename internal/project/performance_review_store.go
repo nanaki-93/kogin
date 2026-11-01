@@ -249,7 +249,7 @@ func ClearPerformanceFileReports(root string) error {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	directory, err := storage.MetadataPath(canonical, ".mini-orca", "performance", "files")
+	directory, err := storage.MetadataPath(canonical, ".kasuri", "performance", "files")
 	if err != nil {
 		return fmt.Errorf("clear performance cache: %w", err)
 	}
@@ -304,7 +304,7 @@ func LoadPerformanceFileReport(root, path, contentHash string, policy *ContextPo
 
 func resolvePerformanceCachePath(root, path string) (string, error) {
 	key := sha256.Sum256([]byte(path))
-	return storage.MetadataPath(root, ".mini-orca", "performance", "files", hex.EncodeToString(key[:])+".json")
+	return storage.MetadataPath(root, ".kasuri", "performance", "files", hex.EncodeToString(key[:])+".json")
 }
 
 func parsePerformanceFileReport(data []byte, path string) (PerformanceFileReport, bool) {

@@ -104,7 +104,7 @@ func readGitOperation(ctx context.Context, root string, repository *GitRepositor
 func StatusDirty(status string) bool {
 	for _, entry := range strings.Split(status, "\x00") {
 		// Untracked private workflow metadata and worktrees are not user source changes.
-		if entry == "" || strings.HasPrefix(entry, "?? .mini-orca/") || strings.HasPrefix(entry, "?? .worktrees/") {
+		if entry == "" || strings.HasPrefix(entry, "?? .kasuri/") || strings.HasPrefix(entry, "?? .worktrees/") {
 			continue
 		}
 		return true

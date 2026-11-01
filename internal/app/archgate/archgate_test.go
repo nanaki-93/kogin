@@ -70,7 +70,7 @@ func TestTargetProjectsGetOnlyTheirOwnImportRules(t *testing.T) {
 	checks, _ := ChangeArchitectureAndComplexityChecks(root, nil, edits)
 	for _, check := range checks {
 		if check.Name == "architecture boundaries" && check.State != CheckPassed {
-			t.Fatalf("a project without import rules got Mini-Orca's own: %+v", check)
+			t.Fatalf("a project without import rules got Kasuri's own: %+v", check)
 		}
 	}
 	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("- `internal/api` must never import `internal/storage`.\n"), 0644); err != nil {
@@ -107,7 +107,7 @@ func TestNonGoFunctionsAreMeasuredOneByOne(t *testing.T) {
 
 func TestBudgetsRatchetOnWhatTheFileWasBeforeTheTask(t *testing.T) {
 	root := t.TempDir()
-	writeAgents(t, root, "```mini-orca\nbudgets:\n  file_lines: 4\n  function_complexity: 3\n```\n")
+	writeAgents(t, root, "```kasuri\nbudgets:\n  file_lines: 4\n  function_complexity: 3\n```\n")
 	legacy := "def old(x):\n    if x and x > 1 or x < 0:\n        return 1\n    return 2\n\ndef small():\n    return 0\n"
 	target := ChangeTarget{Path: "app/legacy.py", Exists: true, Content: legacy}
 
@@ -173,7 +173,7 @@ func TestRepositoryArchitectureBoundaries(t *testing.T) {
 	}
 	resolver := rules.NewResolver(repoRoot)
 	if own := resolver.For("internal/app/service.go"); len(own.Imports) < 15 || len(resolver.Problems()) > 0 {
-		t.Fatalf("Mini-Orca's AGENTS.md rules = %+v, problems %+v", own, resolver.Problems())
+		t.Fatalf("Kasuri's AGENTS.md rules = %+v, problems %+v", own, resolver.Problems())
 	}
 	checks, _ := ChangeArchitectureAndComplexityChecks(repoRoot, nil, prodEdits)
 	for _, check := range checks {
@@ -210,7 +210,7 @@ func TestRepositoryArchitectureBoundaries(t *testing.T) {
 	}
 }
 
-// adkBoundaryViolations checks Mini-Orca's own runtime boundary, which no
+// adkBoundaryViolations checks Kasuri's own runtime boundary, which no
 // target project shares: SDK types stay in internal/app/agentruntime, and that
 // leaf never imports its parent internal/app (the independent agentstate store
 // is allowed).

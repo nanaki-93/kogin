@@ -5,14 +5,14 @@ import (
 	"strings"
 )
 
-// runLockReason marks the Git lock Mini-Orca holds on a task's worktree
+// runLockReason marks the Git lock Kasuri holds on a task's worktree
 // while agents run there. A locked worktree cannot be merged, pruned or
-// removed, by Mini-Orca or by git worktree.
-const runLockReason = "mini-orca: agents are running a task in this worktree"
+// removed, by Kasuri or by git worktree.
+const runLockReason = "kasuri: agents are running a task in this worktree"
 
 // lockTaskWorktree locks the worktree of a task that owns it for the length
 // of a workflow run and returns the unlock. A lock someone else set is left
-// alone; a stale lock of Mini-Orca's is taken over.
+// alone; a stale lock of Kasuri's is taken over.
 func (s *Service) lockTaskWorktree(job *changeWorkflowJob) func() {
 	s.changesMu.Lock()
 	session, err := loadChangeSession(job.root, job.sessionID)
@@ -22,7 +22,7 @@ func (s *Service) lockTaskWorktree(job *changeWorkflowJob) func() {
 	}
 	ctx := context.Background()
 	reason, locked := worktreeLock(ctx, job.root)
-	if locked && !strings.HasPrefix(reason, "mini-orca:") {
+	if locked && !strings.HasPrefix(reason, "kasuri:") {
 		return func() {}
 	}
 	if !locked {
@@ -51,7 +51,7 @@ func worktreeLock(ctx context.Context, root string) (string, bool) {
 	return "", false
 }
 
-// releaseStaleRunLocks unlocks worktrees Mini-Orca locked for a run that no
+// releaseStaleRunLocks unlocks worktrees Kasuri locked for a run that no
 // longer exists, such as after the daemon stopped mid-run.
 func (s *Service) releaseStaleRunLocks(ctx context.Context, repositoryRoot string, trees []GitWorktree) {
 	for i := range trees {

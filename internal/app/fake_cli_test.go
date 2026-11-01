@@ -14,16 +14,16 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// The test binary plays pi, Claude Code or agy when MINI_ORCA_FAKE_CLI is
+// The test binary plays pi, Claude Code or agy when KASURI_FAKE_CLI is
 // set, telling them apart by their flags. As an agent it checks that it was
-// started with only Mini-Orca's tools, connects to the run's tool server and
+// started with only Kasuri's tools, connects to the run's tool server and
 // calls the tools of a script, writing the CLI's own event stream. As a
 // one-turn completion it approves, as a reviewer would.
-const fakeCLIEnv = "MINI_ORCA_FAKE_CLI"
+const fakeCLIEnv = "KASURI_FAKE_CLI"
 
 // fakeCLIDirEnv names the directory with the scripts (coder.json,
 // tester.json) and where the fake records what it saw.
-const fakeCLIDirEnv = "MINI_ORCA_FAKE_CLI_DIR"
+const fakeCLIDirEnv = "KASURI_FAKE_CLI_DIR"
 
 const fakeReview = `{"verdict":"approve","summary":"Sub is correct and tested.","findings":[]}`
 
@@ -89,11 +89,11 @@ func fakeCLI() int {
 
 func fakeRole(system string) string {
 	switch {
-	case strings.Contains(system, "You are Mini-Orca's testing agent"):
+	case strings.Contains(system, "You are Kasuri's testing agent"):
 		return "tester"
-	case strings.Contains(system, "You are Mini-Orca's guide to a codebase"):
+	case strings.Contains(system, "You are Kasuri's guide to a codebase"):
 		return "asker"
-	case strings.Contains(system, "You are Mini-Orca's"):
+	case strings.Contains(system, "You are Kasuri's"):
 		return "coder"
 	default:
 		return "reviewer"
@@ -187,11 +187,11 @@ func fakePi(args fakeCLIArgs) int {
 		emitJSON(map[string]any{"type": "agent_end", "willRetry": false})
 		return 0
 	}
-	if args.value("--tools") != "mcp__mini_orca__*" || !slices.Contains(args, "builtin:mcp") || args.value("--mode") != "json" {
-		fmt.Fprintln(os.Stderr, "fake pi: not limited to Mini-Orca's tools:", args)
+	if args.value("--tools") != "mcp__kasuri__*" || !slices.Contains(args, "builtin:mcp") || args.value("--mode") != "json" {
+		fmt.Fprintln(os.Stderr, "fake pi: not limited to Kasuri's tools:", args)
 		return 3
 	}
-	run, err := startFakeRun("pi", string(system), string(prompt), os.Getenv("MINI_ORCA_MCP_URL"), os.Getenv("MINI_ORCA_MCP_TOKEN"))
+	run, err := startFakeRun("pi", string(system), string(prompt), os.Getenv("KASURI_MCP_URL"), os.Getenv("KASURI_MCP_TOKEN"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 4
@@ -214,7 +214,7 @@ func fakePi(args fakeCLIArgs) int {
 		default:
 			emitJSON(assistant("toolUse", "", ""))
 			failed := run.call(step)
-			emitJSON(map[string]any{"type": "tool_execution_end", "toolName": "mcp__mini_orca__" + step.Tool, "isError": failed})
+			emitJSON(map[string]any{"type": "tool_execution_end", "toolName": "mcp__kasuri__" + step.Tool, "isError": failed})
 			emitJSON(map[string]any{"type": "turn_end"})
 			continue
 		}
@@ -255,8 +255,8 @@ func fakeClaude(args fakeCLIArgs) int {
 		emitJSON(map[string]any{"type": "result", "subtype": "success", "is_error": false, "num_turns": 1, "result": fakeReview, "usage": usage})
 		return 0
 	}
-	if args.value("--allowedTools") != "mcp__mini-orca" {
-		fmt.Fprintln(os.Stderr, "fake claude: Mini-Orca's tools are not allowed:", args)
+	if args.value("--allowedTools") != "mcp__kasuri" {
+		fmt.Fprintln(os.Stderr, "fake claude: Kasuri's tools are not allowed:", args)
 		return 3
 	}
 	var servers struct {
@@ -267,14 +267,14 @@ func fakeClaude(args fakeCLIArgs) int {
 	}
 	data, _ := os.ReadFile(configFile)
 	_ = json.Unmarshal(data, &servers)
-	server := servers.MCPServers["mini-orca"]
+	server := servers.MCPServers["kasuri"]
 	run, err := startFakeRun("claude", string(system), string(prompt), server.URL, strings.TrimPrefix(server.Headers["Authorization"], "Bearer "))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 4
 	}
 	defer run.close()
-	init["mcp_servers"] = []map[string]string{{"name": "mini-orca", "status": "connected"}}
+	init["mcp_servers"] = []map[string]string{{"name": "kasuri", "status": "connected"}}
 	emitJSON(init)
 	turns := 0
 	for index, step := range run.steps {
@@ -293,7 +293,7 @@ func fakeClaude(args fakeCLIArgs) int {
 			emitJSON(map[string]any{"type": "result", "subtype": "success", "is_error": false, "num_turns": turns, "result": step.Text, "usage": usage})
 			return 0
 		}
-		emitJSON(assistant(map[string]any{"type": "tool_use", "id": fmt.Sprint("toolu_", index), "name": "mcp__mini-orca__" + step.Tool, "input": step.Arguments}))
+		emitJSON(assistant(map[string]any{"type": "tool_use", "id": fmt.Sprint("toolu_", index), "name": "mcp__kasuri__" + step.Tool, "input": step.Arguments}))
 		failed := run.call(step)
 		emitJSON(map[string]any{"type": "user", "message": map[string]any{"role": "user", "content": []map[string]any{{"type": "tool_result", "tool_use_id": fmt.Sprint("toolu_", index), "is_error": failed}}}, "parent_tool_use_id": nil})
 	}
@@ -309,7 +309,7 @@ func fakeAgy(args fakeCLIArgs) int {
 		fmt.Fprintln(os.Stderr, "fake agy: started without its permission policy")
 		return 3
 	}
-	agent, _ := os.ReadFile(filepath.Join(".agents", "agents", "mini-orca", "agent.md"))
+	agent, _ := os.ReadFile(filepath.Join(".agents", "agents", "kasuri", "agent.md"))
 	if !strings.Contains(string(agent), "tools: []") || !strings.Contains(string(agent), "commandExecutionPolicy: off") {
 		fmt.Fprintln(os.Stderr, "fake agy: the agent has built-in tools")
 		return 3
@@ -322,7 +322,7 @@ func fakeAgy(args fakeCLIArgs) int {
 	data, _ := io.ReadAll(os.Stdin)
 	_ = json.Unmarshal(data, &input)
 	model := args.value("--model")
-	init := map[string]any{"event": "init", "init": map[string]any{"agent": "mini-orca", "model": model, "tools": []string{"run_command", "write_to_file"}, "permission_mode": "request-review"}}
+	init := map[string]any{"event": "init", "init": map[string]any{"agent": "kasuri", "model": model, "tools": []string{"run_command", "write_to_file"}, "permission_mode": "request-review"}}
 	usage := map[string]int{"input_tokens": 1000, "output_tokens": 50, "total_tokens": 1050}
 	result := func(status, response, failure string) map[string]any {
 		// Like agy, one conversation turn per prompt, whatever the model did.
@@ -343,7 +343,7 @@ func fakeAgy(args fakeCLIArgs) int {
 	}
 	config, _ := os.ReadFile(filepath.Join(".agents", "mcp_config.json"))
 	_ = json.Unmarshal(config, &servers)
-	server := servers.MCPServers["mini-orca"]
+	server := servers.MCPServers["kasuri"]
 	run, err := startFakeRun("agy", system, input.Message.Content, server.ServerURL, strings.TrimPrefix(server.Headers["Authorization"], "Bearer "))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -355,7 +355,7 @@ func fakeAgy(args fakeCLIArgs) int {
 		update := map[string]any{"step_index": index, "state": state, "step_type": kind}
 		if tool != "" {
 			// agy calls every MCP tool through call_mcp_tool.
-			info := map[string]any{"name": "call_mcp_tool", "parameters": map[string]any{"ServerName": "mini-orca", "ToolName": tool, "Arguments": map[string]any{}}}
+			info := map[string]any{"name": "call_mcp_tool", "parameters": map[string]any{"ServerName": "kasuri", "ToolName": tool, "Arguments": map[string]any{}}}
 			if failed {
 				info["error"] = map[string]string{"type": "tool_error", "message": "the tool reported an error"}
 			}

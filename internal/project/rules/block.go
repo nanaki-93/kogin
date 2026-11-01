@@ -14,7 +14,7 @@ import (
 )
 
 // blockInfo is the info string of the fenced rules block in AGENTS.md.
-const blockInfo = "mini-orca"
+const blockInfo = "kasuri"
 
 // block is the rules one AGENTS.md declares. Paths are relative to the
 // directory of that AGENTS.md. A nil budget is not declared there.
@@ -39,7 +39,7 @@ type importDecl struct {
 	Never []string `yaml:"never"`
 }
 
-// parseAgents reads the rules an AGENTS.md declares: its fenced mini-orca
+// parseAgents reads the rules an AGENTS.md declares: its fenced kasuri
 // block when it has one, otherwise the plain-language lines older guides use
 // ("max file lines 800", "`a` must never import `b`").
 func parseAgents(content string) (block, bool, error) {

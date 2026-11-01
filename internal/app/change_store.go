@@ -201,7 +201,7 @@ func saveChangeArtifact(ctx context.Context, store *agentstate.Store, id, name s
 		return fmt.Errorf("encode change evidence: %w", err)
 	}
 	_, err = store.SaveArtifact(ctx, agentstate.ArtifactWrite{
-		Key:  agentstate.ArtifactKey{Session: agentstate.Key{App: "mini-orca-changes", User: "local", ID: id}, Name: name},
+		Key:  agentstate.ArtifactKey{Session: agentstate.Key{App: "kasuri-changes", User: "local", ID: id}, Name: name},
 		Kind: "inline", MIME: "application/json", Data: data, Provenance: provenance,
 		Protected: true, Deduplicate: true,
 	})

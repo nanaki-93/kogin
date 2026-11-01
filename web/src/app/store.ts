@@ -35,11 +35,18 @@ export interface UIState {
   removeWorktreeOnMerge: boolean;
 }
 
-const PREFS_KEY = 'mini-orca.prefs.v2';
+const PREFS_KEY = 'kasuri.prefs.v2';
+// Kasuri was called Mini-Orca; its preferences carry over once, except the
+// dark palette, so the new Kasuri palette shows after the rename.
+const LEGACY_PREFS_KEY = 'mini-orca.prefs.v2';
 
 function loadPrefs(): Partial<UIState> {
   try {
-    return JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') as Partial<UIState>;
+    const saved = localStorage.getItem(PREFS_KEY);
+    if (saved !== null) return JSON.parse(saved) as Partial<UIState>;
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_PREFS_KEY) ?? '{}') as Partial<UIState>;
+    delete legacy.darkPalette;
+    return legacy;
   } catch {
     return {};
   }

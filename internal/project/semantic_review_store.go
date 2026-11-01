@@ -18,7 +18,7 @@ import (
 
 const (
 	fileAnalysisSchemaVersion = "1"
-	fileAnalysisRelativeDir   = ".mini-orca/file-analysis"
+	fileAnalysisRelativeDir   = ".kasuri/file-analysis"
 
 	AnalysisStatusFresh   = "fresh"
 	AnalysisStatusMissing = "missing"

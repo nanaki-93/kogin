@@ -14,14 +14,14 @@ import (
 )
 
 // errAgyToolsDenied is what an agy run reports when agy's permission policy
-// kept the model from Mini-Orca's tools. Headless agy soft-denies a tool that
-// would ask for approval; Mini-Orca does not skip agy's permissions, so the
+// kept the model from Kasuri's tools. Headless agy soft-denies a tool that
+// would ask for approval; Kasuri does not skip agy's permissions, so the
 // user allows its tool server once.
-var errAgyToolsDenied = fmt.Errorf("llm client: %w: agy did not allow Mini-Orca's tools; add \"mcp(%s/*)\" to permissions.allow in ~/.gemini/antigravity-cli/settings.json", ErrRequestRejected, toolServerName)
+var errAgyToolsDenied = fmt.Errorf("llm client: %w: agy did not allow Kasuri's tools; add \"mcp(%s/*)\" to permissions.allow in ~/.gemini/antigravity-cli/settings.json", ErrRequestRejected, toolServerName)
 
 // agyAgentFile is the custom agent of a run: no built-in tools or commands,
 // no subagents, and the workspace's MCP servers, which are the run's.
-const agyAgentFile = "---\nname: mini-orca\ndescription: Mini-Orca task agent\ntools: []\nmainAgent: true\nsubagent: false\ninheritMcp: true\ncommandExecutionPolicy: off\nskills: []\nplugins: []\n---\n# System Prompt\n"
+const agyAgentFile = "---\nname: kasuri\ndescription: Kasuri task agent\ntools: []\nmainAgent: true\nsubagent: false\ninheritMcp: true\ncommandExecutionPolicy: off\nskills: []\nplugins: []\n---\n# System Prompt\n"
 
 func prepareAgyAgent(ctx context.Context, directory string, profile config.ModelProfile, run AgentRun) (agentLaunch, agentStream, error) {
 	server := map[string]any{"serverUrl": run.MCPURL, "headers": map[string]string{"Authorization": "Bearer " + run.MCPToken}, "timeoutSeconds": int(run.ToolTimeout.Seconds())}
@@ -36,10 +36,10 @@ func prepareAgyAgent(ctx context.Context, directory string, profile config.Model
 	if err := writeCLIFile(directory, ".agents/mcp_config.json", string(servers)); err != nil {
 		return agentLaunch{}, nil, err
 	}
-	if err := writeCLIFile(directory, ".agents/agents/mini-orca/agent.md", agyAgentFile+run.System+agyToolGuide(run.Tools)); err != nil {
+	if err := writeCLIFile(directory, ".agents/agents/kasuri/agent.md", agyAgentFile+run.System+agyToolGuide(run.Tools)); err != nil {
 		return agentLaunch{}, nil, err
 	}
-	args := []string{"--input-format", "stream-json", "--output-format", "stream-json", "--agent", "mini-orca", "--disable-slash-commands",
+	args := []string{"--input-format", "stream-json", "--output-format", "stream-json", "--agent", "kasuri", "--disable-slash-commands",
 		"--model", profile.Model, "--log-file", os.DevNull, "--print-timeout", agyPrintTimeout(ctx)}
 	if profile.ReasoningEffort != "" {
 		args = append(args, "--effort", profile.ReasoningEffort)
@@ -136,7 +136,7 @@ func (d *agyAgentStream) event(line []byte) error {
 	}
 	switch event.Event {
 	case "init":
-		if d.started || event.Init.Agent != "mini-orca" || event.Init.Model != d.profile.Model {
+		if d.started || event.Init.Agent != "kasuri" || event.Init.Model != d.profile.Model {
 			return unusableCLIResponse("agy did not select the configured model and agent")
 		}
 		d.started = true
@@ -189,7 +189,7 @@ func (d *agyAgentStream) step(event agyAgentEvent) error {
 const agyMCPTool = "call_mcp_tool"
 
 // ownToolStep accepts a tool step only when it calls one of the run's tools
-// on Mini-Orca's server.
+// on Kasuri's server.
 func (d *agyAgentStream) ownToolStep(event agyAgentEvent) error {
 	step := event.Step
 	name := step.ToolName

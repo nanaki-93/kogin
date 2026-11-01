@@ -13,7 +13,7 @@ import (
 
 const (
 	indexSchemaVersion = "4"
-	indexRelativePath  = ".mini-orca/index.json"
+	indexRelativePath  = ".kasuri/index.json"
 )
 
 type ProjectIndex = symbols.ProjectIndex

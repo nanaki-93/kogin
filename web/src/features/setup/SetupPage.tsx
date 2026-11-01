@@ -1,5 +1,5 @@
 // Project setup: a wizard that writes the project's own configuration
-// (.mini-orca/config.yaml) — its models, which model each agent role uses, the
+// (.kasuri/config.yaml) — its models, which model each agent role uses, the
 // run budget and the time limits — then lets the user allow the project's checks and choose
 // what analysis reads. It opens the first time a project without that file
 // is opened; skipping keeps the daemon's configuration.
@@ -68,7 +68,7 @@ function SetupWizard({ setup }: { setup: ProjectSetup }) {
           <div className="grow">
             <h1 className="page-title">Set up {project?.name || 'this project'}</h1>
             <p className="page-sub">
-              Mini-Orca saves these settings in <span className="mono">.mini-orca/config.yaml</span> inside the project, kept out of Git, and applies them at once.
+              Kasuri saves these settings in <span className="mono">.kasuri/config.yaml</span> inside the project, kept out of Git, and applies them at once.
               {setup.daemon_config_file ? <> They start from <span className="mono">{setup.daemon_config_file}</span>.</> : null}
             </p>
           </div>
@@ -134,7 +134,7 @@ function ModelsStep({ setup, models, onChange }: { setup: ProjectSetup; models: 
   const catalog = useAvailableModels(usesCli).data;
   return (
     <div className="stack-lg">
-      <p className="muted">Mini-Orca uses three models. Each can be a local server, a cloud API or an installed CLI; one model can serve all three.</p>
+      <p className="muted">Kasuri uses three models. Each can be a local server, a cloud API or an installed CLI; one model can serve all three.</p>
       {SCOPES.map(({ scope, label, use }, i) => (
         <ModelCard
           key={scope}
@@ -371,7 +371,7 @@ function AnalysisStep({ onBack }: { onBack: () => void }) {
           <span className="xs muted">{plural(included, 'file')} included</span>
         </div>
         <div className="card-body stack">
-          <p className="small">Leave out folders that are not your code, such as dependencies, generated files or fixtures. Files ignored by .gitignore or .mini-orcaignore are already left out.</p>
+          <p className="small">Leave out folders that are not your code, such as dependencies, generated files or fixtures. Files ignored by .gitignore or .kasuriignore are already left out.</p>
           {!selection.editable ? <Callout tone="warning" title="An analysis is running">Exclusions can be changed when it finishes.</Callout> : null}
           <ul className="folder-list">
             {groups.map(group => {

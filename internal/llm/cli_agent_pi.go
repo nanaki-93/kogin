@@ -10,18 +10,18 @@ import (
 )
 
 // piToolExtension registers the run's tool server with pi and blocks every
-// other tool, so the model can act only through Mini-Orca's gates.
-const piToolExtension = `// Mini-Orca's tools for one agent run: the run's MCP server, and nothing else.
+// other tool, so the model can act only through Kasuri's gates.
+const piToolExtension = `// Kasuri's tools for one agent run: the run's MCP server, and nothing else.
 export default function (pi) {
-	const url = process.env.MINI_ORCA_MCP_URL;
-	const token = process.env.MINI_ORCA_MCP_TOKEN;
-	const maxTurns = Number(process.env.MINI_ORCA_MAX_TURNS || "0");
-	const timeout = Number(process.env.MINI_ORCA_TOOL_TIMEOUT || "900");
-	if (!url || !token) throw new Error("Mini-Orca's tool server is not configured for this run");
-	pi.registerMcpServer("mini-orca", { url, headers: { Authorization: "Bearer " + token }, exposure: "direct", timeout, description: "Mini-Orca's tools for this task" });
+	const url = process.env.KASURI_MCP_URL;
+	const token = process.env.KASURI_MCP_TOKEN;
+	const maxTurns = Number(process.env.KASURI_MAX_TURNS || "0");
+	const timeout = Number(process.env.KASURI_TOOL_TIMEOUT || "900");
+	if (!url || !token) throw new Error("Kasuri's tool server is not configured for this run");
+	pi.registerMcpServer("kasuri", { url, headers: { Authorization: "Bearer " + token }, exposure: "direct", timeout, description: "Kasuri's tools for this task" });
 	pi.on("tool_call", async (event) => {
-		if (!String(event.toolName).startsWith("mcp__mini_orca__")) {
-			return { block: true, reason: "Only Mini-Orca's tools are available in this run." };
+		if (!String(event.toolName).startsWith("mcp__kasuri__")) {
+			return { block: true, reason: "Only Kasuri's tools are available in this run." };
 		}
 	});
 	let turns = 0;
@@ -40,11 +40,11 @@ func preparePiAgent(directory string, profile config.ModelProfile, run AgentRun)
 	if err := writeCLIFile(directory, ".pi/settings.json", settings); err != nil {
 		return agentLaunch{}, nil, err
 	}
-	if err := writeCLIFile(directory, "mini-orca-tools.ts", piToolExtension); err != nil {
+	if err := writeCLIFile(directory, "kasuri-tools.ts", piToolExtension); err != nil {
 		return agentLaunch{}, nil, err
 	}
-	args := []string{"--mode", "json", "--no-session", "--no-extensions", "--extension", "builtin:mcp", "--extension", filepath.Join(directory, "mini-orca-tools.ts"),
-		"--tools", "mcp__mini_orca__*", "--exclude-tools", "codemode,tool_search,list_mcp_resources,list_mcp_resource_templates,read_mcp_resource",
+	args := []string{"--mode", "json", "--no-session", "--no-extensions", "--extension", "builtin:mcp", "--extension", filepath.Join(directory, "kasuri-tools.ts"),
+		"--tools", "mcp__kasuri__*", "--exclude-tools", "codemode,tool_search,list_mcp_resources,list_mcp_resource_templates,read_mcp_resource",
 		"--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files", "--approve",
 		"--system-prompt", filepath.Join(directory, "system.txt"), "--model", profile.Model}
 	if profile.ReasoningEffort != "" {
@@ -55,8 +55,8 @@ func preparePiAgent(directory string, profile config.ModelProfile, run AgentRun)
 		args = append(args, "--thinking", effort)
 	}
 	// The token reaches the extension through the environment, never a file.
-	env := cliEnvironment(config.PiProvider, []string{"MINI_ORCA_MCP_URL=" + run.MCPURL, "MINI_ORCA_MCP_TOKEN=" + run.MCPToken,
-		"MINI_ORCA_MAX_TURNS=" + strconv.Itoa(max(run.MaxTurns, 0)), "MINI_ORCA_TOOL_TIMEOUT=" + strconv.Itoa(int(run.ToolTimeout.Seconds()))})
+	env := cliEnvironment(config.PiProvider, []string{"KASURI_MCP_URL=" + run.MCPURL, "KASURI_MCP_TOKEN=" + run.MCPToken,
+		"KASURI_MAX_TURNS=" + strconv.Itoa(max(run.MaxTurns, 0)), "KASURI_TOOL_TIMEOUT=" + strconv.Itoa(int(run.ToolTimeout.Seconds()))})
 	stream := &piAgentStream{profile: profile, run: &AgentRunResult{Model: profile.Model, UsageKnown: true}}
 	return agentLaunch{args: args, env: env, input: run.Prompt}, stream, nil
 }

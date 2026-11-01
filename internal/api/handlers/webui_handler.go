@@ -18,11 +18,11 @@ const WebUICSP = "default-src 'none'; script-src 'self'; style-src 'self'; font-
 // webUIStyleNoncePlaceholder is replaced in the document with a fresh nonce per
 // response. Dialog scroll locking injects one <style> tag carrying that nonce;
 // no other inline style or any inline script is admitted.
-const webUIStyleNoncePlaceholder = "__MINI_ORCA_STYLE_NONCE__"
+const webUIStyleNoncePlaceholder = "__KASURI_STYLE_NONCE__"
 
 // webUIWriteTokenPlaceholder is replaced with the daemon's write token, which
 // the Web UI sends with every request that changes state.
-const webUIWriteTokenPlaceholder = "__MINI_ORCA_WRITE_TOKEN__"
+const webUIWriteTokenPlaceholder = "__KASURI_WRITE_TOKEN__"
 
 // WebUIDocumentCSP is the policy for the document itself: WebUICSP plus the
 // per-response style nonce.

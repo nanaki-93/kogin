@@ -130,7 +130,7 @@ func (n *confirmationNode) Run(ctx agent.Context, _ any) iter.Seq2[*session.Even
 }
 
 func confirmationRunner(service session.Service, worker agent.Agent) (*runner.Runner, error) {
-	return runner.New(runner.Config{AppName: "mini-orca", Agent: worker, SessionService: service})
+	return runner.New(runner.Config{AppName: "kasuri", Agent: worker, SessionService: service})
 }
 
 // ResumeConfirmation only resolves a pure handoff node. There are no model,

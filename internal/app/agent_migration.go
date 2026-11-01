@@ -20,7 +20,7 @@ func decodeAgentHistory(data []byte, value any) error {
 	return decoder.Decode(value)
 }
 
-var errNewerTask = errors.New("task file was written by a newer Mini-Orca")
+var errNewerTask = errors.New("task file was written by a newer Kasuri")
 
 func decodeCompatibleChangeHistory(data []byte, id string) (*ChangeSession, error) {
 	if !jsontext.Value(data).IsValid() {

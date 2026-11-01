@@ -164,7 +164,7 @@ func (s *localArtifactService) Delete(ctx context.Context, req *artifact.DeleteR
 }
 
 func newArtifactPlugin() (*plugin.Plugin, error) {
-	return plugin.New(plugin.Config{Name: "mini_orca_completion_artifacts", OnEventCallback: saveCompletionArtifact})
+	return plugin.New(plugin.Config{Name: "kasuri_completion_artifacts", OnEventCallback: saveCompletionArtifact})
 }
 
 func saveCompletionArtifact(ctx agent.InvocationContext, event *session.Event) (*session.Event, error) {

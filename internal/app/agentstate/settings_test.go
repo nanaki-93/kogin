@@ -33,7 +33,7 @@ func TestSettingsPassiveReadCASResetAndRestart(t *testing.T) {
 	if err != nil || before.Version != 0 || before.Values != nil {
 		t.Fatal(before, err)
 	}
-	if _, err := os.Stat(filepath.Join(root, ".mini-orca")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(root, ".kasuri")); !os.IsNotExist(err) {
 		t.Fatal("passive settings read created metadata", err)
 	}
 	values, hash := settingsPreferences(t), strings.Repeat("a", 64)

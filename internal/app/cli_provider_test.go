@@ -104,7 +104,7 @@ func cliAppProfile(t *testing.T, provider config.ModelProvider, model, content, 
 			`{"type":"message_end","message":{"role":"system","content":"","sections":{"preamble":"Only explain the supplied source."}}}` + "\n" +
 			string(message) + "\n{\"type\":\"agent_end\"}\n"
 	} else {
-		init, _ := json.Marshal(map[string]any{"event": "init", "init": map[string]any{"agent": "mini-orca", "model": model, "tools": []string{"view_file", "run_command", "finish"}}})
+		init, _ := json.Marshal(map[string]any{"event": "init", "init": map[string]any{"agent": "kasuri", "model": model, "tools": []string{"view_file", "run_command", "finish"}}})
 		result, _ := json.Marshal(map[string]any{"event": "result", "result": map[string]string{"status": "SUCCESS", "response": content}})
 		output = string(init) + "\n" + string(result) + "\n"
 	}
@@ -115,7 +115,7 @@ func cliAppProfile(t *testing.T, provider config.ModelProvider, model, content, 
 		// a tool hook. A final JSON response must not depend on finish being allowed.
 		script += "for arg in \"$@\"; do\nif [ \"$arg\" = --json-schema ]; then\nexit 1\nfi\ndone\n"
 	}
-	script += "cat <<'MINI_ORCA_RESPONSE'\n" + output + "MINI_ORCA_RESPONSE\n"
+	script += "cat <<'KASURI_RESPONSE'\n" + output + "KASURI_RESPONSE\n"
 	if err := os.WriteFile(path, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}

@@ -220,5 +220,5 @@ func artifactVisible(stored, requested ArtifactKey) bool {
 }
 
 func (s *Store) ArtifactURI(record Artifact) string {
-	return "mini-orca-artifact:" + s.workspace + "/" + artifactHash([]byte(record.Key.key())) + "/" + strconv.FormatInt(record.Version, 10)
+	return "kasuri-artifact:" + s.workspace + "/" + artifactHash([]byte(record.Key.key())) + "/" + strconv.FormatInt(record.Version, 10)
 }

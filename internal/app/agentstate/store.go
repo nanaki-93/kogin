@@ -90,7 +90,7 @@ func newStore(root string) (*Store, error) {
 }
 
 func (s *Store) path(name string) (string, error) {
-	return storage.MetadataPath(s.root, ".mini-orca", "agents", s.workspace, name)
+	return storage.MetadataPath(s.root, ".kasuri", "agents", s.workspace, name)
 }
 
 func (s *Store) empty() *database {

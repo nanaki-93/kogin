@@ -1,5 +1,5 @@
 # Copy this file to ignored config.yaml and replace each placeholder model ID.
-# Mini-Orca accepts only this strict YAML schema; it does not read environment
+# Kasuri accepts only this strict YAML schema; it does not read environment
 # variables into profile values or support legacy llm/agents/skills sections.
 # Each scope defaults to provider: openai. For provider: agy, pi or claude,
 # keep model/context_max_tokens/reasoning_effort, remove API and sampling fields,

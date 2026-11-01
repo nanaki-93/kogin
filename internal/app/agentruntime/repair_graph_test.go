@@ -19,7 +19,7 @@ func TestRepairGraphPersistsConditionalTransitionsAndSharedAdmission(t *testing.
 			ctx, budget, store := persistedContext(t, t.TempDir())
 			calls := 0
 			err := RunRepairGraph(ctx, RepairGraphInput{Snapshot: changeGraphFixture().Snapshot, MaxRepairs: limit}, func(ctx context.Context, attempt int) (bool, error) {
-				records, err := store.Sessions(ctx, "mini-orca", "local")
+				records, err := store.Sessions(ctx, "kasuri", "local")
 				if err != nil || len(records) != 1 || len(records[0].Events) != attempt*2+1 {
 					return false, fmt.Errorf("attempt started before durable progress: %v", err)
 				}
@@ -68,10 +68,10 @@ func TestRepairGraphPersistenceFailurePreventsNextAttempt(t *testing.T) {
 	calls := 0
 	err := RunRepairGraph(ctx, RepairGraphInput{Snapshot: changeGraphFixture().Snapshot, MaxRepairs: 2}, func(context.Context, int) (bool, error) {
 		calls++
-		if err := os.Rename(filepath.Join(root, ".mini-orca", "agents"), filepath.Join(root, "saved-agents")); err != nil {
+		if err := os.Rename(filepath.Join(root, ".kasuri", "agents"), filepath.Join(root, "saved-agents")); err != nil {
 			return false, err
 		}
-		return true, os.WriteFile(filepath.Join(root, ".mini-orca", "agents"), []byte("blocked"), 0600)
+		return true, os.WriteFile(filepath.Join(root, ".kasuri", "agents"), []byte("blocked"), 0600)
 	})
 	if !errors.Is(err, agentstate.ErrPersistence) || calls != 1 || budget.Snapshot().Repairs != 0 {
 		t.Fatalf("failed checkpoint dispatched a repair: %d %v", calls, err)

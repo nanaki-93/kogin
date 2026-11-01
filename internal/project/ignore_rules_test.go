@@ -13,7 +13,7 @@ func TestIgnoredSourceNeverEntersContext(t *testing.T) {
 		{"directory", ".gitignore", "private\n", "private/client.go"},
 		{"nested", "sub/.gitignore", "internal.go\n", "sub/internal.go"},
 		{"recursive root", ".gitignore", "**/internal.go\n", "internal.go"},
-		{"nested mini orca", "sub/.mini-orcaignore", "private/\n", "sub/private/client.go"},
+		{"nested kasuri", "sub/.kasuriignore", "private/\n", "sub/private/client.go"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			root := t.TempDir()

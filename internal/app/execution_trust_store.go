@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 
+	"github.com/nanaki-93/mini-orca/v2/internal/brand"
 	"github.com/nanaki-93/mini-orca/v2/internal/storage"
 )
 
@@ -25,13 +26,13 @@ type rememberedExecutionTrust struct {
 
 // Consent is user-owned: a repository's metadata must never grant execution.
 func executionTrustPath(root string) (string, error) {
-	directory := os.Getenv("MINI_ORCA_TRUST_DIR")
+	directory := brand.Getenv("KASURI_TRUST_DIR")
 	if directory == "" {
-		configDir, err := os.UserConfigDir()
+		configDir, err := brand.UserConfigDir()
 		if err != nil {
 			return "", fmt.Errorf("locate execution trust settings: %w", err)
 		}
-		directory = filepath.Join(configDir, "mini-orca", "execution-trust")
+		directory = filepath.Join(configDir, "execution-trust")
 	}
 	if !filepath.IsAbs(directory) {
 		return "", fmt.Errorf("execution trust settings directory must be absolute")

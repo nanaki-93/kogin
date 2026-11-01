@@ -78,7 +78,7 @@ func TestChangeOpenHTTPCreatesTheTaskInItsOwnWorktree(t *testing.T) {
 			t.Fatalf("git: %v %s", err, out)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".mini-orca/\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kasuri/\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	git("init", "-b", "main")

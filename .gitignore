@@ -20,10 +20,14 @@ profile.cov
 # Dependency directories (remove the comment below to include it)
 # vendor/
 build/
+/kasuri
+/kasuri-daemon
+# The same binaries from before the rename to Kasuri.
 /mini-orca
 /mini-orca-daemon
 # A plain go build in the desktop module.
 /desktop/desktop
+/desktop/kasuri-desktop
 /desktop/mini-orca-desktop
 
 # Go workspace file
@@ -41,6 +45,7 @@ config.yaml
 # .vscode/
 
 # Local agent-dispatch runs, leases, schemas, worktrees, and Python cache.
+.kasuri/autopilot/
 .mini-orca/autopilot/
 __pycache__/
 *.py[cod]

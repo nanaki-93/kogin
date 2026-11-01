@@ -56,7 +56,7 @@ const statusTemplate = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Mini-Orca</title>
+<title>Kasuri</title>
 <style>
   :root { color-scheme: dark; --chrome: #0a0b0d; --text: #ececef; --muted: #8a8f99; --accent: #7f86ff; --danger: #f07178; --track: rgba(255, 255, 255, 0.08); }
   @media (prefers-color-scheme: light) {
@@ -105,8 +105,8 @@ const statusTemplate = `<!doctype html>
 // Cmd+] on macOS, Alt+Left and Alt+Right elsewhere, and the mouse's side
 // buttons. Typing in a field keeps its own keys.
 const navigationKeys = `(() => {
-  if (window.__miniOrcaNavigation) return;
-  window.__miniOrcaNavigation = true;
+  if (window.__kasuriNavigation) return;
+  window.__kasuriNavigation = true;
   const mac = /Mac/.test(navigator.platform);
   const editable = el => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
   addEventListener('keydown', event => {

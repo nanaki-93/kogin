@@ -12,8 +12,8 @@ export const ago = (minutes: number) => new Date(now - minutes * 60_000).toISOSt
 export const project: Project = {
   project_id: 'p1',
   project_revision: 'r42',
-  name: 'mini-orca',
-  path: '/work/mini-orca',
+  name: 'kasuri',
+  path: '/work/kasuri',
   type: 'go',
   file_count: 748,
   total_lines: 169_089,
@@ -302,8 +302,8 @@ export function gitWorkspace(): GitWorkspace {
     conflicts: [],
     worktrees: [
       { path: project.path, head: '41030b7e', branch: 'main', current: true, integration: 'current', sessions: [] },
-      { path: '/work/.mini-orca/wt/chg-2', head: 'aa11', branch: 'mo/chg-2', integration: 'merged', mergeable: false, sessions: [otherTasks[0]] },
-      { path: '/work/.mini-orca/wt/chg-7', head: 'bb22', branch: 'mo/chg-7', integration: 'behind', mergeable: true, overlap_paths: ['internal/app/git_merge.go'], sessions: [] },
+      { path: '/work/.kasuri/wt/chg-2', head: 'aa11', branch: 'mo/chg-2', integration: 'merged', mergeable: false, sessions: [otherTasks[0]] },
+      { path: '/work/.kasuri/wt/chg-7', head: 'bb22', branch: 'mo/chg-7', integration: 'behind', mergeable: true, overlap_paths: ['internal/app/git_merge.go'], sessions: [] },
     ],
   };
 }
@@ -363,8 +363,8 @@ export function projectSetup(state: string): ProjectSetup {
   return {
     ...identity,
     state,
-    config_file: '/work/mini-orca/.mini-orca/config.yaml',
-    daemon_config_file: '/home/me/.config/mini-orca/config.yaml',
+    config_file: '/work/kasuri/.kasuri/config.yaml',
+    daemon_config_file: '/home/me/.config/kasuri/config.yaml',
     models: {
       analyze: { provider: '', api_base_url: 'https://api.example/v1', api_key_set: true, model: 'gemini-2.5-pro' },
       bug: { provider: '', api_base_url: 'http://127.0.0.1:1234/v1', api_key_set: false, model: 'qwen3-coder' },

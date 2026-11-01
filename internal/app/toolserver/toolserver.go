@@ -21,8 +21,8 @@ import (
 )
 
 // Name is the server name the CLIs know the tools by: Claude Code calls them
-// mcp__mini-orca__<tool>, pi mcp__mini_orca__<tool>.
-const Name = "mini-orca"
+// mcp__kasuri__<tool>, pi mcp__kasuri__<tool>.
+const Name = "kasuri"
 
 // Tool is one operation the model may call. Call receives the raw JSON
 // arguments and returns the text the model reads; an error is returned to the
@@ -56,7 +56,7 @@ func Start(ctx context.Context, instructions string, tools []Tool) (*Server, err
 	if len(tools) == 0 {
 		return nil, errors.New("a tool server needs at least one tool")
 	}
-	mcpServer := mcp.NewServer(&mcp.Implementation{Name: Name, Title: "Mini-Orca", Version: "1"}, &mcp.ServerOptions{Instructions: instructions})
+	mcpServer := mcp.NewServer(&mcp.Implementation{Name: Name, Title: "Kasuri", Version: "1"}, &mcp.ServerOptions{Instructions: instructions})
 	for _, tool := range tools {
 		if err := addTool(mcpServer, tool); err != nil {
 			return nil, err

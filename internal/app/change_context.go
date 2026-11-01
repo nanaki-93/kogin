@@ -269,7 +269,7 @@ func changeWriteScope(session *ChangeSession) string {
 		}
 	}
 	if ownsWorktree(session) {
-		return "The task's files are: " + strings.Join(paths, ", ") + ". The task has its own worktree, so you may also create, rename and delete other project files when the change needs them: not AGENTS.md and nothing under .git or .mini-orca, at most 64 files in all. Return every changed file whole; mark a deletion with \"delete\": true and empty content, and a move with \"renamed_from\" set to the old path and the new content."
+		return "The task's files are: " + strings.Join(paths, ", ") + ". The task has its own worktree, so you may also create, rename and delete other project files when the change needs them: not AGENTS.md and nothing under .git or .kasuri, at most 64 files in all. Return every changed file whole; mark a deletion with \"delete\": true and empty content, and a move with \"renamed_from\" set to the old path and the new content."
 	}
 	return "Write only these exact paths: " + strings.Join(paths, ", ") + ". Any other path, including a new helper file, rejects the whole proposal, and files cannot be deleted or renamed in this checkout; keep code that the plan or request places elsewhere within these files."
 }

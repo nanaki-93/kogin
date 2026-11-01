@@ -12,7 +12,7 @@ import (
 )
 
 // Claude Code runs on the Claude plan its user signed in to with /login.
-// Mini-Orca starts it with its own tools off, no settings but those of a
+// Kasuri starts it with its own tools off, no settings but those of a
 // private, empty directory, and none of the user's MCP servers, skills or
 // hooks. Its environment carries no API key (see cliEnvironment), and a run
 // that would still bill one is stopped before the model is called.
@@ -151,13 +151,13 @@ func (d *claudeStream) init(event claudeEvent) error {
 		if source == "" {
 			source = "unreported"
 		}
-		return fmt.Errorf("llm client: %w: Claude Code would use an API key (source: %s); Mini-Orca runs Claude only on your Claude plan: remove the key and sign in with /login", ErrRequestRejected, source)
+		return fmt.Errorf("llm client: %w: Claude Code would use an API key (source: %s); Kasuri runs Claude only on your Claude plan: remove the key and sign in with /login", ErrRequestRejected, source)
 	}
 	if !matchesClaudeModel(d.profile.Model, event.Model) {
 		return unusableCLIResponse("Claude Code selected a different model than configured")
 	}
 	if d.agent && !claudeServerConnected(event) {
-		return fmt.Errorf("llm client: %w: Claude Code could not connect to Mini-Orca's tool server", ErrUnusableResponse)
+		return fmt.Errorf("llm client: %w: Claude Code could not connect to Kasuri's tool server", ErrUnusableResponse)
 	}
 	d.started, d.run.Model = true, event.Model
 	return nil

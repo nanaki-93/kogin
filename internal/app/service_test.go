@@ -83,7 +83,7 @@ func TestNativeGoogleRuntimeImportsAndRetainsGuardedMetadata(t *testing.T) {
 	if err != nil || analysis.AIStatus != project.ProjectAnalysisStatusFresh || analysis.Report.Model != "reported-google" || calls != 1 {
 		t.Fatalf("analysis=%+v error=%v calls=%d", analysis, err, calls)
 	}
-	paths, err := filepath.Glob(filepath.Join(root, ".mini-orca", "agents", "*", "journal.json"))
+	paths, err := filepath.Glob(filepath.Join(root, ".kasuri", "agents", "*", "journal.json"))
 	if err != nil || len(paths) != 1 {
 		t.Fatal("native import did not persist a session", err)
 	}

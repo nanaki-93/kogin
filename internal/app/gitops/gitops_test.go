@@ -10,7 +10,7 @@ import (
 )
 
 func TestStatusDirtyIgnoresPrivateMetadataAndWorktrees(t *testing.T) {
-	if StatusDirty("?? .mini-orca/index.json\x00?? .worktrees/fix-1/\x00") {
+	if StatusDirty("?? .kasuri/index.json\x00?? .worktrees/fix-1/\x00") {
 		t.Fatal("private metadata or worktree paths marked repository dirty")
 	}
 	if !StatusDirty(" M main.go\x00") {

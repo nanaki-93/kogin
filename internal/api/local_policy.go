@@ -51,19 +51,19 @@ func LocalOnly(next http.Handler, hosts HostPolicy) http.Handler {
 	allowExternalHosts := hosts.External
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !hosts.allows(r.Host) {
-			hint := "Use the local Mini-Orca daemon address."
+			hint := "Use the local Kasuri daemon address."
 			if allowExternalHosts {
-				hint = "Use an IP address or a host name listed in MINI_ORCA_ALLOWED_HOSTS."
+				hint = "Use an IP address or a host name listed in KASURI_ALLOWED_HOSTS."
 			}
 			WriteAppError(w, Forbidden("unexpected Host header", hint, nil))
 			return
 		}
 		if isCORSPreflight(r) {
-			WriteAppError(w, Forbidden("browser preflight requests are not supported", "Use the local Mini-Orca client.", nil))
+			WriteAppError(w, Forbidden("browser preflight requests are not supported", "Use the local Kasuri client.", nil))
 			return
 		}
 		if r.Header.Get("Origin") != "" && !isAllowedWebUIOrigin(r, allowExternalHosts) && !isSameOriginWebUIAsset(r, allowExternalHosts) {
-			WriteAppError(w, Forbidden("browser Origin headers are not supported", "Use the local Mini-Orca client.", nil))
+			WriteAppError(w, Forbidden("browser Origin headers are not supported", "Use the local Kasuri client.", nil))
 			return
 		}
 		if requiresJSON(r.Method) && requestHasBody(r) && !isJSONContentType(r.Header.Get("Content-Type")) {
@@ -76,7 +76,7 @@ func LocalOnly(next http.Handler, hosts HostPolicy) http.Handler {
 }
 
 func isAllowedWebUIOrigin(r *http.Request, allowExternalHosts bool) bool {
-	if r.Header.Get("X-Mini-Orca-Web-UI") != "1" {
+	if r.Header.Get("X-Kasuri-Web-UI") != "1" {
 		return false
 	}
 	return isSameDaemonOrigin(r, allowExternalHosts)

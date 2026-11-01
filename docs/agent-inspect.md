@@ -1,6 +1,6 @@
 # Agent inspection
 
-`mini-orca-agent-inspect` reads a checkout's local agent invocation history for
+`kasuri-agent-inspect` reads a checkout's local agent invocation history for
 debugging. It never constructs a service, configures a provider or writes local
 metadata. Build it with `make build-agents` (`make build-agents-linux`
 cross-builds it for Linux amd64 without CGO); `make build` includes it.
@@ -11,10 +11,10 @@ journal mutation handles migration through the store; see
 [journal migration and recovery](../CONFIG.md#local-metadata-and-manual-cleanup).
 
 ```sh
-build/mini-orca-agent-inspect --root /absolute/checkout --limit 100
-build/mini-orca-agent-inspect --root /absolute/checkout --run INVOCATION_ID
-build/mini-orca-agent-inspect --root /absolute/checkout --run INVOCATION_ID --private
-build/mini-orca-agent-inspect --root /absolute/checkout --artifact ARTIFACT_ID --private
+build/kasuri-agent-inspect --root /absolute/checkout --limit 100
+build/kasuri-agent-inspect --root /absolute/checkout --run INVOCATION_ID
+build/kasuri-agent-inspect --root /absolute/checkout --run INVOCATION_ID --private
+build/kasuri-agent-inspect --root /absolute/checkout --artifact ARTIFACT_ID --private
 ```
 
 Default JSON contains recorded invocation ancestry, schema/state, node events,
@@ -30,7 +30,7 @@ Treat these outputs as source-bearing material. Unknown IDs and corrupt journals
 fail rather than returning empty history; no repair, resume or migration occurs.
 
 The inspector never constructs a service, configures a provider or writes local
-metadata. An empty checkout returns empty history without creating `.mini-orca`.
+metadata. An empty checkout returns empty history without creating `.kasuri`.
 It reports `truncated` when the per-section limit (1–500) omits records, alongside
 available run/artifact counts. Output over 8 MiB fails before writing JSON; narrow
 the selection. History retains only the journal's existing bounded event window.

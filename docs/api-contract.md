@@ -1,10 +1,10 @@
-# Mini-Orca local API contract
+# Kasuri local API contract
 
 **Version:** 6.0.0-dev
 **Base URL:** `http://localhost:9090`  
 **Content type:** `application/json`
 
-Mini-Orca is a loopback daemon serving one active project to its embedded Web UI.
+Kasuri is a loopback daemon serving one active project to its embedded Web UI.
 The shared change workflow captures explicit text paths (up to eight write paths for a planned task),
 prepares versioned proposals, checks them, records diff review and explicitly
 applies them with guarded recovery/Undo.
@@ -29,13 +29,13 @@ with the structured error response described below.
 The daemon serves local clients of its loopback API; it does not provide
 browser sessions or CORS access. Every request that can change state (any
 method but `GET`, `HEAD` and `OPTIONS`) must carry the daemon's per-launch
-write token in `X-Mini-Orca-Token`; otherwise it receives `401 Unauthorized`
+write token in `X-Kasuri-Token`; otherwise it receives `401 Unauthorized`
 before any route runs. Each launch creates a new token and saves it, with a
 newline, to a file only the daemon's user can read (mode `0600`):
-`MINI_ORCA_TOKEN_FILE` when set (an absolute path), otherwise `mini-orca/daemon-token`
+`KASURI_TOKEN_FILE` when set (an absolute path), otherwise `kasuri/daemon-token`
 under the user configuration directory (`~/Library/Application Support` on
 macOS, `$XDG_CONFIG_HOME` or `~/.config` on Linux, `%AppData%` on Windows). The
-Web UI document carries the token in a `mini-orca-write-token` meta tag; a page
+Web UI document carries the token in a `kasuri-write-token` meta tag; a page
 from an earlier launch is told to reload. A web page in another origin can read
 neither, so it cannot forge a write even when the Host and Origin checks pass.
 Reads, health checks and event streams need no token.
@@ -46,7 +46,7 @@ Web UI call (marker header) or a Web UI asset load; CORS preflight requests
 receive `403 Forbidden` with no CORS response headers. This prevents a web page from treating the daemon as
 a browser API while preserving local tool requests, which send no
 `Origin` header. The embedded Web UI is same-origin and marks every request with
-`X-Mini-Orca-Web-UI: 1`.
+`X-Kasuri-Web-UI: 1`.
 
 `POST` and `PATCH` requests with a body must send `Content-Type:
 application/json` (a charset parameter is permitted); other media types and a
@@ -54,7 +54,7 @@ missing content type receive `415 Unsupported Media Type` before a route
 handler runs. Analysis controls carry the full run identity in their JSON body. `GET /health` remains available to
 loopback health checks with no request body.
 
-`MINI_ORCA_BIND_ADDRESS` can deliberately bind the daemon beyond loopback. In
+`KASURI_BIND_ADDRESS` can deliberately bind the daemon beyond loopback. In
 that mode the Host restriction is relaxed so a configured native client can
 reach it; writes still need the token and browser origins are still rejected,
 but reads are unauthenticated. Restrict it with network controls; it is not suitable for public or
@@ -76,7 +76,7 @@ untrusted networks.
 | GET | `/api/projects/current/overview` | Read source-free metrics, structured analysis, the docs (`docs`), coverage, and finding counts for `project_revision`. |
 | GET | `/api/projects/current/docs/component` | List one docs component's code files (`path` = the component path) with each file's language, lines and the first sentence of its saved summary, for `project_revision`; 404 when the docs show no component there. Never calls a model. |
 | POST | `/api/projects/current/docs/refresh` | Start writing the docs' model-written parts again in the background with the analyze model: the summaries of components whose files' summaries changed, then the overview from all of them. Needs `project_id`/`project_revision`, and `confirm_remote_provider` for a remote model; 202 with the running refresh, 409 while another runs. The overview's `docs_refresh` reports it until it ends. |
-| POST | `/api/projects/current/ask` | Answer a question about the code: the Review role's model runs as an agent (Claude Code, Agy or Pi) with read-only tools over the checkout, starting from the docs, and ends with an answer and citations Mini-Orca checked against the files (the lines exist and contain the quote). Needs `project_id`/`project_revision`, a question of at most 2,000 characters and `confirm_remote_provider`; 422 when the Review role's model cannot run as an agent. Nothing is written or kept. |
+| POST | `/api/projects/current/ask` | Answer a question about the code: the Review role's model runs as an agent (Claude Code, Agy or Pi) with read-only tools over the checkout, starting from the docs, and ends with an answer and citations Kasuri checked against the files (the lines exist and contain the quote). Needs `project_id`/`project_revision`, a question of at most 2,000 characters and `confirm_remote_provider`; 422 when the Review role's model cannot run as an agent. Nothing is written or kept. |
 | GET | `/api/projects/current/analysis/selection` | Read the file checklist and saved exclusions with project/revision guards; no dispatch. |
 | POST | `/api/projects/current/analysis/selection` | Save excluded paths with project/revision and selection identity guards; no source changes. |
 | POST | `/api/projects/current/analysis/preview` | Whole-project, read-only preflight with strict project/revision guards. |
@@ -89,10 +89,10 @@ untrusted networks.
 | GET | `/api/projects/current/findings/{findingID}/task` | Draft the task that fixes one issue for the composer: kind, title, description, the file and its conventional test in any language, criteria and the linked finding. Nothing is saved. |
 | GET | `/api/projects/current/findings/task` | Draft one task that fixes several open issues of one file (`id` repeated, one to ten): the file and its conventional test, every issue in line order with its line, function, message and evidence, their criteria once each, and links to all of them. 400 when the issues are not all open or not in one file; 409 when one is no longer listed. Nothing is saved. |
 | GET | `/api/projects/current/events` | Stream Server-Sent Events (SSE) when analysis runs, scans, reindexing or change workflows change state; workflow events name the task, stage and status and carry the run's usage and estimated cost. |
-| GET | `/api/projects/current/quarantine` | List records set aside because they were unreadable, and records skipped because a newer Mini-Orca wrote them, with the remedy. |
+| GET | `/api/projects/current/quarantine` | List records set aside because they were unreadable, and records skipped because a newer Kasuri wrote them, with the remedy. |
 | GET | `/api/projects/current/usage` | Total agent model calls, tokens and estimated cost per task in the checkout, plus work not tied to a task. |
 | GET | `/api/projects/current/setup` | The project's configuration as setup edits it: `state` (`needed`, `skipped`, `configured`, `invalid`), the project and daemon files, models (secrets as `api_key_set`), roles and budget. |
-| POST | `/api/projects/current/setup` | Write the project's `.mini-orca/config.yaml` and apply it live; 409 while work runs. |
+| POST | `/api/projects/current/setup` | Write the project's `.kasuri/config.yaml` and apply it live; 409 while work runs. |
 | POST | `/api/projects/current/setup/timeouts` | Save only the project's time limits and apply them at once. |
 | POST | `/api/projects/current/setup/skip` | Keep the daemon's configuration for this project and stop offering setup. |
 | POST | `/api/projects/current/setup/test-model` | Send one short request to a model as setup would configure it for a scope. |
@@ -187,7 +187,7 @@ code proposals use `code`. A non-loopback HTTP or CLI scope requires
 scope never authorizes another. Restore, reindex, scans, validation, checks,
 Apply, and Undo never require provider confirmation.
 
-Context policy reads `.gitignore` and `.mini-orcaignore` in each traversed
+Context policy reads `.gitignore` and `.kasuriignore` in each traversed
 directory. Patterns use directory-relative Git ignore semantics, including
 anchored paths, directory exclusions, `**`, and ordered negation; an excluded
 parent must be reopened before a child can be included. Explicit context-policy
@@ -239,7 +239,7 @@ CLI credentials are not exposed. CLI responses must complete successfully;
 structured responses are also validated locally before entering domain parsers.
 See [CLI configuration and boundaries](../CONFIG.md#cli-providers).
 
-Prompt-bearing HTTP provider requests never follow redirects. Mini-Orca rejects
+Prompt-bearing HTTP provider requests never follow redirects. Kasuri rejects
 every 3xx response at the configured provider origin and returns a status-only
 error; it does not send the prompt, request body, or authorization header to a
 redirect target, and it does not retry a rejected redirect. Update the configured
@@ -338,7 +338,7 @@ Schema-1 runs without `models` remain readable with their original defaults.
 Feature discovery is retired. Preview/start no longer accept `include_features`,
 and a request that sets `models.features` returns 400. Runs saved with
 `plan.features`/`run.features` stay readable but cannot resume: resuming one
-returns 409 "this analysis included feature discovery, which Mini-Orca no longer
+returns 409 "this analysis included feature discovery, which Kasuri no longer
 has; cancel it and start a new analysis".
 
 Every preview also plans the docs refresh that ends a run (`preview.docs`): the
@@ -581,7 +581,7 @@ unchanged. Reading saved results never generates titles with a provider call.
 `file-analysis-v18` adds two optional parts to each risk, so reports saved with
 earlier versions are stale and their files are analyzed again by the next run.
 `anchor` is one line the model copies from the source where the risk shows;
-Mini-Orca finds it (whitespace collapsed) and stores `start_line`/`end_line`,
+Kasuri finds it (whitespace collapsed) and stores `start_line`/`end_line`,
 which the risk's issue points at, or no lines when the copy is not in the file.
 `task_spec.test_candidate` (`path`, `name`, `content`) replaces the Go-only
 `go_test_candidate`: a regression test in the target's language, kept only when
@@ -627,7 +627,7 @@ absent files may be retained. Stale project/selection guards and unknown new pat
 return 409. Malformed input returns 400. An active, paused or interrupted run
 must finish or be canceled before editing its selection (409 otherwise).
 
-Exclusions are saved atomically in `.mini-orca/analysis/selection.json`, schema
+Exclusions are saved atomically in `.kasuri/analysis/selection.json`, schema
 version `1`, and restored across project/app/daemon restarts. Corrupt or unreadable
 selection metadata fails explicitly; it never silently selects everything.
 New files default to selected. Selection changes invalidate pending admission
@@ -706,7 +706,7 @@ records of the other Go files in each target package, the non-test Go files of
 local packages the targets import, and the build manifests (`go.mod`, `go.sum`,
 `package.json` and lock files, `Cargo.toml`, `pyproject.toml`, `Makefile` and
 similar) in the target directories and their ancestors. Files that `.gitignore`
-or `.mini-orcaignore` exclude are not part of the scope, and at most 512 files
+or `.kasuriignore` exclude are not part of the scope, and at most 512 files
 are recorded. A scope file that changes, appears or disappears makes the session
 `stale`; GET returns `stale_reason` naming it, and the task list reports the same
 freshness. Edits elsewhere and reindexing leave the session `current`; mutations
@@ -769,17 +769,17 @@ next run starts a new journal. Agent history and waiting reviews it held are
 no longer available. An unreadable task file is set aside the same way
 (`<id>.quarantined-<UTC time>.json`) by the task list; listings that decide on
 the whole history, such as merging a worktree, still fail and name the file.
-Unreadable saved analysis progress (`.mini-orca/analysis/run.json`, for example
-from an older Mini-Orca) is set aside to `run.quarantined-<UTC time>.json`
+Unreadable saved analysis progress (`.kasuri/analysis/run.json`, for example
+from an older Kasuri) is set aside to `run.quarantined-<UTC time>.json`
 beside it when it is next read, so the overview loads and a new analysis can
 be previewed and started. The moves of task files and analysis progress are
-recorded in `.mini-orca/quarantine.json`; agent journals keep their own record.
-Records written by a newer Mini-Orca (a higher journal `version`, task
+recorded in `.kasuri/quarantine.json`; agent journals keep their own record.
+Records written by a newer Kasuri (a higher journal `version`, task
 `schema_version` or analysis progress `schema_version`) are never moved: the
 agent journal refuses work with an error naming the file and asking to
 upgrade, newer task files are skipped, and the overview loads without newer
 analysis progress while an analysis preview returns `409` asking to upgrade.
-The change recovery journal (`.mini-orca/changes/last-mutation.json`) is never
+The change recovery journal (`.kasuri/changes/last-mutation.json`) is never
 set aside, since it may describe an unfinished Apply; its errors name the file
 and the remedy. `GET /api/projects/current/quarantine` (with the project
 guards) returns `files` (set aside: `kind` `agent_journal`, `task` or `analysis_run`, `file`,
@@ -908,7 +908,7 @@ Undo restores source as working-tree changes and does not rewrite commit history
 
 Every proposal revision clears earlier checks/review. Apply uses current-session
 authority and rechecks source, policy, instruction and whole check-workspace hashes.
-Local `.mini-orca/changes/` history intentionally contains source, proposed contents
+Local `.kasuri/changes/` history intentionally contains source, proposed contents
 and conversations in private files; it is excluded from prompt context and Git
 source indexing. Limits are eight paths, 256 KiB prompt/response content, forty
 messages, 2 MiB per conversation/recovery journal and two hundred conversations.
@@ -974,7 +974,7 @@ and existing regression baseline rules. Tests and review never apply source.
 
 For a task in its own worktree whose create or test model is a pi, Claude Code or
 agy profile, that stage runs as a tool-using agent instead of returning file
-contents. Mini-Orca serves the run's tools over MCP on a loopback port with a
+contents. Kasuri serves the run's tools over MCP on a loopback port with a
 one-time bearer token; the CLI starts in a private directory with no other
 extensions, MCP servers, built-in tools, skills or context files, a call to any
 other tool stops the run, and its model can call only `read_file`, `list_files`, `search`,
@@ -1111,7 +1111,7 @@ The docs (`ProjectOverview.docs`, schema `4`) are built on every read and never
 stored: the overview's purpose, architecture and walkthroughs come from the
 project analysis report; components, imports, entry points, commands and
 dependencies from the project map, toolchain profiles and manifests; component
-summaries from `.mini-orca/module-summaries.json`. Older reports remain
+summaries from `.kasuri/module-summaries.json`. Older reports remain
 readable: a report from prompt `project-analysis-v6` or earlier is stale, its
 Mermaid architecture is left out and its flows, entry points and next steps are
 no longer read. The overview prompt `project-analysis-v7` asks for short prose,
@@ -1265,7 +1265,7 @@ branch, and removes the source checkout with `git worktree remove` without force
 After checkout removal, the source branch is deleted only if its captured commit
 is integrated and no registered worktree still uses that branch. Ref deletion
 compares the captured HEAD atomically, preserving concurrently advanced branches.
-Private `.mini-orca/` task history is locally ignored for removal and deleted
+Private `.kasuri/` task history is locally ignored for removal and deleted
 with the checkout. Checkouts containing another
 registered worktree are retained. Conflicted, failed and aborted merges never
 complete findings or remove the source. Successful removal returns `removed_worktree`
@@ -1318,7 +1318,7 @@ reported in `warnings` without hiding the successful removal receipt.
 Every setup request carries the active project's `project_id` and
 `project_revision` (query parameters for GET, body fields for POST); a stale
 pair returns 409. GET returns `state`, `config_file` (the project's
-`.mini-orca/config.yaml`, existing or not), `daemon_config_file` (empty for
+`.kasuri/config.yaml`, existing or not), `daemon_config_file` (empty for
 the built-in defaults), `error` for an `invalid` file, `models` keyed `analyze`,
 `bug` and `code` (`provider`, `model`, `api_base_url`, `vertex_project`,
 `vertex_location`, `cli_path`, `reasoning_effort`, optional `temperature`,
@@ -1331,12 +1331,12 @@ takes `models`, `roles`, `limits` and optional `timeouts` in the same shape
 (omitted, the time limits are kept; given, each must be 1–86400 seconds); an empty `api_key` keeps the configured key for the same
 provider and `clear_api_key: true` removes it. The result is validated on top
 of the daemon's configuration (400 with the field and reason), written `0600`
-with the file listed in `.mini-orca/.gitignore`, and applied at once; other keys
+with the file listed in `.kasuri/.gitignore`, and applied at once; other keys
 of an existing file and their comments are kept. A running analysis, agent
 run or worktree work returns 409 naming it. Saving resets the agent
 overrides of `…/agent-settings` and then reports `overrides_reset: true`. A `configuration` event
 announces every applied change. `…/setup/skip` records the choice in
-`.mini-orca/setup.json`. `…/setup/timeouts` takes `timeouts` alone, writes
+`.kasuri/setup.json`. `…/setup/timeouts` takes `timeouts` alone, writes
 only that section with the same checks, busy refusal and live apply, keeps
 agent overrides, and returns the setup. `…/setup/test-model` takes `scope` and `model` and
 returns `ok`, `model`, `latency_ms`, and for a failure `reason` (the same kinds

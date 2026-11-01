@@ -17,9 +17,9 @@ import insight_runtime as runtime  # noqa: E402
 
 class InsightRuntimeTest(unittest.TestCase):
     def test_runtime_conformance_is_explicitly_opt_in(self) -> None:
-        candidate = os.environ.get("MINI_ORCA_INSIGHT_RUNTIME_CANDIDATE")
+        candidate = os.environ.get("KASURI_INSIGHT_RUNTIME_CANDIDATE")
         if not candidate:
-            self.skipTest("set MINI_ORCA_INSIGHT_RUNTIME_CANDIDATE to run pinned-runtime conformance")
+            self.skipTest("set KASURI_INSIGHT_RUNTIME_CANDIDATE to run pinned-runtime conformance")
         candidate_dir = Path(candidate).resolve()
         python = candidate_dir / "venv/bin/python"
         if not python.is_file():

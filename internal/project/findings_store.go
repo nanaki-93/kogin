@@ -20,7 +20,7 @@ type findingDocument struct {
 // Store instances for the same checkout share read-modify-write ownership.
 var findingStoreLocks sync.Map
 
-// FindingStore persists only sanitized finding metadata under .mini-orca.
+// FindingStore persists only sanitized finding metadata under .kasuri.
 type FindingStore struct {
 	root string
 	mu   *sync.Mutex

@@ -62,7 +62,7 @@ func readChangeJournal(root string) (*changeJournal, error) {
 	return journal, nil
 }
 
-var errNewerRecoveryJournal = errors.New("written by a newer Mini-Orca")
+var errNewerRecoveryJournal = errors.New("written by a newer Kasuri")
 
 func decodeChangeJournal(file *os.File) (*changeJournal, error) {
 	if err := boundedChangeFile(file); err != nil {
@@ -90,7 +90,7 @@ func decodeChangeJournal(file *os.File) (*changeJournal, error) {
 // is never set aside: it may describe an Apply that did not finish.
 func recoveryJournalError(path string, err error) error {
 	if errors.Is(err, errNewerRecoveryJournal) {
-		return fmt.Errorf("change recovery journal %s was written by a newer Mini-Orca; upgrade Mini-Orca to Apply or Undo in this checkout", path)
+		return fmt.Errorf("change recovery journal %s was written by a newer Kasuri; upgrade Kasuri to Apply or Undo in this checkout", path)
 	}
 	return fmt.Errorf("change recovery journal %s is unreadable (%v); check the files of your last Apply with git status and restore them if needed, then move %s away to Apply again", path, err, path)
 }

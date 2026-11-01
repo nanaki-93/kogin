@@ -88,7 +88,7 @@ func completionProviderBinding(client CompletionClient) string {
 }
 
 func runCompletion(ctx context.Context, completion agent.Agent, request Request, client CompletionClient) (result Result, runErr error) {
-	const appName, userID = "mini-orca", "local"
+	const appName, userID = "kasuri", "local"
 	invocation, err := createCompletionSession(ctx, request, completionProviderBinding(client))
 	if err != nil {
 		return Result{}, err

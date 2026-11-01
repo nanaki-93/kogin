@@ -1,4 +1,4 @@
-# Mini-Orca release fixture
+# Kasuri release fixture
 
 This intentionally small project exercises source indexing, Go replace/create
 targets (`Run`, `Worker`, and an absent new declaration), ignored secrets, and

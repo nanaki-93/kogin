@@ -25,7 +25,7 @@ var ErrAgentRunsUnsupported = errors.New("this model's provider cannot run a too
 var errStopAgentRun = errors.New("stop the agent run")
 
 // toolServerName is the name every CLI knows the run's tool server by.
-const toolServerName = "mini-orca"
+const toolServerName = "kasuri"
 
 // AgentRun is one tool-using model run inside a CLI. The CLI's own tools are
 // off; the model's only tools are those of the MCP server the run names.
@@ -101,7 +101,7 @@ func (c *Client) RunAgent(ctx context.Context, run AgentRun) (*AgentRunResult, e
 	if err != nil {
 		return nil, fmt.Errorf("llm client: %w: %s CLI executable is unavailable; install it on the daemon's PATH or set cli_path", ErrRequestRejected, c.profile.Provider)
 	}
-	directory, err := os.MkdirTemp("", "mini-orca-agent-")
+	directory, err := os.MkdirTemp("", "kasuri-agent-")
 	if err != nil {
 		return nil, fmt.Errorf("llm client: cannot create private CLI working directory")
 	}
@@ -216,7 +216,7 @@ func readAgentStream(output io.Reader, stream agentStream, provider config.Model
 
 // ownTool reports whether a CLI's name for a tool names one of the run's tool
 // server's tools. CLIs prefix MCP tools with the server's name in their own
-// way (mcp__mini-orca__read_file, mcp__mini_orca__read_file, mini-orca/read_file).
+// way (mcp__kasuri__read_file, mcp__kasuri__read_file, kasuri/read_file).
 // Without a list of tools, any tool under the server's name is the run's.
 func ownTool(name string, tools map[string]bool) bool {
 	prefixed := false
@@ -244,7 +244,7 @@ func foreignTool(cli, name string) error {
 	if len(label) > 64 {
 		label = append(label[:64], '…')
 	}
-	return unusableCLIResponse(fmt.Sprintf("%s called %q, a tool outside Mini-Orca's tool server", cli, string(label)))
+	return unusableCLIResponse(fmt.Sprintf("%s called %q, a tool outside Kasuri's tool server", cli, string(label)))
 }
 
 func toolSet(tools []AgentTool) map[string]bool {

@@ -72,7 +72,7 @@ func TestKnowledgeImportRejectsChangedSourceAndPolicyBeforePublication(t *testin
 			server := changeProvider(t, func() string {
 				path, content := "main.go", "package main\nfunc Changed() {}\n"
 				if change == "policy" {
-					path, content = ".mini-orcaignore", "main.go\n"
+					path, content = ".kasuriignore", "main.go\n"
 				}
 				if err := os.WriteFile(filepath.Join(root, path), []byte(content), 0600); err != nil {
 					t.Error(err)
@@ -84,7 +84,7 @@ func TestKnowledgeImportRejectsChangedSourceAndPolicyBeforePublication(t *testin
 			if result != nil || !errors.Is(err, project.ErrRevisionConflict) {
 				t.Fatalf("stale import published: %+v %v", result, err)
 			}
-			if _, err := os.Stat(filepath.Join(root, ".mini-orca", "project-analysis.json")); !os.IsNotExist(err) {
+			if _, err := os.Stat(filepath.Join(root, ".kasuri", "project-analysis.json")); !os.IsNotExist(err) {
 				t.Fatalf("stale report persisted: %v", err)
 			}
 		})
@@ -99,7 +99,7 @@ func TestKnowledgeImportJournalFailurePreservesPriorReport(t *testing.T) {
 	var fail atomic.Bool
 	server := changeProvider(t, func() string {
 		if fail.Load() {
-			journal := filepath.Join(root, ".mini-orca", "agents")
+			journal := filepath.Join(root, ".kasuri", "agents")
 			if err := os.Rename(journal, filepath.Join(root, "journal-backup")); err != nil {
 				t.Error(err)
 			}
@@ -113,7 +113,7 @@ func TestKnowledgeImportJournalFailurePreservesPriorReport(t *testing.T) {
 	if _, err := s.ImportProject(t.Context(), root, true); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(root, ".mini-orca", "project-analysis.json")
+	path := filepath.Join(root, ".kasuri", "project-analysis.json")
 	before, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

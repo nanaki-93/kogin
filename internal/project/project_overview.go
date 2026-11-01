@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/nanaki-93/mini-orca/v2/internal/brand"
 	"github.com/nanaki-93/mini-orca/v2/internal/llm"
 	"github.com/nanaki-93/mini-orca/v2/internal/project/handbook"
 	"github.com/nanaki-93/mini-orca/v2/internal/project/projectmap"
@@ -24,7 +25,7 @@ const (
 )
 
 var ignoredProjectDirectories = map[string]bool{
-	".git": true, ".gradle": true, ".idea": true, ".mini-orca": true, ".worktrees": true,
+	".git": true, ".gradle": true, ".idea": true, brand.MetadataDir: true, brand.LegacyMetadataDir: true, ".worktrees": true,
 	"node_modules": true, "vendor": true, "build": true, "dist": true,
 	"target": true, "out": true, ".next": true, ".cache": true,
 }

@@ -25,7 +25,7 @@ type ProjectUpdate struct {
 	Timeouts *TimeoutConfig
 }
 
-const projectConfigHeader = "# Mini-Orca configuration for this project. It is applied on top of the\n# daemon's configuration and may hold API keys: keep it out of version control."
+const projectConfigHeader = "# Kasuri configuration for this project. It is applied on top of the\n# daemon's configuration and may hold API keys: keep it out of version control."
 
 const projectIgnore = "config.yaml"
 
@@ -116,7 +116,7 @@ func projectDocument(root string) (*yaml.Node, error) {
 // ignoreProjectConfig keeps the configuration file out of Git with a
 // .gitignore inside the metadata folder, leaving the project's own alone.
 func ignoreProjectConfig(root string) error {
-	path, err := storage.MetadataPath(root, ".mini-orca", ".gitignore")
+	path, err := storage.MetadataPath(root, ".kasuri", ".gitignore")
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func ignoreProjectConfig(root string) error {
 	}
 	content := string(existing)
 	if content == "" {
-		content = "# Mini-Orca: the project configuration may hold API keys.\n"
+		content = "# Kasuri: the project configuration may hold API keys.\n"
 	} else if !strings.HasSuffix(content, "\n") {
 		content += "\n"
 	}

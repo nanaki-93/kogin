@@ -7,7 +7,7 @@ script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
 repo_root=$(CDPATH= cd "$script_dir/.." && pwd)
 cd "$repo_root"
 
-forced_failure=${MINI_ORCA_VALIDATE_FAIL_STAGE:-}
+forced_failure=${KASURI_VALIDATE_FAIL_STAGE:-}
 failed_stages=""
 
 case "${1:-}" in
@@ -15,7 +15,7 @@ case "${1:-}" in
     ;;
   --help|-h)
     printf '%s\n' "Usage: $0"
-    printf '%s\n' "Set MINI_ORCA_VALIDATE_FAIL_STAGE to a stage name to exercise aggregate failure reporting."
+    printf '%s\n' "Set KASURI_VALIDATE_FAIL_STAGE to a stage name to exercise aggregate failure reporting."
     exit 0
     ;;
   *)

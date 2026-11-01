@@ -4,12 +4,13 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
+
+	"github.com/nanaki-93/mini-orca/v2/internal/brand"
 )
 
 // WriteTokenHeader carries the daemon's per-launch write token.
-const WriteTokenHeader = "X-Mini-Orca-Token"
+const WriteTokenHeader = "X-Kasuri-Token"
 
 // RequireWriteToken admits a request that can change state (any method but
 // GET, HEAD and OPTIONS) only when it carries this launch's write token. The
@@ -37,18 +38,18 @@ func RequireWriteToken(next http.Handler, token, tokenFile string) http.Handler 
 }
 
 // WriteTokenFile is where the daemon saves its write token for local clients:
-// MINI_ORCA_TOKEN_FILE when set (an absolute path), otherwise
-// mini-orca/daemon-token in the user configuration directory.
+// KASURI_TOKEN_FILE when set (an absolute path), otherwise
+// kasuri/daemon-token in the user configuration directory.
 func WriteTokenFile() (string, error) {
-	if path := os.Getenv("MINI_ORCA_TOKEN_FILE"); path != "" {
+	if path := brand.Getenv("KASURI_TOKEN_FILE"); path != "" {
 		if !filepath.IsAbs(path) {
-			return "", fmt.Errorf("MINI_ORCA_TOKEN_FILE must be an absolute path")
+			return "", fmt.Errorf("KASURI_TOKEN_FILE must be an absolute path")
 		}
 		return path, nil
 	}
-	directory, err := os.UserConfigDir()
+	directory, err := brand.UserConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("locate the write token directory: %w", err)
 	}
-	return filepath.Join(directory, "mini-orca", "daemon-token"), nil
+	return filepath.Join(directory, "daemon-token"), nil
 }

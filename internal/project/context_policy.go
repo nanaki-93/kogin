@@ -14,6 +14,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/nanaki-93/mini-orca/v2/internal/brand"
 	"github.com/nanaki-93/mini-orca/v2/internal/storage"
 )
 
@@ -55,7 +56,7 @@ func NewContextPolicy(root string) (*ContextPolicy, error) {
 	if err != nil {
 		return nil, err
 	}
-	configPath, err := storage.MetadataPath(canonical, ".mini-orca", "context-policy.json")
+	configPath, err := storage.MetadataPath(canonical, ".kasuri", "context-policy.json")
 	if err != nil {
 		return nil, fmt.Errorf("read context policy: %w", err)
 	}
@@ -175,8 +176,8 @@ func (p *ContextPolicy) Decide(relative string) ContextDecision {
 	if path == "." || path == ".." || strings.HasPrefix(path, "../") || filepath.IsAbs(relative) {
 		return ContextDecision{Path: path, Reason: "unsafe path"}
 	}
-	if path == ".mini-orca" || strings.HasPrefix(path, ".mini-orca/") {
-		return ContextDecision{Path: path, Reason: "Mini-Orca metadata"}
+	if first := strings.SplitN(path, "/", 2)[0]; first == brand.MetadataDir || first == brand.LegacyMetadataDir {
+		return ContextDecision{Path: path, Reason: "Kasuri metadata"}
 	}
 	if slices.Contains(strings.Split(path, "/"), ".worktrees") {
 		return ContextDecision{Path: path, Reason: "isolated worktrees"}
@@ -198,19 +199,19 @@ func (p *ContextPolicy) Decide(relative string) ContextDecision {
 		return ContextDecision{Path: path, Include: true, Reason: "project context-policy include"}
 	}
 	if ignoredPath(p.ignores, path, false) {
-		return ContextDecision{Path: path, Reason: "ignored by .gitignore or .mini-orcaignore"}
+		return ContextDecision{Path: path, Reason: "ignored by .gitignore or .kasuriignore"}
 	}
 	return ContextDecision{Path: path, Include: true, Reason: "eligible source or text file"}
 }
 
-// Ignored reports whether .gitignore or .mini-orcaignore rules exclude the
+// Ignored reports whether .gitignore or .kasuriignore rules exclude the
 // path. Unlike Decide it ignores the model-context rules for secrets, lock
 // files and generated files.
 func (p *ContextPolicy) Ignored(relative string) bool {
 	return ignoredPath(p.ignores, filepath.ToSlash(filepath.Clean(relative)), false)
 }
 
-// IgnoredDirectory reports whether .gitignore or .mini-orcaignore rules
+// IgnoredDirectory reports whether .gitignore or .kasuriignore rules
 // exclude the directory, including rules that only match directories.
 func (p *ContextPolicy) IgnoredDirectory(relative string) bool {
 	return ignoredPath(p.ignores, filepath.ToSlash(filepath.Clean(relative)), true)

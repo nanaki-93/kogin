@@ -47,7 +47,7 @@ func (s *Service) CheckMerge(ctx context.Context, request MergeChecksRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	workspace, err := os.MkdirTemp("", "mini-orca-merge-check-")
+	workspace, err := os.MkdirTemp("", "kasuri-merge-check-")
 	if err != nil {
 		return nil, err
 	}

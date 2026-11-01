@@ -1,4 +1,4 @@
-# Mini-Orca standardized repository entrypoint
+# Kasuri standardized repository entrypoint
 
 set shell := ["sh", "-cu"]
 
@@ -39,14 +39,14 @@ check:
     ./scripts/quality.sh --go-only
     make check
 
-# Build mini-orca and mini-orca-daemon and install them (see make install); then run mini-orca in a project folder
+# Build kasuri and kasuri-daemon and install them (see make install); then run kasuri in a project folder
 build:
     make install
 
-# Build mini-orca and mini-orca-daemon into ~/DEV/lab/mini-orca and MINI_ORCA_HOME (or ~/DEV/programs/mini-orca)
+# Build kasuri and kasuri-daemon into ~/DEV/lab/kasuri and KASURI_HOME (or ~/DEV/programs/kasuri)
 install:
     make install
 
-# Build Mini-Orca.app (macOS) and copy it into /Applications (or ~/Applications)
+# Build Kasuri.app (macOS) and copy it into /Applications (or ~/Applications)
 desktop:
     make install-desktop

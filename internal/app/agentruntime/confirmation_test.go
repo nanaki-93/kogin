@@ -114,7 +114,7 @@ func TestConfirmationResumePreservesWaitingCheckpointOnStorageFailure(t *testing
 		t.Fatal(err)
 	}
 	binding := agentstate.Binding{Project: "project", Revision: "revision", Policy: "policy", Configuration: "config"}
-	directory, backup := filepath.Join(root, ".mini-orca", "agents"), filepath.Join(root, "saved-agents")
+	directory, backup := filepath.Join(root, ".kasuri", "agents"), filepath.Join(root, "saved-agents")
 	if err := os.Rename(directory, backup); err != nil {
 		t.Fatal(err)
 	}

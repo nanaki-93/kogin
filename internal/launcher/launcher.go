@@ -1,4 +1,4 @@
-// Package launcher opens Mini-Orca on a project for the mini-orca command and
+// Package launcher opens Kasuri on a project for the kasuri command and
 // the desktop app: it attaches to the daemon that answers at the address, or
 // starts one beside the program when none does, and makes the project its
 // current one. A daemon it started is stopped with the session.
@@ -18,7 +18,7 @@ const (
 	// start a daemon when none answers.
 	DefaultURL = "http://127.0.0.1:9090"
 	// DaemonBinary is the daemon program a launcher starts.
-	DaemonBinary = "mini-orca-daemon"
+	DaemonBinary = "kasuri-daemon"
 )
 
 // Folder resolves a project folder to its absolute, symlink-free path.
@@ -92,7 +92,7 @@ func (s *Session) start(ctx context.Context, opts Options) error {
 		return err
 	}
 	notes := writerOrDiscard(opts.Notes)
-	fmt.Fprintf(notes, "Starting the Mini-Orca daemon for %s…\n", opts.Project)
+	fmt.Fprintf(notes, "Starting the Kasuri daemon for %s…\n", opts.Project)
 	fmt.Fprintln(notes, ConfigurationNote(opts.Project, binary))
 	path := ""
 	if opts.LoginShellPath {

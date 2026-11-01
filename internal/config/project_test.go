@@ -55,7 +55,7 @@ func TestUpdateProjectWritesAPrivateIgnoredFileAndKeepsOtherKeys(t *testing.T) {
 	if cfg, found, err := LoadProject(root, global); err != nil || found || cfg != global {
 		t.Fatalf("no project file: %v %v", found, err)
 	}
-	path := filepath.Join(root, ".mini-orca", "config.yaml")
+	path := filepath.Join(root, ".kasuri", "config.yaml")
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -95,14 +95,14 @@ func TestUpdateProjectWritesAPrivateIgnoredFileAndKeepsOtherKeys(t *testing.T) {
 	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o600 {
 		t.Fatalf("mode: %v %v", info.Mode(), err)
 	}
-	ignore, err := os.ReadFile(filepath.Join(root, ".mini-orca", ".gitignore"))
+	ignore, err := os.ReadFile(filepath.Join(root, ".kasuri", ".gitignore"))
 	if err != nil || !strings.Contains(string(ignore), "config.yaml") {
 		t.Fatalf(".gitignore: %q %v", ignore, err)
 	}
 	if _, err := UpdateProject(root, global, update); err != nil {
 		t.Fatal(err)
 	}
-	if again, _ := os.ReadFile(filepath.Join(root, ".mini-orca", ".gitignore")); strings.Count(string(again), "config.yaml") != 1 {
+	if again, _ := os.ReadFile(filepath.Join(root, ".kasuri", ".gitignore")); strings.Count(string(again), "config.yaml") != 1 {
 		t.Fatalf("the ignore entry was repeated: %q", again)
 	}
 	loaded, found, err := LoadProject(root, global)
@@ -124,8 +124,8 @@ func TestANewProjectFileStartsWithItsHeader(t *testing.T) {
 	if _, err := UpdateProject(root, globalTestConfig(t), ProjectUpdate{Roles: &AgentRoles{Creation: BugModelScope, Testing: CodeModelScope, Review: AnalyzeModelScope}}); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(root, ".mini-orca", "config.yaml"))
-	if err != nil || !strings.HasPrefix(string(data), "# Mini-Orca configuration for this project.") {
+	data, err := os.ReadFile(filepath.Join(root, ".kasuri", "config.yaml"))
+	if err != nil || !strings.HasPrefix(string(data), "# Kasuri configuration for this project.") {
 		t.Fatalf("header: %q %v", data, err)
 	}
 }

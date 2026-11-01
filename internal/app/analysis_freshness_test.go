@@ -368,7 +368,7 @@ func TestAnalysisFreshnessRestoreInterruptsWorkWithoutMakingItStale(t *testing.T
 	if interrupted.Status != AnalysisRunInterrupted || interrupted.Files[0].Stages[0].Status != AnalysisStageInterrupted || calls.Load() != 1 {
 		t.Fatalf("restored status=%s stage=%s calls=%d", interrupted.Status, interrupted.Files[0].Stages[0].Status, calls.Load())
 	}
-	entries, err := os.ReadDir(filepath.Join(root, ".mini-orca/file-analysis"))
+	entries, err := os.ReadDir(filepath.Join(root, ".kasuri/file-analysis"))
 	if err != nil && !os.IsNotExist(err) {
 		t.Fatal(err)
 	}
@@ -419,7 +419,7 @@ func TestAnalysisFreshnessRecoversPreviouslyStaledFinishedResults(t *testing.T) 
 			case "source":
 				err = os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\nfunc Changed() {}\n"), 0600)
 			case "policy":
-				err = os.WriteFile(filepath.Join(root, ".mini-orcaignore"), []byte("ignored.go\n"), 0600)
+				err = os.WriteFile(filepath.Join(root, ".kasuriignore"), []byte("ignored.go\n"), 0600)
 			case "provider":
 				s.conf().runtimes.analyze.effective.Model = "replacement"
 			}

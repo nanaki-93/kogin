@@ -1,4 +1,4 @@
-// Command mini-orca opens Mini-Orca on the project in the current folder (or
+// Command kasuri opens Kasuri on the project in the current folder (or
 // the folder given as its argument): it starts the daemon beside it when none
 // is running, makes that folder the daemon's project, and opens the Web UI in
 // the browser. A daemon it started runs until Ctrl+C; one that was already
@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/nanaki-93/mini-orca/v2/internal/brand"
 	"github.com/nanaki-93/mini-orca/v2/internal/launcher"
 )
 
@@ -22,7 +23,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := run(ctx, os.Args[1:], os.Stdout); err != nil && !errors.Is(err, flag.ErrHelp) {
-		fmt.Fprintf(os.Stderr, "mini-orca: %v\n", err)
+		fmt.Fprintf(os.Stderr, "kasuri: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -34,18 +35,18 @@ type options struct {
 }
 
 func parseOptions(args []string, out io.Writer) (options, error) {
-	flags := flag.NewFlagSet("mini-orca", flag.ContinueOnError)
+	flags := flag.NewFlagSet("kasuri", flag.ContinueOnError)
 	flags.SetOutput(out)
 	flags.Usage = func() {
-		fmt.Fprintln(out, "Usage: mini-orca [flags] [project folder]")
-		fmt.Fprintln(out, "Opens Mini-Orca on the project folder (default: the current folder).")
+		fmt.Fprintln(out, "Usage: kasuri [flags] [project folder]")
+		fmt.Fprintln(out, "Opens Kasuri on the project folder (default: the current folder).")
 		flags.PrintDefaults()
 	}
-	defaultURL := os.Getenv("MINI_ORCA_URL")
+	defaultURL := brand.Getenv("KASURI_URL")
 	if defaultURL == "" {
 		defaultURL = launcher.DefaultURL
 	}
-	url := flags.String("url", defaultURL, "daemon address (MINI_ORCA_URL)")
+	url := flags.String("url", defaultURL, "daemon address (KASURI_URL)")
 	noOpen := flags.Bool("no-open", false, "do not open the Web UI in the browser")
 	if err := flags.Parse(args); err != nil {
 		return options{}, err
@@ -93,7 +94,7 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		fmt.Fprintln(out, session.Client.ConfigNote(ctx))
 		return nil
 	}
-	fmt.Fprintf(out, "Mini-Orca is running for %s at %s — press Ctrl+C to stop it.\n", opts.project, page)
+	fmt.Fprintf(out, "Kasuri is running for %s at %s — press Ctrl+C to stop it.\n", opts.project, page)
 	select {
 	case <-ctx.Done():
 		fmt.Fprintln(out, "\nStopping the daemon…")

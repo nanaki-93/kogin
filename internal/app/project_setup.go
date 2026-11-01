@@ -30,7 +30,7 @@ const (
 	SetupInvalid    = "invalid"    // The project's file exists but could not be applied.
 )
 
-const setupSkipPath = ".mini-orca/setup.json"
+const setupSkipPath = ".kasuri/setup.json"
 
 // SetupModel is one model scope as setup shows and edits it. Secrets are
 // never returned: APIKeySet says whether one is configured, and an empty

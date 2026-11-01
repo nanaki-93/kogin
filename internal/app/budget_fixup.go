@@ -212,7 +212,7 @@ func checkBudgetFixupMoves(session, scoped *ChangeSession, over []archgate.Budge
 	if lost > 0 {
 		return "", fmt.Errorf("the fix-up dropped %d function(s): %s", lost, strings.Join(lostNames, ", "))
 	}
-	summary := fmt.Sprintf("Mini-Orca checked the split: %d function(s) kept or moved verbatim", moved)
+	summary := fmt.Sprintf("Kasuri checked the split: %d function(s) kept or moved verbatim", moved)
 	if changed > 0 {
 		summary += fmt.Sprintf("; %d changed while moving (review them): %s", changed, strings.Join(changedNames, ", "))
 	}

@@ -43,7 +43,7 @@ func budgetWorkflowService(t *testing.T, creations []string) (*Service, *ChangeS
 		"package.json": `{"name":"budget-fixture"}`,
 		"Makefile":     "test:\n\t@true\n",
 		"app.ts":       "import { helper } from './helper';\nexport function compute(): number {\n  return 1;\n}\n",
-		"AGENTS.md":    "```mini-orca\nbudgets:\n  file_lines: 6\n```\n",
+		"AGENTS.md":    "```kasuri\nbudgets:\n  file_lines: 6\n```\n",
 	} {
 		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0644); err != nil {
 			t.Fatal(err)
@@ -90,7 +90,7 @@ func TestAProposalOverItsFileBudgetIsSplitIntoASiblingInTheSameTask(t *testing.T
 	}
 	var checked bool
 	for _, message := range finished.Messages {
-		checked = checked || strings.Contains(message.Content, "Mini-Orca checked the split: 2 function(s) kept or moved verbatim.")
+		checked = checked || strings.Contains(message.Content, "Kasuri checked the split: 2 function(s) kept or moved verbatim.")
 	}
 	if !checked || !requiredChecksPassed(finished.Checks) {
 		t.Fatalf("messages = %+v, checks = %+v", finished.Messages, finished.Checks)

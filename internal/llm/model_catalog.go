@@ -11,7 +11,7 @@ import (
 
 // Catalog commands inherit CLI authentication but never the imported workspace.
 func readCLIModelCatalog(ctx context.Context, provider config.ModelProvider, executable string, args []string, input string) (output []byte, err error) {
-	directory, err := os.MkdirTemp("", "mini-orca-models-")
+	directory, err := os.MkdirTemp("", "kasuri-models-")
 	if err != nil {
 		return nil, fmt.Errorf("cannot create private %s catalog directory", provider)
 	}

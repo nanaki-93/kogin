@@ -1,4 +1,4 @@
-# Mini-Orca
+# Kasuri
 
 A local-first coding assistant: a Go daemon on your machine that analyzes a
 repository, surfaces verified and model-suggested **Issues**, writes structured
@@ -6,10 +6,18 @@ repository, surfaces verified and model-suggested **Issues**, writes structured
 isolated checkout, which you review in the browser and apply with an explicit,
 guarded **Apply** and **Undo**.
 
+> **Kasuri was called Mini-Orca.** The name is 絣 (ka-SOO-ree), a Japanese
+> weave whose pattern appears only once the threads are woven together, as
+> agents' work comes together only when you review and merge it. Projects,
+> configuration and `MINI_ORCA_*` variables from before the rename keep
+> working: a project's `.mini-orca/` moves to `.kasuri/` the first time Kasuri
+> opens it. See the [release notes](RELEASE_NOTES.md) and the brand kit in
+> [`brand/`](brand/README.md).
+
 ## What it does
 
-- **Understand a project.** Deterministic indexing (`.mini-orca/index.json`,
-  honoring `.mini-orcaignore`) feeds a resumable analysis across three model
+- **Understand a project.** Deterministic indexing (`.kasuri/index.json`,
+  honoring `.kasuriignore`) feeds a resumable analysis across three model
   scopes (`analyze`, `bug`, `code`). Static rules and per-language security
   rule packs (Go, Python, JS/TS, Java, Kotlin, Ruby, PHP, C#, C/C++, Rust)
   produce verified findings with their lines; semantic, performance and
@@ -90,11 +98,11 @@ checks or writes.
 
 ## Code rules
 
-Mini-Orca reads the rules of a target project from its `AGENTS.md` files. A
-fenced `mini-orca` block declares them; paths are relative to that file:
+Kasuri reads the rules of a target project from its `AGENTS.md` files. A
+fenced `kasuri` block declares them; paths are relative to that file:
 
 ````markdown
-```mini-orca
+```kasuri
 budgets:
   file_lines: 800          # test files too
   function_lines: 80
@@ -127,12 +135,12 @@ checks:
 - **Split in the same task.** The writing agents get each file's budgets and
   current numbers. When what they write still breaks a budget, a fix-up step
   (at most two rounds) moves cohesive code into up to two new sibling files per
-  file, in the same directory, and Mini-Orca checks that no function was lost
+  file, in the same directory, and Kasuri checks that no function was lost
   and names the ones that changed while moving. The task page's **Code rules**
   card shows where every file stands.
 - **Checks per subproject.** `checks` declares the test and lint commands of
   the subproject the `AGENTS.md` sits in (one command each, no shell syntax).
-  Without it Mini-Orca uses a `test` and `lint` (or `vet`, or `check`) target of
+  Without it Kasuri uses a `test` and `lint` (or `vet`, or `check`) target of
   a justfile, Taskfile or Makefile there, then the ecosystem's defaults. The
   commands are part of what execution trust lists. A failing check is compared
   with the same command on the tree before the change: when every failing test
@@ -144,17 +152,17 @@ checks:
   exists.
 - **Agents with tools.** On a model that runs in pi, Claude Code or agy, the
   coder and the testing agent of a task in its own worktree read and change the
-  project through Mini-Orca's tools instead of returning whole files. After each
+  project through Kasuri's tools instead of returning whole files. After each
   write a tool reports gofmt, parse errors and the file's budgets; `run_checks`
   runs these checks and the touched subprojects' tests on a copy. The agent ends
   with a report that maps its change to the acceptance criteria. Each CLI starts
   with its own tools, extensions, skills and context files off, and only
-  Mini-Orca's tool server; a call to any other tool stops the run, and a run that
+  Kasuri's tool server; a call to any other tool stops the run, and a run that
   fails before finishing leaves the worktree as the stored proposal. The
   reviewers read the proposal as a diff.
 - **Subscriptions, not API keys.** Each stage can run on a different
   subscription: Claude Code on your Claude plan, agy on your Google AI plan, pi
-  on the ChatGPT plan (or a local model) it signs in with. Mini-Orca removes API
+  on the ChatGPT plan (or a local model) it signs in with. Kasuri removes API
   keys from Claude Code's environment and stops a run that would still bill one.
   When a plan reaches its usage limit, the task **pauses** at that stage instead
   of failing: nothing half done is kept, the task says when the limit resets, and
@@ -169,46 +177,46 @@ Read [CONFIG.md](CONFIG.md) before the first launch.
 ```sh
 cp config.example.yaml config.yaml   # fill the three model scopes
 just build                           # or: make install
-cd ~/code/my-project && mini-orca    # opens this folder in the Web UI
+cd ~/code/my-project && kasuri    # opens this folder in the Web UI
 ```
 
-`just build` copies `mini-orca` and `mini-orca-daemon` into `MINI_ORCA_HOME`
-(or `~/DEV/programs/mini-orca`); put that folder on your `PATH`. Run `mini-orca`
+`just build` copies `kasuri` and `kasuri-daemon` into `KASURI_HOME`
+(or `~/DEV/programs/kasuri`); put that folder on your `PATH`. Run `kasuri`
 in a project folder, or pass the folder as its argument: it starts the daemon
 beside it when none is running, opens that folder as the project and opens the
 Web UI in your browser. The daemon it started runs until you press Ctrl+C, with
-its log in that terminal. When a daemon is already running, `mini-orca` switches
+its log in that terminal. When a daemon is already running, `kasuri` switches
 it to the folder and exits. The first time a project opens, the Web UI walks
 you through **setup**: its models (with a connection test), which model each
 agent uses, the run budget, its checks and what analysis reads. Setup saves the
-project's own `.mini-orca/config.yaml` (private, kept out of Git) and applies it
+project's own `.kasuri/config.yaml` (private, kept out of Git) and applies it
 without a restart; skip it to use the daemon's configuration, which the daemon
-reads from `MINI_ORCA_CONFIG`, else `~/.config/mini-orca/config.yaml` (`just
+reads from `KASURI_CONFIG`, else `~/.config/kasuri/config.yaml` (`just
 build` copies the repository's `config.yaml` there once), the platform
 configuration folder or the folder of the binaries. See [CONFIG.md](CONFIG.md).
-`--no-open` skips the browser and `--url` (or `MINI_ORCA_URL`)
+`--no-open` skips the browser and `--url` (or `KASURI_URL`)
 targets a daemon at another address. Without the launcher, `go run ./cmd/daemon`
 serves the folder it runs in at `http://127.0.0.1:9090/ui`.
 
-On macOS, `just desktop` (or `make install-desktop`) builds **Mini-Orca.app**
+On macOS, `just desktop` (or `make install-desktop`) builds **Kasuri.app**
 into `/Applications`: the same Web UI in a window of its own, with the daemon
 started beside it and stopped when the app quits, and notifications when agents
 or an analysis finish while you are elsewhere. See [DESKTOP.md](DESKTOP.md).
 
-The daemon listens on `127.0.0.1:9090` only, unless `MINI_ORCA_BIND_ADDRESS`
+The daemon listens on `127.0.0.1:9090` only, unless `KASURI_BIND_ADDRESS`
 opts into another address (see [DOCKER.md](DOCKER.md)). Keep `config.yaml`
 local. Every prompt-bearing request to a non-loopback HTTP or CLI provider asks
 for consent for that scope. Requests that change state need the daemon's
 per-launch write token: the Web UI has it, and other local clients read it from
-`mini-orca/daemon-token` in your user configuration directory
-(`MINI_ORCA_TOKEN_FILE` selects another file). Running the daemon needs no Node.js: the Web UI
+`kasuri/daemon-token` in your user configuration directory
+(`KASURI_TOKEN_FILE` selects another file). Running the daemon needs no Node.js: the Web UI
 bundle is embedded in the binary.
 
 <a id="project-intelligence"></a>
 
-### Project data (`.mini-orca/`)
+### Project data (`.kasuri/`)
 
-Project-local `.mini-orca/` stores `index.json`, `project-analysis.json`, `module-summaries.json`, `file-analysis/`, `findings.json`, `performance/files/`, and unified progress in `analysis/run.json`. Private `changes/` files retain conversations, captured source and proposals, and the latest grouped recovery journal. Restore uses local persisted analysis without triggering model requests. See the [API guide](docs/api-contract.md) and [workflow migration](docs/api-contract.md#retired-workflows) for current contracts and boundaries.
+Project-local `.kasuri/` stores `index.json`, `project-analysis.json`, `module-summaries.json`, `file-analysis/`, `findings.json`, `performance/files/`, and unified progress in `analysis/run.json`. Private `changes/` files retain conversations, captured source and proposals, and the latest grouped recovery journal. Restore uses local persisted analysis without triggering model requests. See the [API guide](docs/api-contract.md) and [workflow migration](docs/api-contract.md#retired-workflows) for current contracts and boundaries.
 
 ## Web UI development
 
@@ -235,8 +243,8 @@ in `web/`.
 | Layer / Path | Responsibility |
 | --- | --- |
 | `cmd/daemon` | The daemon: loopback HTTP API, embedded Web UI, startup and shutdown. |
-| `cmd/mini-orca`, `internal/launcher` | The launcher: attach to or start the daemon for a project folder; shared with the desktop app. |
-| `desktop/` | Mini-Orca.app: the Web UI in a native window (Wails v3, its own Go module, [guide](DESKTOP.md)). |
+| `cmd/kasuri`, `internal/launcher` | The launcher: attach to or start the daemon for a project folder; shared with the desktop app. |
+| `desktop/` | Kasuri.app: the Web UI in a native window (Wails v3, its own Go module, [guide](DESKTOP.md)). |
 | `cmd/agent-inspect` | Read-only inspection of local agent invocation history ([guide](docs/agent-inspect.md)). |
 | `cmd/agent-eval`, `cmd/engineering-insight-eval` | Synthetic agent task/trajectory evaluation and engineering-insight evaluation. |
 | `web/` | The browser workspace (React + TypeScript), built into `internal/api/handlers/webui/dist`. |
@@ -246,7 +254,7 @@ in `web/`.
 | `internal/app/agentstate` | Private durable sessions, invocations, budgets, checkpoints and artifacts. |
 | `internal/project` | Repository facts, indexing, context composition, the docs and `AGENTS.md` instructions. |
 | `internal/project/rules`, `internal/project/syntax` | Code rules from `AGENTS.md`; functions, spans and complexity in any supported language. |
-| `internal/storage` | Atomic durable file primitives under `.mini-orca/`; domain packages own their schemas. |
+| `internal/storage` | Atomic durable file primitives under `.kasuri/`; domain packages own their schemas. |
 | `internal/llm`, `internal/config` | HTTP/CLI/native Google transport, provider capabilities and the three model scopes. |
 | `internal/agenteval`, `internal/insighteval` | Evaluation harnesses, separate from ordinary use. |
 
@@ -254,7 +262,7 @@ in `web/`.
 
 | Dependency | Purpose |
 | --- | --- |
-| **Go 1.27.3+** (`gopkg.in/yaml.v3`) | Daemon, indexing, analysis orchestration and atomic `.mini-orca/` storage. |
+| **Go 1.27.3+** (`gopkg.in/yaml.v3`) | Daemon, indexing, analysis orchestration and atomic `.kasuri/` storage. |
 | **Google ADK Go v2.6.0 / GenAI Go v1.74.0** | Typed model and tool events, native graphs and sessions. |
 | **gotreesitter v0.56.0** | Pure-Go tree-sitter runtime (no CGO) with 206 embedded grammars for language-neutral syntax checks and function budgets. |
 | **Model providers** (OpenAI-compatible HTTP, Gemini, Vertex, `agy`, `pi`, `claude`) | Explicit local or remote execution for `analyze`, `bug` and `code`; the CLI profiles also run the tool-using agents. |
@@ -272,7 +280,7 @@ and the [UI behavior contract](docs/ui-behavior.md).
 | --- | --- |
 | Models and streaming | HTTP and native Gemini/Vertex adapters preserve tool identities, schemas, cancellation and usage. CLI profiles (pi, Claude Code, agy) provide completion and also run the tool-using coder and tester (below). Partial output never becomes an approved proposal. |
 | Plan limits | A CLI that reports its subscription plan's usage limit is not retried: the workflow pauses at that stage with the CLI and, when it said so, the reset time, and resumes from that stage. |
-| Task tools | A task in its own worktree whose creation or testing model runs in pi, Claude Code or agy gets a tool-using agent for that stage. Its only tools are Mini-Orca's, served by a per-run MCP server on a loopback port with a one-time token: read, list, search, outline, definitions and references, edit by exact text, create, delete, rename, run the checks, finish. Every call passes the context policy and the task's diff policy; the testing agent writes test files only. The worktree's diff becomes the proposal. |
+| Task tools | A task in its own worktree whose creation or testing model runs in pi, Claude Code or agy gets a tool-using agent for that stage. Its only tools are Kasuri's, served by a per-run MCP server on a loopback port with a one-time token: read, list, search, outline, definitions and references, edit by exact text, create, delete, rename, run the checks, finish. Every call passes the context policy and the task's diff policy; the testing agent writes test files only. The worktree's diff becomes the proposal. |
 | Repository tools | The agent evaluation's investigations use captured snippets, imports, search and impact evidence. Tools cannot widen their admitted scope or write source. |
 | Workflow graphs | Sequential stages, parallel specialist reviews, conditional branches, bounded repairs and durable human-input checkpoints run through ADK with host-owned checks and budgets. |
 | Sessions and artifacts | Private local journals and versioned evidence; restart keeps history and charges, not execution authority. |
@@ -343,13 +351,13 @@ go run ./cmd/agent-eval --suite coder --mode live --config config.yaml --confirm
 go run ./cmd/agent-eval --suite coder --mode live --config config.yaml --case py-slugify --coders tools --confirm-live
 ```
 
-To check that the pi installed on your machine reaches only Mini-Orca's tools,
+To check that the pi installed on your machine reaches only Kasuri's tools,
 without using your plan, run it against a scripted local model:
-`MINI_ORCA_PI_SMOKE=1 go test ./internal/app -run TestRealPi -v`. Claude Code
+`KASURI_PI_SMOKE=1 go test ./internal/app -run TestRealPi -v`. Claude Code
 and agy cannot use a local model, so their checks use a little of your plan for
 one small run each:
-`MINI_ORCA_CLAUDE_SMOKE=1 go test ./internal/app -run TestRealClaude -v` and
-`MINI_ORCA_AGY_SMOKE=<model slug from agy models> go test ./internal/app -run TestRealAgy -v`.
+`KASURI_CLAUDE_SMOKE=1 go test ./internal/app -run TestRealClaude -v` and
+`KASURI_AGY_SMOKE=<model slug from agy models> go test ./internal/app -run TestRealAgy -v`.
 
 Live mode sends only the embedded synthetic corpus to the configured **code**
 profile and excludes negative controls. It requires an explicit command and
