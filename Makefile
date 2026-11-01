@@ -8,7 +8,9 @@ IMAGE_TAG := $(VERSION)
 DOCKER_IMAGE := $(IMAGE_NAME):$(IMAGE_TAG)
 BUILD_DIR := build
 DESKTOP_APP := $(BUILD_DIR)/Mini-Orca.app
-DESKTOP_INSTALL_DIR ?= $(HOME)/Applications
+# The Applications folder the Finder shows when this user can write there (an
+# administrator can), else the one in the home folder.
+DESKTOP_INSTALL_DIR ?= $(shell [ -w /Applications ] && echo /Applications || echo "$(HOME)/Applications")
 # Info.plist's short version is numbers only: 6.0.0-dev is 6.0.0.
 SHORT_VERSION := $(firstword $(subst -, ,$(VERSION)))
 
@@ -112,11 +114,16 @@ desktop-app: ## Build build/Mini-Orca.app (macOS): the desktop app with its daem
 	@codesign --force --sign - $(DESKTOP_APP)
 	@echo "$(COLOR_GREEN)Built $(DESKTOP_APP) $(VERSION)$(COLOR_RESET)"
 
-install-desktop: desktop-app ## Build Mini-Orca.app and copy it into ~/Applications (DESKTOP_INSTALL_DIR)
+install-desktop: desktop-app ## Build Mini-Orca.app and copy it into /Applications (or ~/Applications; DESKTOP_INSTALL_DIR)
 	@mkdir -p "$(DESKTOP_INSTALL_DIR)"
 	@rm -rf "$(DESKTOP_INSTALL_DIR)/Mini-Orca.app"
 	@ditto $(DESKTOP_APP) "$(DESKTOP_INSTALL_DIR)/Mini-Orca.app"
+	@# An earlier install went to ~/Applications; keep a single copy.
+	@if [ "$(DESKTOP_INSTALL_DIR)" != "$(HOME)/Applications" ] && [ -d "$(HOME)/Applications/Mini-Orca.app" ]; then \
+		rm -rf "$(HOME)/Applications/Mini-Orca.app" && echo "Removed the earlier copy in $(HOME)/Applications"; \
+	fi
 	@echo "$(COLOR_GREEN)Installed $(DESKTOP_INSTALL_DIR)/Mini-Orca.app$(COLOR_RESET)"
+	@echo "Open it from Launchpad or Spotlight, or with: open \"$(DESKTOP_INSTALL_DIR)/Mini-Orca.app\""
 
 desktop-check: ## Vet and cross-build the desktop app for macOS and Linux without cgo (no Xcode or GTK needed)
 	@cd desktop && for target in darwin/arm64 darwin/amd64 linux/amd64; do \

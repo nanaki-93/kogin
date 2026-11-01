@@ -47,6 +47,6 @@ build:
 install:
     make install
 
-# Build Mini-Orca.app (macOS) and copy it into ~/Applications
+# Build Mini-Orca.app (macOS) and copy it into /Applications (or ~/Applications)
 desktop:
     make install-desktop

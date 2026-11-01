@@ -191,7 +191,7 @@ targets a daemon at another address. Without the launcher, `go run ./cmd/daemon`
 serves the folder it runs in at `http://127.0.0.1:9090/ui`.
 
 On macOS, `just desktop` (or `make install-desktop`) builds **Mini-Orca.app**
-into `~/Applications`: the same Web UI in a window of its own, with the daemon
+into `/Applications`: the same Web UI in a window of its own, with the daemon
 started beside it and stopped when the app quits, and notifications when agents
 or an analysis finish while you are elsewhere. See [DESKTOP.md](DESKTOP.md).
 

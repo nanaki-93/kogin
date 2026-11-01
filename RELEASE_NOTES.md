@@ -6,7 +6,7 @@ Version 6 starts from the stable v5.0.0 tag on the `v6` branch. Its changes
 are listed here as they land.
 
 - **Desktop app (macOS):** `just desktop` builds Mini-Orca.app into
-  `~/Applications`: the Web UI in a window of its own. It reopens the last
+  `/Applications`: the Web UI in a window of its own. It reopens the last
   project (or asks for one), starts the daemon beside it with your login
   shell's `PATH`, or uses one that is already running, and stops the daemon it
   started when it quits. File → Open Project… switches projects; the daemon's

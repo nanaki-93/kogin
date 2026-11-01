@@ -13,12 +13,13 @@ just desktop            # or: make install-desktop
 ```
 
 This builds `build/Mini-Orca.app` (the app and its daemon, ad-hoc signed) and
-copies it into `~/Applications` (`DESKTOP_INSTALL_DIR` picks another folder).
-It needs Go and the Xcode Command Line Tools (`xcode-select --install`), and
-runs on macOS 13 or newer, like Go 1.27. `make desktop-app` builds the app
-without installing it; `make desktop` builds only the program
-(`build/mini-orca-desktop`), which starts the `mini-orca-daemon` it finds beside
-it or on `PATH`.
+copies it into `/Applications`, the folder the Finder shows as Applications
+(`~/Applications` when you cannot write there; `DESKTOP_INSTALL_DIR` picks
+another folder). Open it from Launchpad, Spotlight or that folder. It needs Go
+and the Xcode Command Line Tools (`xcode-select --install`), and runs on macOS
+13 or newer, like Go 1.27. `make desktop-app` builds the app without installing
+it; `make desktop` builds only the program (`build/mini-orca-desktop`), which
+starts the `mini-orca-daemon` it finds beside it or on `PATH`.
 
 The app reads the daemon's configuration the same way the launcher does:
 `MINI_ORCA_CONFIG`, else `~/.config/mini-orca/config.yaml` (`make install` puts
