@@ -253,12 +253,16 @@ function Inspector({ path, findings, file }: { path: string; findings: Finding[]
   return (
     <aside className="inspector" aria-label="File inspector">
       <div className="inspector-section">
-        <div className="inspector-title">{basename(path)}</div>
-        <div className="xs faint truncate" title={path}>{dirname(path) || 'project root'}</div>
+        <div className="row">
+          <div className="grow">
+            <div className="inspector-title">{basename(path)}</div>
+            <div className="xs faint truncate" title={path}>{dirname(path) || 'project root'}</div>
+          </div>
+          <IconButton icon={Copy} label="Copy path" size="sm" onClick={() => { void navigator.clipboard?.writeText(path); toast('Path copied.', 'success'); }} />
+        </div>
         <div className="row-wrap">
           <Button size="sm" variant="primary" icon={Plus} onClick={newTask}>New task with this file</Button>
           <Button size="sm" icon={Sparkles} onClick={async () => { if (project) setResult((await actions.explainFile(project, worktreePath, { path, content_hash: file.content_hash })) ?? null); }} disabled={!project || !canExplain || Boolean(busy)} loading={busy === 'Explaining…'} title={canExplain ? undefined : 'Explain works on source files'}>Explain</Button>
-          <IconButton icon={Copy} label="Copy path" size="sm" onClick={() => { void navigator.clipboard?.writeText(path); toast('Path copied.', 'success'); }} />
         </div>
       </div>
       {result ? (

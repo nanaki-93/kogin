@@ -11,6 +11,16 @@ test('issues label where each finding comes from', async ({ page }) => {
   await expect(table.getByRole('row', { name: /ignores cancellation/ })).toContainText('AI suggestion');
 });
 
+test("an issue's evidence reads as sections, with its actions above them", async ({ page }) => {
+  await page.goto('/#/issues?id=f1');
+  const detail = page.getByRole('complementary', { name: 'Issue detail' });
+  await expect(detail.getByRole('term')).toHaveText(['Preconditions', 'Fix', 'How to verify']);
+  await expect(detail.getByRole('definition').nth(1)).toHaveText('Wrap the body in http.MaxBytesReader before reading it.');
+  const fix = await detail.getByRole('button', { name: /Fix with agents/ }).boundingBox();
+  const evidence = await detail.getByRole('term').first().boundingBox();
+  expect(fix!.y).toBeLessThan(evidence!.y);
+});
+
 test('issues are triaged from the keyboard, filtered by kind and fixed in a linked task', async ({ page, daemon }) => {
   await page.goto('/#/issues');
   await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(3);

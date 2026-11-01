@@ -26,6 +26,17 @@ test('g-sequences and the palette move between workspaces', async ({ page }) => 
   await expect(page.getByText('func ServeAsset() {}')).toBeVisible();
 });
 
+test('the task filters count their tasks and a search that matches nothing says so', async ({ page }) => {
+  await page.goto('/#/tasks?filter=done');
+  const filters = page.getByRole('radiogroup', { name: 'Show tasks' });
+  await expect(filters.getByRole('radio', { name: /Active/ })).toHaveText('Active3');
+  await expect(filters.getByRole('radio', { name: /Done/ })).toHaveText('Done1');
+  await expect(page.getByText('Report the stop reason')).toBeVisible();
+  await page.getByRole('textbox', { name: 'Filter tasks' }).fill('nothing like this');
+  await expect(page.getByText('No tasks match', { exact: true })).toBeVisible();
+  await expect(page.getByText('Nothing here matches “nothing like this”. Try other words or another filter.')).toBeVisible();
+});
+
 test('creates a draft task with a scope and criteria', async ({ page, daemon }) => {
   await page.goto('/#/tasks');
   await expect(page.getByRole('heading', { name: 'Tasks' })).toBeVisible();

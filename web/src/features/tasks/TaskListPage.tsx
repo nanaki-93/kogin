@@ -33,16 +33,12 @@ export function TaskListPage() {
   const actions = useActions();
   const busy = useBusy();
 
-  const visible = useMemo(() => {
-    const byFilter = tasks.filter(task => {
-      const status = taskStatus(task).status;
-      if (filter === 'running') return status === 'running';
-      if (filter === 'done') return status === 'applied' || status === 'done';
-      if (filter === 'active') return status !== 'applied' && status !== 'done';
-      return true;
-    });
-    return rankItems(byFilter, q, task => `${task.title} ${task.kind} ${task.id}`, 500);
-  }, [tasks, filter, q]);
+  const counts = useMemo(() => {
+    const result: Record<Filter, number> = { active: 0, running: 0, done: 0, all: tasks.length };
+    for (const task of tasks) for (const name of ['active', 'running', 'done'] as const) if (inFilter(task, name)) result[name]++;
+    return result;
+  }, [tasks]);
+  const visible = useMemo(() => rankItems(tasks.filter(task => inFilter(task, filter)), q, task => `${task.title} ${task.kind} ${task.id}`, 500), [tasks, filter, q]);
 
   const grouped = useMemo(
     () =>
@@ -73,14 +69,14 @@ export function TaskListPage() {
       </div>
       <div className="toolbar">
         <Segmented
-          label="Filter tasks"
+          label="Show tasks"
           value={filter}
           onChange={value => setParam('filter', value === 'active' ? undefined : value)}
           options={[
-            { value: 'active', label: 'Active' },
-            { value: 'running', label: 'Running' },
-            { value: 'done', label: 'Done' },
-            { value: 'all', label: 'All' },
+            { value: 'active', label: 'Active', count: counts.active },
+            { value: 'running', label: 'Running', count: counts.running },
+            { value: 'done', label: 'Done', count: counts.done },
+            { value: 'all', label: 'All', count: counts.all },
           ]}
         />
         <span className="spacer" />
@@ -89,9 +85,7 @@ export function TaskListPage() {
       {isLoading ? (
         <Skeleton lines={6} className="list-skeleton" />
       ) : !flat.length ? (
-        <EmptyState icon={ListTodo} title={tasks.length ? 'No tasks match' : 'No tasks yet'} action={!tasks.length ? <Button variant="primary" icon={Plus} onClick={() => openNewTask()}>New task</Button> : undefined}>
-          {tasks.length ? 'Try another filter.' : 'Describe a bug to fix or a feature to build. Agents write the change and tests; you review and apply it.'}
-        </EmptyState>
+        <TasksEmpty total={tasks.length} filter={filter} query={q} />
       ) : (
         <div className="list">
           {grouped.map(group => (
@@ -155,5 +149,30 @@ export function TaskRow({ task, positions = [], active, onHover, compact }: { ta
       <span className="col col-files xs faint">{!compact && task.paths?.length ? plural(task.paths.length, 'file') : ''}</span>
       <span className="col col-time xs faint">{timeAgo(task.updated_at)}</span>
     </a>
+  );
+}
+
+/** Whether a task shows under a filter. */
+function inFilter(task: TaskEntry, filter: Filter): boolean {
+  const status = taskStatus(task).status;
+  if (filter === 'running') return status === 'running';
+  if (filter === 'done') return status === 'applied' || status === 'done';
+  if (filter === 'active') return status !== 'applied' && status !== 'done';
+  return true;
+}
+
+const EMPTY_FILTER: Record<Filter, string> = { active: 'Nothing in progress', running: 'No agents running', done: 'No applied tasks yet', all: 'No tasks yet' };
+
+/** Says why the list is empty and offers the way on: a new task, or every task. */
+function TasksEmpty({ total, filter, query }: { total: number; filter: Filter; query: string }) {
+  const newTask = <Button variant="primary" icon={Plus} onClick={() => openNewTask()}>New task</Button>;
+  if (!total) {
+    return <EmptyState icon={ListTodo} title="No tasks yet" action={newTask}>Describe a bug to fix or a feature to build. Agents write the change and tests; you review and apply it.</EmptyState>;
+  }
+  if (query.trim()) return <EmptyState icon={ListTodo} title="No tasks match">Nothing here matches “{query.trim()}”. Try other words or another filter.</EmptyState>;
+  return (
+    <EmptyState icon={ListTodo} title={EMPTY_FILTER[filter]} action={<div className="row">{newTask}<Button variant="ghost" onClick={() => setParam('filter', 'all')}>Show all {total}</Button></div>}>
+      Every task you have is under another filter.
+    </EmptyState>
   );
 }

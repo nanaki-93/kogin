@@ -193,7 +193,9 @@
   font-weight: 500;
 }
 
+/* A long reason gives way before the title does. */
 .list-reason {
+  flex-shrink: 100;
   max-width: 38%;
   color: var(--muted);
   font-size: var(--text-xs);

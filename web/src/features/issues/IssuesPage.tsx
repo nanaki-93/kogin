@@ -149,6 +149,34 @@ export function IssuesPage() {
   );
 }
 
+// The labels the analysis stages give the parts of an issue's evidence.
+const EVIDENCE_LABELS = ['Preconditions', 'Remediation', 'How to verify', 'Reference', 'Workload', 'Recommendation', 'Tradeoff'];
+const EVIDENCE_LINE = new RegExp(`^(${EVIDENCE_LABELS.join('|')}): (.*)$`);
+
+/** Labeled evidence reads as short sections; anything else (tool output) stays preformatted. */
+function Evidence({ text }: { text: string }) {
+  const lines = text.split('\n').filter(line => line.trim());
+  const parts = lines.map(line => line.match(EVIDENCE_LINE));
+  if (!parts.every(Boolean)) {
+    return (
+      <div>
+        <div className="label-row">Evidence</div>
+        <pre className="output">{text}</pre>
+      </div>
+    );
+  }
+  return (
+    <dl className="evidence">
+      {parts.map((match, i) => (
+        <div key={i}>
+          <dt className="label-row">{match![1] === 'Remediation' ? 'Fix' : match![1]}</dt>
+          <dd className="small">{match![2]}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 const CATEGORY_LABELS: Record<string, string> = { bugs: 'Bugs', bug: 'Bugs', performance: 'Performance', security: 'Security', maintainability: 'Maintainability' };
 
 function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => void }) {
@@ -182,23 +210,6 @@ function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => vo
       ) : null}
       {finding.location?.symbol ? <div className="mono xs faint">in {finding.location.symbol}</div> : null}
       <p className="prose small">{finding.message}</p>
-      {fixing ? (
-        <Callout tone="info" icon={ListTodo} title={task ? `Being fixed in “${task.title || task.id}”` : 'A task is fixing this issue'}>
-          It is marked fixed when the task is merged, and returns to the open issues if the task is deleted or its worktree discarded.
-        </Callout>
-      ) : null}
-      {finding.evidence ? (
-        <div>
-          <div className="label-row">Evidence</div>
-          <pre className="output">{finding.evidence}</pre>
-        </div>
-      ) : null}
-      {finding.task_spec?.acceptance_criteria?.length ? (
-        <div>
-          <div className="label-row">A fix is done when</div>
-          <ul className="small">{finding.task_spec.acceptance_criteria.map((c, i) => <li key={i}>{c}</li>)}</ul>
-        </div>
-      ) : null}
       <div className="row-wrap detail-actions">
         {open ? <Button variant="primary" icon={Wrench} onClick={() => void actions.fixIssue(project, worktreePath, finding)} disabled={!files.length} kbd="F">Fix with agents</Button> : null}
         {task ? <Button variant="primary" icon={ListTodo} onClick={() => openTask(task)} kbd="F">Open task</Button> : null}
@@ -210,6 +221,18 @@ function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => vo
           )
         ) : null}
       </div>
+      {fixing ? (
+        <Callout tone="info" icon={ListTodo} title={task ? `Being fixed in “${task.title || task.id}”` : 'A task is fixing this issue'}>
+          It is marked fixed when the task is merged, and returns to the open issues if the task is deleted or its worktree discarded.
+        </Callout>
+      ) : null}
+      {finding.evidence ? <Evidence text={finding.evidence} /> : null}
+      {finding.task_spec?.acceptance_criteria?.length ? (
+        <div>
+          <div className="label-row">A fix is done when</div>
+          <ul className="small">{finding.task_spec.acceptance_criteria.map((c, i) => <li key={i}>{c}</li>)}</ul>
+        </div>
+      ) : null}
     </aside>
   );
 }
