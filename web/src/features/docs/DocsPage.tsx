@@ -12,7 +12,7 @@ import { componentLabel, docsSection, type DocsSection } from '@/lib/docs';
 import { navigate, useRoute } from '@/lib/router';
 import { plural, timeAgo } from '@/lib/util';
 import { Button, EmptyState, Input, Skeleton, Spinner, cx } from '@/components/ui';
-import { AskPanel } from './AskPanel';
+import { AskPanel, handQuestion } from './AskPanel';
 import { ArchitecturePage, DependenciesPage, OverviewPage, StartPage } from './GuidePages';
 import { ComponentPage, ComponentsIndex } from './ComponentPage';
 import { WalkthroughPage, WalkthroughsIndex } from './WalkthroughPage';
@@ -81,7 +81,7 @@ function DocsNav({ docs, current }: { docs: ProjectDocs | undefined; current: Do
 
   return (
     <nav className="docs-nav" aria-label="Docs">
-      <form className="docs-ask" role="search" onSubmit={e => { e.preventDefault(); if (question.trim()) navigate('/docs/ask', { q: question.trim() }); setQuestion(''); }}>
+      <form className="docs-ask" role="search" onSubmit={e => { e.preventDefault(); const text = question.trim(); if (text) { handQuestion(text); navigate('/docs/ask', { q: text }); } setQuestion(''); }}>
         <Input icon={MessageCircleQuestion} placeholder="Ask the code…" value={question} onChange={e => setQuestion(e.target.value)} aria-label="Ask the code a question" />
       </form>
       <div className="docs-nav-scroll">

@@ -27,13 +27,27 @@ export function componentLabel(component: Pick<DocsComponent, 'path'>): string {
   return component.path === '.' ? 'Project root' : component.path;
 }
 
-/** The first sentence of a model-written text, for one-line lists. */
+const ABBREVIATIONS = new Set(['e.g.', 'i.e.', 'eg.', 'ie.', 'etc.', 'vs.', 'cf.', 'approx.', 'incl.']);
+
+/** Whether a word ending in "." is an abbreviation: a common one, or single letters with dots ("U.S."). */
+function abbreviation(word: string): boolean {
+  const lower = word.toLowerCase().replace(/^[(["']+/, '');
+  return ABBREVIATIONS.has(lower) || lower.slice(0, -1).split('.').every(part => [...part].length === 1);
+}
+
+/** The first sentence of a model-written text, for one-line lists, cut at a word with "…" past max characters. */
 export function firstSentence(text: string | undefined, max = 160): string {
   const flat = (text ?? '').replace(/\s+/g, ' ').trim();
-  const end = flat.search(/[.!?](\s|$)/);
-  const sentence = end >= 0 ? flat.slice(0, end + 1) : flat;
-  if (sentence.length <= max) return sentence;
-  const cut = sentence.slice(0, max - 1);
+  let end = flat.length;
+  for (const match of flat.matchAll(/[.!?](?= |$)/g)) {
+    const at = match.index!;
+    if (match[0] === '.' && abbreviation(flat.slice(flat.lastIndexOf(' ', at) + 1, at + 1))) continue;
+    end = at + 1;
+    break;
+  }
+  const sentence = flat.slice(0, end);
+  if ([...sentence].length <= max) return sentence;
+  const cut = [...sentence].slice(0, max - 1).join('');
   const space = cut.lastIndexOf(' ');
   return (space > cut.length / 2 ? cut.slice(0, space) : cut).trimEnd() + '…';
 }

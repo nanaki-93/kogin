@@ -57,12 +57,34 @@ func TestFirstSentenceStopsAtTheFirstSentenceAndTheLimit(t *testing.T) {
 		{"Saves  items\nto disk", 80, "Saves items to disk"},
 		{"Uses v1.2 of the API. More.", 80, "Uses v1.2 of the API."},
 		{"Does it work? Yes.", 80, "Does it work?"},
+		{"Parses config files (e.g. YAML and TOML) and validates them. Then more.", 80, "Parses config files (e.g. YAML and TOML) and validates them."},
+		{"Runs in the U.S. region only. More.", 80, "Runs in the U.S. region only."},
+		{"Reads config.yaml. Then more.", 80, "Reads config.yaml."},
 		{"A very long sentence that goes on", 12, "A very…"},
-		{"Supercalifragilistic", 10, "Superca…"},
 		{"", 10, ""},
 	} {
-		if got := FirstSentence(test.in, test.n); got != test.want || len(got) > test.n {
+		if got := FirstSentence(test.in, test.n); got != test.want {
 			t.Errorf("FirstSentence(%q, %d) = %q, want %q", test.in, test.n, got, test.want)
+		}
+	}
+}
+
+func TestClipCountsCharactersAndMarksTheCut(t *testing.T) {
+	for _, test := range []struct {
+		in   string
+		n    int
+		want string
+	}{
+		{"short", 10, "short"},
+		{"日本語のタイトルです", 10, "日本語のタイトルです"},
+		{"日本語のタイトルです", 5, "日本語の…"},
+		{"one two three four five", 12, "one two…"},
+		{"Supercalifragilistic", 8, "Superca…"},
+		{"anything", 0, ""},
+	} {
+		got := Clip(test.in, test.n)
+		if got != test.want || !utf8.ValidString(got) || utf8.RuneCountInString(got) > max(test.n, 0) {
+			t.Errorf("Clip(%q, %d) = %q, want %q", test.in, test.n, got, test.want)
 		}
 	}
 }

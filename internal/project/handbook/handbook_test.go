@@ -96,6 +96,18 @@ func TestDocsDescribeTheComponentsTheCodeDefines(t *testing.T) {
 	}
 }
 
+func TestAComponentTakesOnlyTheOverviewLineForItsOwnPath(t *testing.T) {
+	m := projectmap.Map{Modules: []projectmap.Module{{Path: ".", Languages: []string{"Go"}, Files: 1}, {Path: "internal/store", Languages: []string{"Go"}, Files: 1}}}
+	analysis := Analysis{Name: "app", Report: ProjectAnalysisReport{Components: []string{"internal/store/sql (SQL): Writes rows.", "internal/store (Store): Saves items."}}}
+	docs := BuildProjectDocs(DocsInputs{Analysis: analysis, Map: m})
+	if root := docs.Components[0]; root.Path != "." || root.Summary != "" || root.SummarySource != "" {
+		t.Fatalf("the root took a subdirectory's line: %+v", root)
+	}
+	if store := docs.Components[1]; store.Summary != "Saves items." {
+		t.Fatalf("store = %+v", store)
+	}
+}
+
 func TestDocsLeaveOutTheDiagramsOfOlderOverviews(t *testing.T) {
 	docs := BuildProjectDocs(DocsInputs{Analysis: Analysis{Report: ProjectAnalysisReport{Status: ProjectAnalysisStatusStale, Purpose: "Keeps items.", Architecture: "flowchart TD\n A --> B"}}})
 	if docs.Overview.Purpose != "Keeps items." || docs.Overview.Architecture != "" || docs.Status != ProjectAnalysisStatusStale {

@@ -21,16 +21,15 @@ const (
 	maxProjectAnalysisBytes      = 64 * 1024
 	maxProjectAnalysisItems      = 32
 	maxProjectAnalysisItemBytes  = 2048
-	maxOverviewPurpose           = 600
-	maxOverviewArchitecture      = 900
-	maxOverviewComponents        = 16
-	maxWalkthroughs              = 6
-	maxWalkthroughTitle          = 80
-	maxWalkthroughSummary        = 240
-	maxWalkthroughSteps          = 8
-	maxWalkthroughStepText       = 200
-	maxWalkthroughPath           = 300
-	maxWalkthroughSymbol         = 120
+	// What the docs keep of the walkthroughs, in characters; the prompt asks
+	// for less and the schema allows more (see projectAnalysisResponseSchema).
+	maxWalkthroughs        = 6
+	maxWalkthroughTitle    = 80
+	maxWalkthroughSummary  = 300
+	maxWalkthroughSteps    = 8
+	maxWalkthroughStepText = 240
+	maxWalkthroughPath     = 300
+	maxWalkthroughSymbol   = 120
 
 	ProjectAnalysisStatusFresh       = handbook.ProjectAnalysisStatusFresh
 	ProjectAnalysisStatusFailed      = handbook.ProjectAnalysisStatusFailed

@@ -3,6 +3,7 @@ package project
 import (
 	"path"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/project/syntax"
 	"github.com/nanaki-93/mini-orca/v2/internal/textutil"
@@ -18,8 +19,8 @@ func boundedWalkthroughs(raw []ProjectWalkthrough) []ProjectWalkthrough {
 			break
 		}
 		walkthrough := ProjectWalkthrough{
-			Title:   textutil.Truncate(strings.TrimSpace(item.Title), maxWalkthroughTitle),
-			Summary: textutil.Truncate(strings.TrimSpace(item.Summary), maxWalkthroughSummary),
+			Title:   textutil.Clip(strings.TrimSpace(item.Title), maxWalkthroughTitle),
+			Summary: textutil.Clip(strings.TrimSpace(item.Summary), maxWalkthroughSummary),
 			Steps:   []ProjectWalkthroughStep{},
 		}
 		for _, raw := range item.Steps {
@@ -27,9 +28,9 @@ func boundedWalkthroughs(raw []ProjectWalkthrough) []ProjectWalkthrough {
 				break
 			}
 			step := ProjectWalkthroughStep{
-				Text:   textutil.Truncate(strings.TrimSpace(raw.Text), maxWalkthroughStepText),
+				Text:   textutil.Clip(strings.TrimSpace(raw.Text), maxWalkthroughStepText),
 				Path:   walkthroughPath(raw.Path),
-				Symbol: textutil.Truncate(strings.TrimSpace(raw.Symbol), maxWalkthroughSymbol),
+				Symbol: textutil.Clip(strings.TrimSpace(raw.Symbol), maxWalkthroughSymbol),
 			}
 			if step.Text != "" && step.Path != "" {
 				walkthrough.Steps = append(walkthrough.Steps, step)
@@ -46,7 +47,7 @@ func boundedWalkthroughs(raw []ProjectWalkthrough) []ProjectWalkthrough {
 // empty when the model named something else.
 func walkthroughPath(raw string) string {
 	cleaned := strings.Trim(strings.TrimSpace(raw), "`")
-	if cleaned == "" || len(cleaned) > maxWalkthroughPath || strings.Contains(cleaned, "\\") {
+	if cleaned == "" || utf8.RuneCountInString(cleaned) > maxWalkthroughPath || strings.Contains(cleaned, "\\") {
 		return ""
 	}
 	cleaned = path.Clean(strings.TrimPrefix(cleaned, "./"))

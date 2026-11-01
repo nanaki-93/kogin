@@ -1334,7 +1334,7 @@ components:
               lines: {type: integer}
               summary: {type: string}
               summary_source: {type: string, enum: [module, overview], description: "module: the component's own summary from its files' summaries; overview: the project overview's model; absent: no summary yet."}
-              responsibilities: {type: array, maxItems: 3, items: {type: string}}
+              responsibilities: {type: array, description: At most three in summaries from module-summary-v2., items: {type: string}}
               entry_points: {type: array, description: Where programs in this component start., items: {$ref: '#/components/schemas/DocsEntryPoint'}}
               imports: {type: array, description: Components this one imports, resolved from the code., items: {type: string}}
               used_by: {type: array, description: Components that import this one., items: {type: string}}

@@ -15,14 +15,21 @@ import { Button, Spinner, Textarea } from '@/components/ui';
 interface AskState {
   asking: string | null;
   answers: AskAnswer[];
+  /** A question handed over from elsewhere (the docs' ask box); seq tells two of the same apart. */
+  handed: { text: string; seq: number };
 }
 
-let state: AskState = { asking: null, answers: [] };
+let state: AskState = { asking: null, answers: [], handed: { text: '', seq: 0 } };
 const listeners = new Set<() => void>();
 
 function setAskState(change: Partial<AskState>) {
   state = { ...state, ...change };
   for (const listener of listeners) listener();
+}
+
+/** Puts a question in the Ask the code box, even when it is already the route's. */
+export function handQuestion(text: string) {
+  setAskState({ handed: { text, seq: state.handed.seq + 1 } });
 }
 
 function subscribe(listener: () => void) {
@@ -33,7 +40,7 @@ function subscribe(listener: () => void) {
 export function AskPanel({ project, worktreePath }: { project: Project | undefined; worktreePath: string }) {
   const route = useRoute();
   const actions = useActions();
-  const { asking, answers } = useSyncExternalStore(subscribe, () => state);
+  const { asking, answers, handed } = useSyncExternalStore(subscribe, () => state);
   const suggested = route.params.get('q') ?? '';
   const [question, setQuestion] = useState(suggested);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -41,6 +48,10 @@ export function AskPanel({ project, worktreePath }: { project: Project | undefin
     if (suggested) setQuestion(suggested);
     input.current?.focus();
   }, [suggested]);
+  useEffect(() => {
+    if (handed.seq) setQuestion(handed.text);
+    input.current?.focus();
+  }, [handed]);
 
   async function ask() {
     const text = question.trim();

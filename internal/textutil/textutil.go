@@ -37,24 +37,60 @@ func TruncateTail(s string, n int) string {
 	return s[start:]
 }
 
-// FirstSentence returns the first sentence of s (through the first '.', '!'
-// or '?' followed by white space or the end), with white space collapsed; a
-// longer one is cut to at most n bytes, at a word when it can be, with "…".
-func FirstSentence(s string, n int) string {
-	text := strings.Join(strings.Fields(s), " ")
-	for i := 0; i < len(text); i++ {
-		if c := text[i]; (c == '.' || c == '!' || c == '?') && (i+1 == len(text) || text[i+1] == ' ') {
-			text = text[:i+1]
-			break
-		}
+// Clip returns s when it has at most n characters, else its start cut to n
+// characters with "…" at the end, after a word when one ends in the second
+// half.
+func Clip(s string, n int) string {
+	if n <= 0 {
+		return ""
 	}
-	if len(text) <= n {
-		return text
+	if utf8.RuneCountInString(s) <= n {
+		return s
 	}
-	cut := Truncate(text, n-len("…"))
-	// Cut at a word when one ends in the second half.
+	cut := string([]rune(s)[:n-1])
 	if space := strings.LastIndexByte(cut, ' '); space > len(cut)/2 {
 		cut = cut[:space]
 	}
 	return strings.TrimSpace(cut) + "…"
+}
+
+// FirstSentence returns the first sentence of s, with white space collapsed,
+// clipped to n characters (see Clip).
+func FirstSentence(s string, n int) string {
+	text := strings.Join(strings.Fields(s), " ")
+	return Clip(text[:sentenceEnd(text)], n)
+}
+
+// sentenceEnd is where the first sentence ends: after a '.', '!' or '?'
+// followed by a space or the end of the text, unless the '.' closes an
+// abbreviation such as "e.g." or "U.S.".
+func sentenceEnd(text string) int {
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if (c != '.' && c != '!' && c != '?') || (i+1 < len(text) && text[i+1] != ' ') {
+			continue
+		}
+		if c == '.' && abbreviation(text[strings.LastIndexByte(text[:i], ' ')+1:i+1]) {
+			continue
+		}
+		return i + 1
+	}
+	return len(text)
+}
+
+var abbreviations = map[string]bool{"e.g.": true, "i.e.": true, "eg.": true, "ie.": true, "etc.": true, "vs.": true, "cf.": true, "approx.": true, "incl.": true}
+
+// abbreviation reports whether a word ending in '.' is an abbreviation: a
+// common one, or single letters with dots ("U.S.", "A.").
+func abbreviation(word string) bool {
+	word = strings.ToLower(strings.TrimLeft(word, "([\"'"))
+	if abbreviations[word] {
+		return true
+	}
+	for _, part := range strings.Split(strings.TrimSuffix(word, "."), ".") {
+		if utf8.RuneCountInString(part) != 1 {
+			return false
+		}
+	}
+	return true
 }

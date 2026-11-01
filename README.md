@@ -17,12 +17,13 @@ guarded **Apply** and **Undo**.
   project, in any language: parser diagnostics, files over their AGENTS.md code
   budgets, every subproject's lint and tests (when you let checks run project
   code) and semgrep with the project's own rules; failures become issues on
-  their file and line, and close when fixed. The Docs page maps the
-  code in any language (components, the
-  imports between them drawn as a diagram, entry points, manifests and the
-  runbook), and each analysis run ends by summarizing again the components
-  whose files changed and writing the project overview from those summaries;
-  coding agents start from the summaries around a task's files.
+  their file and line, and close when fixed. The Docs page is a guide to
+  the code in any language: what the project is for, how to run it, its
+  components and the imports between them drawn as a diagram, walkthroughs of
+  its main features step by step through the files, and a page per component
+  with a line on each file. Each analysis run ends by summarizing again the
+  components whose files changed and writing the overview from those
+  summaries; coding agents start from the summaries around a task's files.
 - **Change it safely.** A task names what should change, the files agents may
   write (up to eight) and "done when" criteria. A native ADK workflow writes the
   change, writes and runs tests in an isolated copy, and runs parallel specialist

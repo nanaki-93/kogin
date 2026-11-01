@@ -9,35 +9,39 @@ import (
 
 // Optional insights use null in strict provider output; the parser still accepts
 // omitted insights from older reports and independently enforces byte limits.
+// The limits here are loose on purpose: CLI runners check a reply against the
+// schema and refuse it whole, so the prompt asks for short text and the
+// parser trims what is longer (boundedWalkthroughs) instead.
 const projectAnalysisResponseSchemaDocument = `{
  "type":"object","additionalProperties":false,
  "required":["purpose","architecture","components","walkthroughs","risks","engineering_insight"],
  "properties":{
-  "purpose":{"type":"string","minLength":1,"maxLength":%[3]d},
-  "architecture":{"type":"string","minLength":1,"maxLength":%[4]d},
-  "components":{"type":"array","maxItems":%[5]d,"items":{"$ref":"#/$defs/text"}},
-  "walkthroughs":{"type":"array","maxItems":%[6]d,"items":{"$ref":"#/$defs/walkthrough"}},
+  "purpose":{"$ref":"#/$defs/text"},
+  "architecture":{"$ref":"#/$defs/text"},
+  "components":{"$ref":"#/$defs/textList"},
+  "walkthroughs":{"type":"array","maxItems":%[1]d,"items":{"$ref":"#/$defs/walkthrough"}},
   "risks":{"type":"array","maxItems":%[1]d,"items":{"$ref":"#/$defs/risk"}},
   "engineering_insight":{"$ref":"#/$defs/optionalInsight"}
  },
  "$defs":{
   "text":{"type":"string","minLength":1,"maxLength":%[2]d},
+  "textList":{"type":"array","maxItems":%[1]d,"items":{"$ref":"#/$defs/text"}},
   "walkthrough":{
    "type":"object","additionalProperties":false,
    "required":["title","summary","steps"],
    "properties":{
-    "title":{"type":"string","minLength":1,"maxLength":%[7]d},
-    "summary":{"type":"string","minLength":1,"maxLength":%[8]d},
-    "steps":{"type":"array","minItems":1,"maxItems":%[9]d,"items":{"$ref":"#/$defs/step"}}
+    "title":{"$ref":"#/$defs/text"},
+    "summary":{"$ref":"#/$defs/text"},
+    "steps":{"type":"array","minItems":1,"maxItems":%[1]d,"items":{"$ref":"#/$defs/step"}}
    }
   },
   "step":{
    "type":"object","additionalProperties":false,
    "required":["text","path","symbol"],
    "properties":{
-    "text":{"type":"string","minLength":1,"maxLength":%[10]d},
-    "path":{"type":"string","minLength":1,"maxLength":%[11]d},
-    "symbol":{"type":"string","maxLength":%[12]d}
+    "text":{"$ref":"#/$defs/text"},
+    "path":{"$ref":"#/$defs/text"},
+    "symbol":{"type":"string","maxLength":%[2]d}
    }
   },
   "risk":{
@@ -65,8 +69,6 @@ const projectAnalysisResponseSchemaDocument = `{
 }`
 
 func projectAnalysisResponseSchema() llm.JSONSchema {
-	document := fmt.Sprintf(projectAnalysisResponseSchemaDocument,
-		maxProjectAnalysisItems, maxProjectAnalysisItemBytes, maxOverviewPurpose, maxOverviewArchitecture, maxOverviewComponents,
-		maxWalkthroughs, maxWalkthroughTitle, maxWalkthroughSummary, maxWalkthroughSteps, maxWalkthroughStepText, maxWalkthroughPath, maxWalkthroughSymbol)
+	document := fmt.Sprintf(projectAnalysisResponseSchemaDocument, maxProjectAnalysisItems, maxProjectAnalysisItemBytes)
 	return llm.JSONSchema{Name: "project_analysis_response", Schema: json.RawMessage(document)}
 }

@@ -273,7 +273,7 @@ function Inspector({ path, findings, file }: { path: string; findings: Finding[]
           {result.error_behavior?.length ? (<><div className="xs muted">Errors and edge cases</div><ul className="small">{result.error_behavior.map((b, i) => <li key={i}>{b}</li>)}</ul></>) : null}
         </div>
       ) : null}
-      <FileAbout path={path} />
+      <FileAbout key={path} path={path} />
       <div className="inspector-section">
         <div className="row"><span className="strong small">Open issues</span><span className="count">{findings.length}</span></div>
         {findings.length ? (

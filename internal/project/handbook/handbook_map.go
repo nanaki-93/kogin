@@ -72,17 +72,16 @@ func overviewComponents(raw []string) []ProjectDocsComponent {
 	return components
 }
 
-// overviewFor finds the overview's component for a directory: the same
-// path, else the most specific one inside it.
+// overviewFor finds the overview's line for a component's directory. Only
+// the same path counts: a line on one of its subdirectories would describe
+// the whole component by one part of it.
 func overviewFor(dir string, overview []ProjectDocsComponent) (ProjectDocsComponent, bool) {
-	best, found := ProjectDocsComponent{}, false
 	for _, component := range overview {
-		inside := component.Path == dir || dir == "." || strings.HasPrefix(component.Path, dir+"/")
-		if inside && (!found || component.Path == dir || len(component.Path) > len(best.Path) && best.Path != dir) {
-			best, found = component, true
+		if component.Path == dir {
+			return component, true
 		}
 	}
-	return best, found
+	return ProjectDocsComponent{}, false
 }
 
 // componentEntryPoints are the entry points in a component's modules.

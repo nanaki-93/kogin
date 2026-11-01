@@ -27,6 +27,9 @@ describe('docs helpers', () => {
     expect(firstSentence('Saves items. Then more.')).toBe('Saves items.');
     expect(firstSentence('Uses v1.2 of it.  Next.')).toBe('Uses v1.2 of it.');
     expect(firstSentence('one two three four five', 12)).toBe('one two…');
+    expect(firstSentence('Parses config files (e.g. YAML and TOML) and checks them. More.')).toBe('Parses config files (e.g. YAML and TOML) and checks them.');
+    expect(firstSentence('Runs in the U.S. region. More.')).toBe('Runs in the U.S. region.');
+    expect(firstSentence('Reads config.yaml. More.')).toBe('Reads config.yaml.');
     expect(firstSentence(undefined)).toBe('');
   });
 

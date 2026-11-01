@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestWalkthroughsAreBoundedAndKeepOnlyUsableSteps(t *testing.T) {
@@ -29,7 +30,7 @@ func TestWalkthroughsAreBoundedAndKeepOnlyUsableSteps(t *testing.T) {
 		t.Fatalf("walkthroughs = %d, want %d", len(got), maxWalkthroughs)
 	}
 	first := got[0]
-	if first.Title != "Add an item" || len(first.Summary) != maxWalkthroughSummary || !reflect.DeepEqual(first.Steps, []ProjectWalkthroughStep{{Text: "Decode it.", Path: "cmd/add.go", Symbol: "execAdd"}}) {
+	if first.Title != "Add an item" || utf8.RuneCountInString(first.Summary) != maxWalkthroughSummary || !strings.HasSuffix(first.Summary, "…") || !reflect.DeepEqual(first.Steps, []ProjectWalkthroughStep{{Text: "Decode it.", Path: "cmd/add.go", Symbol: "execAdd"}}) {
 		t.Fatalf("first = %+v", first)
 	}
 }

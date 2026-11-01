@@ -60,6 +60,12 @@ func TestAnalyzeProjectRequestsSchemaAndChecksWalkthroughsAgainstTheFiles(t *tes
 	assertReviewSchemaAccepts(t, schema, projectReportFixture, true)
 	insight := `{"mechanism":"The handler delegates to the daemon.","why_it_matters_here":"Requests enter through one module.","tradeoff_or_failure_mode":"A blocked daemon delays the response.","transferable_lesson":"Block the handler in a test and verify cancellation."}`
 	assertReviewSchemaAccepts(t, schema, strings.ReplaceAll(projectReportFixture, `"engineering_insight":null`, `"engineering_insight":`+insight), true)
+	// A reply longer than the prompt asks for still fits the schema, which CLI
+	// runners enforce whole; the parser trims it instead.
+	walkthrough := `{"title":"T","summary":"S","steps":[{"text":"x","path":"main.go","symbol":""}]},`
+	long := strings.Replace(projectReportFixture, `"Runs a small daemon."`, `"`+strings.Repeat("x", 1500)+`"`, 1)
+	long = strings.Replace(long, `"walkthroughs":[`, `"walkthroughs":[`+strings.Repeat(walkthrough, 8), 1)
+	assertReviewSchemaAccepts(t, schema, long, true)
 	for _, invalid := range []string{
 		strings.Replace(projectReportFixture, `"components":[". (Daemon): Handles requests."]`, `"components":[{"name":"Daemon"}]`, 1),
 		strings.Replace(projectReportFixture, `"severity":"low"`, `"severity":"critical"`, 1),

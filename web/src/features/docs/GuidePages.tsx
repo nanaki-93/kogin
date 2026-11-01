@@ -50,8 +50,8 @@ export function EntryPoints({ entries }: { entries: DocsEntryPoint[] }) {
   if (!entries.length) return <p className="small muted">No entry point was found in the code.</p>;
   return (
     <ul className="plain-list">
-      {entries.map(entry => (
-        <li key={`${entry.path}:${entry.detail ?? ''}`}><FileLink path={entry.path} /> <span className="xs muted">{entryLabel(entry)}</span></li>
+      {entries.map((entry, index) => (
+        <li key={index}><FileLink path={entry.path} /> <span className="xs muted">{entryLabel(entry)}</span></li>
       ))}
     </ul>
   );
