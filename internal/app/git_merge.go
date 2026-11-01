@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/gitops"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 type GitMergePreview = gitops.GitMergePreview

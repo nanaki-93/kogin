@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/brand"
+	"github.com/nanaki-93/kasuri/v2/internal/brand"
 )
 
 // CanonicalRoot validates a project directory and resolves symlinks.

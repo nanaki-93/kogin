@@ -6,8 +6,8 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentruntime"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 const repositoryQuerySchema = `{"type":"object","properties":{"path":{"type":"string","minLength":1,"maxLength":512},"query":{"type":"string","maxLength":256},"start_line":{"type":"integer","minimum":1,"maximum":1000000},"end_line":{"type":"integer","minimum":1,"maximum":1000000}},"required":["path"],"additionalProperties":false}`

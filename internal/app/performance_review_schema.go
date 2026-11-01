@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
 )
 
 // The model supplies line ranges only. Declaration labels are derived from the

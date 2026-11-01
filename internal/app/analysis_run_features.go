@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 // Feature discovery was retired. Saved runs that included it stay readable:

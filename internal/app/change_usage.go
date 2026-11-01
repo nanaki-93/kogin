@@ -7,8 +7,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentruntime"
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
 )
 
 // What agents spend is read from the agent journal: every run records the

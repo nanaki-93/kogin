@@ -24,8 +24,8 @@ are listed here as they land.
     name is not set;
   - Web UI preferences carry over, except the dark palette, which starts on
     Kasuri.
-  The Go module path stays `github.com/nanaki-93/mini-orca/v2` until the
-  repository is renamed.
+  The repository is now `github.com/nanaki-93/kasuri` (the old URL
+  redirects), and the Go module path is `github.com/nanaki-93/kasuri/v2`.
 - **Desktop app (macOS):** `just desktop` builds Kasuri.app into
   `/Applications`: the Web UI in a window of its own. It reopens the last
   project (or asks for one), starts the daemon beside it with your login

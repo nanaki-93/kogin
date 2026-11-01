@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
 )
 
 // Catalog commands inherit CLI authentication but never the imported workspace.

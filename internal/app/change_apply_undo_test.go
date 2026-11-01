@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 const groupedChangeResponse = `{"explanation":"Update Run and add documentation.","changes":[{"path":"main.go","content":"package main\nfunc Run() { println(\"updated\") }\n"},{"path":"docs/change.md","content":"A documented change.\n"}]}`

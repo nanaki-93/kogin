@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project/projectmap"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/toolchain"
+	"github.com/nanaki-93/kasuri/v2/internal/project/projectmap"
+	"github.com/nanaki-93/kasuri/v2/internal/project/toolchain"
 )
 
 const (

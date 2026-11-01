@@ -10,7 +10,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app"
+	"github.com/nanaki-93/kasuri/v2/internal/app"
 )
 
 func main() { os.Exit(run(context.Background(), os.Args[1:], os.Stdout, os.Stderr)) }

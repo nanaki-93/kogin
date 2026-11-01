@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/gitops"
+	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
 )
 
 // A task can live in its own Git worktree: a new branch from the current HEAD,

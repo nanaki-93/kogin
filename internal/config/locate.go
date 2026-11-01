@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/brand"
+	"github.com/nanaki-93/kasuri/v2/internal/brand"
 )
 
 // ConfigEnv names an explicit configuration file; it replaces the search.

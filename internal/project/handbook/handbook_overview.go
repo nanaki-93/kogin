@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project/projectmap"
+	"github.com/nanaki-93/kasuri/v2/internal/project/projectmap"
 )
 
 // buildDocsOverview is the docs' first page: the overview's purpose and

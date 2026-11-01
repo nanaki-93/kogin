@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 type semanticAnalysisResponse struct {

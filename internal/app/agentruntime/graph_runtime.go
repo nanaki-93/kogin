@@ -12,7 +12,7 @@ import (
 	"google.golang.org/adk/v2/session"
 	"google.golang.org/adk/v2/workflow"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
 )
 
 // Graph inputs and outputs contain identity/progress only. Host-owned proposal

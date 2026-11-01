@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentruntime"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 func changeGraphSnapshot(session *ChangeSession) agentruntime.ChangeSnapshot {

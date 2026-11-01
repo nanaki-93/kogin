@@ -4,7 +4,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project/diff"
+	"github.com/nanaki-93/kasuri/v2/internal/project/diff"
 )
 
 // pairRenames turns a deletion and an addition into one rename: first the

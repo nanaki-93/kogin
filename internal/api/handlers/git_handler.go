@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/api"
-	"github.com/nanaki-93/mini-orca/v2/internal/app"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/api"
+	"github.com/nanaki-93/kasuri/v2/internal/app"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 type GitHandler struct{ service *app.Service }

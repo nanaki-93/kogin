@@ -12,11 +12,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/brand"
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/handbook"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/projectmap"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/symbols"
+	"github.com/nanaki-93/kasuri/v2/internal/brand"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/project/handbook"
+	"github.com/nanaki-93/kasuri/v2/internal/project/projectmap"
+	"github.com/nanaki-93/kasuri/v2/internal/project/symbols"
 )
 
 const (

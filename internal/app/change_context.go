@@ -13,13 +13,13 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/diff"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/rules"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/syntax"
-	"github.com/nanaki-93/mini-orca/v2/internal/textutil"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project/diff"
+	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
+	"github.com/nanaki-93/kasuri/v2/internal/project/syntax"
+	"github.com/nanaki-93/kasuri/v2/internal/textutil"
 )
 
 func changeContextByteLimit(runtime modelRuntime) int {

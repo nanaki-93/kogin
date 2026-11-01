@@ -9,9 +9,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/gitops"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/toolchain"
+	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project/toolchain"
 )
 
 // MergeChecksRequest names a merge in the current checkout: the commit the

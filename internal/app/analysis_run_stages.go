@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 func (c *analysisRunController) stageRequest(fileIndex, stageIndex int) analysisFileStageRequest {

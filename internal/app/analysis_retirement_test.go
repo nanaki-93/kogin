@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/storage"
+	"github.com/nanaki-93/kasuri/v2/internal/storage"
 )
 
 func TestRetiredAnalysisRunsDoNotRestoreAuthority(t *testing.T) {

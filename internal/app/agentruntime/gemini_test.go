@@ -15,8 +15,8 @@ import (
 	"google.golang.org/adk/v2/model"
 	"google.golang.org/genai"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
 )
 
 const googleTextResponse = `{"modelVersion":"fixture-google","candidates":[{"content":{"role":"model","parts":[{"text":"complete"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":5,"candidatesTokenCount":3,"totalTokenCount":8}}`

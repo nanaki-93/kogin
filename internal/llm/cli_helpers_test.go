@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
 )
 
 const cliFixtureContent = `{"answer":"café 世界"}`

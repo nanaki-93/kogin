@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 const fileAnalysisInsightGuidance = "Ground selected-file behavior and engineering insights in TARGET_SOURCE. Use TARGET_FACTS, PROJECT_FACTS, and CONTEXT_MANIFEST only for the identity and context they supply. Apply these factual boundaries to the whole final response, including purpose, risks, suggestions, explanations, task specs, and engineering insights. " +

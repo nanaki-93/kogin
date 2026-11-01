@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentruntime"
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 func runKnowledgeHost[T any](ctx context.Context, kind agentruntime.KnowledgeKind, host func(context.Context) (T, string, error)) (value T, err error) {

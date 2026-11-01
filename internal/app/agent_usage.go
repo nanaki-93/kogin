@@ -3,9 +3,9 @@ package app
 import (
 	"slices"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentruntime"
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
 )
 
 func agentCost(usage agentstate.BudgetUsage, table config.AgentPriceTable) *AgentCostEstimate {

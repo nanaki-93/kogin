@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app"
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/toolchain"
+	"github.com/nanaki-93/kasuri/v2/internal/app"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/project/toolchain"
 )
 
 // The coder suite compares the tool-using coder with the one-shot proposal

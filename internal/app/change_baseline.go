@@ -3,7 +3,7 @@ package app
 import (
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project/toolchain"
+	"github.com/nanaki-93/kasuri/v2/internal/project/toolchain"
 )
 
 // classifyRegressionBaseline records what new tests did on the unmodified

@@ -47,8 +47,8 @@ help: ## Show this help message
 build: build-agents ## Build the kasuri launcher, the daemon (which serves the Web UI) and the evaluation and inspector commands
 	@echo "$(COLOR_GREEN)Building $(APP_NAME) $(VERSION)...$(COLOR_RESET)"
 	@mkdir -p $(BUILD_DIR)
-	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/mini-orca/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME)-daemon ./cmd/daemon
-	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/mini-orca/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME) ./cmd/kasuri
+	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/kasuri/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME)-daemon ./cmd/daemon
+	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/kasuri/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME) ./cmd/kasuri
 	@cp -f $(BUILD_DIR)/$(APP_NAME) ./$(APP_NAME)
 	@cp -f $(BUILD_DIR)/$(APP_NAME)-daemon ./$(APP_NAME)-daemon
 	@echo "$(COLOR_GREEN)Build complete: ./$(APP_NAME), ./$(APP_NAME)-daemon ($(BUILD_DIR)/); run kasuri in a project folder$(COLOR_RESET)"
@@ -80,7 +80,7 @@ install: build ## Build and copy kasuri and kasuri-daemon into ~/DEV/lab/kasuri 
 
 build-linux: build-agents-linux ## Build all Linux amd64 release command binaries
 	@mkdir -p $(BUILD_DIR)
-	@CGO_ENABLED=$(CGO_ENABLED) GOOS=linux GOARCH=amd64 $(GO) build -ldflags="-w -s -X github.com/nanaki-93/mini-orca/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME)-daemon-linux-amd64 ./cmd/daemon
+	@CGO_ENABLED=$(CGO_ENABLED) GOOS=linux GOARCH=amd64 $(GO) build -ldflags="-w -s -X github.com/nanaki-93/kasuri/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME)-daemon-linux-amd64 ./cmd/daemon
 	@echo "$(COLOR_GREEN)Linux build complete: $(BUILD_DIR)/$(APP_NAME)-daemon-linux-amd64$(COLOR_RESET)"
 
 build-agents: ## Build the evaluation and inspector commands without CGO
@@ -111,7 +111,7 @@ desktop-app: ## Build build/Kasuri.app (macOS): the desktop app with its daemon 
 	@rm -rf $(DESKTOP_APP)
 	@mkdir -p $(DESKTOP_APP)/Contents/MacOS $(DESKTOP_APP)/Contents/Resources
 	@cd desktop && CGO_ENABLED=1 $(GO) build -tags production -trimpath -ldflags="-w -s" -o ../$(DESKTOP_APP)/Contents/MacOS/$(APP_NAME)-desktop .
-	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/mini-orca/v2/internal/version.Version=$(VERSION)" -o $(DESKTOP_APP)/Contents/MacOS/$(APP_NAME)-daemon ./cmd/daemon
+	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/kasuri/v2/internal/version.Version=$(VERSION)" -o $(DESKTOP_APP)/Contents/MacOS/$(APP_NAME)-daemon ./cmd/daemon
 	@sed -e 's/__SHORT_VERSION__/$(SHORT_VERSION)/' -e 's/__VERSION__/$(VERSION)/' desktop/macos/Info.plist > $(DESKTOP_APP)/Contents/Info.plist
 	@cp desktop/macos/icon.icns $(DESKTOP_APP)/Contents/Resources/icon.icns
 	@codesign --force --sign - $(DESKTOP_APP)/Contents/MacOS/$(APP_NAME)-daemon

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/app"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 func TestCorpusVersionsAndNegativeControlsAreExplicit(t *testing.T) {

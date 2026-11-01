@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 func TestAnalysisRunCoverageNeverTurnsMissingEvidenceIntoZeroFindings(t *testing.T) {

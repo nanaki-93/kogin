@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/toolserver"
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/app/toolserver"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
 )
 
 // The live smoke tests run the Claude Code or agy installed on this machine

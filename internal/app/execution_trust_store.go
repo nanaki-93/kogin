@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/brand"
-	"github.com/nanaki-93/mini-orca/v2/internal/storage"
+	"github.com/nanaki-93/kasuri/v2/internal/brand"
+	"github.com/nanaki-93/kasuri/v2/internal/storage"
 )
 
 const executionTrustPolicy = "project-execution-v1"

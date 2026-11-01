@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 func requireCurrentRevision(w http.ResponseWriter, manager *project.Manager, revision string) bool {

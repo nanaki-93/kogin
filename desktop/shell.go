@@ -10,9 +10,9 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/brand"
-	"github.com/nanaki-93/mini-orca/v2/internal/launcher"
-	"github.com/nanaki-93/mini-orca/v2/internal/version"
+	"github.com/nanaki-93/kasuri/v2/internal/brand"
+	"github.com/nanaki-93/kasuri/v2/internal/launcher"
+	"github.com/nanaki-93/kasuri/v2/internal/version"
 )
 
 // startupWait bounds how long quitting waits for a launch in progress, so a

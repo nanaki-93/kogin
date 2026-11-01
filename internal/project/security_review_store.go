@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project/securityrules"
-	"github.com/nanaki-93/mini-orca/v2/internal/storage"
+	"github.com/nanaki-93/kasuri/v2/internal/project/securityrules"
+	"github.com/nanaki-93/kasuri/v2/internal/storage"
 )
 
 const (

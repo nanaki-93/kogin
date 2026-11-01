@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
 )
 
 const piCatalogFixture = `{"id":"models","type":"response","command":"get_available_models","success":true,"data":{"models":[{"id":"local/qwen","name":"Qwen Local","provider":"lm-studio","baseUrl":"http://127.0.0.1:1234/v1","contextWindow":32768,"headers":{"Authorization":"credential-private-marker"}},{"id":"gpt-5","name":"GPT-5","provider":"openai-codex","baseUrl":"https://provider.invalid/v1","apiKey":"credential-private-marker"}]}}` + "\n"

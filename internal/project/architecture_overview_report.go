@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/handbook"
-	"github.com/nanaki-93/mini-orca/v2/internal/storage"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/project/handbook"
+	"github.com/nanaki-93/kasuri/v2/internal/storage"
 )
 
 const (

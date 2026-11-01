@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 // ErrChangeInUse reports a task that cannot be deleted or re-analyzed yet.

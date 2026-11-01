@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentruntime"
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
 )
 
 func rewriteMigrationJournal(t *testing.T, root string, edit func(map[string]json.RawMessage)) (string, []byte) {

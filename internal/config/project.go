@@ -8,7 +8,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/storage"
+	"github.com/nanaki-93/kasuri/v2/internal/storage"
 	"gopkg.in/yaml.v3"
 )
 

@@ -8,7 +8,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/storage"
+	"github.com/nanaki-93/kasuri/v2/internal/storage"
 )
 
 const analysisSelectionRelativePath = ".kasuri/analysis/selection.json"

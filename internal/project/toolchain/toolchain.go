@@ -17,7 +17,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project/rules"
+	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
 )
 
 // Profile is how one subproject is checked.

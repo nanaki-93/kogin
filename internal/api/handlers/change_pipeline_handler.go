@@ -3,8 +3,8 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/api"
-	"github.com/nanaki-93/mini-orca/v2/internal/app"
+	"github.com/nanaki-93/kasuri/v2/internal/api"
+	"github.com/nanaki-93/kasuri/v2/internal/app"
 )
 
 func (h *ChangeHandler) StartWorkflow(w http.ResponseWriter, r *http.Request) {

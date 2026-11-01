@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/archgate"
-	"github.com/nanaki-93/mini-orca/v2/internal/app/sandbox"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/rules"
-	"github.com/nanaki-93/mini-orca/v2/internal/textutil"
+	"github.com/nanaki-93/kasuri/v2/internal/app/archgate"
+	"github.com/nanaki-93/kasuri/v2/internal/app/sandbox"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
+	"github.com/nanaki-93/kasuri/v2/internal/textutil"
 )
 
 func (s *Service) CheckChange(ctx context.Context, id string, request ChangeCheckRequest) (*ChangeSession, error) {

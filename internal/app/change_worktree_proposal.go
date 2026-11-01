@@ -11,9 +11,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/brand"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/rules"
+	"github.com/nanaki-93/kasuri/v2/internal/brand"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
 )
 
 // ChangeWorktree marks a task that owns its worktree. Its proposal lives in

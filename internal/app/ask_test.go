@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
 )
 
 // askService has the Review role on a pi agent the test binary plays, with

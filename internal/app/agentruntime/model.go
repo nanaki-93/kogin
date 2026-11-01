@@ -13,7 +13,7 @@ import (
 	"google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
 )
 
 // CompletionClient is the existing transport contract, including CLI providers.

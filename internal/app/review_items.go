@@ -6,7 +6,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/textutil"
+	"github.com/nanaki-93/kasuri/v2/internal/textutil"
 )
 
 // ReviewItem is one blocking finding or advisory note of a review: a few

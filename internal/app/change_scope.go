@@ -12,8 +12,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/changes"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/app/changes"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 // A proposal stays fresh while the files it depends on are unchanged; edits

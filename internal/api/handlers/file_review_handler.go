@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/api"
+	"github.com/nanaki-93/kasuri/v2/internal/api"
 )
 
 // FileAnalysis returns cached semantic state only; source is never returned.

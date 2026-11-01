@@ -16,7 +16,7 @@ import (
 	"google.golang.org/adk/v2/workflow"
 	"google.golang.org/genai"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
 )
 
 const ConfirmationSchema = "proposal-review-v1"

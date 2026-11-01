@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project/symbols"
+	"github.com/nanaki-93/kasuri/v2/internal/project/symbols"
 )
 
 // polyglot is a project in five languages, with the imports, entry points

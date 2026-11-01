@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/textutil"
+	"github.com/nanaki-93/kasuri/v2/internal/textutil"
 )
 
 // Line comments are the reviewer's requests on specific lines of a proposal.

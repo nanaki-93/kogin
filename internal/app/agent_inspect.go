@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
 )
 
 type AgentInspectionOptions struct {

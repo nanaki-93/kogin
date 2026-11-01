@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/archgate"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/app/archgate"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 const (

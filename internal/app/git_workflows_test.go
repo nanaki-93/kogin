@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/gitops"
+	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
 )
 
 func gitWorkflowFixture(t *testing.T) (*Service, string, GitMutationRequest) {

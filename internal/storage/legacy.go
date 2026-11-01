@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/brand"
+	"github.com/nanaki-93/kasuri/v2/internal/brand"
 )
 
 // MigrateLegacyMetadata moves a project's saved data from .mini-orca, its

@@ -14,8 +14,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/brand"
-	"github.com/nanaki-93/mini-orca/v2/internal/storage"
+	"github.com/nanaki-93/kasuri/v2/internal/brand"
+	"github.com/nanaki-93/kasuri/v2/internal/storage"
 )
 
 const contextPolicyVersion = "3"

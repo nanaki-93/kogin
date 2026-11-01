@@ -13,8 +13,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 // docsModel answers the docs refresh's requests: a summary per component,

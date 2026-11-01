@@ -11,8 +11,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/archgate"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/syntax"
+	"github.com/nanaki-93/kasuri/v2/internal/app/archgate"
+	"github.com/nanaki-93/kasuri/v2/internal/project/syntax"
 )
 
 func (run *taskToolRun) writeTools() []toolSpec {

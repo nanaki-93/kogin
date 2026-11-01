@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project/syntax"
+	"github.com/nanaki-93/kasuri/v2/internal/project/syntax"
 )
 
 // The Performance and Security stages keep their own per-file reports. These

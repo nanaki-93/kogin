@@ -12,9 +12,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/toolserver"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/rules"
+	"github.com/nanaki-93/kasuri/v2/internal/app/toolserver"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
 )
 
 // An agent run's tools work on the task's worktree. Every call passes the

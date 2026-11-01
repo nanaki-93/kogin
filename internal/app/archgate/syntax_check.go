@@ -3,7 +3,7 @@ package archgate
 import (
 	"path/filepath"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project/syntax"
+	"github.com/nanaki-93/kasuri/v2/internal/project/syntax"
 )
 
 // SyntaxCheck parses a proposed non-Go file. It advises rather than blocks:

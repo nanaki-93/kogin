@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/storage"
+	"github.com/nanaki-93/kasuri/v2/internal/storage"
 )
 
 var SessionIDPattern = regexp.MustCompile(`^change-[a-f0-9]{32}$`)

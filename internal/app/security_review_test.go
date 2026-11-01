@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 const validSecurityReview = `{"findings":[{"rule":"go.input.validation","category":"input-validation","title":"Input reaches an operation","source_anchor":{"path":"main.go","start_line":5,"end_line":5},"severity":"medium","confidence":"low","evidence_kind":"model_suspicion","observed_condition":"The operation uses input without an observed validation boundary.","preconditions_or_unknowns":"Attacker control and reachability are unknown.","remediation":"Validate untrusted input at the boundary.","verification_idea":"Use a safe unit test with a representative invalid value."}]}`

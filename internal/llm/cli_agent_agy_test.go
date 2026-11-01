@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
 )
 
 const agyAgentInit = `{"event":"init","init":{"agent":"kasuri","model":"fixture-model","tools":["run_command","write_to_file"],"permission_mode":"request-review"}}`

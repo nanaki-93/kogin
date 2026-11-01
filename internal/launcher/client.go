@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/api"
+	"github.com/nanaki-93/kasuri/v2/internal/api"
 )
 
 // Client talks to a daemon's HTTP API.

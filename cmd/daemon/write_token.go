@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/api"
-	"github.com/nanaki-93/mini-orca/v2/internal/storage"
+	"github.com/nanaki-93/kasuri/v2/internal/api"
+	"github.com/nanaki-93/kasuri/v2/internal/storage"
 )
 
 // writeToken is this launch's credential for requests that change state. The

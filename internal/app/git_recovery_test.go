@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/gitops"
+	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
 )
 
 func commitRecoveryEdit(t *testing.T, root, content string) string {

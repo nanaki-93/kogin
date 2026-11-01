@@ -1,6 +1,6 @@
 package llm
 
-import "github.com/nanaki-93/mini-orca/v2/internal/config"
+import "github.com/nanaki-93/kasuri/v2/internal/config"
 
 // Capabilities describes implemented adapter protocols, not an account's model
 // entitlements. A particular model can still reject a supported request format.

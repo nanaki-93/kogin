@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 // verifyWorktreeBase checks that a task's worktree is still on the task's

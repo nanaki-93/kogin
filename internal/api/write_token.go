@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/brand"
+	"github.com/nanaki-93/kasuri/v2/internal/brand"
 )
 
 // WriteTokenHeader carries the daemon's per-launch write token.

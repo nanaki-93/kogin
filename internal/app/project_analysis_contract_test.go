@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 const projectReportFixture = `{"purpose":"Runs a small daemon.","architecture":"main.go holds the whole daemon.","components":[". (Daemon): Handles requests."],"walkthroughs":[{"title":"Run the daemon","summary":"The program prints and exits.","steps":[{"text":"Run prints a line.","path":"./main.go","symbol":"Run"},{"text":"The model named a declaration the file lacks.","path":"main.go","symbol":"Serve"},{"text":"The model named a file the project lacks.","path":"server/http.go","symbol":"Listen"}]},{"title":"Invented","summary":"Only files the project lacks.","steps":[{"text":"Nothing here.","path":"../outside.go","symbol":""}]}],"risks":[{"severity":"low","summary":"Add request coverage.","engineering_insight":null}],"engineering_insight":null}`

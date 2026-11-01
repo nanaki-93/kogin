@@ -3,8 +3,8 @@ package app
 import (
 	"sync"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
-	"github.com/nanaki-93/mini-orca/v2/internal/project/projectmap"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project/projectmap"
 )
 
 // projectMapCache keeps the project map of the latest indexed revision: it

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
 )
 
 func executeRemainingAttempts(ctx context.Context, cfg EngineeringInsightRunnerConfig, directory, manifestPath string, manifest *engineeringInsightRunManifest, handoff *EngineeringInsightScoringHandoff) error {

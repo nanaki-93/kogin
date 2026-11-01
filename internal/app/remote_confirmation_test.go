@@ -3,7 +3,7 @@ package app
 import (
 	"fmt"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
 )
 
 // requireRemoteConfirmation checks a scope's runtime the way each request

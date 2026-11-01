@@ -11,8 +11,8 @@ import (
 	"google.golang.org/adk/v2/model"
 	"google.golang.org/genai"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/config"
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
+	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kasuri/v2/internal/llm"
 )
 
 var explicitCacheModel = regexp.MustCompile(`^gemini-(2\.5|3(\.[0-9]+)?)-(flash|pro)(-[a-z0-9]+)*$`)

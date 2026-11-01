@@ -3,8 +3,8 @@ package app
 import (
 	"strings"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/app/archgate"
-	"github.com/nanaki-93/mini-orca/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/app/archgate"
+	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
 // recordBudgetDebt opens one refactor issue per file a task found already over

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/mini-orca/v2/internal/project/rules"
+	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
 )
 
 func gateCheck(t *testing.T, checks []CheckResult) CheckResult {
@@ -190,11 +190,11 @@ func TestRepositoryArchitectureBoundaries(t *testing.T) {
 	violationChecks, _ := ChangeArchitectureAndComplexityChecks(repoRoot, nil, []ChangeEdit{
 		{
 			Path:    "internal/project/diff/bad.go",
-			Content: "package diff\nimport _ \"github.com/nanaki-93/mini-orca/v2/internal/project/symbols\"\n",
+			Content: "package diff\nimport _ \"github.com/nanaki-93/kasuri/v2/internal/project/symbols\"\n",
 		},
 		{
 			Path:    "internal/app/gitops/bad.go",
-			Content: "package gitops\nimport _ \"github.com/nanaki-93/mini-orca/v2/internal/app/archgate\"\n",
+			Content: "package gitops\nimport _ \"github.com/nanaki-93/kasuri/v2/internal/app/archgate\"\n",
 		},
 	})
 	if len(violationChecks) == 0 || violationChecks[0].State != CheckFailed {
@@ -242,13 +242,13 @@ func TestAgentRuntimeImportBoundary(t *testing.T) {
 	}{
 		{"internal/app/agentruntime/model.go", "google.golang.org/adk/v2/model", true},
 		{"internal/app/agentruntime/model.go", "google.golang.org/genai", true},
-		{"internal/app/agentruntime/session.go", "github.com/nanaki-93/mini-orca/v2/internal/app/agentstate", true},
-		{"internal/app/agentstate/store.go", "github.com/nanaki-93/mini-orca/v2/internal/storage", true},
-		{"internal/app/agentstate/store.go", "github.com/nanaki-93/mini-orca/v2/internal/app/agentruntime", false},
+		{"internal/app/agentruntime/session.go", "github.com/nanaki-93/kasuri/v2/internal/app/agentstate", true},
+		{"internal/app/agentstate/store.go", "github.com/nanaki-93/kasuri/v2/internal/storage", true},
+		{"internal/app/agentstate/store.go", "github.com/nanaki-93/kasuri/v2/internal/app/agentruntime", false},
 		{"internal/app/agentstate/store.go", "google.golang.org/adk/v2/session", false},
-		{"internal/app/agentruntime/model.go", "github.com/nanaki-93/mini-orca/v2/internal/app", false},
-		{"internal/app/agentruntime/model.go", "github.com/nanaki-93/mini-orca/v2/internal/project", false},
-		{"internal/app/agentruntime/model.go", "github.com/nanaki-93/mini-orca/v2/internal/storage", false},
+		{"internal/app/agentruntime/model.go", "github.com/nanaki-93/kasuri/v2/internal/app", false},
+		{"internal/app/agentruntime/model.go", "github.com/nanaki-93/kasuri/v2/internal/project", false},
+		{"internal/app/agentruntime/model.go", "github.com/nanaki-93/kasuri/v2/internal/storage", false},
 		{"internal/app/service.go", "google.golang.org/adk/v2/runner", false},
 		{"internal/project/project_overview.go", "google.golang.org/adk/v2/model", false},
 		{"internal/storage/file.go", "google.golang.org/adk/v2/session", false},
