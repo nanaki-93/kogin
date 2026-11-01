@@ -1,5 +1,10 @@
 # Mini-Orca release notes
 
+## v6.0.0-dev — In development
+
+Version 6 starts from the stable v5.0.0 tag on the `v6` branch. Its changes
+are listed here as they land.
+
 ## v5.0.0 — Web-first workspace
 
 The browser workspace served by the daemon at `/ui` is now Mini-Orca's only

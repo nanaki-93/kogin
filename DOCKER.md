@@ -12,7 +12,7 @@ required model scopes, then build the image:
 
 ```bash
 cp config.example.yaml config.yaml
-docker build -t mini-orca:5.0.0 .
+docker build -t mini-orca:6.0.0-dev .
 ```
 
 The runtime image contains the static daemon binary plus Alpine's certificate
@@ -27,7 +27,7 @@ docker run --rm --name mini-orca \
   -v "$(pwd)/projects:/app/projects:rw" \
   -e MINI_ORCA_CONFIG=/app/config.yaml \
   -e MINI_ORCA_BIND_ADDRESS=0.0.0.0:9090 \
-  mini-orca:5.0.0
+  mini-orca:6.0.0-dev
 ```
 
 Use a project path inside the mounted `/app/projects` directory. A mounted
@@ -67,7 +67,7 @@ After starting a container, verify both liveness and its runtime contents:
 ```bash
 curl --fail http://localhost:9090/health
 docker inspect --format='{{.State.Health.Status}}' mini-orca
-docker image inspect mini-orca:5.0.0
+docker image inspect mini-orca:6.0.0-dev
 ```
 
 Before release, build the image without cleanup commands and confirm the health

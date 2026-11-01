@@ -1,6 +1,6 @@
 # Mini-Orca local API contract
 
-**Version:** 5.0.0
+**Version:** 6.0.0-dev
 **Base URL:** `http://localhost:9090`  
 **Content type:** `application/json`
 
