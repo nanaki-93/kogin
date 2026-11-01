@@ -308,6 +308,7 @@ export class FakeDaemon {
         const session = url.pathname.match(/^\/api\/projects\/current\/changes\/([^/]+)$/);
         if (session && this.sessions.has(decodeURIComponent(session[1]))) return json(route, 200, this.sessions.get(decodeURIComponent(session[1])));
         if (url.pathname === '/api/projects/current/changes' && url.searchParams.get('worktree_path')) return json(route, 200, this.tasks(url.searchParams.get('worktree_path')!));
+        if (url.pathname === '/api/projects/current/docs/component') return json(route, 200, data.docsComponentFiles(url.searchParams.get('path') ?? ''));
         const issue = url.pathname.match(/^\/api\/projects\/current\/findings\/([^/]+)\/task$/);
         if (issue) return json(route, 200, this.issueTask(decodeURIComponent(issue[1])));
         const found = this.gets.find(([pattern]) => pattern.test(url.pathname));

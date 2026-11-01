@@ -46,3 +46,23 @@ func TestTruncateTailKeepsWholeCharacters(t *testing.T) {
 		}
 	}
 }
+
+func TestFirstSentenceStopsAtTheFirstSentenceAndTheLimit(t *testing.T) {
+	for _, test := range []struct {
+		in   string
+		n    int
+		want string
+	}{
+		{"Saves items. Reads them back.", 80, "Saves items."},
+		{"Saves  items\nto disk", 80, "Saves items to disk"},
+		{"Uses v1.2 of the API. More.", 80, "Uses v1.2 of the API."},
+		{"Does it work? Yes.", 80, "Does it work?"},
+		{"A very long sentence that goes on", 12, "A very…"},
+		{"Supercalifragilistic", 10, "Superca…"},
+		{"", 10, ""},
+	} {
+		if got := FirstSentence(test.in, test.n); got != test.want || len(got) > test.n {
+			t.Errorf("FirstSentence(%q, %d) = %q, want %q", test.in, test.n, got, test.want)
+		}
+	}
+}

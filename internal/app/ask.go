@@ -277,7 +277,7 @@ func (s *Service) askBrief() (string, error) {
 	}
 	var brief strings.Builder
 	fmt.Fprintf(&brief, "\nProject map (Mini-Orca's docs for %s):\n", analysis.Name)
-	if purpose := strings.TrimSpace(docs.Context.Purpose); purpose != "" {
+	if purpose := strings.TrimSpace(docs.Overview.Purpose); purpose != "" {
 		brief.WriteString("Purpose (model-written): " + purpose + "\n")
 	}
 	if len(docs.Components) > 0 {
@@ -288,8 +288,8 @@ func (s *Service) askBrief() (string, error) {
 		if component.Summary != "" {
 			line += ": " + component.Summary
 		}
-		if len(component.Dependencies) > 0 {
-			line += " Imports: " + strings.Join(component.Dependencies, ", ") + "."
+		if len(component.Imports) > 0 {
+			line += " Imports: " + strings.Join(component.Imports, ", ") + "."
 		}
 		if brief.Len()+len(line) < maxAskBriefBytes {
 			brief.WriteString(line + "\n")

@@ -193,23 +193,62 @@ export const overview: Overview = {
   analysis_coverage: { fresh: 402, stale: 21, missing: 8 },
   analysis_run: { status: 'completed', updated_at: ago(180) },
   docs: {
-    status: 'unavailable',
-    context: { purpose: 'A local-first coding assistant.', goal_pursuit: ['Deterministic indexing'], topology: 'Loopback daemon', stack: ['Go', 'React'] },
+    schema_version: '4',
+    status: 'stale',
+    overview: {
+      purpose: 'A local-first coding assistant: a Go daemon and a browser workspace that run coding agents on a task in its own worktree.',
+      architecture: 'cmd/daemon wires internal/api, which calls internal/app; internal/app reads the project through internal/project.',
+      languages: [{ name: 'Go', files: 443 }, { name: 'TypeScript', files: 64 }],
+      files: 610,
+      lines: 77400,
+    },
     components: [
-      { name: 'Daemon', layer: 'API / Transport Boundary', path: 'cmd/daemon', languages: ['Go'], files: 3, lines: 400, summary: '', responsibilities: [], contracts: [{ name: 'cmd/daemon/main.go', kind: 'main', summary: 'Go' }], dependencies: ['internal/api', 'internal/app'], used_by: [] },
-      { name: 'Api', layer: 'API / Transport Boundary', path: 'internal/api', languages: ['Go'], files: 40, lines: 6000, summary: 'Decodes local requests and maps errors.', summary_source: 'module', responsibilities: ['Request policy'], contracts: [], dependencies: ['internal/app'], used_by: ['cmd/daemon'] },
-      { name: 'App service', layer: 'Application / Orchestration', path: 'internal/app', languages: ['Go'], files: 320, lines: 50000, summary: 'Workflow orchestration.', summary_source: 'overview', responsibilities: [], contracts: [], dependencies: ['internal/project'], used_by: ['cmd/daemon', 'internal/api'] },
-      { name: 'Project', layer: 'Domain & Persistence', path: 'internal/project', languages: ['Go'], files: 80, lines: 12000, summary: '', responsibilities: [], contracts: [], dependencies: [], used_by: ['internal/app'] },
-      { name: 'Src', layer: 'Presentation Layer', path: 'web/src', languages: ['TypeScript'], files: 64, lines: 9000, summary: '', responsibilities: [], contracts: [], dependencies: [], used_by: [] },
+      { name: 'Daemon', path: 'cmd/daemon', languages: ['Go'], files: 3, lines: 400, summary: '', responsibilities: [], entry_points: [{ path: 'cmd/daemon/main.go', kind: 'main', detail: 'Go' }], imports: ['internal/api', 'internal/app'], used_by: [] },
+      { name: 'Api', path: 'internal/api', languages: ['Go'], files: 40, lines: 6000, summary: 'Decodes local requests and maps errors. It is the only way into the app service.', summary_source: 'module', responsibilities: ['Request policy', 'Error responses'], entry_points: [], imports: ['internal/app'], used_by: ['cmd/daemon'] },
+      { name: 'App service', path: 'internal/app', languages: ['Go'], files: 320, lines: 50000, summary: 'Workflow orchestration.', summary_source: 'overview', responsibilities: [], entry_points: [], imports: ['internal/project'], used_by: ['cmd/daemon', 'internal/api'] },
+      { name: 'Project', path: 'internal/project', languages: ['Go'], files: 80, lines: 12000, summary: '', responsibilities: [], entry_points: [], imports: [], used_by: ['internal/app'] },
+      { name: 'Src', path: 'web/src', languages: ['TypeScript'], files: 64, lines: 9000, summary: '', responsibilities: [], entry_points: [], imports: [], used_by: [] },
+    ],
+    walkthroughs: [
+      { title: 'Serve the Web UI', summary: 'The daemon serves the embedded bundle at /ui.', steps: [
+        { text: 'main wires the routes and starts the loopback server.', path: 'cmd/daemon/main.go', symbol: 'main', line: 40 },
+        { text: 'The handler returns index.html for client routes and rejects nested asset paths.', path: 'internal/api/handlers/webui.go', symbol: 'ServeAsset', line: 1 },
+      ] },
+      { title: "Start a task's agents", summary: 'A task runs its agents in its own worktree.', steps: [
+        { text: 'The change handler decodes the request.', path: 'internal/api/handlers/change_handler.go', symbol: 'ChangeHandler.Create', line: 88 },
+        { text: 'The app service starts the workflow.', path: 'internal/app/service.go' },
+      ] },
+    ],
+    commands: [
+      { label: 'Test', command: 'go test ./...', source: 'go.mod' },
+      { label: 'Lint', command: 'go vet ./...', source: 'go.mod' },
+      { label: 'Test', command: 'npm test', dir: 'web', source: 'web/package.json' },
+      { label: 'Dev', command: 'npm run dev', dir: 'web', source: 'web/package.json' },
+    ],
+    dependencies: [
+      { name: 'github.com/odvcencio/gotreesitter', kind: 'Go module', version: 'v0.56.0', source: 'go.mod' },
+      { name: 'react', kind: 'npm package', version: '^19.0.0', source: 'web/package.json' },
+      { name: 'vite', kind: 'npm package', version: '^6.0.0', dev: true, source: 'web/package.json' },
     ],
     graph: {
       edges: [{ from: 'cmd/daemon', to: 'internal/api', imports: 2 }, { from: 'cmd/daemon', to: 'internal/app', imports: 3 }, { from: 'internal/api', to: 'internal/app', imports: 40 }, { from: 'internal/app', to: 'internal/project', imports: 120 }],
       entry_points: [{ path: 'cmd/daemon/main.go', kind: 'main', detail: 'Go' }, { path: 'web/package.json', kind: 'script', detail: 'dev: vite' }],
       modules: 57,
     },
-    decisions: [{ title: 'Embed the Web UI in the daemon', category: 'Architecture', decision: 'Serve the built bundle from the binary.', tradeoff: 'Every UI change needs a rebuilt bundle.' }],
   },
 };
+
+/** A docs component's files, as GET /docs/component lists them. */
+export function docsComponentFiles(path: string) {
+  const files: Record<string, { path: string; language: string; lines: number; summary?: string }[]> = {
+    'internal/api': [
+      { path: 'internal/api/error.go', language: 'Go', lines: 120, summary: 'Maps app errors to JSON responses with a user message.' },
+      { path: 'internal/api/handlers/webui.go', language: 'Go', lines: 3, summary: 'Serves the embedded Web UI bundle.' },
+      { path: 'internal/api/handlers/webui_test.go', language: 'Go', lines: 40 },
+    ],
+  };
+  return { path, files: files[path] ?? [] };
+}
 
 const runIdentity = { project_id: identity.project_id, project_revision: identity.project_revision, policy_fingerprint: '3:pol', provider_fingerprint: 'prov', queue_id: 'queue', id: 'analysis-1', generation: 'gen-1' };
 const unreachable = 'The model provider could not be reached. Check that it is running and that its address in Settings → Models & agents is right.';

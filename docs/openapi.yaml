@@ -653,6 +653,20 @@ paths:
         '200': {description: Deterministic metrics, optional structured analysis, coverage, and source-separated finding counts, content: {application/json: {schema: {$ref: '#/components/schemas/ProjectOverview'}}}}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+  /api/projects/current/docs/component:
+    parameters:
+      - {$ref: '#/components/parameters/WorktreePath'}
+    get:
+      tags: [Projects]
+      summary: One docs component's code files
+      description: 'The code files in the directories a docs component groups, each with its language, line count and the first sentence of the summary the last analysis wrote for its current content (absent when there is none). Reads saved summaries only and never calls a model. path is the component path as ProjectDocsReport.components lists it.'
+      parameters:
+        - {$ref: '#/components/parameters/ProjectPath'}
+        - {$ref: '#/components/parameters/ProjectRevision'}
+      responses:
+        '200': {description: The component's files, content: {application/json: {schema: {$ref: '#/components/schemas/DocsComponentFiles'}}}}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/docs/refresh:
     post:
       tags: [Projects]
@@ -1282,73 +1296,74 @@ components:
         finding_counts: {$ref: '#/components/schemas/FindingCounts'}
     ProjectDocsReport:
       type: object
-      description: "The project's docs, built on every read from the project map (modules, imports resolved from the code, entry points, manifests), the subprojects' check commands and the model's summaries. Component paths, dependencies and entry points come from the code; summaries are model-written and say where they come from."
-      required: [schema_version, project_id, project_revision, status, context, components, scenarios, decisions, runbook, glossary, graph]
+      description: "The project's docs, built on every read: the overview's purpose, architecture and walkthroughs (model-written), and the components, the imports between them, entry points, commands and dependencies read from the code (the project map, the subprojects' check commands and the manifests). Component summaries are model-written and say where they come from."
+      required: [schema_version, project_id, project_revision, status, overview, components, walkthroughs, commands, dependencies, graph, updated_at]
       properties:
-        schema_version: {type: string, enum: ['3']}
+        schema_version: {type: string, enum: ['4']}
         project_id: {type: string}
         project_revision: {type: string}
         status: {type: string, description: "The model-written parts' freshness: the project overview's status."}
-        context:
+        overview:
           type: object
-          required: [purpose, topology, stack]
+          required: [languages, files, lines]
           properties:
-            purpose: {type: string}
-            goal_pursuit: {type: array, items: {type: string}}
-            topology: {type: string}
-            stack: {type: array, items: {type: string}}
-        dependencies:
-          type: array
-          items:
-            type: object
-            required: [name, kind, summary]
-            properties:
-              name: {type: string}
-              kind: {type: string, description: "The ecosystem, such as Go module or npm package (development)"}
-              version: {type: string}
-              source: {type: string, description: The manifest that declares it}
-              summary: {type: string}
+            purpose: {type: string, description: Model-written; absent without an overview.}
+            architecture: {type: string, description: "Model-written prose on how the parts fit; absent without an overview, and for an older overview that drew a diagram instead."}
+            languages:
+              type: array
+              description: Programming languages by indexed file count, most first.
+              items:
+                type: object
+                required: [name, files]
+                properties:
+                  name: {type: string}
+                  files: {type: integer}
+            files: {type: integer}
+            lines: {type: integer}
         components:
           type: array
           maxItems: 16
           items:
             type: object
-            required: [name, layer, path, languages, files, lines, summary, responsibilities, contracts, dependencies, used_by]
+            required: [name, path, languages, files, lines, summary, responsibilities, entry_points, imports, used_by]
             properties:
               name: {type: string}
-              layer: {type: string}
               path: {type: string, description: "A directory of code; '.' is the project root. Small folders are folded into their parent so at most 16 components show."}
               languages: {type: array, items: {type: string}}
               files: {type: integer}
               lines: {type: integer}
               summary: {type: string}
               summary_source: {type: string, enum: [module, overview], description: "module: the component's own summary from its files' summaries; overview: the project overview's model; absent: no summary yet."}
-              responsibilities: {type: array, items: {type: string}}
-              contracts:
-                type: array
-                description: The component's entry points.
-                items:
-                  type: object
-                  required: [name, kind, summary]
-                  properties:
-                    name: {type: string}
-                    kind: {type: string}
-                    summary: {type: string}
-              dependencies: {type: array, description: Components this one imports, resolved from the code., items: {type: string}}
+              responsibilities: {type: array, maxItems: 3, items: {type: string}}
+              entry_points: {type: array, description: Where programs in this component start., items: {$ref: '#/components/schemas/DocsEntryPoint'}}
+              imports: {type: array, description: Components this one imports, resolved from the code., items: {type: string}}
               used_by: {type: array, description: Components that import this one., items: {type: string}}
-        scenarios: {type: array, items: {type: object}}
-        decisions: {type: array, items: {type: object}}
-        runbook:
+        walkthroughs:
+          type: array
+          description: "The main things the project does, traced through its files by the overview's model. Only steps whose files the project still has are listed; a walkthrough without any is left out."
+          items: {$ref: '#/components/schemas/ProjectWalkthrough'}
+        commands:
           type: array
           description: The subprojects' test and lint commands and the package scripts that build or start them.
           items:
             type: object
-            required: [label, command, description]
+            required: [label, command, source]
             properties:
-              label: {type: string}
+              label: {type: string, description: "Test, Lint, Build, Dev, Start or Serve"}
               command: {type: string}
-              description: {type: string}
-        glossary: {type: array, items: {type: object}}
+              dir: {type: string, description: Where it runs, relative to the project root; absent for the root.}
+              source: {type: string, description: The file that declares it.}
+        dependencies:
+          type: array
+          items:
+            type: object
+            required: [name, kind, source]
+            properties:
+              name: {type: string}
+              kind: {type: string, description: "The ecosystem, such as Go module or npm package"}
+              version: {type: string}
+              dev: {type: boolean, description: A development dependency.}
+              source: {type: string, description: The manifest that declares it}
         graph:
           type: object
           description: What the components diagram is drawn from.
@@ -1363,18 +1378,48 @@ components:
                   from: {type: string}
                   to: {type: string}
                   imports: {type: integer, description: Import statements from one component to the other}
-            entry_points:
-              type: array
-              items:
-                type: object
-                required: [path, kind]
-                properties:
-                  path: {type: string}
-                  kind: {type: string, description: "main, bin, package main or script"}
-                  detail: {type: string}
+            entry_points: {type: array, items: {$ref: '#/components/schemas/DocsEntryPoint'}}
             modules: {type: integer, description: Directories of code before folding}
             truncated: {type: boolean}
         updated_at: {type: string}
+    DocsEntryPoint:
+      type: object
+      required: [path, kind]
+      properties:
+        path: {type: string}
+        kind: {type: string, description: "main, bin, package main or script"}
+        detail: {type: string}
+    ProjectWalkthrough:
+      type: object
+      required: [title, summary, steps]
+      properties:
+        title: {type: string}
+        summary: {type: string}
+        steps:
+          type: array
+          items:
+            type: object
+            required: [text, path]
+            properties:
+              text: {type: string}
+              path: {type: string, description: A file the project has.}
+              symbol: {type: string, description: "The function, method or type the step happens in, only when Mini-Orca found its declaration in the file."}
+              line: {type: integer, description: The line of that declaration.}
+    DocsComponentFiles:
+      type: object
+      required: [path, files]
+      properties:
+        path: {type: string}
+        files:
+          type: array
+          items:
+            type: object
+            required: [path, language, lines]
+            properties:
+              path: {type: string}
+              language: {type: string}
+              lines: {type: integer}
+              summary: {type: string, description: "The first sentence of the summary the last analysis wrote for the file's current content."}
     ProjectMetrics:
       type: object
       required: [type, file_count, source_file_count, total_lines, languages]
@@ -1387,18 +1432,16 @@ components:
         languages: {type: object, additionalProperties: {type: integer}}
     ProjectAnalysisReport:
       type: object
-      required: [schema_version, project_id, project_revision, components, entry_points, flows, risks, next_steps, status, model, profile, prompt_version, generated_at]
+      required: [schema_version, project_id, project_revision, components, walkthroughs, risks, status, model, profile, prompt_version, generated_at]
       properties:
         schema_version: {type: string}
         project_id: {type: string}
         project_revision: {type: string}
-        purpose: {type: string}
-        architecture: {type: string, description: "Advisory Mermaid flowchart for new reports; older reports may contain prose."}
-        components: {type: array, items: {type: string}}
-        entry_points: {type: array, items: {type: string}}
-        flows: {type: array, description: "Advisory Mermaid flowcharts or sequence diagrams for new reports; older items may contain prose.", items: {type: string}}
-        risks: {type: array, items: {$ref: '#/components/schemas/Finding'}}
-        next_steps: {type: array, items: {type: string}}
+        purpose: {type: string, description: Two or three sentences on what the project is and does.}
+        architecture: {type: string, description: "Prose on how the main parts fit; reports from prompt project-analysis-v6 and older may hold a Mermaid diagram instead."}
+        components: {type: array, items: {type: string}, description: "'path (Name): responsibility' lines, used for components without a summary of their own."}
+        walkthroughs: {type: array, items: {$ref: '#/components/schemas/ProjectWalkthrough'}, description: "Checked when written: steps keep only files the project had, and a symbol only where the file declares it."}
+        risks: {type: array, items: {$ref: '#/components/schemas/Finding'}, description: Become AI-suggested issues; not shown in the docs.}
         engineering_insight: {$ref: '#/components/schemas/EngineeringInsight'}
         status: {type: string, enum: [fresh, stale, failed, unavailable]}
         failure: {type: string}

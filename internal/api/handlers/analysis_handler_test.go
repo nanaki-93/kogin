@@ -35,7 +35,7 @@ func newAnalysisHandlerFixture(t *testing.T) (*AnalysisHandler, *ProjectHandler,
 		case schema == "module_summary":
 			reply = `{"summary":"Runs the fixture.","responsibilities":[]}`
 		case schema == "project_analysis_response":
-			reply = `{"purpose":"Runs the fixture.","architecture":"One package.","components":[],"entry_points":[],"flows":[],"risks":[],"next_steps":[],"engineering_insight":null}`
+			reply = `{"purpose":"Runs the fixture.","architecture":"One package.","components":[],"walkthroughs":[],"risks":[],"engineering_insight":null}`
 		case schema == "feature_suggestions":
 			calls.Add(1)
 			reply = `{"suggestions":[]}`

@@ -15,11 +15,22 @@ import (
 
 const (
 	projectAnalysisSchemaVersion = "1"
-	projectAnalysisPromptVersion = "project-analysis-v6"
+	// v7: short prose, walkthroughs checked against the files, no diagrams.
+	projectAnalysisPromptVersion = "project-analysis-v7"
 	projectAnalysisReportPath    = ".mini-orca/project-analysis.json"
 	maxProjectAnalysisBytes      = 64 * 1024
 	maxProjectAnalysisItems      = 32
 	maxProjectAnalysisItemBytes  = 2048
+	maxOverviewPurpose           = 600
+	maxOverviewArchitecture      = 900
+	maxOverviewComponents        = 16
+	maxWalkthroughs              = 6
+	maxWalkthroughTitle          = 80
+	maxWalkthroughSummary        = 240
+	maxWalkthroughSteps          = 8
+	maxWalkthroughStepText       = 200
+	maxWalkthroughPath           = 300
+	maxWalkthroughSymbol         = 120
 
 	ProjectAnalysisStatusFresh       = handbook.ProjectAnalysisStatusFresh
 	ProjectAnalysisStatusFailed      = handbook.ProjectAnalysisStatusFailed
@@ -43,14 +54,15 @@ type ProjectAnalysisInput struct {
 	PromptVersion   string
 }
 
+type ProjectWalkthrough = handbook.Walkthrough
+type ProjectWalkthroughStep = handbook.WalkthroughStep
+
 type projectAnalysisResponse struct {
 	Purpose            string                `json:"purpose"`
 	Architecture       string                `json:"architecture"`
 	Components         []string              `json:"components"`
-	EntryPoints        []string              `json:"entry_points"`
-	Flows              []string              `json:"flows"`
+	Walkthroughs       []ProjectWalkthrough  `json:"walkthroughs"`
 	Risks              []ProjectAnalysisRisk `json:"risks"`
-	NextSteps          []string              `json:"next_steps"`
 	EngineeringInsight *EngineeringInsight   `json:"engineering_insight,omitempty"`
 }
 
@@ -58,10 +70,8 @@ type projectAnalysisWireResponse struct {
 	Purpose      string                    `json:"purpose"`
 	Architecture string                    `json:"architecture"`
 	Components   []string                  `json:"components"`
-	EntryPoints  []string                  `json:"entry_points"`
-	Flows        []string                  `json:"flows"`
+	Walkthroughs []ProjectWalkthrough      `json:"walkthroughs"`
 	Risks        []projectAnalysisRiskWire `json:"risks"`
-	NextSteps    []string                  `json:"next_steps"`
 	Insight      json.RawMessage           `json:"engineering_insight"`
 }
 
@@ -75,21 +85,24 @@ func newProjectAnalysisReportWithProvenance(projectID, revision, model, profile,
 	return ProjectAnalysisReport{
 		SchemaVersion: projectAnalysisSchemaVersion,
 		ProjectID:     projectID, ProjectRevision: revision,
-		Components: []string{}, EntryPoints: []string{}, Flows: []string{}, Risks: []ProjectAnalysisRisk{}, NextSteps: []string{},
+		Components: []string{}, Walkthroughs: []ProjectWalkthrough{}, Risks: []ProjectAnalysisRisk{},
 		Status: ProjectAnalysisStatusFresh, Model: model, ConfiguredModel: model, Profile: profile, Scope: scope, ProviderOrigin: providerOrigin, ReasoningEffort: reasoningEffort, PromptVersion: projectAnalysisPromptVersion,
 		GeneratedAt: time.Now().UTC(),
 	}
 }
 
-const projectDiagramPromptInstructions = "For architecture, return a compact Mermaid flowchart TD string showing the actual modules and their evidenced dependencies, using subgraph groups where useful. " +
-	"For each flows item, return a Mermaid flowchart TD or sequenceDiagram string for one important execution path, including evidenced branches or return messages. " +
-	"Use at most 16 nodes per diagram and stay within 2048 UTF-8 bytes per field/item. Use plain quoted node labels; escape newlines and double quotes inside diagram strings as JSON escapes. No Markdown fences, HTML, click actions, URLs, style directives or initialization directives. " +
-	"Do not invent connections; if relationships are not evidenced, show only the known nodes. " +
-	"For components, list packages/modules as path (Human-readable module name): responsibility, using actual project-relative paths from the supplied context. "
+// projectOverviewPromptInstructions say what each part of the overview is
+// for: docs a developer new to the project reads first.
+const projectOverviewPromptInstructions = "Write for a developer who is new to this project and wants to find their way around it. Use plain sentences, no Markdown, no diagrams, no marketing. " +
+	"purpose: two or three sentences on what the project is, who uses it and what it does. " +
+	"architecture: two to four sentences on how the main parts fit together, naming them by their project-relative directory paths. " +
+	"components: the main packages or modules, each as 'path (Readable name): one sentence on its responsibility', using actual project-relative directory paths from the context; at most 16. " +
+	"walkthroughs: the three to six most important things the project does (a command, a request, a background job), in the order a newcomer should read them. Each has a title a user would recognize (a short phrase such as 'Add a password' or 'Serve an API request', at most 60 characters), a one-sentence summary, and two to eight steps in execution order. " +
+	"Each step is one short sentence on what happens, the project-relative path of the file where it happens (only files listed in the context), and the name of the function, method or type there (Type.Method for a method), or an empty string when you are not sure of it. "
 
 func projectAnalysisMessages(contextText string) []llm.ChatMessage {
 	return []llm.ChatMessage{
-		{Role: "system", Content: "You are a software architect. Analyze only the supplied project facts and context. Return exactly one JSON object matching the supplied schema and no Markdown or prose: purpose (non-empty string), architecture (non-empty string), components (string array), entry_points (string array), flows (string array), risks ({severity,summary,engineering_insight} array), next_steps (string array), engineering_insight (null or {mechanism,why_it_matters_here,tradeoff_or_failure_mode,transferable_lesson}). " + EngineeringInsightPromptInstructions + "Use null for omitted insights at both report and risk level; otherwise include all four non-empty insight fields, at most 250 Unicode characters each. Risk severity must be low, medium, or high. Limit every array to 32 items and every other string to 2048 UTF-8 bytes; keep the complete JSON response within 64 KiB. " + projectDiagramPromptInstructions + "Do not invent files or dependencies. Risks are suggestions, not verified findings."},
+		{Role: "system", Content: "You are a software architect. Analyze only the supplied project facts and context. Return exactly one JSON object matching the supplied schema and no Markdown or prose: purpose (string), architecture (string), components (string array), walkthroughs ({title,summary,steps:[{text,path,symbol}]} array), risks ({severity,summary,engineering_insight} array), engineering_insight (null or {mechanism,why_it_matters_here,tradeoff_or_failure_mode,transferable_lesson}). " + projectOverviewPromptInstructions + EngineeringInsightPromptInstructions + "Use null for omitted insights at both report and risk level; otherwise include all four non-empty insight fields, at most 250 Unicode characters each. Risk severity must be low, medium, or high; at most 32 risks of at most 2048 UTF-8 bytes each. Keep the complete JSON response within 64 KiB. Do not invent files, functions or dependencies. Risks are suggestions, not verified findings."},
 		{Role: "user", Content: contextText},
 	}
 }
@@ -121,7 +134,7 @@ func decodeProjectAnalysisResponse(output string) (projectAnalysisResponse, erro
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		return projectAnalysisResponse{}, fmt.Errorf("project analysis JSON must contain one object")
 	}
-	response := projectAnalysisResponse{Purpose: wire.Purpose, Architecture: wire.Architecture, Components: wire.Components, EntryPoints: wire.EntryPoints, Flows: wire.Flows, NextSteps: wire.NextSteps}
+	response := projectAnalysisResponse{Purpose: wire.Purpose, Architecture: wire.Architecture, Components: wire.Components, Walkthroughs: wire.Walkthroughs}
 	response.EngineeringInsight, _ = ParseOptionalEngineeringInsight(wire.Insight)
 	response.Risks = make([]ProjectAnalysisRisk, 0, len(wire.Risks))
 	for _, risk := range wire.Risks {
@@ -140,13 +153,8 @@ func validateProjectAnalysisSummary(response *projectAnalysisResponse) error {
 	if err := validateProjectAnalysisStrings("components", response.Components); err != nil {
 		return err
 	}
-	if err := validateProjectAnalysisStrings("entry points", response.EntryPoints); err != nil {
-		return err
-	}
-	if err := validateProjectAnalysisStrings("flows", response.Flows); err != nil {
-		return err
-	}
-	return validateProjectAnalysisStrings("next steps", response.NextSteps)
+	response.Walkthroughs = boundedWalkthroughs(response.Walkthroughs)
+	return nil
 }
 
 func validateProjectAnalysisRisks(risks []ProjectAnalysisRisk) error {
@@ -259,14 +267,16 @@ func cloneProjectAnalysisReport(source *ProjectAnalysisReport) *ProjectAnalysisR
 	}
 	copy := *source
 	copy.Components = append([]string(nil), source.Components...)
-	copy.EntryPoints = append([]string(nil), source.EntryPoints...)
-	copy.Flows = append([]string(nil), source.Flows...)
+	copy.Walkthroughs = make([]ProjectWalkthrough, len(source.Walkthroughs))
+	for index, walkthrough := range source.Walkthroughs {
+		walkthrough.Steps = append([]ProjectWalkthroughStep(nil), walkthrough.Steps...)
+		copy.Walkthroughs[index] = walkthrough
+	}
 	copy.Risks = append([]ProjectAnalysisRisk(nil), source.Risks...)
 	for index := range copy.Risks {
 		copy.Risks[index].EngineeringInsight = CloneEngineeringInsight(source.Risks[index].EngineeringInsight)
 	}
 	copy.EngineeringInsight = CloneEngineeringInsight(source.EngineeringInsight)
-	copy.NextSteps = append([]string(nil), source.NextSteps...)
 	return &copy
 }
 

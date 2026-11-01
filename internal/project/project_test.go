@@ -15,7 +15,7 @@ type mockChatClient struct{}
 
 func (mockChatClient) ChatWithJSONSchema(context.Context, []llm.ChatMessage, llm.JSONSchema) (*llm.ChatResponse, error) {
 	return &llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{
-		Role: "assistant", Content: `{"purpose":"A small test project.","architecture":"One Go package.","components":["main package"],"entry_points":["main.main"],"flows":["main invokes work"],"risks":[],"next_steps":["Add tests"]}`,
+		Role: "assistant", Content: `{"purpose":"A small test project.","architecture":"One Go package.","components":["main package"],"walkthroughs":[],"risks":[]}`,
 	}}}}, nil
 }
 

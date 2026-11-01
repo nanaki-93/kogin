@@ -2,6 +2,7 @@ package handbook
 
 import (
 	"encoding/json"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -36,16 +37,30 @@ func mapped() projectmap.Map {
 
 func TestDocsDescribeTheComponentsTheCodeDefines(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
-	analysis := Analysis{ProjectID: "p", ProjectRevision: "r", Name: "app", Languages: map[string]int{"Go": 6, "TypeScript": 4},
+	analysis := Analysis{ProjectID: "p", ProjectRevision: "r", Name: "app", FileCount: 12, TotalLines: 600,
+		Languages: map[string]int{"Go": 6, "TypeScript": 4, "Markdown": 2},
+		Files:     []string{"cmd/app/main.go", "internal/store/store.go"},
 		Report: ProjectAnalysisReport{Status: ProjectAnalysisStatusFresh, GeneratedAt: now, Purpose: "Keeps items.",
-			Architecture: "flowchart TD\n A --> B", Components: []string{"internal/store (Store): Saves items.", "invented/dir (Ghost): Not in the code."}}}
+			Architecture: "cmd/app uses internal/store.", Components: []string{"internal/store (Store): Saves items.", "invented/dir (Ghost): Not in the code."},
+			Walkthroughs: []Walkthrough{
+				{Title: "Save an item", Summary: "The command saves one item.", Steps: []WalkthroughStep{
+					{Text: "Parse the flags.", Path: "cmd/app/main.go", Symbol: "main", Line: 3},
+					{Text: "A file that is gone.", Path: "internal/old/old.go"},
+					{Text: "Write it.", Path: "internal/store/store.go"},
+				}},
+				{Title: "Gone", Summary: "Only gone files.", Steps: []WalkthroughStep{{Text: "x", Path: "internal/old/old.go"}}},
+			}}}
 	docs := BuildProjectDocs(DocsInputs{
 		Analysis: analysis, Map: mapped(),
 		Profiles:  []toolchain.Profile{{Dir: "", Kind: "go", Source: "go.mod", Test: []string{"go", "test", "./..."}, Lint: []string{"go", "vet", "./..."}}},
 		Summaries: map[string]ModuleSummary{"internal/model": {Path: "internal/model", Summary: "Defines the item types.", Responsibilities: []string{"Item"}}},
 	})
-	if docs.SchemaVersion != "3" || docs.Status != ProjectAnalysisStatusFresh || !docs.UpdatedAt.Equal(now) {
+	if docs.SchemaVersion != "4" || docs.Status != ProjectAnalysisStatusFresh || !docs.UpdatedAt.Equal(now) {
 		t.Fatalf("docs = %+v", docs)
+	}
+	wantOverview := ProjectDocsOverview{Purpose: "Keeps items.", Architecture: "cmd/app uses internal/store.", Languages: []ProjectDocsLanguage{{Name: "Go", Files: 6}, {Name: "TypeScript", Files: 4}}, Files: 12, Lines: 600}
+	if !reflect.DeepEqual(docs.Overview, wantOverview) {
+		t.Fatalf("overview = %+v", docs.Overview)
 	}
 	var paths []string
 	byPath := map[string]ProjectDocsComponent{}
@@ -57,23 +72,34 @@ func TestDocsDescribeTheComponentsTheCodeDefines(t *testing.T) {
 		t.Fatalf("components = %v", paths)
 	}
 	store := byPath["internal/store"]
-	if store.Name != "Store" || store.SummarySource != "overview" || !strings.Contains(store.Summary, "Saves items.") || !slices.Equal(store.Dependencies, []string{"internal/model"}) || !slices.Equal(store.UsedBy, []string{"cmd/app"}) || store.Files != 3 {
+	if store.Name != "Store" || store.SummarySource != "overview" || store.Summary != "Saves items." || len(store.Responsibilities) != 0 || !slices.Equal(store.Imports, []string{"internal/model"}) || !slices.Equal(store.UsedBy, []string{"cmd/app"}) || store.Files != 3 {
 		t.Fatalf("store = %+v", store)
 	}
-	if model := byPath["internal/model"]; model.SummarySource != "module" || model.Summary != "Defines the item types." {
+	if model := byPath["internal/model"]; model.SummarySource != "module" || model.Summary != "Defines the item types." || !slices.Equal(model.Responsibilities, []string{"Item"}) {
 		t.Fatalf("model = %+v", model)
 	}
-	if web := byPath["web/src"]; web.SummarySource != "" || web.Summary != "" || len(web.Dependencies) != 0 {
+	if web := byPath["web/src"]; web.SummarySource != "" || web.Summary != "" || len(web.Imports) != 0 {
 		t.Fatalf("a component without summaries got one: %+v", web)
 	}
-	if app := byPath["cmd/app"]; len(app.Contracts) != 1 || app.Contracts[0].Name != "cmd/app/main.go" {
-		t.Fatalf("entry points = %+v", app.Contracts)
+	if app := byPath["cmd/app"]; len(app.EntryPoints) != 1 || app.EntryPoints[0].Path != "cmd/app/main.go" {
+		t.Fatalf("entry points = %+v", app.EntryPoints)
 	}
 	if len(docs.Graph.Edges) != 2 || docs.Graph.Modules != 4 || len(docs.Graph.EntryPoints) != 2 {
 		t.Fatalf("graph = %+v", docs.Graph)
 	}
-	if strings.Contains(docs.Context.Topology, "flowchart") || !strings.Contains(docs.Context.Topology, "4 components") {
-		t.Fatalf("topology = %q", docs.Context.Topology)
+	wantWalkthroughs := []Walkthrough{{Title: "Save an item", Summary: "The command saves one item.", Steps: []WalkthroughStep{
+		{Text: "Parse the flags.", Path: "cmd/app/main.go", Symbol: "main", Line: 3},
+		{Text: "Write it.", Path: "internal/store/store.go"},
+	}}}
+	if !reflect.DeepEqual(docs.Walkthroughs, wantWalkthroughs) {
+		t.Fatalf("walkthroughs = %+v", docs.Walkthroughs)
+	}
+}
+
+func TestDocsLeaveOutTheDiagramsOfOlderOverviews(t *testing.T) {
+	docs := BuildProjectDocs(DocsInputs{Analysis: Analysis{Report: ProjectAnalysisReport{Status: ProjectAnalysisStatusStale, Purpose: "Keeps items.", Architecture: "flowchart TD\n A --> B"}}})
+	if docs.Overview.Purpose != "Keeps items." || docs.Overview.Architecture != "" || docs.Status != ProjectAnalysisStatusStale {
+		t.Fatalf("overview = %+v", docs.Overview)
 	}
 }
 
@@ -82,29 +108,32 @@ func TestDocsListWhatTheManifestsAndChecksDeclare(t *testing.T) {
 		{Dir: "", Kind: "go", Source: "go.mod", Test: []string{"go", "test", "./..."}},
 		{Dir: "web", Kind: "node", Source: "web/package.json", Test: []string{"npm", "test"}, Lint: []string{"npm", "run", "lint"}},
 	}})
-	var dependencies []string
-	for _, dependency := range docs.Dependencies {
-		dependencies = append(dependencies, dependency.Kind+" "+dependency.Name+" "+dependency.Version)
+	wantDependencies := []ProjectDocsDependency{
+		{Name: "github.com/acme/log", Kind: "Go module", Version: "v1.2.0", Source: "go.mod"},
+		{Name: "react", Kind: "npm package", Version: "^19.0.0", Source: "web/package.json"},
+		{Name: "vite", Kind: "npm package", Version: "^6.0.0", Dev: true, Source: "web/package.json"},
 	}
-	if !slices.Equal(dependencies, []string{"Go module github.com/acme/log v1.2.0", "npm package react ^19.0.0", "npm package (development) vite ^6.0.0"}) {
-		t.Fatalf("dependencies = %v", dependencies)
+	if !reflect.DeepEqual(docs.Dependencies, wantDependencies) {
+		t.Fatalf("dependencies = %+v", docs.Dependencies)
 	}
-	var runbook []string
-	for _, item := range docs.Runbook {
-		runbook = append(runbook, item.Label+": "+item.Command)
+	wantCommands := []ProjectDocsCommand{
+		{Label: "Test", Command: "go test ./...", Source: "go.mod"},
+		{Label: "Test", Command: "npm test", Dir: "web", Source: "web/package.json"},
+		{Label: "Lint", Command: "npm run lint", Dir: "web", Source: "web/package.json"},
+		{Label: "Dev", Command: "npm run dev", Dir: "web", Source: "web/package.json"},
 	}
-	if !slices.Equal(runbook, []string{"Test: go test ./...", "Test (web): npm test", "Lint (web): npm run lint", "Run dev (web): npm run dev"}) {
-		t.Fatalf("runbook = %v", runbook)
+	if !reflect.DeepEqual(docs.Commands, wantCommands) {
+		t.Fatalf("commands = %+v", docs.Commands)
 	}
 }
 
 func TestDocsInventNothingWithoutAModelOrCode(t *testing.T) {
 	docs := BuildProjectDocs(DocsInputs{Analysis: Analysis{ProjectID: "p", ProjectRevision: "r"}})
-	if docs.Status != ProjectAnalysisStatusUnavailable || len(docs.Components) != 0 || len(docs.Scenarios) != 0 || len(docs.Decisions) != 0 || len(docs.Dependencies) != 0 || len(docs.Runbook) != 0 {
+	if docs.Status != ProjectAnalysisStatusUnavailable || len(docs.Components) != 0 || len(docs.Walkthroughs) != 0 || len(docs.Dependencies) != 0 || len(docs.Commands) != 0 || docs.Overview.Purpose != "" {
 		t.Fatalf("docs = %+v", docs)
 	}
 	data, err := json.Marshal(docs)
-	if err != nil || strings.Contains(string(data), "validates inputs") || strings.Contains(string(data), "verified state") {
-		t.Fatalf("unsupported guarantees: %s %v", data, err)
+	if err != nil || !strings.Contains(string(data), `"walkthroughs":[]`) || !strings.Contains(string(data), `"commands":[]`) {
+		t.Fatalf("empty lists must encode as lists: %s %v", data, err)
 	}
 }

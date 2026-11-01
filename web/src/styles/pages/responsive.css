@@ -48,6 +48,16 @@
     grid-template-columns: 220px minmax(0, 1fr);
   }
 
+  .docs {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+
+  .component-row,
+  .file-list li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
   .detail-pane {
     position: fixed;
     right: 0;

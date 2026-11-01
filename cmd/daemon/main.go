@@ -264,6 +264,7 @@ func newProjectHTTPMux(application *app.Service, projectManager *project.Manager
 	mux.HandleFunc("POST /api/projects/import", projectHandler.Import)
 	mux.HandleFunc("POST /api/projects/restore", projectHandler.Restore)
 	mux.HandleFunc("GET /api/projects/current/overview", projectHandler.Overview)
+	mux.HandleFunc("GET /api/projects/current/docs/component", projectHandler.DocsComponent)
 	mux.HandleFunc("POST /api/projects/current/docs/refresh", projectHandler.RefreshDocs)
 	mux.HandleFunc("POST /api/projects/current/ask", projectHandler.Ask)
 	mux.HandleFunc("GET /api/projects/current/findings", projectHandler.Findings)

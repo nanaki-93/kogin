@@ -19,8 +19,8 @@ func TestProjectOverviewSeparatesFindingSourcesAndKeepsMissingAnalysisUseful(t *
 	}
 	analysis.Report = project.ProjectAnalysisReport{
 		SchemaVersion: "1", ProjectID: analysis.ProjectID, ProjectRevision: revision,
-		Purpose: "Runs the fixture.", Architecture: "Single package.", Components: []string{}, EntryPoints: []string{}, Flows: []string{},
-		Risks: []project.ProjectAnalysisRisk{{Severity: "low", Summary: "Add an integration test."}}, NextSteps: []string{},
+		Purpose: "Runs the fixture.", Architecture: "Single package.", Components: []string{},
+		Risks:  []project.ProjectAnalysisRisk{{Severity: "low", Summary: "Add an integration test."}},
 		Status: project.ProjectAnalysisStatusFresh, Profile: "analysis", PromptVersion: "project-analysis-v1", GeneratedAt: time.Now().UTC(),
 	}
 	if err := manager.Set(root, analysis); err != nil {

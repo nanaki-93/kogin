@@ -8,7 +8,7 @@ Mini-Orca's interface is the browser workspace (`web/`, served by the daemon at
 2. **Review and apply** — read every changed file, run checks, approve the exact
    version and apply it, with Undo for the latest Apply.
 3. **Understand the project** — browse code, read findings with their evidence
-   and read the generated handbook.
+   and read the generated docs.
 
 Everything else (models, roles, budgets, skills, trust) is supporting
 configuration and stays one step away from these jobs.
@@ -41,7 +41,7 @@ this document owns how the interface is organized, looks and responds.
 | **Code** | `g c` | A read-only explorer: file tree, editor tabs, highlighted source with issue markers, an inspector. |
 | **Issues** | `g i` | Findings with status, severity and category filters; the selected finding's problem, evidence, source and fix. |
 | **Analysis** | `g a` | The last or running analysis: progress, why stages failed, results per section, the models used and each file's stages; analyze, retry failed, pause, resume and cancel. |
-| **Docs** | `g d` | The handbook: overview, components, dependencies, scenarios, decisions, runbook, glossary. |
+| **Docs** | `g d` | A guide to the project: overview, get started (commands, entry points), architecture (components diagram), how it works (walkthroughs), a page per component with its files, dependencies, and Ask the code. |
 | **Branches** | `g b` | The main checkout and task worktrees with their tasks, integration state, merge preview and merge (removing the worktree and branch unless switched off), and removal of a worktree with nothing left to merge. |
 | **Setup** | — | The project's first-run wizard: models, agents & budget, checks, analysis. Opens once for a project without its own configuration; Settings → Project reopens it. |
 | **Settings** | `g s` | Project, trust, models and agents, analysis, usage, appearance. |
@@ -110,8 +110,9 @@ accent stays readable.
   (results with output), and the Ready to apply? rail with Apply, commit message
   and Undo.
 - **Code** — virtualized file tree, editor tabs per checkout, highlighted
-  source with issue markers and line links, an inspector with Explain and "New
-  task with this file".
+  source with issue markers and line links, an inspector with Explain, "New
+  task with this file", one sentence on what the file does (the rest of its
+  summary on demand) and the docs component it belongs to.
 - **Issues**, **Docs**, **Branches** (merge preview with commits and diff, merge
   and abort; a worktree that cannot merge yet says why) and **Settings** follow
   the same list-and-detail structure.

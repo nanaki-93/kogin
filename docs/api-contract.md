@@ -73,7 +73,8 @@ untrusted networks.
 | POST | `/api/projects/import` | Import the user-selected project and build deterministic project facts; the project overview is requested from the project's analyze model only when it is local or `confirm_remote_provider` is true. |
 | POST | `/api/projects/restore` | Restore a previously imported local project without contacting the model. |
 | GET | `/api/projects/current` | Read the selected project summary without changing the active project. |
-| GET | `/api/projects/current/overview` | Read source-free metrics, structured analysis, optional engineering specification (`docs`), coverage, and finding counts for `project_revision`. |
+| GET | `/api/projects/current/overview` | Read source-free metrics, structured analysis, the docs (`docs`), coverage, and finding counts for `project_revision`. |
+| GET | `/api/projects/current/docs/component` | List one docs component's code files (`path` = the component path) with each file's language, lines and the first sentence of its saved summary, for `project_revision`; 404 when the docs show no component there. Never calls a model. |
 | POST | `/api/projects/current/docs/refresh` | Start writing the docs' model-written parts again in the background with the analyze model: the summaries of components whose files' summaries changed, then the overview from all of them. Needs `project_id`/`project_revision`, and `confirm_remote_provider` for a remote model; 202 with the running refresh, 409 while another runs. The overview's `docs_refresh` reports it until it ends. |
 | POST | `/api/projects/current/ask` | Answer a question about the code: the Review role's model runs as an agent (Claude Code, Agy or Pi) with read-only tools over the checkout, starting from the docs, and ends with an answer and citations Mini-Orca checked against the files (the lines exist and contain the quote). Needs `project_id`/`project_revision`, a question of at most 2,000 characters and `confirm_remote_provider`; 422 when the Review role's model cannot run as an agent. Nothing is written or kept. |
 | GET | `/api/projects/current/analysis/selection` | Read the file checklist and saved exclusions with project/revision guards; no dispatch. |
@@ -1092,12 +1093,22 @@ newly scanned checkout. A provider timeout/refusal retains a failed report and
 rechecked factual inventory; journal or policy failures remain errors. Cached
 reads, restore and handbook composition make no provider request.
 
-Derived project handbooks use composition schema `2`. Component paths must exist
-in the inventory; dependencies come from indexed imports. Model explanations,
-diagrams and risks are advisory, and absent scenario steps, guards or decisions
-are not invented. Older schema `1` handbooks are rebuilt in memory from retained
-reports and indexes on read, without rewriting the saved history. Historical
-project-analysis report schemas remain readable.
+The docs (`ProjectOverview.docs`, schema `4`) are built on every read and never
+stored: the overview's purpose, architecture and walkthroughs come from the
+project analysis report; components, imports, entry points, commands and
+dependencies from the project map, toolchain profiles and manifests; component
+summaries from `.mini-orca/module-summaries.json`. Older reports remain
+readable: a report from prompt `project-analysis-v6` or earlier is stale, its
+Mermaid architecture is left out and its flows, entry points and next steps are
+no longer read. The overview prompt `project-analysis-v7` asks for short prose,
+component lines and up to six walkthroughs of two to eight steps; each step
+names a file and optionally a function or type. When the report is written,
+steps whose files are not in the project are dropped, a symbol is kept only
+when the file's outline declares it (its line is stored), and a walkthrough
+left without steps is dropped; on read, steps whose files have gone are
+dropped too. Project-level risks still become AI-suggested issues and are not
+shown in the docs. Module summaries (`module-summary-v2`) are one or two
+sentences and at most three responsibilities.
 
 Budgets are shared totals, so child usage must not be added together.
 `usage.input_tokens` and `output_tokens` are enforced budget charges, including

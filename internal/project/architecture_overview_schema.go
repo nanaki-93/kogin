@@ -11,20 +11,35 @@ import (
 // omitted insights from older reports and independently enforces byte limits.
 const projectAnalysisResponseSchemaDocument = `{
  "type":"object","additionalProperties":false,
- "required":["purpose","architecture","components","entry_points","flows","risks","next_steps","engineering_insight"],
+ "required":["purpose","architecture","components","walkthroughs","risks","engineering_insight"],
  "properties":{
-  "purpose":{"$ref":"#/$defs/text"},
-  "architecture":{"$ref":"#/$defs/text"},
-  "components":{"$ref":"#/$defs/textList"},
-  "entry_points":{"$ref":"#/$defs/textList"},
-  "flows":{"$ref":"#/$defs/textList"},
+  "purpose":{"type":"string","minLength":1,"maxLength":%[3]d},
+  "architecture":{"type":"string","minLength":1,"maxLength":%[4]d},
+  "components":{"type":"array","maxItems":%[5]d,"items":{"$ref":"#/$defs/text"}},
+  "walkthroughs":{"type":"array","maxItems":%[6]d,"items":{"$ref":"#/$defs/walkthrough"}},
   "risks":{"type":"array","maxItems":%[1]d,"items":{"$ref":"#/$defs/risk"}},
-  "next_steps":{"$ref":"#/$defs/textList"},
   "engineering_insight":{"$ref":"#/$defs/optionalInsight"}
  },
  "$defs":{
   "text":{"type":"string","minLength":1,"maxLength":%[2]d},
-  "textList":{"type":"array","maxItems":%[1]d,"items":{"$ref":"#/$defs/text"}},
+  "walkthrough":{
+   "type":"object","additionalProperties":false,
+   "required":["title","summary","steps"],
+   "properties":{
+    "title":{"type":"string","minLength":1,"maxLength":%[7]d},
+    "summary":{"type":"string","minLength":1,"maxLength":%[8]d},
+    "steps":{"type":"array","minItems":1,"maxItems":%[9]d,"items":{"$ref":"#/$defs/step"}}
+   }
+  },
+  "step":{
+   "type":"object","additionalProperties":false,
+   "required":["text","path","symbol"],
+   "properties":{
+    "text":{"type":"string","minLength":1,"maxLength":%[10]d},
+    "path":{"type":"string","minLength":1,"maxLength":%[11]d},
+    "symbol":{"type":"string","maxLength":%[12]d}
+   }
+  },
   "risk":{
    "type":"object","additionalProperties":false,
    "required":["severity","summary","engineering_insight"],
@@ -50,5 +65,8 @@ const projectAnalysisResponseSchemaDocument = `{
 }`
 
 func projectAnalysisResponseSchema() llm.JSONSchema {
-	return llm.JSONSchema{Name: "project_analysis_response", Schema: json.RawMessage(fmt.Sprintf(projectAnalysisResponseSchemaDocument, maxProjectAnalysisItems, maxProjectAnalysisItemBytes))}
+	document := fmt.Sprintf(projectAnalysisResponseSchemaDocument,
+		maxProjectAnalysisItems, maxProjectAnalysisItemBytes, maxOverviewPurpose, maxOverviewArchitecture, maxOverviewComponents,
+		maxWalkthroughs, maxWalkthroughTitle, maxWalkthroughSummary, maxWalkthroughSteps, maxWalkthroughStepText, maxWalkthroughPath, maxWalkthroughSymbol)
+	return llm.JSONSchema{Name: "project_analysis_response", Schema: json.RawMessage(document)}
 }

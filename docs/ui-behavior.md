@@ -243,20 +243,29 @@ every guard when the action arrives.
   budgets of every file, then each command with its arguments (each
   subproject's lint and tests when checks may run project code, semgrep with the
   project's own rules when it is installed), or why lint and tests are left out.
-  Analysis writes findings and the handbook, never source. A dispatch
+  Analysis writes findings and the docs, never source. A dispatch
   window covers up to 64 files and 30 minutes; a run that reaches either pauses
   and resumes from the dashboard.
-- **Docs.** The components, the imports between them (the diagram), entry
-  points, dependencies and runbook are read from the code on every visit. A
-  component's summary is written by the analyze model from its files'
-  summaries and says where it came from. An analysis run ends by summarizing
-  again the components whose files changed and writing the overview again; its
-  confirmation counts those requests. **Refresh docs** does the same without a
-  run and always writes the overview again: it asks first (naming a remote
-  model), runs in the background, one at a time, and the page shows it running,
-  then what it wrote and kept or why it failed or was skipped. Coding agents
-  start from these summaries too: the components a task's files are in and
-  the components those import or are used by, marked as model-written.
+- **Docs.** A guide to the project, laid out like a docs site: a nav with
+  Overview, Get started, Architecture, How it works (one page per
+  walkthrough), Components (one page per component), Dependencies and Ask
+  the code, with an ask box on top. The components, the imports between them
+  (the diagram), entry points, commands and dependencies are read from the
+  code on every visit. The overview's purpose and architecture, the
+  walkthroughs and component summaries are model-written and marked **AI**;
+  a walkthrough step keeps only a file the project has and a function only
+  where the file declares it, and opens that file at its line. A component
+  page lists its imports, what uses it, the walkthroughs through it and its
+  files, each with the first sentence of its saved summary. When the overview
+  is missing, failed or out of date the model-written pages say so. An
+  analysis run ends by summarizing again the components whose files changed
+  and writing the overview again; its confirmation counts those requests.
+  **Refresh docs** does the same without a run and always writes the
+  overview again: it asks first (naming a remote model), runs in the
+  background, one at a time, and the page shows it running, then what it
+  wrote and kept or why it failed or was skipped. Coding agents start from
+  these summaries too: the components a task's files are in and the
+  components those import or are used by, marked as model-written.
 - **Ask the code.** Docs → Ask the code (or the palette: **Ask the codebase**,
   or a question of three words or more typed into it) asks the Review role's
   model, which must run as an agent (Claude Code, Agy or Pi; otherwise the page

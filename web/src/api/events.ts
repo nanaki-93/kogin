@@ -14,10 +14,10 @@ export type Connection = 'connecting' | 'live' | 'offline';
 const INVALIDATES: Record<string, string[][]> = {
   // Task checks open refactor issues for files already over their budgets.
   workflow: [['session'], ['changes'], ['git'], ['usage'], ['quarantine'], ['findings'], ['changeRules']],
-  project_index: [['project'], ['index'], ['changes'], ['session'], ['overview'], ['trust'], ['git'], ['file'], ['fileSummary'], ['usage'], ['rules'], ['changeRules']],
+  project_index: [['project'], ['index'], ['changes'], ['session'], ['overview'], ['trust'], ['git'], ['file'], ['fileSummary'], ['docsComponent'], ['usage'], ['rules'], ['changeRules']],
   findings: [['findings'], ['overview']],
-  analysis: [['overview'], ['findings'], ['fileSummary'], ['usage']],
-  docs: [['overview']],
+  analysis: [['overview'], ['findings'], ['fileSummary'], ['docsComponent'], ['usage']],
+  docs: [['overview'], ['docsComponent']],
   agent_settings: [['settings']],
   configuration: [['setup'], ['models'], ['settings'], ['overview']],
   agent_run: [['session'], ['usage'], ['quarantine']],

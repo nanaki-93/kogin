@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronRight, Copy, FileCode2, Folder, FolderOpen, Lightbulb, ListCollapse, PanelRight, Plus, RefreshCw, Search, Sparkles, X } from 'lucide-react';
-import { useFile, useFileSummary, useFindings, useIndex, useProject } from '@/api/hooks';
+import { useFile, useFindings, useIndex, useProject } from '@/api/hooks';
 import type { FileInfo, Finding } from '@/api/types';
 import { useActions, useBusy, type FileExplanation } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
@@ -13,11 +13,12 @@ import { setParam, useRoute } from '@/lib/router';
 import { highlightLines } from '@/lib/highlight';
 import { ancestors, buildTree, visibleRows } from '@/lib/tree';
 import { rankItems } from '@/lib/fuzzy';
-import { basename, companionTestPath, dirname, explainable, languageOf, plural, timeAgo } from '@/lib/util';
+import { basename, companionTestPath, dirname, explainable, languageOf, plural } from '@/lib/util';
 import { Badge, Button, EmptyState, Highlight, IconButton, Input, Kbd, Skeleton, cx } from '@/components/ui';
 import { FileIcon, SeverityBadge, isUnresolvedFinding } from '@/components/domain';
 import { useFeedback } from '@/components/overlays';
 import { FileStages } from '@/features/analysis/FileStages';
+import { FileAbout } from './FileAbout';
 
 const tabsByCheckout = new Map<string, string[]>();
 
@@ -240,7 +241,6 @@ function Inspector({ path, findings, file }: { path: string; findings: Finding[]
   const actions = useActions();
   const busy = useBusy();
   const { toast } = useFeedback();
-  const summary = useFileSummary(path).data;
   const canExplain = explainable(file);
   const [result, setResult] = useState<FileExplanation | null>(null);
   useEffect(() => setResult(null), [path]);
@@ -269,20 +269,7 @@ function Inspector({ path, findings, file }: { path: string; findings: Finding[]
           {result.error_behavior?.length ? (<><div className="xs muted">Errors and edge cases</div><ul className="small">{result.error_behavior.map((b, i) => <li key={i}>{b}</li>)}</ul></>) : null}
         </div>
       ) : null}
-      {summary?.purpose && (summary.status === 'fresh' || summary.status === 'stale') ? (
-        <section className="inspector-section stack" aria-label="File summary">
-          <div className="row">
-            <span className="strong small grow">Summary</span>
-            {summary.status === 'stale' ? <Badge tone="warning">Out of date</Badge> : <Badge tone="accent">AI</Badge>}
-          </div>
-          <p className="small">{summary.purpose}</p>
-          {summary.responsibilities?.length ? <ul className="small">{summary.responsibilities.map((r, i) => <li key={i}>{r}</li>)}</ul> : null}
-          {summary.dependencies?.length ? (<><div className="xs muted">Depends on</div><ul className="small">{summary.dependencies.map((d, i) => <li key={i}>{d}</li>)}</ul></>) : null}
-          {summary.side_effects?.length ? (<><div className="xs muted">Side effects</div><ul className="small">{summary.side_effects.map((e, i) => <li key={i}>{e}</li>)}</ul></>) : null}
-          {summary.generated_at ? <div className="xs faint">From the analysis {timeAgo(summary.generated_at)}</div> : null}
-        </section>
-      ) : null}
-      <FileStages path={path} />
+      <FileAbout path={path} />
       <div className="inspector-section">
         <div className="row"><span className="strong small">Open issues</span><span className="count">{findings.length}</span></div>
         {findings.length ? (
@@ -301,6 +288,7 @@ function Inspector({ path, findings, file }: { path: string; findings: Finding[]
           <p className="xs muted">No open issues in this file.</p>
         )}
       </div>
+      <FileStages path={path} />
       <div className="inspector-section inspector-hint xs faint">
         <span><Kbd>mod+P</Kbd> go to file</span>
         <span>Click a line number to link to it</span>

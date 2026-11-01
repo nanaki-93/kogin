@@ -10,23 +10,9 @@ func parseReportComponent(raw string) ProjectDocsComponent {
 	if trimmed == "" {
 		return ProjectDocsComponent{}
 	}
-	pathPart, rest := splitComponentHeader(trimmed)
+	pathPart, summary := splitComponentHeader(trimmed)
 	name, cleanPath := deriveComponentIdentity(pathPart)
-	layer := classifyComponentLayer(cleanPath, name)
-	summary := rest
-	if summary == "" {
-		summary = "No responsibility explanation was supplied."
-	}
-	summary = "Model interpretation: " + summary
-	return ProjectDocsComponent{
-		Name:             name,
-		Layer:            layer,
-		Path:             cleanPath,
-		Summary:          summary,
-		Responsibilities: []string{summary},
-		Contracts:        []ProjectDocsContract{},
-		Dependencies:     []string{},
-	}
+	return ProjectDocsComponent{Name: name, Path: cleanPath, Summary: summary, Responsibilities: []string{}}
 }
 
 func splitComponentHeader(trimmed string) (string, string) {
@@ -66,29 +52,4 @@ func humanizeComponentName(raw string) string {
 		}
 	}
 	return strings.Join(parts, " ")
-}
-
-func classifyComponentLayer(path, name string) string {
-	lower := strings.ToLower(path + " " + name)
-	switch {
-	case containsAnyToken(lower, "desktop", "frontend", "ui", "view", "web", "client"):
-		return "Presentation Layer"
-	case containsAnyToken(lower, "api", "handler", "route", "http", "transport", "cmd", "daemon", "cli"):
-		return "API / Transport Boundary"
-	case containsAnyToken(lower, "app", "service", "workflow", "orchestrat", "job", "usecase"):
-		return "Application / Orchestration"
-	case containsAnyToken(lower, "script", "test", "eval", "bench", "ci", "quality"):
-		return "Tooling & Verification"
-	default:
-		return "Domain & Persistence"
-	}
-}
-
-func containsAnyToken(haystack string, tokens ...string) bool {
-	for _, token := range tokens {
-		if strings.Contains(haystack, token) {
-			return true
-		}
-	}
-	return false
 }

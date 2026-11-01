@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import type { DocsComponent, DocsGraph } from '@/api/types';
 import { NODE_HEIGHT, NODE_WIDTH, layoutGraph } from '@/lib/graphLayout';
 import { cx } from '@/components/ui';
+import { componentLabel } from '@/lib/docs';
 
 export function ComponentGraph({ components, graph, onOpen }: { components: DocsComponent[]; graph: DocsGraph | undefined; onOpen: (component: DocsComponent) => void }) {
   const [hover, setHover] = useState<string | null>(null);
@@ -47,10 +48,11 @@ export function ComponentGraph({ components, graph, onOpen }: { components: Docs
         })}
         {layout.nodes.map(node => {
           const component = byPath.get(node.id)!;
-          const label = component.name.length > 20 ? component.name.slice(0, 19) + '…' : component.name;
+          const path = componentLabel(component);
+          const label = path.length > 20 ? '…' + path.slice(-19) : path;
           return (
             <g key={node.id} className={cx('graph-node', hover === node.id && 'is-active')} transform={`translate(${node.x} ${node.y})`} tabIndex={0} role="button"
-              aria-label={`${component.name}, ${component.path}: open its description`} onClick={() => onOpen(component)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(component); } }}
+              aria-label={`${path}: open its page`} onClick={() => onOpen(component)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(component); } }}
               onMouseEnter={() => setHover(node.id)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(node.id)} onBlur={() => setHover(null)}>
               <title>{`${component.path}${component.summary ? `: ${component.summary}` : ''}`}</title>
               <rect width={NODE_WIDTH} height={NODE_HEIGHT} rx={8} />

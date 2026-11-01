@@ -13,10 +13,16 @@ export interface FileSummary {
   generated_at?: string;
 }
 
+/** Where a program starts: a main function, a package's bin or main, a script. */
+export interface DocsEntryPoint {
+  path: string;
+  kind: string;
+  detail?: string;
+}
+
 /** One part of the project: a directory of code, as the project map groups it. */
 export interface DocsComponent {
   name: string;
-  layer?: string;
   path: string;
   languages?: string[];
   files?: number;
@@ -25,32 +31,69 @@ export interface DocsComponent {
   summary?: string;
   summary_source?: 'module' | 'overview' | string;
   responsibilities?: string[];
-  /** The component's entry points. */
-  contracts?: { name: string; kind: string; summary?: string }[];
+  entry_points?: DocsEntryPoint[];
   /** Components this one imports, and those that import it, resolved from the code. */
-  dependencies?: string[];
+  imports?: string[];
   used_by?: string[];
 }
 
 /** What the components diagram is drawn from. */
 export interface DocsGraph {
   edges: { from: string; to: string; imports: number }[];
-  entry_points: { path: string; kind: string; detail?: string }[];
+  entry_points: DocsEntryPoint[];
   modules: number;
   truncated?: boolean;
 }
 
+/** One step of a walkthrough; symbol and line only when the daemon found the declaration. */
+export interface WalkthroughStep {
+  text: string;
+  path: string;
+  symbol?: string;
+  line?: number;
+}
+
+/** One thing the project does, traced through its files by the overview's model. */
+export interface Walkthrough {
+  title: string;
+  summary: string;
+  steps: WalkthroughStep[];
+}
+
+/** A command the project declares: a subproject's test or lint command, or a package script. */
+export interface DocsCommand {
+  label: string;
+  command: string;
+  /** Where it runs, relative to the project root; absent for the root. */
+  dir?: string;
+  source: string;
+}
+
+export interface DocsDependency {
+  name: string;
+  kind: string;
+  version?: string;
+  dev?: boolean;
+  source: string;
+}
+
 export interface ProjectDocs {
+  schema_version?: string;
+  /** The model-written parts' freshness: the project overview's status. */
   status: string;
-  context?: { purpose?: string; goal_pursuit?: string[]; topology?: string; stack?: string[] };
-  dependencies?: { name: string; kind?: string; version?: string; source?: string; summary?: string }[];
+  overview?: { purpose?: string; architecture?: string; languages?: { name: string; files: number }[]; files?: number; lines?: number };
   components?: DocsComponent[];
-  scenarios?: { title: string; trigger?: string; summary?: string; invariant?: string; steps?: { phase?: string; layer?: string; title: string; detail?: string; path?: string }[] }[];
-  decisions?: { title: string; category?: string; decision?: string; tradeoff?: string }[];
-  runbook?: { label: string; command: string; description?: string }[];
-  glossary?: { term: string; definition: string }[];
+  walkthroughs?: Walkthrough[];
+  commands?: DocsCommand[];
+  dependencies?: DocsDependency[];
   graph?: DocsGraph;
   updated_at?: string;
+}
+
+/** A docs component's code files, each with the first sentence of its saved summary. */
+export interface DocsComponentFiles {
+  path: string;
+  files: { path: string; language: string; lines: number; summary?: string }[];
 }
 
 /** Lines of a file that support an answer; the daemon found the quote in them. */

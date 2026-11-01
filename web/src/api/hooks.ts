@@ -4,7 +4,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { api, query, withWorktree } from './client';
 import type {
-  AgentSettings, AnalysisFileSelection, AvailableModels, ProjectSetup, ChangeHistoryEntry, ChangeMutationResult, ChangeRules, ChangeSession, DaemonStatus, ExecutionTrust, FileInfo, FileSummary,
+  AgentSettings, AnalysisFileSelection, AvailableModels, ProjectSetup, ChangeHistoryEntry, ChangeMutationResult, ChangeRules, ChangeSession, DaemonStatus, DocsComponentFiles, ExecutionTrust, FileInfo, FileSummary,
   FindingsResponse, GitWorkspace, LoadedSession, ModelsCurrent, Overview, Project, ProjectIndex, ProjectRules, QuarantineReport, TaskEntry, UsageReport,
 } from './types';
 import { undoFromRecovery } from '@/lib/readiness';
@@ -28,6 +28,7 @@ export const keys = {
   settings: (wt: string) => ['settings', wt] as const,
   file: (wt: string, path: string) => ['file', wt, path] as const,
   fileSummary: (wt: string, path: string) => ['fileSummary', wt, path] as const,
+  docsComponent: (wt: string, path: string) => ['docsComponent', wt, path] as const,
   usage: (wt: string) => ['usage', wt] as const,
   quarantine: (wt: string) => ['quarantine', wt] as const,
   rules: (wt: string) => ['rules', wt] as const,
@@ -254,6 +255,19 @@ export function useAgentSettings(worktreePath: string, identity: { project_id: s
     queryKey: [...keys.settings(worktreePath), identity?.project_revision],
     queryFn: () => api.get<AgentSettings>(withWorktree('/api/projects/current/agent-settings' + query({ project_id: identity!.project_id, project_revision: identity!.project_revision }), worktreePath)),
     enabled: Boolean(identity?.project_id),
+    retry: false,
+  });
+}
+
+/** A docs component's code files with a line on each from their saved summaries. Never calls a model. */
+export function useDocsComponent(path: string | undefined) {
+  const { worktreePath } = useCheckout();
+  const project = useRevision();
+  return useQuery({
+    queryKey: [...keys.docsComponent(worktreePath, path ?? ''), project?.project_revision],
+    queryFn: () => api.get<DocsComponentFiles>(withWorktree('/api/projects/current/docs/component' + query({ path, project_revision: project!.project_revision }), worktreePath)),
+    enabled: Boolean(path && project),
+    staleTime: 30_000,
     retry: false,
   });
 }

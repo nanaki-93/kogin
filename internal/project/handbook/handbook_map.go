@@ -1,7 +1,6 @@
 package handbook
 
 import (
-	"fmt"
 	"path"
 	"sort"
 	"strings"
@@ -33,17 +32,16 @@ func buildMapComponents(in DocsInputs) ([]ProjectDocsComponent, []projectmap.Edg
 	overview := overviewComponents(in.Analysis.Report.Components)
 	components := make([]ProjectDocsComponent, 0, len(groups))
 	for _, group := range groups {
-		name := componentName(group.Path, in.Analysis.Name)
 		component := ProjectDocsComponent{
-			Name: name, Layer: classifyComponentLayer(group.Path, name), Path: group.Path,
+			Name: componentName(group.Path, in.Analysis.Name), Path: group.Path,
 			Languages: group.Languages, Files: group.Files, Lines: group.Lines,
-			Responsibilities: []string{}, Contracts: entryContracts(group, in.Map.EntryPoints),
-			Dependencies: orEmpty(dependencies[group.Path]), UsedBy: orEmpty(usedBy[group.Path]),
+			Responsibilities: []string{}, EntryPoints: componentEntryPoints(group, in.Map.EntryPoints),
+			Imports: orEmpty(dependencies[group.Path]), UsedBy: orEmpty(usedBy[group.Path]),
 		}
 		if summary, ok := in.Summaries[group.Path]; ok && strings.TrimSpace(summary.Summary) != "" {
 			component.Summary, component.Responsibilities, component.SummarySource = summary.Summary, orEmpty(summary.Responsibilities), "module"
-		} else if model, ok := overviewFor(group.Path, overview); ok {
-			component.Summary, component.Responsibilities, component.SummarySource = model.Summary, model.Responsibilities, "overview"
+		} else if model, ok := overviewFor(group.Path, overview); ok && model.Summary != "" {
+			component.Summary, component.SummarySource = model.Summary, "overview"
 		}
 		components = append(components, component)
 	}
@@ -87,20 +85,15 @@ func overviewFor(dir string, overview []ProjectDocsComponent) (ProjectDocsCompon
 	return best, found
 }
 
-// entryContracts lists the entry points in a component's modules.
-func entryContracts(group projectmap.Component, entries []projectmap.EntryPoint) []ProjectDocsContract {
-	contracts := []ProjectDocsContract{}
+// componentEntryPoints are the entry points in a component's modules.
+func componentEntryPoints(group projectmap.Component, entries []projectmap.EntryPoint) []projectmap.EntryPoint {
+	inside := []projectmap.EntryPoint{}
 	for _, entry := range entries {
-		if !inModules(projectmap.ModuleOf(entry.Path), group) {
-			continue
+		if inModules(projectmap.ModuleOf(entry.Path), group) {
+			inside = append(inside, entry)
 		}
-		summary := entry.Detail
-		if summary == "" {
-			summary = entry.Kind
-		}
-		contracts = append(contracts, ProjectDocsContract{Name: entry.Path, Kind: entry.Kind, Summary: summary})
 	}
-	return contracts
+	return inside
 }
 
 func inModules(module string, group projectmap.Component) bool {
@@ -135,37 +128,32 @@ func manifestDependencies(manifests []projectmap.Manifest) []ProjectDocsDependen
 				continue
 			}
 			seen[key] = true
-			entry := ProjectDocsDependency{Name: dependency.Name, Kind: kind, Version: dependency.Version, Source: manifest.Path, Summary: "Declared in " + manifest.Path}
+			entry := ProjectDocsDependency{Name: dependency.Name, Kind: kind, Version: dependency.Version, Dev: dependency.Dev, Source: manifest.Path}
 			if dependency.Dev {
-				entry.Kind += " (development)"
 				dev = append(dev, entry)
 			} else {
 				runtime = append(runtime, entry)
 			}
 		}
 	}
-	all := append(runtime, dev...)
+	all := append(append([]ProjectDocsDependency{}, runtime...), dev...)
 	if len(all) > maxDocsDependencies {
 		all = all[:maxDocsDependencies]
 	}
 	return all
 }
 
-// buildRunbook lists the commands the project declares: each subproject's
+// buildCommands lists the commands the project declares: each subproject's
 // test and lint commands, and the package scripts that build or start it.
-func buildRunbook(profiles []toolchain.Profile, manifests []projectmap.Manifest) []ProjectDocsRunbookItem {
-	items := []ProjectDocsRunbookItem{}
+func buildCommands(profiles []toolchain.Profile, manifests []projectmap.Manifest) []ProjectDocsCommand {
+	commands := []ProjectDocsCommand{}
 	for _, profile := range profiles {
-		where := "the project root"
-		if profile.Dir != "" {
-			where = profile.Dir + "/"
-		}
 		for _, check := range []struct {
 			label   string
 			command []string
 		}{{"Test", profile.Test}, {"Lint", profile.Lint}} {
 			if len(check.command) > 0 {
-				items = append(items, ProjectDocsRunbookItem{Label: runbookLabel(check.label, profile.Dir), Command: strings.Join(check.command, " "), Description: fmt.Sprintf("From %s; runs in %s.", profile.Source, where)})
+				commands = append(commands, ProjectDocsCommand{Label: check.label, Command: strings.Join(check.command, " "), Dir: profile.Dir, Source: profile.Source})
 			}
 		}
 	}
@@ -173,7 +161,6 @@ func buildRunbook(profiles []toolchain.Profile, manifests []projectmap.Manifest)
 		if manifest.Kind != "node" {
 			continue
 		}
-		dir := path.Dir(manifest.Path)
 		names := make([]string, 0, len(manifest.Scripts))
 		for name := range manifest.Scripts {
 			if name == "build" || name == "dev" || name == "start" || name == "serve" {
@@ -181,18 +168,12 @@ func buildRunbook(profiles []toolchain.Profile, manifests []projectmap.Manifest)
 			}
 		}
 		sort.Strings(names)
+		dir := strings.TrimPrefix(path.Dir(manifest.Path), ".")
 		for _, name := range names {
-			items = append(items, ProjectDocsRunbookItem{Label: runbookLabel("Run "+name, strings.TrimPrefix(dir, ".")), Command: "npm run " + name, Description: fmt.Sprintf("Script in %s: %s", manifest.Path, manifest.Scripts[name])})
+			commands = append(commands, ProjectDocsCommand{Label: strings.ToUpper(name[:1]) + name[1:], Command: "npm run " + name, Dir: dir, Source: manifest.Path})
 		}
 	}
-	return items
-}
-
-func runbookLabel(label, dir string) string {
-	if dir == "" {
-		return label
-	}
-	return label + " (" + dir + ")"
+	return commands
 }
 
 func orEmpty(items []string) []string {

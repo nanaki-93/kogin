@@ -10,7 +10,7 @@ import (
 )
 
 // ModuleSummaryPromptVersion names the prompt that writes module summaries.
-const ModuleSummaryPromptVersion = "module-summary-v1"
+const ModuleSummaryPromptVersion = "module-summary-v2"
 
 const moduleSummariesSchemaVersion = "1"
 

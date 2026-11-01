@@ -305,7 +305,7 @@ func TestAnalyzeProjectStoresStructuredReport(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Model: "fixture-model", Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: `{"purpose":"Runs a small daemon.","architecture":"One Go package.","components":["daemon"],"entry_points":["main.main"],"flows":["request to service"],"risks":[],"next_steps":["Add coverage"]}`}}}})
+		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Model: "fixture-model", Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: `{"purpose":"Runs a small daemon.","architecture":"One Go package.","components":["daemon"],"walkthroughs":[],"risks":[]}`}}}})
 	}))
 	defer server.Close()
 
@@ -384,7 +384,7 @@ func TestScopedModelRuntimesRouteOnlyAssignedOperations(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&analyzeRequest); err != nil {
 			t.Fatal(err)
 		}
-		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Model: "analyze-returned", Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: `{"purpose":"Understands the fixture.","architecture":"One package.","components":[],"entry_points":[],"flows":[],"risks":[],"next_steps":[]}`}}}})
+		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Model: "analyze-returned", Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: `{"purpose":"Understands the fixture.","architecture":"One package.","components":[],"walkthroughs":[],"risks":[]}`}}}})
 	}))
 	defer analyzeServer.Close()
 	bugServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

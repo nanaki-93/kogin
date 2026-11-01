@@ -2,14 +2,15 @@ package project
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/llm"
+	"github.com/nanaki-93/mini-orca/v2/internal/storage"
 )
 
 type projectAnalysisFixtureClient struct {
@@ -35,14 +36,15 @@ func (c *projectAnalysisFixtureClient) ChatWithJSONSchema(context.Context, []llm
 }
 
 func TestParseProjectAnalysisResponseRejectsMalformedUnknownAndOversizedOutput(t *testing.T) {
-	valid := `{"purpose":"Explains the project.","architecture":"One Go daemon.","components":["daemon"],"entry_points":["main.main"],"flows":["request to service"],"risks":[{"severity":"HIGH","summary":"Add a regression test."}],"next_steps":["Document the API"]}`
-	if report, err := parseProjectAnalysisResponse(valid); err != nil || report.Purpose != "Explains the project." || len(report.Risks) != 1 || report.Risks[0].Severity != "high" {
+	valid := `{"purpose":"Explains the project.","architecture":"One Go daemon.","components":["daemon"],"walkthroughs":[{"title":"Serve","summary":"Serves.","steps":[{"text":"Starts.","path":"main.go","symbol":"main"}]}],"risks":[{"severity":"HIGH","summary":"Add a regression test."}]}`
+	if report, err := parseProjectAnalysisResponse(valid); err != nil || report.Purpose != "Explains the project." || len(report.Risks) != 1 || report.Risks[0].Severity != "high" || len(report.Walkthroughs) != 1 {
 		t.Fatalf("parsed report = %+v, %v", report, err)
 	}
 	for _, output := range []string{
 		"not JSON",
-		`{"purpose":"x","architecture":"y","components":[],"entry_points":[],"flows":[],"risks":[],"next_steps":[],"unexpected":true}`,
-		`{"purpose":"","architecture":"y","components":[],"entry_points":[],"flows":[],"risks":[],"next_steps":[]}`,
+		`{"purpose":"x","architecture":"y","components":[],"walkthroughs":[],"risks":[],"unexpected":true}`,
+		`{"purpose":"x","architecture":"y","components":[],"flows":[],"risks":[]}`,
+		`{"purpose":"","architecture":"y","components":[],"walkthroughs":[],"risks":[]}`,
 		strings.Repeat("x", maxProjectAnalysisBytes+1),
 	} {
 		if _, err := parseProjectAnalysisResponse(output); err == nil {
@@ -52,15 +54,15 @@ func TestParseProjectAnalysisResponseRejectsMalformedUnknownAndOversizedOutput(t
 }
 
 func TestParseProjectAnalysisResponseOmitsInvalidOptionalInsights(t *testing.T) {
-	base := `{"purpose":"Explains the project.","architecture":"One Go daemon.","components":[],"entry_points":[],"flows":[],"risks":[{"severity":"low","summary":"Add a regression test.","engineering_insight":`
+	base := `{"purpose":"Explains the project.","architecture":"One Go daemon.","components":[],"walkthroughs":[],"risks":[{"severity":"low","summary":"Add a regression test.","engineering_insight":`
 	for _, insight := range []string{`"not an object"`, `{"mechanism":"m"}`, `{"mechanism":"m","why_it_matters_here":"w","unknown":true}`, `null`} {
-		output := base + insight + `}],"next_steps":[],"engineering_insight":` + insight + `}`
+		output := base + insight + `}],"engineering_insight":` + insight + `}`
 		parsed, err := parseProjectAnalysisResponse(output)
 		if err != nil || parsed.EngineeringInsight != nil || len(parsed.Risks) != 1 || parsed.Risks[0].EngineeringInsight != nil {
 			t.Fatalf("optional insight %q parsed = %+v, %v", insight, parsed, err)
 		}
 	}
-	parsed, err := parseProjectAnalysisResponse(`{"purpose":"Explains the project.","architecture":"One Go daemon.","components":[],"entry_points":[],"flows":[],"risks":[{"severity":"low","summary":"Add a regression test."}],"next_steps":[]}`)
+	parsed, err := parseProjectAnalysisResponse(`{"purpose":"Explains the project.","architecture":"One Go daemon.","components":[],"walkthroughs":[],"risks":[{"severity":"low","summary":"Add a regression test."}]}`)
 	if err != nil || parsed.EngineeringInsight != nil || parsed.Risks[0].EngineeringInsight != nil {
 		t.Fatalf("absent optional insight parsed = %+v, %v", parsed, err)
 	}
@@ -151,7 +153,7 @@ func TestAnalyzerRestoreLoadsStoredReportWithoutContactingModel(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\nfunc main() {}\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	client := &projectAnalysisFixtureClient{output: `{"purpose":"Restored project.","architecture":"One package.","components":[],"entry_points":[],"flows":[],"risks":[],"next_steps":[]}`}
+	client := &projectAnalysisFixtureClient{output: `{"purpose":"Restored project.","architecture":"One package.","components":[],"walkthroughs":[],"risks":[]}`}
 	analyzer := NewAnalyzerWithProvenance(client, "fixture-model", "analysis", "", "")
 	imported, err := analyzeProjectForTest(context.Background(), analyzer, root)
 	if err != nil {
@@ -177,7 +179,7 @@ func TestAnalyzerDoesNotPublishSuccessfulReportAfterCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	client := &projectAnalysisFixtureClient{
-		output:         `{"purpose":"Late report.","architecture":"One package.","components":[],"entry_points":[],"flows":[],"risks":[],"next_steps":[]}`,
+		output:         `{"purpose":"Late report.","architecture":"One package.","components":[],"walkthroughs":[],"risks":[]}`,
 		beforeResponse: cancel,
 	}
 	analyzer := NewAnalyzerWithProvenance(client, "fixture-model", "analyze", "", "")
@@ -204,39 +206,31 @@ func TestProjectAnalysisReportRequiresGeneratedTime(t *testing.T) {
 	}
 }
 
-func TestProjectDiagramsSurvivePersistenceAndOldPromptRemainsReadable(t *testing.T) {
+func TestWalkthroughsSurvivePersistenceAndOldReportsRemainReadable(t *testing.T) {
 	root := t.TempDir()
-	architecture := "flowchart TD\n A[API] --> B[Storage]"
-	flow := "sequenceDiagram\n Client->>API: Request\n API-->>Client: Response"
-	output, err := json.Marshal(projectAnalysisResponse{Purpose: "Service", Architecture: architecture, Components: []string{"internal/api (API): Handles requests."}, Flows: []string{flow}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	parsed, err := parseProjectAnalysisResponse(string(output))
-	if err != nil {
-		t.Fatal(err)
-	}
+	walkthroughs := []ProjectWalkthrough{{Title: "Serve a request", Summary: "A request reaches storage.", Steps: []ProjectWalkthroughStep{{Text: "The API decodes it.", Path: "internal/api/handler.go", Symbol: "Handler.Serve", Line: 12}}}}
 	report := newProjectAnalysisReportWithProvenance("project", "revision", "model", "analyze", "analyze", "", "")
-	report.Purpose, report.Architecture, report.Components, report.Flows = parsed.Purpose, parsed.Architecture, parsed.Components, parsed.Flows
+	report.Purpose, report.Architecture, report.Components, report.Walkthroughs = "Service", "internal/api calls internal/store.", []string{"internal/api (API): Handles requests."}, walkthroughs
 	if err := StoreProjectAnalysisReport(root, report); err != nil {
 		t.Fatal(err)
 	}
 	input := ProjectAnalysisInput{ProjectID: "project", ProjectRevision: "revision", Model: "model", Profile: "analyze", Scope: "analyze", PromptVersion: projectAnalysisPromptVersion}
 	stored, err := LoadProjectAnalysisReport(root, input)
-	if err != nil || stored == nil || stored.Architecture != architecture || len(stored.Flows) != 1 || stored.Flows[0] != flow || stored.Components[0] != parsed.Components[0] {
-		t.Fatalf("diagram report = %+v, %v", stored, err)
+	if err != nil || stored == nil || stored.Status != ProjectAnalysisStatusFresh || !reflect.DeepEqual(stored.Walkthroughs, walkthroughs) || stored.Components[0] != report.Components[0] {
+		t.Fatalf("stored report = %+v, %v", stored, err)
 	}
-	for version, legacyArchitecture := range map[string]string{
-		"project-analysis-v3": "API delegates to storage.",
-		"project-analysis-v4": architecture,
-	} {
-		report.PromptVersion, report.Architecture = version, legacyArchitecture
-		if err := StoreProjectAnalysisReport(root, report); err != nil {
-			t.Fatal(err)
-		}
-		stored, err = LoadProjectAnalysisReport(root, input)
-		if err != nil || stored == nil || stored.Status != ProjectAnalysisStatusStale || stored.Architecture != report.Architecture {
-			t.Fatalf("legacy %s report = %+v, %v", version, stored, err)
-		}
+	// A report from the diagram prompt reads as stale, its diagrams and the
+	// fields that prompt had are left out.
+	legacy := `{"schema_version":"1","project_id":"project","project_revision":"revision","purpose":"Service","architecture":"flowchart TD\n A --> B","components":[],"entry_points":["main"],"flows":["sequenceDiagram\n A->>B: x"],"risks":[],"next_steps":["Add tests"],"status":"fresh","model":"model","profile":"analyze","scope":"analyze","prompt_version":"project-analysis-v6","generated_at":"2026-10-30T10:00:00Z"}`
+	path, err := storage.MetadataPath(root, projectAnalysisReportPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stored, err = LoadProjectAnalysisReport(root, input)
+	if err != nil || stored == nil || stored.Status != ProjectAnalysisStatusStale || stored.Purpose != "Service" || len(stored.Walkthroughs) != 0 {
+		t.Fatalf("legacy report = %+v, %v", stored, err)
 	}
 }

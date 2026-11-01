@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -12,9 +13,9 @@ import (
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
 
-const projectReportFixture = `{"purpose":"Runs a small daemon.","architecture":"flowchart TD\n A[\"Client\"] --> B[\"Daemon\"]","components":["main.go (Daemon): Handles requests."],"entry_points":["main.Run"],"flows":["sequenceDiagram\n Client->>Daemon: Request\n Daemon-->>Client: Response"],"risks":[{"severity":"low","summary":"Add request coverage.","engineering_insight":null}],"next_steps":["Add coverage"],"engineering_insight":null}`
+const projectReportFixture = `{"purpose":"Runs a small daemon.","architecture":"main.go holds the whole daemon.","components":[". (Daemon): Handles requests."],"walkthroughs":[{"title":"Run the daemon","summary":"The program prints and exits.","steps":[{"text":"Run prints a line.","path":"./main.go","symbol":"Run"},{"text":"The model named a declaration the file lacks.","path":"main.go","symbol":"Serve"},{"text":"The model named a file the project lacks.","path":"server/http.go","symbol":"Listen"}]},{"title":"Invented","summary":"Only files the project lacks.","steps":[{"text":"Nothing here.","path":"../outside.go","symbol":""}]}],"risks":[{"severity":"low","summary":"Add request coverage.","engineering_insight":null}],"engineering_insight":null}`
 
-func TestAnalyzeProjectRequestsSchemaAndRestoresDiagramReport(t *testing.T) {
+func TestAnalyzeProjectRequestsSchemaAndChecksWalkthroughsAgainstTheFiles(t *testing.T) {
 	var received llm.ChatRequest
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,8 +40,17 @@ func TestAnalyzeProjectRequestsSchemaAndRestoresDiagramReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if analysis.AIStatus != project.ProjectAnalysisStatusFresh || analysis.Report.Model != "returned-model" || !strings.Contains(analysis.Report.Architecture, `A["Client"]`) || len(analysis.Report.Flows) != 1 {
+	if analysis.AIStatus != project.ProjectAnalysisStatusFresh || analysis.Report.Model != "returned-model" || analysis.Report.Architecture != "main.go holds the whole daemon." {
 		t.Fatalf("project report = %+v", analysis.Report)
+	}
+	// Steps keep only the project's files, and a symbol only where the file
+	// declares it.
+	want := []project.ProjectWalkthrough{{Title: "Run the daemon", Summary: "The program prints and exits.", Steps: []project.ProjectWalkthroughStep{
+		{Text: "Run prints a line.", Path: "main.go", Symbol: "Run", Line: 5},
+		{Text: "The model named a declaration the file lacks.", Path: "main.go"},
+	}}}
+	if !reflect.DeepEqual(analysis.Report.Walkthroughs, want) {
+		t.Fatalf("walkthroughs = %+v", analysis.Report.Walkthroughs)
 	}
 	format := received.ResponseFormat
 	if format == nil || format.Type != "json_schema" || format.JSONSchema == nil || !format.JSONSchema.Strict || format.JSONSchema.Name == "" {
@@ -51,19 +61,20 @@ func TestAnalyzeProjectRequestsSchemaAndRestoresDiagramReport(t *testing.T) {
 	insight := `{"mechanism":"The handler delegates to the daemon.","why_it_matters_here":"Requests enter through one module.","tradeoff_or_failure_mode":"A blocked daemon delays the response.","transferable_lesson":"Block the handler in a test and verify cancellation."}`
 	assertReviewSchemaAccepts(t, schema, strings.ReplaceAll(projectReportFixture, `"engineering_insight":null`, `"engineering_insight":`+insight), true)
 	for _, invalid := range []string{
-		strings.Replace(projectReportFixture, `"components":["main.go (Daemon): Handles requests."]`, `"components":[{"name":"Daemon"}]`, 1),
+		strings.Replace(projectReportFixture, `"components":[". (Daemon): Handles requests."]`, `"components":[{"name":"Daemon"}]`, 1),
 		strings.Replace(projectReportFixture, `"severity":"low"`, `"severity":"critical"`, 1),
 		strings.Replace(projectReportFixture, `"Runs a small daemon."`, `""`, 1),
 		strings.Replace(projectReportFixture, `"Runs a small daemon."`, `"`+strings.Repeat("x", 2049)+`"`, 1),
-		strings.Replace(projectReportFixture, `"next_steps":["Add coverage"]`, `"next_steps":[`+strings.Repeat(`"Step",`, 32)+`"Step"]`, 1),
+		strings.Replace(projectReportFixture, `"risks":[`, `"risks":[`+strings.Repeat(`{"severity":"low","summary":"x","engineering_insight":null},`, 32), 1),
+		strings.Replace(projectReportFixture, `"symbol":"Run"`, `"symbol":"Run","line":5`, 1),
 		strings.Replace(projectReportFixture, `"engineering_insight":null`, `"engineering_insight":{"mechanism":"partial"}`, 1),
 		strings.Replace(projectReportFixture, `"purpose":`, `"unexpected":true,"purpose":`, 1),
-		strings.Replace(projectReportFixture, `"next_steps":["Add coverage"],`, "", 1),
+		strings.Replace(projectReportFixture, `"walkthroughs":`, `"flows":`, 1),
 	} {
 		assertReviewSchemaAccepts(t, schema, invalid, false)
 	}
 	restored, err := service.RestoreProject(root)
-	if err != nil || restored.AIStatus != project.ProjectAnalysisStatusFresh || restored.Report.Architecture != analysis.Report.Architecture || len(restored.Report.Flows) != 1 || restored.Report.Flows[0] != analysis.Report.Flows[0] || calls != 1 {
+	if err != nil || restored.AIStatus != project.ProjectAnalysisStatusFresh || restored.Report.Architecture != analysis.Report.Architecture || !reflect.DeepEqual(restored.Report.Walkthroughs, analysis.Report.Walkthroughs) || calls != 1 {
 		t.Fatalf("restored report = %+v, calls = %d, error = %v", restored, calls, err)
 	}
 }

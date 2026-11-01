@@ -124,10 +124,8 @@ func (a *Analyzer) AnalyzeSnapshot(ctx context.Context, analysis *Analysis) (*An
 				report.Purpose = parsed.Purpose
 				report.Architecture = parsed.Architecture
 				report.Components = parsed.Components
-				report.EntryPoints = parsed.EntryPoints
-				report.Flows = parsed.Flows
+				report.Walkthroughs = checkWalkthroughs(analysis.Path, analysis.Files, parsed.Walkthroughs)
 				report.Risks = parsed.Risks
-				report.NextSteps = parsed.NextSteps
 				report.EngineeringInsight = CloneEngineeringInsight(parsed.EngineeringInsight)
 				if response.Model != "" {
 					report.Model = response.Model
@@ -367,15 +365,7 @@ func detectLanguage(path string) string {
 	return symbols.DetectLanguage(path)
 }
 
-type ProjectDocsContext = handbook.ProjectDocsContext
-type ProjectDocsDependency = handbook.ProjectDocsDependency
-type ProjectDocsContract = handbook.ProjectDocsContract
 type ProjectDocsComponent = handbook.ProjectDocsComponent
-type ProjectDocsScenarioStep = handbook.ProjectDocsScenarioStep
-type ProjectDocsScenario = handbook.ProjectDocsScenario
-type ProjectDocsDecision = handbook.ProjectDocsDecision
-type ProjectDocsRunbookItem = handbook.ProjectDocsRunbookItem
-type ProjectDocsGlossaryItem = handbook.ProjectDocsGlossaryItem
 type ProjectDocsReport = handbook.ProjectDocsReport
 
 type ProjectDocsGraph = handbook.ProjectDocsGraph

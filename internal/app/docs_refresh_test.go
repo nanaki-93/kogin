@@ -48,14 +48,16 @@ func newDocsModelServer(t *testing.T) (*httptest.Server, *docsModel) {
 				return
 			}
 			model.summaries[match[1]]++
-			content = `{"summary":"Summary of ` + match[1] + `.","responsibilities":["Owns ` + match[1] + `"]}`
+			// A model that ignores the schema's limits is cut to them.
+			content = `{"summary":"Summary of ` + match[1] + `.","responsibilities":["Owns ` + match[1] + `","b","c","d","e"]}`
 		case "project_analysis_response":
 			model.overviews++
-			if !strings.Contains(request.Messages[1].Content, "Component summaries") {
-				http.Error(w, "the overview did not read the component summaries", http.StatusBadRequest)
+			context := request.Messages[1].Content
+			if !strings.Contains(context, "Component summaries") || !strings.Contains(context, "Files and what each does") {
+				http.Error(w, "the overview did not read the component and file summaries", http.StatusBadRequest)
 				return
 			}
-			content = `{"purpose":"Keeps items.","architecture":"Two packages.","components":["store (Store): Saves items."],"entry_points":[],"flows":[],"risks":[],"next_steps":[],"engineering_insight":null}`
+			content = `{"purpose":"Keeps items.","architecture":"store keeps model items.","components":["store (Store): Saves items."],"walkthroughs":[{"title":"Keep an item","summary":"An item lands in the store.","steps":[{"text":"The model defines the item.","path":"model/model.go","symbol":"Item"},{"text":"The store holds it.","path":"store/store.go","symbol":"Items"}]}],"risks":[],"engineering_insight":null}`
 		default:
 			model.other++
 			http.Error(w, "unexpected request", http.StatusBadRequest)
@@ -76,7 +78,7 @@ func docsRefreshReply(request llm.ChatRequest) (string, bool) {
 	case "module_summary":
 		return `{"summary":"Runs the fixture.","responsibilities":[]}`, true
 	case "project_analysis_response":
-		return `{"purpose":"Runs the fixture.","architecture":"One package.","components":[],"entry_points":[],"flows":[],"risks":[],"next_steps":[],"engineering_insight":null}`, true
+		return `{"purpose":"Runs the fixture.","architecture":"One package.","components":[],"walkthroughs":[],"risks":[],"engineering_insight":null}`, true
 	}
 	return "", false
 }
@@ -192,12 +194,16 @@ func TestDocsRefreshRollsFileSummariesUpAndRewritesOnlyWhatChanged(t *testing.T)
 	if refresh.Status != "completed" || refresh.Components != 2 || refresh.Summarized != 2 || refresh.Kept != 0 || refresh.Overview != "written" {
 		t.Fatalf("refresh = %+v", refresh)
 	}
-	if component := docsComponent(t, s, "model"); component.SummarySource != "module" || component.Summary != "Summary of model." || len(component.Responsibilities) != 1 {
+	if component := docsComponent(t, s, "model"); component.SummarySource != "module" || component.Summary != "Summary of model." || len(component.Responsibilities) != maxResponsibilities {
 		t.Fatalf("model component = %+v", component)
 	}
 	overview, err := s.ProjectOverview()
 	if err != nil || overview.Docs.Status != project.ProjectAnalysisStatusFresh || overview.Analysis.Purpose != "Keeps items." || overview.DocsRefresh == nil || overview.DocsRefresh.Summarized != 2 {
 		t.Fatalf("overview after refresh: %+v, %+v, %v", overview.Docs, overview.DocsRefresh, err)
+	}
+	walkthroughs := overview.Docs.Walkthroughs
+	if len(walkthroughs) != 1 || len(walkthroughs[0].Steps) != 2 || walkthroughs[0].Steps[0].Line != 3 || walkthroughs[0].Steps[1].Symbol != "Items" {
+		t.Fatalf("walkthroughs = %+v", walkthroughs)
 	}
 
 	// Nothing changed: a refresh from the Docs page keeps the summaries and
@@ -220,6 +226,26 @@ func TestDocsRefreshRollsFileSummariesUpAndRewritesOnlyWhatChanged(t *testing.T)
 	summaries, overviews := model.counts()
 	if summaries["store"] != 2 || summaries["model"] != 1 || overviews != 3 || model.other != 0 {
 		t.Fatalf("model calls: summaries %v, overviews %d, other %d", summaries, overviews, model.other)
+	}
+}
+
+func TestDocsComponentListsItsFilesWithTheirSummaryLine(t *testing.T) {
+	s, root := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
+	writeDocsFixture(t, root)
+	writeProjectFile(t, root, "store/store_test.go", "package store\n")
+	storeFileSummaries(t, s, root, "store/store.go")
+	files, err := s.DocsComponentFiles("store")
+	if err != nil || files.Path != "store" || len(files.Files) != 2 {
+		t.Fatalf("files = %+v, %v", files, err)
+	}
+	if first := files.Files[0]; first.Path != "store/store.go" || first.Language != "Go" || first.Lines != 5 || !strings.HasPrefix(first.Summary, "Holds store/store.go at ") {
+		t.Fatalf("store.go = %+v", first)
+	}
+	if second := files.Files[1]; second.Path != "store/store_test.go" || second.Summary != "" {
+		t.Fatalf("a file without a summary got one: %+v", second)
+	}
+	if _, err := s.DocsComponentFiles("nowhere"); !errors.Is(err, ErrUnknownDocsComponent) {
+		t.Fatalf("unknown component error = %v", err)
 	}
 }
 

@@ -28,18 +28,23 @@ type ProjectAnalysisRisk struct {
 }
 
 // ProjectAnalysisReport is the authoritative, persisted interpretation of one
-// project revision.
+// project revision. Reports written by older prompts may carry other fields;
+// they are not read any more.
 type ProjectAnalysisReport struct {
-	SchemaVersion      string                `json:"schema_version"`
-	ProjectID          string                `json:"project_id"`
-	ProjectRevision    string                `json:"project_revision"`
-	Purpose            string                `json:"purpose,omitempty"`
-	Architecture       string                `json:"architecture,omitempty"`
-	Components         []string              `json:"components"`
-	EntryPoints        []string              `json:"entry_points"`
-	Flows              []string              `json:"flows"`
+	SchemaVersion   string `json:"schema_version"`
+	ProjectID       string `json:"project_id"`
+	ProjectRevision string `json:"project_revision"`
+	// Purpose and Architecture are short prose for a developer new to the
+	// project. Reports from older prompts may hold a Mermaid diagram in
+	// Architecture, which the docs leave out.
+	Purpose      string `json:"purpose,omitempty"`
+	Architecture string `json:"architecture,omitempty"`
+	// Components are "path (Name): responsibility" lines, used for a
+	// component that has no summary of its own yet.
+	Components []string `json:"components"`
+	// Walkthroughs trace the main things the project does through its files.
+	Walkthroughs       []Walkthrough         `json:"walkthroughs"`
 	Risks              []ProjectAnalysisRisk `json:"risks"`
-	NextSteps          []string              `json:"next_steps"`
 	EngineeringInsight *EngineeringInsight   `json:"engineering_insight,omitempty"`
 	Status             string                `json:"status"`
 	Failure            string                `json:"failure,omitempty"`
@@ -51,6 +56,25 @@ type ProjectAnalysisReport struct {
 	ReasoningEffort    string                `json:"reasoning_effort,omitempty"`
 	PromptVersion      string                `json:"prompt_version"`
 	GeneratedAt        time.Time             `json:"generated_at"`
+}
+
+// Walkthrough is one thing the project does (a command, a request, a job),
+// traced through the code by the overview's model: its steps in execution
+// order, each at a file the project has.
+type Walkthrough struct {
+	Title   string            `json:"title"`
+	Summary string            `json:"summary"`
+	Steps   []WalkthroughStep `json:"steps"`
+}
+
+// WalkthroughStep is one step of a walkthrough. Symbol is the function,
+// method or type the step happens in, and Line its declaration, both only
+// when Mini-Orca found that declaration in the file.
+type WalkthroughStep struct {
+	Text   string `json:"text"`
+	Path   string `json:"path"`
+	Symbol string `json:"symbol,omitempty"`
+	Line   int    `json:"line,omitempty"`
 }
 
 // Analysis is the persisted and API-facing summary for an imported project.
@@ -72,39 +96,48 @@ type Analysis struct {
 	Report          ProjectAnalysisReport `json:"report"`
 }
 
-// projectDocsSchemaVersion 3: built from the project map on every read, no
-// longer stored.
-const projectDocsSchemaVersion = "3"
+// projectDocsSchemaVersion 4: an overview, components, walkthroughs,
+// commands and dependencies; built on every read, never stored.
+const projectDocsSchemaVersion = "4"
 
-// ProjectDocsContext describes C4 Level 1-2 system context, goal pursuit, and technology stack.
-type ProjectDocsContext struct {
-	Purpose     string   `json:"purpose"`
-	GoalPursuit []string `json:"goal_pursuit,omitempty"`
-	Topology    string   `json:"topology"`
-	Stack       []string `json:"stack"`
+// ProjectDocsReport is the project's docs: what it is for and how its parts
+// fit, from the overview's model; its components, commands, dependencies and
+// the imports between components, from the code.
+type ProjectDocsReport struct {
+	SchemaVersion   string `json:"schema_version"`
+	ProjectID       string `json:"project_id"`
+	ProjectRevision string `json:"project_revision"`
+	// Status is the model-written parts' freshness: the overview's status.
+	Status       string                  `json:"status"`
+	Overview     ProjectDocsOverview     `json:"overview"`
+	Components   []ProjectDocsComponent  `json:"components"`
+	Walkthroughs []Walkthrough           `json:"walkthroughs"`
+	Commands     []ProjectDocsCommand    `json:"commands"`
+	Dependencies []ProjectDocsDependency `json:"dependencies"`
+	Graph        ProjectDocsGraph        `json:"graph"`
+	UpdatedAt    time.Time               `json:"updated_at"`
 }
 
-// ProjectDocsDependency describes a primary runtime, library, or module dependency.
-type ProjectDocsDependency struct {
-	Name    string `json:"name"`
-	Kind    string `json:"kind"`
-	Version string `json:"version,omitempty"`
-	Source  string `json:"source,omitempty"`
-	Summary string `json:"summary"`
+// ProjectDocsOverview is the docs' first page. Purpose and Architecture are
+// model-written and empty without an overview; the counts come from the index.
+type ProjectDocsOverview struct {
+	Purpose      string                `json:"purpose,omitempty"`
+	Architecture string                `json:"architecture,omitempty"`
+	Languages    []ProjectDocsLanguage `json:"languages"`
+	Files        int                   `json:"files"`
+	Lines        int                   `json:"lines"`
 }
 
-// ProjectDocsContract describes an exposed interface or boundary contract of a component.
-type ProjectDocsContract struct {
-	Name    string `json:"name"`
-	Kind    string `json:"kind"`
-	Summary string `json:"summary"`
+// ProjectDocsLanguage is a programming language and how many files use it.
+type ProjectDocsLanguage struct {
+	Name  string `json:"name"`
+	Files int    `json:"files"`
 }
 
 // ProjectDocsComponent is one part of the project: a directory of code and
 // what is below it, as the project map groups it.
 type ProjectDocsComponent struct {
 	Name      string   `json:"name"`
-	Layer     string   `json:"layer"`
 	Path      string   `json:"path"`
 	Languages []string `json:"languages"`
 	Files     int      `json:"files"`
@@ -115,70 +148,34 @@ type ProjectDocsComponent struct {
 	Summary          string   `json:"summary"`
 	SummarySource    string   `json:"summary_source,omitempty"`
 	Responsibilities []string `json:"responsibilities"`
-	// Contracts are the component's entry points.
-	Contracts []ProjectDocsContract `json:"contracts"`
-	// Dependencies and UsedBy are the components this one imports and those
-	// that import it, resolved from the code.
-	Dependencies []string `json:"dependencies"`
-	UsedBy       []string `json:"used_by"`
+	// EntryPoints are where programs in this component start.
+	EntryPoints []projectmap.EntryPoint `json:"entry_points"`
+	// Imports and UsedBy are the components this one imports and those that
+	// import it, resolved from the code.
+	Imports []string `json:"imports"`
+	UsedBy  []string `json:"used_by"`
 }
 
-// ProjectDocsScenarioStep describes one step in a behavioral runtime scenario.
-type ProjectDocsScenarioStep struct {
-	Phase  string `json:"phase"`
-	Layer  string `json:"layer"`
-	Title  string `json:"title"`
-	Detail string `json:"detail"`
-	Path   string `json:"path,omitempty"`
+// ProjectDocsCommand is a command the project declares: a subproject's test
+// or lint command, or a package script that builds or starts it.
+type ProjectDocsCommand struct {
+	Label   string `json:"label"`
+	Command string `json:"command"`
+	// Dir is where it runs, relative to the project root; empty is the root.
+	Dir string `json:"dir,omitempty"`
+	// Source is the file that declares it.
+	Source string `json:"source"`
 }
 
-// ProjectDocsScenario describes an end-to-end runtime data flow and its invariant.
-type ProjectDocsScenario struct {
-	Title     string                    `json:"title"`
-	Trigger   string                    `json:"trigger"`
-	Invariant string                    `json:"invariant"`
-	Summary   string                    `json:"summary"`
-	Diagram   string                    `json:"diagram,omitempty"`
-	Steps     []ProjectDocsScenarioStep `json:"steps"`
-}
-
-// ProjectDocsDecision records an Architectural Decision Record (ADR) and its tradeoff.
-type ProjectDocsDecision struct {
-	Title    string `json:"title"`
-	Category string `json:"category"`
-	Decision string `json:"decision"`
-	Tradeoff string `json:"tradeoff"`
-}
-
-// ProjectDocsRunbookItem describes a standard operational command for the repository.
-type ProjectDocsRunbookItem struct {
-	Label       string `json:"label"`
-	Command     string `json:"command"`
-	Description string `json:"description"`
-}
-
-// ProjectDocsGlossaryItem defines one ubiquitous domain term in the system.
-type ProjectDocsGlossaryItem struct {
-	Term       string `json:"term"`
-	Definition string `json:"definition"`
-}
-
-// ProjectDocsReport is the language-agnostic C4/Arc42/ADR engineering specification
-// generated during project analysis.
-type ProjectDocsReport struct {
-	SchemaVersion   string                    `json:"schema_version"`
-	ProjectID       string                    `json:"project_id"`
-	ProjectRevision string                    `json:"project_revision"`
-	Status          string                    `json:"status"`
-	Context         ProjectDocsContext        `json:"context"`
-	Dependencies    []ProjectDocsDependency   `json:"dependencies,omitempty"`
-	Components      []ProjectDocsComponent    `json:"components"`
-	Scenarios       []ProjectDocsScenario     `json:"scenarios"`
-	Decisions       []ProjectDocsDecision     `json:"decisions"`
-	Runbook         []ProjectDocsRunbookItem  `json:"runbook"`
-	Glossary        []ProjectDocsGlossaryItem `json:"glossary"`
-	Graph           ProjectDocsGraph          `json:"graph"`
-	UpdatedAt       time.Time                 `json:"updated_at"`
+// ProjectDocsDependency is a dependency a manifest declares.
+type ProjectDocsDependency struct {
+	Name string `json:"name"`
+	// Kind is the ecosystem, such as Go module or npm package.
+	Kind    string `json:"kind"`
+	Version string `json:"version,omitempty"`
+	Dev     bool   `json:"dev,omitempty"`
+	// Source is the manifest that declares it.
+	Source string `json:"source"`
 }
 
 // ProjectDocsGraph is what the components diagram is drawn from: the
@@ -230,13 +227,11 @@ func BuildProjectDocs(in DocsInputs) ProjectDocsReport {
 		ProjectID:       analysis.ProjectID,
 		ProjectRevision: analysis.ProjectRevision,
 		Status:          status,
-		Context:         buildDocsContext(analysis, components),
-		Dependencies:    manifestDependencies(in.Map.Manifests),
+		Overview:        buildDocsOverview(analysis),
 		Components:      components,
-		Scenarios:       buildDocsScenarios(analysis),
-		Decisions:       buildDocsDecisions(analysis),
-		Runbook:         buildRunbook(in.Profiles, in.Map.Manifests),
-		Glossary:        buildDocsGlossary(analysis, components),
+		Walkthroughs:    currentWalkthroughs(analysis),
+		Commands:        buildCommands(in.Profiles, in.Map.Manifests),
+		Dependencies:    manifestDependencies(in.Map.Manifests),
 		Graph:           ProjectDocsGraph{Edges: edges, EntryPoints: in.Map.EntryPoints, Modules: len(in.Map.Modules), Truncated: in.Map.Truncated},
 		UpdatedAt:       updatedAt,
 	}

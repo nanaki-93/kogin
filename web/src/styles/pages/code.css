@@ -310,3 +310,25 @@
   font-weight: 600;
   word-break: break-all;
 }
+
+.inspector-chip {
+  cursor: pointer;
+}
+
+.inspector-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.file-about-more ul {
+  margin: 2px 0 0;
+  padding-left: 16px;
+}
+
+.inspector .chev {
+  transition: transform 120ms ease;
+}
+
+.inspector .chev.is-open {
+  transform: rotate(90deg);
+}

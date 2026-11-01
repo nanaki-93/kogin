@@ -61,7 +61,7 @@ browser workspace is built for three jobs: **start a task and watch the agents**
 | **Task** | — | A pull-request style page: **Conversation** (brief, code rules per file, live agent timeline with stages and reviewers, revise box), **Files changed** (tree with viewed marks, unified/split diff, “since last review”), **Checks**, and a **Ready to apply?** gate with Apply, commit and Undo. |
 | **Code** | `g c` | IDE-style explorer: virtualized tree, editor tabs, highlighted source, issue markers, line links, Explain and “New task with this file”. |
 | **Issues** | `g i` | Findings by status and severity with evidence and **Fix with agents**, which opens the task the daemon drafts: the file, its conventional test in that language, and “done when” criteria. |
-| **Docs** | `g d` | The generated handbook: overview with the components diagram, components, dependencies, scenarios, decisions, runbook, glossary, and **Ask the code** (an agent answers with checked line citations). |
+| **Docs** | `g d` | A guide to the project: what it is for, how to run it, the components diagram, walkthroughs of its main features step by step through the files, a page per component with its files, dependencies, and **Ask the code** (an agent answers with checked line citations). |
 | **Branches** | `g b` | Task worktrees (each new task gets its own by default), merge preview (commits and diff), guarded merge or abort, the checks of the merged result, and removal of merged worktrees. |
 | **Settings** | `g s` | Project, execution trust, models and agents, analysis, appearance. |
 
@@ -236,7 +236,7 @@ in `web/`.
 | `internal/app` | Admission, consent, workflow hosts, analysis, Git isolation and guarded source mutation. |
 | `internal/app/agentruntime` | ADK Go agents, model adapters, graphs, tools and plugins; the only package importing the SDK. |
 | `internal/app/agentstate` | Private durable sessions, invocations, budgets, checkpoints and artifacts. |
-| `internal/project` | Repository facts, indexing, context composition, handbook synthesis and `AGENTS.md` instructions. |
+| `internal/project` | Repository facts, indexing, context composition, the docs and `AGENTS.md` instructions. |
 | `internal/project/rules`, `internal/project/syntax` | Code rules from `AGENTS.md`; functions, spans and complexity in any supported language. |
 | `internal/storage` | Atomic durable file primitives under `.mini-orca/`; domain packages own their schemas. |
 | `internal/llm`, `internal/config` | HTTP/CLI/native Google transport, provider capabilities and the three model scopes. |
