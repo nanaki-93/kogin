@@ -17,6 +17,7 @@ import { runActive, runProgress } from '@/lib/analysis';
 import { basename, plural } from '@/lib/util';
 import type { Project } from '@/api/types';
 import { Dot, IconButton, Kbd, Spinner, Tip, cx } from '@/components/ui';
+import { BrandMark } from '@/components/BrandMark';
 import { formatKeys } from '@/app/shortcuts';
 import { isOpenFinding } from '@/components/domain';
 
@@ -75,6 +76,10 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
   return (
     <div className={cx('shell', collapsed && 'is-collapsed')}>
       <aside className="sidebar" aria-label="Primary">
+        <div className="sidebar-brand">
+          <BrandMark size={18} />
+          <span className="sidebar-brand-name sidebar-label">KASURI</span>
+        </div>
         <ProjectSwitcher collapsed={collapsed} />
         <button type="button" className="sidebar-new" onClick={() => openNewTask()} aria-label="New task">
           <Plus size={15} aria-hidden />

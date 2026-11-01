@@ -1,0 +1,56 @@
+{
+  "brand": {
+    "name": "Kasuri",
+    "kanji": "絣",
+    "font": {
+      "wordmark": "JetBrains Mono Bold, uppercase, letter-spacing 0.08em",
+      "text": "Inter"
+    }
+  },
+  "dark": {
+    "background": "#160F2B",
+    "chrome": "#120C24",
+    "sunken": "#130D26",
+    "surface": "#1B1433",
+    "surface2": "#221A3D",
+    "surface3": "#2A2148",
+    "line": "#2F2650",
+    "text": "#EEEAF8",
+    "text2": "#C9C2DD",
+    "muted": "#A79FC2",
+    "faint": "#6E6491",
+    "emerald": "#34D399",
+    "emeraldStrong": "#22C08A",
+    "emeraldText": "#7FE5BE",
+    "onEmerald": "#160F2B",
+    "violet": "#9B7BFF",
+    "violetStrong": "#8A66FA",
+    "violetText": "#C4B2FF",
+    "onViolet": "#160F2B"
+  },
+  "light": {
+    "background": "#FFFFFF",
+    "chrome": "#EFECF6",
+    "sunken": "#F7F5FC",
+    "surface": "#FFFFFF",
+    "surface2": "#F7F5FC",
+    "surface3": "#EFEBF7",
+    "line": "#E4DFF0",
+    "text": "#160F2B",
+    "text2": "#3B3355",
+    "muted": "#625A78",
+    "faint": "#9A93AE",
+    "emerald": "#0F7A4B",
+    "emeraldStrong": "#0B6A40",
+    "emeraldThread": "#14955C",
+    "onEmerald": "#FFFFFF",
+    "violet": "#4B2FB8",
+    "violetStrong": "#3E259F",
+    "violetText": "#4B2FB8",
+    "onViolet": "#FFFFFF"
+  },
+  "roles": {
+    "emerald": "actions: primary buttons, 'needs you', success",
+    "violet": "navigation: active page, selection, focus ring, links"
+  }
+}

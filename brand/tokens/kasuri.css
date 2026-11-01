@@ -1,0 +1,66 @@
+/* Kasuri brand tokens — generated with the brand kit (brand/README.md).
+   1) Brand primitives (--kasuri-*), usable anywhere.
+   2) A drop-in palette for web/src/styles/tokens.css, using the Web UI's own
+      token names: dark palette "kasuri" plus a matching light theme. */
+
+:root {
+  --kasuri-midnight: #160F2B;
+  --kasuri-emerald: #34D399;
+  --kasuri-violet: #9B7BFF;
+  --kasuri-emerald-deep: #14955C;
+  --kasuri-violet-deep: #4B2FB8;
+  --kasuri-action-light: #0F7A4B;
+  --kasuri-paper: #F7F5FC;
+}
+
+/* Dark: :root[data-theme='dark'][data-palette='kasuri'] */
+:root[data-theme='dark'][data-palette='kasuri'] {
+  --chrome: #120C24;
+  --bg: #160F2B;
+  --bg-sunken: #130D26;
+  --surface: #1B1433;
+  --surface-2: #221A3D;
+  --surface-3: #2A2148;
+  --text: #EEEAF8;
+  --text-2: #C9C2DD;
+  --muted: #A79FC2;
+  --faint: #6E6491;
+  /* emerald = actions */
+  --accent: #34D399;
+  --accent-strong: #22C08A;
+  --accent-soft: rgba(52, 211, 153, 0.14);
+  --accent-text: #7FE5BE;
+  --on-accent: #160F2B;
+  --success: #34D399;
+  --success-soft: rgba(52, 211, 153, 0.13);
+  /* violet = navigation and focus (new tokens; see the rename plan) */
+  --nav-accent: #9B7BFF;
+  --nav-accent-soft: rgba(155, 123, 255, 0.16);
+  --nav-accent-text: #C4B2FF;
+  --focus: 0 0 0 2px var(--bg), 0 0 0 4px rgba(155, 123, 255, 0.6);
+}
+
+/* Light: :root[data-theme='light'] with the Kasuri brand */
+:root[data-theme='light'][data-brand='kasuri'] {
+  --chrome: #EFECF6;
+  --bg: #FFFFFF;
+  --bg-sunken: #F7F5FC;
+  --surface: #FFFFFF;
+  --surface-2: #F7F5FC;
+  --surface-3: #EFEBF7;
+  --text: #160F2B;
+  --text-2: #3B3355;
+  --muted: #625A78;
+  --faint: #9A93AE;
+  --accent: #0F7A4B;
+  --accent-strong: #0B6A40;
+  --accent-soft: rgba(15, 122, 75, 0.1);
+  --accent-text: #0F7A4B;
+  --on-accent: #FFFFFF;
+  --success: #0F7A4B;
+  --success-soft: rgba(15, 122, 75, 0.1);
+  --nav-accent: #4B2FB8;
+  --nav-accent-soft: rgba(75, 47, 184, 0.1);
+  --nav-accent-text: #4B2FB8;
+  --focus: 0 0 0 2px var(--bg), 0 0 0 4px rgba(75, 47, 184, 0.45);
+}

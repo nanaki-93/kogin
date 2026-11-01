@@ -8,6 +8,7 @@ export type Theme = 'system' | 'dark' | 'light';
 
 /** The colors of the dark theme; styles/tokens.css defines each one. */
 export const DARK_PALETTES = [
+  { id: 'kasuri', label: 'Kasuri', chrome: '#120c24', surface: '#1b1433', accent: '#34d399' },
   { id: 'midnight', label: 'Midnight', chrome: '#0a0b0d', surface: '#15161a', accent: '#7f86ff' },
   { id: 'graphite', label: 'Graphite', chrome: '#111111', surface: '#1c1c1c', accent: '#e0e0e0' },
   { id: 'ocean', label: 'Ocean', chrome: '#071018', surface: '#0f1d29', accent: '#3fc1e8' },
@@ -51,7 +52,7 @@ let state: UIState = {
   shortcutsOpen: false,
   sidebarCollapsed: false,
   theme: 'system',
-  darkPalette: 'midnight',
+  darkPalette: 'kasuri',
   diffLayout: 'unified',
   wrapLines: false,
   removeWorktreeOnMerge: true,

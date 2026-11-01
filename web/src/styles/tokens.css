@@ -1,31 +1,40 @@
-/* Design tokens. Dark is the default, in one of several palettes; light follows
-   the OS or the user's choice. */
+/* Design tokens. Dark is the default, in one of several palettes (Kasuri, the
+   brand's midnight violet with emerald and violet, unless the user picks
+   another); light follows the OS or the user's choice. Brand kit: brand/. */
 
 :root,
 :root[data-theme='dark'] {
   color-scheme: dark;
   /* Chrome is the frame around the content panel (sidebar, gutters). */
-  --chrome: #0a0b0d;
-  --bg: #101114;
-  --bg-sunken: #0c0d10;
-  --surface: #15161a;
-  --surface-2: #1a1b20;
-  --surface-3: #222329;
+  --chrome: #120c24;
+  --bg: #160f2b;
+  --bg-sunken: #130d26;
+  --surface: #1b1433;
+  --surface-2: #221a3d;
+  --surface-3: #2a2148;
   --hover: rgba(255, 255, 255, 0.04);
   --active: rgba(255, 255, 255, 0.07);
   --border: rgba(255, 255, 255, 0.075);
   --border-strong: rgba(255, 255, 255, 0.13);
-  --text: #ececef;
-  --text-2: #b8bbc3;
-  --muted: #8a8f99;
-  --faint: #5f646e;
-  --accent: #7f86ff;
-  --accent-strong: #6d74f7;
-  --accent-soft: rgba(127, 134, 255, 0.14);
-  --accent-text: #aeb3ff;
-  --on-accent: #ffffff;
-  --success: #4cc38a;
-  --success-soft: rgba(76, 195, 138, 0.13);
+  --text: #eeeaf8;
+  --text-2: #c9c2dd;
+  --muted: #a79fc2;
+  --faint: #6e6491;
+  /* Emerald is for actions: primary buttons, what needs you, success. */
+  --accent: #34d399;
+  --accent-strong: #22c08a;
+  --accent-soft: rgba(52, 211, 153, 0.14);
+  --accent-text: #7fe5be;
+  --on-accent: #160f2b;
+  /* Violet is for navigation: the active page, selection and focus. */
+  --nav-accent: #9b7bff;
+  --nav-accent-soft: rgba(155, 123, 255, 0.16);
+  --nav-accent-text: #c4b2ff;
+  /* The logo's threads keep the brand colors in every palette. */
+  --brand-thread-across: #34d399;
+  --brand-thread-down: #9b7bff;
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.13);
   --warning: #e8b54d;
   --warning-soft: rgba(232, 181, 77, 0.13);
   --danger: #f2706b;
@@ -44,7 +53,7 @@
   --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 12px rgba(0, 0, 0, 0.35);
   --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --overlay: rgba(4, 5, 6, 0.62);
-  --focus: 0 0 0 2px var(--bg), 0 0 0 4px rgba(127, 134, 255, 0.6);
+  --focus: 0 0 0 2px var(--bg), 0 0 0 4px rgba(155, 123, 255, 0.6);
 
   --syntax-keyword: #c792ea;
   --syntax-string: #a5d6a7;
@@ -55,7 +64,36 @@
   --syntax-attr: #ffcb6b;
 }
 
-/* Dark palettes: each replaces the surfaces, text and accent of the dark theme. */
+/* Dark palettes: each replaces the surfaces, text and accent of the dark theme.
+   Outside Kasuri, navigation uses the palette's own accent and success its
+   usual green. */
+
+:root[data-theme='dark'][data-palette]:not([data-palette='kasuri']) {
+  --nav-accent: var(--accent);
+  --nav-accent-soft: var(--active);
+  --nav-accent-text: var(--accent-text);
+  --success: #4cc38a;
+  --success-soft: rgba(76, 195, 138, 0.13);
+}
+
+:root[data-theme='dark'][data-palette='midnight'] {
+  --chrome: #0a0b0d;
+  --bg: #101114;
+  --bg-sunken: #0c0d10;
+  --surface: #15161a;
+  --surface-2: #1a1b20;
+  --surface-3: #222329;
+  --text: #ececef;
+  --text-2: #b8bbc3;
+  --muted: #8a8f99;
+  --faint: #5f646e;
+  --accent: #7f86ff;
+  --accent-strong: #6d74f7;
+  --accent-soft: rgba(127, 134, 255, 0.14);
+  --accent-text: #aeb3ff;
+  --on-accent: #ffffff;
+  --focus: 0 0 0 2px var(--bg), 0 0 0 4px rgba(127, 134, 255, 0.6);
+}
 
 :root[data-theme='dark'][data-palette='graphite'] {
   --chrome: #0e0e0e;
@@ -178,24 +216,30 @@
 
 :root[data-theme='light'] {
   color-scheme: light;
-  --chrome: #efeff2;
+  --chrome: #efecf6;
   --bg: #ffffff;
-  --bg-sunken: #f6f6f8;
+  --bg-sunken: #f7f5fc;
   --surface: #ffffff;
-  --surface-2: #f8f8fa;
-  --surface-3: #f0f0f3;
-  --hover: rgba(20, 22, 30, 0.04);
-  --active: rgba(20, 22, 30, 0.07);
-  --border: rgba(20, 22, 30, 0.09);
-  --border-strong: rgba(20, 22, 30, 0.16);
-  --text: #16171b;
-  --text-2: #3b3e46;
-  --muted: #676b75;
-  --faint: #9a9da6;
-  --accent: #5a61e8;
-  --accent-strong: #4b52d9;
-  --accent-soft: rgba(90, 97, 232, 0.1);
-  --accent-text: #4950d4;
+  --surface-2: #f7f5fc;
+  --surface-3: #efebf7;
+  --hover: rgba(22, 15, 43, 0.04);
+  --active: rgba(22, 15, 43, 0.07);
+  --border: rgba(22, 15, 43, 0.09);
+  --border-strong: rgba(22, 15, 43, 0.16);
+  --text: #160f2b;
+  --text-2: #3b3355;
+  --muted: #625a78;
+  --faint: #9a93ae;
+  --accent: #0f7a4b;
+  --accent-strong: #0b6a40;
+  --accent-soft: rgba(15, 122, 75, 0.1);
+  --accent-text: #0f7a4b;
+  --on-accent: #ffffff;
+  --nav-accent: #4b2fb8;
+  --nav-accent-soft: rgba(75, 47, 184, 0.1);
+  --nav-accent-text: #4b2fb8;
+  --brand-thread-across: #14955c;
+  --brand-thread-down: #4b2fb8;
   --success: #1c9a5e;
   --success-soft: rgba(28, 154, 94, 0.1);
   --warning: #a86e14;
@@ -216,7 +260,7 @@
   --shadow-panel: 0 0 0 1px rgba(20, 22, 30, 0.08), 0 1px 3px rgba(20, 22, 30, 0.05);
   --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
   --overlay: rgba(15, 17, 20, 0.32);
-  --focus: 0 0 0 2px var(--bg), 0 0 0 4px rgba(90, 97, 232, 0.45);
+  --focus: 0 0 0 2px var(--bg), 0 0 0 4px rgba(75, 47, 184, 0.45);
 
   --syntax-keyword: #8e44ad;
   --syntax-string: #2e7d32;
