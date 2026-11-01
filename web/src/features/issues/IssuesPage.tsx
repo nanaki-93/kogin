@@ -11,12 +11,14 @@ import { useCheckout } from '@/app/checkout';
 import { navigate, setParam, useRoute } from '@/lib/router';
 import { rankItems } from '@/lib/fuzzy';
 import { severityRank } from '@/lib/util';
+import { MAX_ISSUES_PER_TASK, groupByFile, type FileIssues } from '@/lib/issues';
 import { taskFixingIssue } from '@/lib/workflow';
 import { Badge, Button, Callout, EmptyState, Input, Segmented, Skeleton, cx } from '@/components/ui';
 import { SeverityBadge, isInProgressFinding, isOpenFinding, isUnresolvedFinding, sourceLabel } from '@/components/domain';
 import { openTask } from '@/features/tasks/TaskListPage';
 
 type StatusFilter = 'open' | 'in_progress' | 'dismissed' | 'all';
+type View = 'file' | 'list';
 
 /** Open issues have no task yet; in progress, a task is fixing them; dismissed covers fixed and retired too. */
 function hasStatus(finding: Finding, status: StatusFilter): boolean {
@@ -33,6 +35,7 @@ export function IssuesPage() {
   const severity = route.params.get('severity') ?? 'all';
   const category = route.params.get('category') ?? '';
   const selectedId = route.params.get('id') ?? '';
+  const view: View = route.params.get('view') === 'list' ? 'list' : 'file';
   const [q, setQ] = useState('');
 
   const list = useMemo(() => {
@@ -40,6 +43,9 @@ export function IssuesPage() {
     const sorted = [...filtered].sort((a, b) => severityRank(a.severity) - severityRank(b.severity) || (a.location?.path ?? '').localeCompare(b.location?.path ?? ''));
     return rankItems(sorted, q, f => `${f.title} ${f.location?.path ?? ''} ${f.category ?? ''}`, 1000).map(r => r.item);
   }, [all, status, severity, category, q]);
+  // By file, issues are grouped and keys move through them in that order.
+  const groups = useMemo(() => (view === 'file' ? groupByFile(list) : null), [list, view]);
+  const ordered = useMemo(() => (groups ? groups.flatMap(group => group.findings) : list), [groups, list]);
   const selected = list.find(f => f.id === selectedId) ?? null;
   const categoryCounts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -52,15 +58,15 @@ export function IssuesPage() {
   const { tasks } = useTasks();
   const actions = useActions();
   const busy = useBusy();
-  const index = list.findIndex(f => f.id === selectedId);
+  const index = ordered.findIndex(f => f.id === selectedId);
   const inProgress = useMemo(() => all.filter(isInProgressFinding).length, [all]);
 
   // j/k move through the list, Esc closes the detail, f fixes (or opens the
   // task fixing it) and x dismisses or reopens.
   usePageKeys(key => {
     const fixing = selected && isInProgressFinding(selected) ? taskFixingIssue(tasks, selected.id) : undefined;
-    if (key === 'j' || key === 'ArrowDown') select(list[Math.min(index + 1, list.length - 1)]);
-    else if (key === 'k' || key === 'ArrowUp') select(list[Math.max(index - 1, 0)]);
+    if (key === 'j' || key === 'ArrowDown') select(ordered[Math.min(index + 1, ordered.length - 1)]);
+    else if (key === 'k' || key === 'ArrowUp') select(ordered[Math.max(index - 1, 0)]);
     else if (key === 'Escape' && selected) setParam('id', undefined);
     else if (key === 'f' && selected && isOpenFinding(selected)) void actions.fixIssue(project, worktreePath, selected);
     else if (key === 'f' && fixing) openTask(fixing);
@@ -110,6 +116,7 @@ export function IssuesPage() {
             </div>
           ) : null}
           <span className="spacer" />
+          <Segmented label="Group issues" value={view} onChange={v => setParam('view', v === 'file' ? undefined : v)} options={[{ value: 'file', label: 'By file' }, { value: 'list', label: 'By severity' }]} />
           <Input icon={Search} placeholder="Filter issues…" value={q} onChange={e => setQ(e.target.value)} aria-label="Filter issues" className="toolbar-search" />
         </div>
         {isLoading ? (
@@ -124,27 +131,61 @@ export function IssuesPage() {
               <tr>
                 <th className="col-sev">Severity</th>
                 <th>Issue</th>
-                <th className="col-loc">Location</th>
+                <th className={groups ? 'col-line' : 'col-loc'}>{groups ? 'Line' : 'Location'}</th>
                 <th className="col-src">Source</th>
               </tr>
             </thead>
-            <tbody>
-              {list.map(f => (
-                <tr key={f.id} id={`issue-${f.id}`} className={cx('table-row', f.id === selectedId && 'is-active', !isUnresolvedFinding(f) && 'is-muted')} onClick={() => setParam('id', f.id)} tabIndex={0} onKeyDown={e => e.key === 'Enter' && setParam('id', f.id)} aria-selected={f.id === selectedId}>
-                  <td><SeverityBadge severity={f.severity} /></td>
-                  <td>
-                    <div className="truncate strong-row">{f.title}</div>
-                    {f.category || isInProgressFinding(f) ? <div className="xs faint">{[isInProgressFinding(f) ? 'In progress' : '', f.category].filter(Boolean).join(' · ')}</div> : null}
-                  </td>
-                  <td className="mono xs truncate" title={[f.location?.path, f.location?.symbol].filter(Boolean).join(' · ')}>{f.location?.path}{f.location?.start_line ? `:${f.location.start_line}` : ''}{f.location?.symbol ? <span className="faint"> · {f.location.symbol}</span> : null}</td>
-                  <td className="xs muted">{sourceLabel(f)}</td>
+            {groups ? groups.map(group => (
+              <tbody key={group.path} aria-label={group.path || 'Whole project'}>
+                <tr className="group-row">
+                  <th colSpan={4} scope="rowgroup">
+                    <FileGroupHead group={group} onFix={open => void actions.fixIssues(project, worktreePath, open)} />
+                  </th>
                 </tr>
-              ))}
-            </tbody>
+                {group.findings.map(f => <IssueRow key={f.id} finding={f} selected={f.id === selectedId} inFile />)}
+              </tbody>
+            )) : (
+              <tbody>{list.map(f => <IssueRow key={f.id} finding={f} selected={f.id === selectedId} />)}</tbody>
+            )}
           </table>
         )}
       </div>
       {selected ? <IssueDetail finding={selected} onClose={() => setParam('id', undefined)} /> : null}
+    </div>
+  );
+}
+
+function IssueRow({ finding: f, selected, inFile }: { finding: Finding; selected: boolean; inFile?: boolean }) {
+  const where = inFile ? (f.location?.start_line ? `L${f.location.start_line}` : '') : `${f.location?.path ?? ''}${f.location?.start_line ? `:${f.location.start_line}` : ''}`;
+  return (
+    <tr id={`issue-${f.id}`} className={cx('table-row', selected && 'is-active', !isUnresolvedFinding(f) && 'is-muted')} onClick={() => setParam('id', f.id)} tabIndex={0} onKeyDown={e => e.key === 'Enter' && setParam('id', f.id)} aria-selected={selected}>
+      <td><SeverityBadge severity={f.severity} /></td>
+      <td>
+        <div className="truncate strong-row">{f.title}</div>
+        {f.category || isInProgressFinding(f) ? <div className="xs faint">{[isInProgressFinding(f) ? 'In progress' : '', f.category].filter(Boolean).join(' · ')}</div> : null}
+      </td>
+      <td className="mono xs truncate" title={[f.location?.path, f.location?.symbol].filter(Boolean).join(' · ')}>{where}{f.location?.symbol ? <span className="faint">{where ? ' · ' : ''}{f.location.symbol}</span> : null}</td>
+      <td className="xs muted">{sourceLabel(f)}</td>
+    </tr>
+  );
+}
+
+/** A file's heading in the grouped list: the file, its issues and fixing its open ones in one task. */
+function FileGroupHead({ group, onFix }: { group: FileIssues; onFix: (open: Finding[]) => void }) {
+  const open = group.findings.filter(isOpenFinding);
+  const chosen = open.slice(0, MAX_ISSUES_PER_TASK);
+  return (
+    <div className="group-head">
+      {group.path ? (
+        <button type="button" className="link-btn mono small" onClick={() => navigate('/code', { file: group.path })} title={`Open ${group.path} in Code`}>{group.path}</button>
+      ) : <span className="small">Whole project</span>}
+      <span className="count">{group.findings.length}</span>
+      <span className="spacer" />
+      {group.path && open.length > 1 ? (
+        <Button size="sm" variant="ghost" icon={Wrench} onClick={() => onFix(chosen)} title="One task fixes these issues together and links each of them">
+          {chosen.length < open.length ? `Fix ${chosen.length} of ${open.length} together` : `Fix ${open.length} together`}
+        </Button>
+      ) : null}
     </div>
   );
 }

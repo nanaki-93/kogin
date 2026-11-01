@@ -270,6 +270,7 @@ func newProjectHTTPMux(application *app.Service, projectManager *project.Manager
 	mux.HandleFunc("GET /api/projects/current/findings", projectHandler.Findings)
 	mux.HandleFunc("GET /api/projects/current/rules", projectHandler.Rules)
 	mux.HandleFunc("PATCH /api/projects/current/findings/{findingID}", projectHandler.UpdateFindingStatus)
+	mux.HandleFunc("GET /api/projects/current/findings/task", projectHandler.IssuesTask)
 	mux.HandleFunc("GET /api/projects/current/findings/{findingID}/task", projectHandler.IssueTask)
 	mux.HandleFunc("GET /api/projects/current/execution-trust", projectHandler.ExecutionTrust)
 	mux.HandleFunc("POST /api/projects/current/execution-trust", projectHandler.TrustProjectExecution)

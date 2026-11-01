@@ -309,6 +309,7 @@ export class FakeDaemon {
         if (session && this.sessions.has(decodeURIComponent(session[1]))) return json(route, 200, this.sessions.get(decodeURIComponent(session[1])));
         if (url.pathname === '/api/projects/current/changes' && url.searchParams.get('worktree_path')) return json(route, 200, this.tasks(url.searchParams.get('worktree_path')!));
         if (url.pathname === '/api/projects/current/docs/component') return json(route, 200, data.docsComponentFiles(url.searchParams.get('path') ?? ''));
+        if (url.pathname === '/api/projects/current/findings/task') return json(route, 200, this.issuesTask(url.searchParams.getAll('id')));
         const issue = url.pathname.match(/^\/api\/projects\/current\/findings\/([^/]+)\/task$/);
         if (issue) return json(route, 200, this.issueTask(decodeURIComponent(issue[1])));
         const found = this.gets.find(([pattern]) => pattern.test(url.pathname));
@@ -347,6 +348,23 @@ export class FakeDaemon {
           ? [`Bring ${file} within the budgets of its AGENTS.md, splitting it into cohesive sibling files where needed`, 'Keep its behavior and public interface; existing tests pass unchanged']
           : [`Resolve “${finding.title}” without breaking existing callers`, 'Add a regression test that fails before the fix'],
       finding_targets: finding.project_id && finding.location?.path ? [{ project_id: finding.project_id, kind: 'semantic', id: finding.id, path: finding.location.path }] : undefined,
+    };
+  }
+
+  /** Drafts one task for several open issues of a file, like the daemon. */
+  private issuesTask(ids: string[]) {
+    const listed = (this.overrides.get('/api/projects/current/findings')?.() ?? { findings: data.findings }) as { findings: Finding[] };
+    const chosen = ids.map(id => listed.findings.find(entry => entry.id === id));
+    const file = chosen[0]?.location?.path ?? '';
+    if (chosen.some(finding => !finding || finding.status !== 'open' || finding.location?.path !== file) || !file) throw new Error('Choose up to ten open issues of one file to fix together.');
+    const issues = (chosen as Finding[]).sort((a, b) => (a.location?.start_line ?? 0) - (b.location?.start_line ?? 0));
+    return {
+      kind: issues.every(f => f.category === 'security') ? 'security' : 'fix',
+      title: `Fix ${issues.length} issues in ${file}`,
+      description: `Fix these ${issues.length} issues in ${file}.\n` + issues.map((f, i) => `\n${i + 1}. ${f.title} (line ${f.location?.start_line})\n${f.message}`).join('\n'),
+      paths: file.endsWith('.go') ? [file, file.replace(/\.go$/, '_test.go')] : [file],
+      acceptance_criteria: [...issues.map(f => `Resolve “${f.title}” without breaking existing callers`), 'Add a regression test that fails before the fix'],
+      finding_targets: issues.map(f => ({ project_id: f.project_id, kind: 'semantic', id: f.id, path: file })),
     };
   }
 

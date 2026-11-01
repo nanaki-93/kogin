@@ -23,6 +23,24 @@ export function issueActions(context: ActionContext) {
     }
   }
 
+  /**
+   * Opens the composer with one task the daemon drafts for several open
+   * issues of a file: each issue in the description, their criteria, and
+   * links to all of them.
+   */
+  async function fixIssues(project: Project | undefined, worktreePath: string, findings: Finding[]) {
+    if (!project || !findings.length) return;
+    if (findings.length === 1) return fixIssue(project, worktreePath, findings[0]);
+    const params = new URLSearchParams(findings.map(finding => ['id', finding.id]));
+    params.set('project_revision', project.project_revision);
+    try {
+      const draft = await api.get<IssueTaskDraft>(withWorktree(`/api/projects/current/findings/task?${params}`, worktreePath));
+      openNewTask({ findingTargets: draft.finding_targets?.length ? draft.finding_targets : undefined, title: draft.title, kind: draft.kind, description: draft.description, paths: draft.paths, criteria: draft.acceptance_criteria });
+    } catch (err) {
+      fail('Could not draft a task for these issues', err);
+    }
+  }
+
   async function triageFinding(project: Project, worktreePath: string, finding: Finding, status: 'dismissed' | 'open') {
     await guarded('Updating issue…', async () => {
       try {
@@ -35,5 +53,5 @@ export function issueActions(context: ActionContext) {
     });
   }
 
-  return { fixIssue, triageFinding };
+  return { fixIssue, fixIssues, triageFinding };
 }

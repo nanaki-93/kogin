@@ -39,7 +39,7 @@ this document owns how the interface is organized, looks and responds.
 | **Inbox** | `g h` | Needs your review, agents working, failed or stale, ready to merge, recently applied; open issues and analysis coverage beside them. |
 | **Tasks** | `g t` | Every task grouped by what it needs, with filters and `j`/`k`/`Enter`. A task opens on its own page. |
 | **Code** | `g c` | A read-only explorer: file tree, editor tabs, highlighted source with issue markers, an inspector. |
-| **Issues** | `g i` | Findings with status, severity and category filters; the selected finding's problem, source and actions, then its evidence as short sections (preconditions, fix, how to verify). |
+| **Issues** | `g i` | Findings grouped by file (or by severity) with status, severity and category filters, and a file's open issues fixed in one task; the selected finding's problem, source and actions, then its evidence as short sections (preconditions, fix, how to verify). |
 | **Analysis** | `g a` | The last or running analysis: progress, why stages failed, results per section, the models used and each file's stages; analyze, retry failed, pause, resume and cancel. |
 | **Docs** | `g d` | A guide to the project: overview, get started (commands, entry points), architecture (components diagram), how it works (walkthroughs), a page per component with its files, dependencies, and Ask the code. |
 | **Branches** | `g b` | The main checkout and task worktrees with their tasks, integration state, merge preview and merge (removing the worktree and branch unless switched off), and removal of a worktree with nothing left to merge. |

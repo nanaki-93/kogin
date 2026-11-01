@@ -99,6 +99,7 @@
 
 .col-sev { width: 96px; }
 .col-loc { width: 32%; }
+.col-line { width: 240px; }
 .col-src { width: 120px; }
 
 .list {
@@ -318,3 +319,19 @@ pre.output {
 .hljs-section, .hljs-name, .hljs-tag { color: var(--syntax-function); }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 600; }
+
+/* A group's heading inside a table, such as a file in the grouped issues. */
+.table .group-row th {
+  height: 38px;
+  padding: 10px 12px 4px;
+  background: var(--bg-sunken);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

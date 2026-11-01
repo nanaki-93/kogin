@@ -2,9 +2,32 @@
 // linked task and following it while the task is in progress.
 
 import { expect, test } from './support/daemon';
+import * as data from './support/fixtures';
+
+test("issues group by file, and a file's open issues are fixed in one task", async ({ page, daemon }) => {
+  const second = { ...data.findings[0], id: 'f4', severity: 'medium', source: 'ai', title: 'Request ID not logged', message: 'Errors lose the request ID.', location: { path: 'internal/api/handlers/change_handler.go', start_line: 120 }, evidence: undefined };
+  daemon.serve('/api/projects/current/findings', () => ({ ...data.project, findings: [...data.findings, second] }));
+  await page.goto('/#/issues');
+  const file = page.getByRole('rowgroup', { name: 'internal/api/handlers/change_handler.go' });
+  await expect(file.getByRole('row')).toHaveCount(3);
+  await expect(file.getByRole('row', { name: /size limit/ })).toContainText('L88 · ChangeHandler.Create');
+  await expect(page.getByRole('rowgroup', { name: 'internal/llm/client.go' }).getByRole('button', { name: /together/ })).toHaveCount(0);
+  await file.getByRole('button', { name: 'Fix 2 together' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByPlaceholder('What should change?')).toHaveValue('Fix 2 issues in internal/api/handlers/change_handler.go');
+  await dialog.getByRole('button', { name: 'Save draft' }).click();
+  await expect(page.getByText('Draft saved.')).toBeVisible();
+  expect(daemon.requests.filter(request => request.path === '/api/projects/current/findings/task')).toHaveLength(1);
+  expect(daemon.mutations('/changes')[0].body).toMatchObject({ finding_targets: [{ id: 'f1' }, { id: 'f4' }] });
+
+  await page.goto('/#/issues');
+  await page.getByRole('radiogroup', { name: 'Group issues' }).getByRole('radio', { name: 'By severity' }).click();
+  await expect(page).toHaveURL(/view=list/);
+  await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row', { name: /ignores cancellation/ })).toContainText('internal/llm/client.go:212');
+});
 
 test('issues label where each finding comes from', async ({ page }) => {
-  await page.goto('/#/issues');
+  await page.goto('/#/issues?view=list');
   const table = page.getByRole('table');
   await expect(table.getByRole('row', { name: /size limit/ })).toContainText('Security rule');
   await expect(table.getByRole('row', { name: /size limit/ })).toContainText('change_handler.go:88 · ChangeHandler.Create');
@@ -23,7 +46,7 @@ test("an issue's evidence reads as sections, with its actions above them", async
 
 test('issues are triaged from the keyboard, filtered by kind and fixed in a linked task', async ({ page, daemon }) => {
   await page.goto('/#/issues');
-  await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(3);
+  await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(5);
   await page.keyboard.press('j');
   const detail = page.getByRole('complementary', { name: 'Issue detail' });
   await expect(detail).toContainText('Request body read without a size limit');
@@ -34,7 +57,7 @@ test('issues are triaged from the keyboard, filtered by kind and fixed in a link
 
   await page.getByRole('group', { name: 'Category' }).getByRole('button', { name: /Security/ }).click();
   await expect(page).toHaveURL(/category=security/);
-  await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(2);
+  await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(3);
   await page.keyboard.press('j');
   await page.keyboard.press('f');
   await expect(page.getByRole('dialog')).toBeVisible();
@@ -54,12 +77,12 @@ test('an issue a task is fixing leaves the open issues, links to its task and re
 
   await page.goto('/#/issues');
   const table = page.getByRole('table', { name: 'Issues' });
-  await expect(table.getByRole('row')).toHaveCount(2);
+  await expect(table.getByRole('row')).toHaveCount(3);
   await expect(table).not.toContainText('Request body read without a size limit');
   const status = page.getByRole('radiogroup', { name: 'Status' });
   await status.getByRole('radio', { name: /In progress/ }).click();
   await expect(page).toHaveURL(/status=in_progress/);
-  await expect(table.getByRole('row')).toHaveCount(2);
+  await expect(table.getByRole('row')).toHaveCount(3);
   await expect(table).toContainText('In progress · security');
   await table.getByRole('row', { name: /Request body read without a size limit/ }).click();
   const detail = page.getByRole('complementary', { name: 'Issue detail' });

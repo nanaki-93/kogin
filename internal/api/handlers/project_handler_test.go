@@ -223,6 +223,12 @@ func TestProjectWorkspaceAPIsAreRevisionGuardedAndSourceFree(t *testing.T) {
 			request.SetPathValue("findingID", "missing")
 			handler.IssueTask(response, request)
 		}},
+		{name: "issues task", call: func(response *httptest.ResponseRecorder) {
+			handler.IssuesTask(response, httptest.NewRequest(http.MethodGet, "/api/projects/current/findings/task?id=a&id=b&project_revision=stale", nil))
+		}},
+		{name: "issues task for unlisted issues", call: func(response *httptest.ResponseRecorder) {
+			handler.IssuesTask(response, httptest.NewRequest(http.MethodGet, "/api/projects/current/findings/task?id=a&id=b&project_revision="+index.ProjectRevision, nil))
+		}},
 	} {
 		t.Run(call.name, func(t *testing.T) {
 			response := httptest.NewRecorder()
@@ -233,6 +239,30 @@ func TestProjectWorkspaceAPIsAreRevisionGuardedAndSourceFree(t *testing.T) {
 			assertStructuredError(t, response)
 		})
 	}
+}
+
+func TestIssuesTaskRefusesASelectionItCannotFixTogether(t *testing.T) {
+	root := t.TempDir()
+	writeProjectHandlerFixture(t, root, "main.go", "package main\n")
+	manager, err := project.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Set(root, &project.Analysis{Name: "fixture", Path: root}); err != nil {
+		t.Fatal(err)
+	}
+	service, err := app.New(scopedHandlerConfig("http://127.0.0.1:1"), manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+	index, _ := manager.Index()
+	response := httptest.NewRecorder()
+	handler := NewProjectHandler(manager, service)
+	handler.IssuesTask(response, httptest.NewRequest(http.MethodGet, "/api/projects/current/findings/task?project_revision="+index.ProjectRevision, nil))
+	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "open issues of one file") {
+		t.Fatalf("status = %d: %s", response.Code, response.Body.String())
+	}
+	assertStructuredError(t, response)
 }
 
 func TestProjectIndexAPIsRequireAnActiveProject(t *testing.T) {

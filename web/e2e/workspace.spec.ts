@@ -60,7 +60,7 @@ test('creates a draft task with a scope and criteria', async ({ page, daemon }) 
 
 test('a task in its own worktree does not switch the workspace pages', async ({ page }) => {
   await page.goto('/#/issues');
-  await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(3);
+  await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(5);
   await page.keyboard.press('j');
   await page.keyboard.press('f');
   await page.getByRole('dialog').getByRole('button', { name: 'Save draft' }).click();
@@ -71,7 +71,7 @@ test('a task in its own worktree does not switch the workspace pages', async ({ 
   await page.keyboard.press('i');
   await expect(page).toHaveURL(/#\/issues$/);
   // The main checkout's issues, where the one the task fixes is now in progress.
-  await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(2);
+  await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(3);
   await expect(page.getByRole('radiogroup', { name: 'Status' }).getByRole('radio', { name: /In progress/ })).toContainText('1');
   await page.getByRole('navigation', { name: 'Workspace' }).getByRole('link', { name: /Tasks/ }).click();
   await expect(page).toHaveURL(/#\/tasks$/);

@@ -754,6 +754,33 @@ paths:
                   finding_targets: {type: array, items: {$ref: '#/components/schemas/FindingTarget'}}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+  /api/projects/current/findings/task:
+    parameters:
+      - {$ref: '#/components/parameters/WorktreePath'}
+    get:
+      tags: [Projects]
+      summary: Draft one task that fixes several open issues of one file; nothing is saved
+      description: 'The issues (one to ten, as repeated id parameters) must be open and in the same file. The draft names the file and its conventional test, lists every issue in line order with its line, function, message and evidence, joins their criteria (each once, at most sixteen) and links every issue, so merging the task marks each fixed. One id drafts like GET findings/{findingID}/task.'
+      parameters:
+        - {$ref: '#/components/parameters/ProjectRevision'}
+        - {in: query, name: id, required: true, schema: {type: array, items: {type: string}, minItems: 1, maxItems: 10}, style: form, explode: true}
+      responses:
+        '200':
+          description: A task draft for the composer, shaped like the one-issue draft
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [kind, title, description, paths, acceptance_criteria]
+                properties:
+                  kind: {type: string, enum: [fix, security, performance], description: The kind the issues share; fix when they differ.}
+                  title: {type: string}
+                  description: {type: string}
+                  paths: {type: array, items: {type: string}}
+                  acceptance_criteria: {type: array, items: {type: string}}
+                  finding_targets: {type: array, items: {$ref: '#/components/schemas/FindingTarget'}}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/rules:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}

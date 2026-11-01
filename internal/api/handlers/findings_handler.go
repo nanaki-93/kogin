@@ -56,6 +56,20 @@ func (h *ProjectHandler) IssueTask(w http.ResponseWriter, r *http.Request) {
 	api.WriteJSON(w, http.StatusOK, task)
 }
 
+// IssuesTask drafts one task that fixes several open issues of one file
+// (repeated id parameters); nothing is saved.
+func (h *ProjectHandler) IssuesTask(w http.ResponseWriter, r *http.Request) {
+	if !requireCurrentRevision(w, h.manager, r.URL.Query().Get("project_revision")) {
+		return
+	}
+	task, err := h.service.DraftIssuesTask(r.URL.Query()["id"])
+	if err != nil {
+		writeProjectError(w, "issues task draft failed", err)
+		return
+	}
+	api.WriteJSON(w, http.StatusOK, task)
+}
+
 // UpdateFindingStatus changes only user triage for one deterministic finding.
 func (h *ProjectHandler) UpdateFindingStatus(w http.ResponseWriter, r *http.Request) {
 	var request findingStatusRequest
