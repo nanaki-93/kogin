@@ -109,10 +109,19 @@ func (s *Service) updateAnalysisElapsedLocked() {
 	c.run.ElapsedSeconds = c.elapsedBase + elapsed
 }
 
+const (
+	// analysisRunStaleReason says why a run's results no longer match: the
+	// files, the context policy or the models changed.
+	analysisRunStaleReason = "Files, settings or models changed since this run. Analyze changes to bring the results up to date."
+	// legacyAnalysisRunStaleReason is how saved runs said it before; it is
+	// read as analysisRunStaleReason.
+	legacyAnalysisRunStaleReason = "Project source, policy or provider identity changed; start a new analysis."
+)
+
 func (s *Service) staleAnalysisRunLocked() {
 	c := s.analysisRun
 	c.run.Status = AnalysisRunStale
-	c.run.Reason = "Project source, policy or provider identity changed; start a new analysis."
+	c.run.Reason = analysisRunStaleReason
 	interruptAnalysisStages(c.run, AnalysisStageStale)
 	if c.cancel != nil {
 		c.cancel()

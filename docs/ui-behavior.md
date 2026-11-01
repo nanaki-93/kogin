@@ -281,9 +281,13 @@ every guard when the action arrives.
   count opens Issues), the models used, and every file's stages with
   their reasons, filterable to failed, with findings or in progress. Controls
   follow the run: pause and cancel while it runs; resume (after a fresh preview)
-  or cancel when it is paused or interrupted; otherwise analyze changes, retry
-  only failed, stale and canceled stages (**Retry failed**, or **Retry canceled**
-  after a canceled run), or re-analyze everything. A retry still covers the
+  or cancel when it is paused or interrupted; otherwise one primary action,
+  the next step: **Retry failed** (or **Retry canceled** after a canceled run)
+  when stages failed or were canceled and the files have not changed since,
+  else **Analyze changes**. **More** holds the other ways to run, each saying
+  what it does: analyze changes, retry only failed, stale and canceled stages,
+  or re-analyze every file. A run whose files, settings or models changed says
+  so in plain words and points to Analyze changes. A retry still covers the
   whole project: saved results show as done from the moment it starts, only the
   retried stages run, canceling it leaves the saved results done, and the
   confirmation says how many files are retried and kept.

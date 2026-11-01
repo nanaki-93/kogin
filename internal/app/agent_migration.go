@@ -118,6 +118,9 @@ func decodeCompatibleAnalysisHistory(data []byte) (*AnalysisRun, error) {
 	// Original schema-1 totals included ineligible stages. Validate the stored
 	// aggregate before projecting today's eligible coverage; retain provenance.
 	normalizeAnalysisRunEligibility(&run)
+	if run.Reason == legacyAnalysisRunStaleReason {
+		run.Reason = analysisRunStaleReason
+	}
 	return &run, nil
 }
 

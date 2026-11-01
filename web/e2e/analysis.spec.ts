@@ -51,6 +51,42 @@ test('the dashboard explains a failed run and retries only what failed', async (
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
 });
 
+test('the analysis offers one next step and the other ways to run under More', async ({ page, daemon }) => {
+  const run = analysisRun('completed');
+  run.files = (run.files ?? []).map(file => ({ ...file, stages: file.stages.map(stage => (stage.status === 'failed' ? { ...stage, status: 'completed_empty', reason: undefined, finding_count: 0 } : stage)) }));
+  daemon.serveRun(run);
+  await page.goto('/#/analysis');
+  const head = page.locator('.page-head');
+  await expect(head.getByRole('button', { name: 'Analyze changes' })).toBeVisible();
+  await expect(head.getByRole('button', { name: /Retry/ })).toHaveCount(0);
+  await head.getByRole('button', { name: 'More ways to analyze' }).click();
+  const menu = page.getByRole('menu');
+  await expect(menu.getByRole('menuitem')).toHaveCount(1);
+  await menu.getByRole('menuitem', { name: /Re-analyze every file/ }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Analyze' }).click();
+  expect(daemon.mutations('/analysis/preview')[0].body).toMatchObject({ refresh: true });
+});
+
+test('after failures, retrying them is the next step and analyzing changes moves under More', async ({ page, daemon }) => {
+  daemon.serveRun(analysisRun());
+  await page.goto('/#/analysis');
+  const head = page.locator('.page-head');
+  await expect(head.getByRole('button', { name: 'Retry failed' })).toBeVisible();
+  await expect(head.getByRole('button', { name: 'Analyze changes' })).toHaveCount(0);
+  await head.getByRole('button', { name: 'More ways to analyze' }).click();
+  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText([/Analyze changes/, /Re-analyze every file/]);
+});
+
+test('when the files changed since a run with failures, analyzing the changes is the next step', async ({ page, daemon }) => {
+  daemon.serveRun({ ...analysisRun('stale'), reason: 'Files, settings or models changed since this run. Analyze changes to bring the results up to date.' });
+  await page.goto('/#/analysis');
+  await expect(page.getByText('Files, settings or models changed since this run.')).toBeVisible();
+  const head = page.locator('.page-head');
+  await expect(head.getByRole('button', { name: 'Analyze changes' })).toBeVisible();
+  await head.getByRole('button', { name: 'More ways to analyze' }).click();
+  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText([/Retry failed only/, /Re-analyze every file/]);
+});
+
 test('a retry keeps the rest of the project on the dashboard', async ({ page, daemon }) => {
   const run = analysisRun('completed');
   run.plan = { ...run.plan, retry_stale_failed: true, files: (run.files ?? []).map((file, i) => ({ path: file.path, retained: i > 1 })) };

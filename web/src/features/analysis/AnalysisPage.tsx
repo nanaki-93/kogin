@@ -3,7 +3,8 @@
 // file's stages, with the controls to start, pause, resume, cancel or retry.
 
 import { useMemo, useState } from 'react';
-import { Activity, AlertTriangle, CheckCircle2, CircleDashed, Clock, Cpu, FileCode2, Loader2, Pause, Play, RefreshCw, RotateCcw, Search, Square, XCircle } from 'lucide-react';
+import * as Menu from '@radix-ui/react-dropdown-menu';
+import { Activity, AlertTriangle, CheckCircle2, ChevronDown, CircleDashed, Clock, Cpu, FileCode2, Loader2, Pause, Play, RotateCcw, Search, Square, XCircle } from 'lucide-react';
 import type { AnalysisCoverageCounts, AnalysisRunFile, AnalysisRunSummary, AnalysisStageProgress } from '@/api/types';
 import { useModels, useOverview, useProject } from '@/api/hooks';
 import { useActions, useBusy } from '@/app/actions';
@@ -52,6 +53,11 @@ function AnalysisHeader({ run }: { run: AnalysisRunSummary | null }) {
   const failed = runProgress(run).failed > 0;
   // A canceled run (a canceled retry included) leaves canceled stages that a retry picks up.
   const canceled = (run?.files ?? []).some(file => file.stages.some(stage => stage.status === 'canceled' || stage.status === 'interrupted'));
+  // One primary action: retrying what failed or was canceled, unless the
+  // files changed since (analyzing the changes covers those stages too);
+  // the other ways to run are in More.
+  const retryable = failed || canceled;
+  const retry = retryable && run?.status !== 'stale';
   const when = run?.updated_at ? timeAgo(run.updated_at) : '';
   return (
     <div className="page-head">
@@ -81,18 +87,45 @@ function AnalysisHeader({ run }: { run: AnalysisRunSummary | null }) {
         </>
       ) : project ? (
         <>
-          <Tip label="Analyze every file again, ignoring saved results">
-            <Button icon={RefreshCw} variant="ghost" onClick={() => void actions.runAnalysis(project, worktreePath, { refresh: true })} disabled={busy}>Re-analyze all</Button>
-          </Tip>
-          {failed || canceled ? (
+          <MoreRuns
+            choices={[
+              ...(retry ? [{ label: run ? 'Analyze changes' : 'Analyze project', detail: 'Analyze every file whose saved results are missing, failed or out of date.', run: () => void actions.runAnalysis(project, worktreePath) }] : []),
+              ...(retryable && !retry ? [{ label: failed ? 'Retry failed only' : 'Retry canceled only', detail: 'Analyze again only the stages that failed, went stale or were canceled; every other file keeps its results.', run: () => void actions.runAnalysis(project, worktreePath, { retryFailed: true }) }] : []),
+              { label: 'Re-analyze every file', detail: 'Ignore the saved results and analyze every file again.', run: () => void actions.runAnalysis(project, worktreePath, { refresh: true }) },
+            ]}
+            disabled={busy}
+          />
+          {retry ? (
             <Tip label="Analyze again only the stages that failed, went stale or were canceled; every other file keeps its results">
-              <Button icon={RotateCcw} onClick={() => void actions.runAnalysis(project, worktreePath, { retryFailed: true })} disabled={busy}>{failed ? 'Retry failed' : 'Retry canceled'}</Button>
+              <Button icon={RotateCcw} variant="primary" onClick={() => void actions.runAnalysis(project, worktreePath, { retryFailed: true })} disabled={busy}>{failed ? 'Retry failed' : 'Retry canceled'}</Button>
             </Tip>
-          ) : null}
-          <Button icon={Play} variant="primary" onClick={() => void actions.runAnalysis(project, worktreePath)} disabled={busy}>{run ? 'Analyze changes' : 'Analyze project'}</Button>
+          ) : (
+            <Button icon={Play} variant="primary" onClick={() => void actions.runAnalysis(project, worktreePath)} disabled={busy}>{run ? 'Analyze changes' : 'Analyze project'}</Button>
+          )}
         </>
       ) : null}
     </div>
+  );
+}
+
+/** The other ways to start an analysis, each saying what it does. */
+function MoreRuns({ choices, disabled }: { choices: { label: string; detail: string; run: () => void }[]; disabled: boolean }) {
+  return (
+    <Menu.Root>
+      <Menu.Trigger asChild>
+        <Button variant="ghost" iconRight={ChevronDown} disabled={disabled} aria-label="More ways to analyze">More</Button>
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Content className="menu run-menu" align="end" sideOffset={6}>
+          {choices.map(choice => (
+            <Menu.Item key={choice.label} className="menu-item menu-item-detailed" onSelect={choice.run}>
+              <span className="strong small">{choice.label}</span>
+              <span className="xs muted">{choice.detail}</span>
+            </Menu.Item>
+          ))}
+        </Menu.Content>
+      </Menu.Portal>
+    </Menu.Root>
   );
 }
 

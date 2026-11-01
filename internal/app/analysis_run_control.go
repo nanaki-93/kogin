@@ -51,7 +51,7 @@ func (s *Service) cancelAnalysisRunLocked() (*AnalysisRun, error) {
 		}
 		// Discarding stale work must remain possible after a failed save.
 		// Recovery preserves its stale identity and cannot restart requests.
-		c.run.Reason = "Project source, policy or provider identity changed; start a new analysis."
+		c.run.Reason = analysisRunStaleReason
 		err := s.saveAnalysisRunLocked(true)
 		return cloneAnalysisRun(c.run), err
 	}

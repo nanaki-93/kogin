@@ -182,7 +182,8 @@ func TestAnalysisRestartRecoversFalseStalenessWithIneligibleStages(t *testing.T)
 	}
 	old := cloneAnalysisRun(completed)
 	old.Status = AnalysisRunStale
-	old.Reason = "Project source, policy or provider identity changed; start a new analysis."
+	// Saved with the wording runs had before; it reads as today's.
+	old.Reason = legacyAnalysisRunStaleReason
 	refreshAnalysisSections(old)
 	data, err := json.Marshal(old)
 	if err != nil {
@@ -196,5 +197,29 @@ func TestAnalysisRestartRecoversFalseStalenessWithIneligibleStages(t *testing.T)
 	run, err := s.currentTestAnalysisRun(context.Background())
 	if err != nil || !reflect.DeepEqual(run, completed) || calls.Load() != requests {
 		t.Fatalf("saved evidence did not recover: status=%s calls=%d error=%v", run.Status, calls.Load(), err)
+	}
+}
+
+func TestAStaleRunSavedWithTheOldWordingReadsInPlainWords(t *testing.T) {
+	server, _ := analysisResponseServer(t, emptyAnalysisReply)
+	s, root := newAnalysisFreshnessService(t, server.URL, false)
+	preview := analysisRunPreviewFor(t, s, AnalysisRunLimits{100, 30, 2}, nil)
+	if _, err := s.StartAnalysisRun(context.Background(), analysisStartFor(preview)); err != nil {
+		t.Fatal(err)
+	}
+	old := cloneAnalysisRun(completedAnalysisRun(t, s))
+	old.Status = AnalysisRunStale
+	old.Reason = legacyAnalysisRunStaleReason
+	refreshAnalysisSections(old)
+	data, err := json.Marshal(old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, analysisRunRelativePath), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	run, err := loadAnalysisRun(root)
+	if err != nil || run == nil || run.Status != AnalysisRunStale || run.Reason != analysisRunStaleReason {
+		t.Fatalf("run = %+v, %v", run, err)
 	}
 }
