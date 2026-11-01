@@ -958,7 +958,13 @@ evidence label and completed report. Legacy records may omit this field.
 Reports join in canonical role order, deduplicating findings and notes. Findings
 are blocking: a report approves exactly when it has none. Optional `notes` are
 advisory suggestions that never change a verdict. Each report has at most 16
-findings and 8 notes; the aggregate has at most 80 and 40. A missing, failed or
+findings and 8 notes; the aggregate has at most 80 and 40. Each finding and note
+is a `ReviewItem`: `title` (a few words, at most 100 characters), and when the
+reviewer named them `path` and `line` (the file of the task and the line in its
+proposed content) and `detail` (up to 1 KiB). Reviewers quote a line of code and
+the daemon finds its line; a quote that is not found, or found in several files,
+leaves the line out. Reviews stored with text findings read as items whose
+title is the text's first sentence and whose detail is the text. A missing, failed or
 canceled reviewer prevents aggregate approval. Parallel cancellation caused by a failed
 reviewer remains a failed run rather than appearing as a user cancellation.
 

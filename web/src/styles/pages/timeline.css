@@ -87,6 +87,34 @@
   color: var(--muted);
 }
 
+.review-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.review-item-title {
+  color: var(--text);
+}
+
+.findings-advisory .review-item-title {
+  color: var(--text-2);
+}
+
+.review-place {
+  white-space: nowrap;
+}
+
+.review-item-detail summary {
+  width: fit-content;
+  cursor: pointer;
+}
+
+.review-item-detail p {
+  margin: 2px 0 4px;
+}
+
 .approval-notes {
   margin-top: 4px;
   padding: 8px 10px;

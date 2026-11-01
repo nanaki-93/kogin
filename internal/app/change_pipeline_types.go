@@ -78,11 +78,11 @@ type ChangeStageTools struct {
 
 // Findings block approval; notes are advisory and never change the verdict.
 type ChangeWorkflowReview struct {
-	ProposalHash string   `json:"proposal_hash"`
-	Verdict      string   `json:"verdict"`
-	Summary      string   `json:"summary"`
-	Findings     []string `json:"findings"`
-	Notes        []string `json:"notes,omitempty"`
+	ProposalHash string       `json:"proposal_hash"`
+	Verdict      string       `json:"verdict"`
+	Summary      string       `json:"summary"`
+	Findings     []ReviewItem `json:"findings"`
+	Notes        []ReviewItem `json:"notes,omitempty"`
 }
 
 // ChangeWorkflowOverride records a human decision to review a proposal the

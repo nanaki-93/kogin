@@ -90,7 +90,8 @@ export function reviewTask(): ChangeSession {
 /** The same task after the reviewers requested changes: no human input yet. */
 export function rejectedTask(): ChangeSession {
   const task = reviewTask();
-  const blocking = 'Move the MIME table into its own package.';
+  const blocking = { title: 'MIME table belongs in its own package', path: 'internal/api/handlers/webui.go', line: 42, detail: 'Move the MIME table into its own package.' };
+  const note = { title: 'Consider a table-driven test.' };
   return {
     ...task,
     reviewed_files: task.changes.map(change => change.path),
@@ -99,9 +100,9 @@ export function rejectedTask(): ChangeSession {
       status: 'changes_requested',
       input: undefined,
       stages: task.workflow!.stages.map(stage => (stage.name === 'human_review' ? { name: stage.name, status: 'blocked' } : stage)),
-      review: { proposal_hash: task.hash, verdict: 'changes_requested', summary: '2 specialist reviews completed; 1 requested changes.', findings: [blocking], notes: ['Consider a table-driven test.'] },
+      review: { proposal_hash: task.hash, verdict: 'changes_requested', summary: '2 specialist reviews completed; 1 requested changes.', findings: [blocking], notes: [note] },
       specialists: [
-        { id: 'correctness', status: 'completed', evidence: 'model_advice', review: { proposal_hash: task.hash, verdict: 'approve', summary: 'Guard runs first.', findings: [], notes: ['Consider a table-driven test.'] } },
+        { id: 'correctness', status: 'completed', evidence: 'model_advice', review: { proposal_hash: task.hash, verdict: 'approve', summary: 'Guard runs first.', findings: [], notes: [note] } },
         { id: 'architecture', status: 'completed', evidence: 'model_advice', review: { proposal_hash: task.hash, verdict: 'changes_requested', summary: 'Package boundary.', findings: [blocking] } },
       ],
     },

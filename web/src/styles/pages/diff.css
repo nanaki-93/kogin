@@ -211,6 +211,9 @@
 .row-del td { background: var(--diff-del); }
 .row-del .ln { background: var(--diff-gutter-del); }
 .row-add .sign { color: var(--success); }
+/* The line a reviewer's finding is about. */
+.diff-row.is-focus td { box-shadow: inset 0 1px 0 var(--accent), inset 0 -1px 0 var(--accent); }
+.diff-row.is-focus .ln { color: var(--accent-text); font-weight: 600; }
 .row-del .sign { color: var(--danger); }
 .row-hunk td { background: var(--info-soft); color: var(--info); }
 

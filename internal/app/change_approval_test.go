@@ -49,16 +49,16 @@ func overrideRequest(session *ChangeSession, reason string) ChangeReviewOverride
 func TestAdvisoryNotesNeverDecideTheVerdict(t *testing.T) {
 	_, _, rejected := rejectedWorkflow(t)
 	review := rejected.Workflow.Review
-	if review.Verdict != "changes_requested" || !slices.Equal(review.Findings, []string{"Move the dependency into its owning package."}) || !slices.Equal(review.Notes, []string{"Consider a table-driven test."}) {
+	if review.Verdict != "changes_requested" || !slices.Equal(review.Findings, []ReviewItem{{Title: "Move the dependency into its owning package."}}) || !slices.Equal(review.Notes, []ReviewItem{{Title: "Consider a table-driven test."}}) {
 		t.Fatalf("findings and notes were not kept apart: %+v", review)
 	}
-	if _, err := parseWorkflowReview(`{"verdict":"approve","summary":"Fine.","findings":[],"notes":["Optional."]}`); err != nil {
+	if _, err := parseWorkflowReview(`{"verdict":"approve","summary":"Fine.","findings":[],"notes":["Optional."]}`, nil); err != nil {
 		t.Fatalf("approve with notes rejected: %v", err)
 	}
-	if _, err := parseWorkflowReview(`{"verdict":"changes_requested","summary":"Notes only.","findings":[],"notes":["Optional."]}`); err == nil {
+	if _, err := parseWorkflowReview(`{"verdict":"changes_requested","summary":"Notes only.","findings":[],"notes":["Optional."]}`, nil); err == nil {
 		t.Fatal("advisory notes alone requested changes")
 	}
-	if _, err := parseWorkflowReview(`{"verdict":"approve","summary":"Too many.","findings":[],"notes":["1","2","3","4","5","6","7","8","9"]}`); err == nil {
+	if _, err := parseWorkflowReview(`{"verdict":"approve","summary":"Too many.","findings":[],"notes":["1","2","3","4","5","6","7","8","9"]}`, nil); err == nil {
 		t.Fatal("unbounded notes accepted")
 	}
 	forged := *rejected.Workflow
@@ -136,12 +136,12 @@ func TestHumanRejectionCannotBeOverridden(t *testing.T) {
 }
 
 func TestStoredOverrideAndNotesMustBindTheirEvidence(t *testing.T) {
-	review := &ChangeWorkflowReview{ProposalHash: "proposal", Verdict: "approve", Summary: "Fine.", Findings: []string{}}
+	review := &ChangeWorkflowReview{ProposalHash: "proposal", Verdict: "approve", Summary: "Fine.", Findings: []ReviewItem{}}
 	w := &ChangeWorkflow{Review: review, Override: &ChangeWorkflowOverride{ProposalHash: "proposal", Reason: "Reviewed.", At: time.Now()}}
 	if reviewOverridden(w, "proposal") {
 		t.Fatal("override applied to an approving review")
 	}
-	review.Verdict, review.Findings = "changes_requested", []string{"Fix it."}
+	review.Verdict, review.Findings = "changes_requested", []ReviewItem{{Title: "Fix it."}}
 	if !reviewOverridden(w, "proposal") || reviewOverridden(w, "other") {
 		t.Fatal("override not bound to its proposal hash")
 	}

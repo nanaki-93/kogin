@@ -9,7 +9,7 @@ import { setUI, useUI } from '@/app/store';
 import { usePageKeys } from '@/app/shortcuts';
 import { diffStats } from '@/lib/diff';
 import { effectiveEdits, isFileReviewed, nextUnreviewedPath, proposalReadiness, reviewProgress, workflowActive } from '@/lib/readiness';
-import { setParam, useRoute } from '@/lib/router';
+import { navigate, setParam, useRoute } from '@/lib/router';
 import { basename, dirname, languageOf } from '@/lib/util';
 import { Button, EmptyState, IconButton, Kbd, Progress, Segmented, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
@@ -36,7 +36,9 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
     return counts;
   }, [session.comments, session.hash]);
 
-  const select = (path: string) => setParam('file', path);
+  // A line from a reviewer's finding belongs to the file it came with.
+  const focusLine = current && route.params.get('file') === current.path ? Number(route.params.get('line')) || undefined : undefined;
+  const select = (path: string) => navigate(route.path, { ...Object.fromEntries(route.params.entries()), file: path, line: undefined }, { replace: true });
 
   async function markViewed() {
     if (!current || !canMark) return;
@@ -153,7 +155,7 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
             </div>
           ) : null}
           <div className="fc-diff-body">
-            <DiffView key={current.path + session.hash + layout} lines={current.diff?.lines ?? []} language={languageOf(current.path)} layout={layout} wrap={wrap} anchorPrefix={`d-${current.path}`} comments={since ? undefined : fileComments} />
+            <DiffView key={current.path + session.hash + layout} lines={current.diff?.lines ?? []} language={languageOf(current.path)} layout={layout} wrap={wrap} anchorPrefix={`d-${current.path}`} comments={since ? undefined : fileComments} focus={focusLine} />
           </div>
         </section>
       ) : null}

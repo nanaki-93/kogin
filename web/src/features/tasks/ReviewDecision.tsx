@@ -7,6 +7,7 @@ import type { LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { Button, Callout, Textarea } from '@/components/ui';
 import { Modal } from '@/components/overlays';
+import { ReviewItems } from './ReviewItems';
 
 const MAX_REASON = 1024;
 const MAX_NOTES = 2048;
@@ -52,11 +53,7 @@ export function OverrideReview({ session }: { session: LoadedSession }) {
           {findings.length ? (
             <div className="small">
               <div className="label-row">Blocking findings</div>
-              <ul className="findings">
-                {findings.map((finding, i) => (
-                  <li key={i}>{finding}</li>
-                ))}
-              </ul>
+              <ReviewItems items={findings} session={session} links={false} />
             </div>
           ) : null}
           <label className="field">

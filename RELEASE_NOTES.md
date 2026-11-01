@@ -22,6 +22,10 @@ are listed here as they land.
   file twice (as captured and as proposed) and the whole conversation. A
   changed file is now carried once, as proposed, and a stage gets at most
   48 KiB of the conversation: the task as first asked and the newest messages.
+- **Short review findings:** reviewers write each finding and note as a few
+  words with the file and a quoted line; the daemon finds the line, and the
+  task page shows `master.go:42` as a link to that line in the diff, with the
+  reason behind **Why**. Reviews saved with text findings still read.
 - The `mini-orca` launcher and the desktop app share `internal/launcher`.
 
 ## v5.0.0 — Web-first workspace

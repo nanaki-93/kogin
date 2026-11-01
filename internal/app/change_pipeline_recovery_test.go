@@ -86,7 +86,7 @@ func TestWorkflowReviewRejectsMalformedAndContradictoryOutput(t *testing.T) {
 		`{"verdict":"approve","summary":"x","findings":[],"proposal_hash":"forged"}`,
 		workflowApproval + `{}`, `{"verdict":"approve","summary":" ","findings":[]}`,
 	} {
-		if _, err := parseWorkflowReview(output); err == nil {
+		if _, err := parseWorkflowReview(output, nil); err == nil {
 			t.Fatalf("accepted review: %s", output)
 		}
 	}

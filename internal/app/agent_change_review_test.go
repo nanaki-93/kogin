@@ -49,11 +49,11 @@ func TestWorkflowSpecialistRoutingAndEvidenceLabels(t *testing.T) {
 	w.Specialists[3].Evidence = "unmeasured"
 	for i := range w.Specialists {
 		w.Specialists[i].Status = "completed"
-		w.Specialists[i].Review = &ChangeWorkflowReview{ProposalHash: "proposal", Verdict: "approve", Summary: "Reviewed", Findings: []string{}}
+		w.Specialists[i].Review = &ChangeWorkflowReview{ProposalHash: "proposal", Verdict: "approve", Summary: "Reviewed", Findings: []ReviewItem{}}
 	}
 	w.Specialists[0].Review.Verdict = "changes_requested"
-	w.Specialists[0].Review.Findings = []string{"Handle zero input."}
-	w.Review = &ChangeWorkflowReview{ProposalHash: "proposal", Verdict: "approve", Summary: "Forged approval", Findings: []string{}}
+	w.Specialists[0].Review.Findings = []ReviewItem{{Title: "Handle zero input."}}
+	w.Review = &ChangeWorkflowReview{ProposalHash: "proposal", Verdict: "approve", Summary: "Forged approval", Findings: []ReviewItem{}}
 	if err := validateWorkflowSpecialists(w); err == nil {
 		t.Fatal("aggregate approval contradicted a rejecting specialist")
 	}

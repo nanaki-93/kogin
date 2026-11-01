@@ -44,7 +44,7 @@ describe('proposalReadiness', () => {
   });
 
   it('offers an override only for the reviewers\' rejection of this exact version', () => {
-    const review = { proposal_hash: 'sha-2', verdict: 'changes_requested', summary: 'No', findings: ['Fix it.'] };
+    const review = { proposal_hash: 'sha-2', verdict: 'changes_requested', summary: 'No', findings: [{ title: 'Fix it.' }] };
     const rejected = session({ ...reviewed, checks: [check('tests', 'passed')], workflow: { id: 'w', status: 'changes_requested', stages: [], review } });
     expect(canOverrideReview(rejected)).toBe(true);
     expect(canOverrideReview({ ...rejected, hash: 'sha-3' })).toBe(false);

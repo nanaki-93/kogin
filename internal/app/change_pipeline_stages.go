@@ -111,7 +111,7 @@ func criticReviewRetryFeedback(message string, workflow *ChangeWorkflow) string 
 	var out strings.Builder
 	out.WriteString("\n\nCritic review feedback:\n" + strings.TrimSpace(workflow.Review.Summary))
 	for _, finding := range workflow.Review.Findings {
-		out.WriteString("\n- " + strings.TrimSpace(finding))
+		out.WriteString("\n- " + finding.String())
 	}
 	return out.String()
 }
@@ -291,17 +291,19 @@ func (s *Service) requestWorkflowModel(ctx context.Context, root string, session
 	return result, err
 }
 
-func parseWorkflowReview(output string) (*ChangeWorkflowReview, error) {
+// parseWorkflowReview reads a reviewer's reply about the proposal of session,
+// placing its findings and notes in the task's files (session may be nil).
+func parseWorkflowReview(output string, session *ChangeSession) (*ChangeWorkflowReview, error) {
 	if len(output) > 32*1024 {
 		return nil, fmt.Errorf("workflow review exceeds its limit")
 	}
 	output = llm.UnwrapMarkdownJSON(output)
 	// The provider may not choose the proposal identity attached by the daemon.
 	var wire struct {
-		Verdict  string   `json:"verdict"`
-		Summary  string   `json:"summary"`
-		Findings []string `json:"findings"`
-		Notes    []string `json:"notes"`
+		Verdict  string            `json:"verdict"`
+		Summary  string            `json:"summary"`
+		Findings []json.RawMessage `json:"findings"`
+		Notes    []json.RawMessage `json:"notes"`
 	}
 	decoder := json.NewDecoder(strings.NewReader(output))
 	decoder.DisallowUnknownFields()
@@ -311,7 +313,19 @@ func parseWorkflowReview(output string) (*ChangeWorkflowReview, error) {
 	if decoder.Decode(new(any)) != io.EOF || wire.Findings == nil || len(wire.Findings) > maxSpecialistFindings || len(wire.Notes) > maxSpecialistNotes {
 		return nil, fmt.Errorf("invalid workflow review response")
 	}
-	review := &ChangeWorkflowReview{Verdict: wire.Verdict, Summary: wire.Summary, Findings: wire.Findings, Notes: wire.Notes}
+	files := reviewFiles(session)
+	findings, err := decodeReviewItems(wire.Findings, files)
+	if err != nil {
+		return nil, err
+	}
+	notes, err := decodeReviewItems(wire.Notes, files)
+	if err != nil {
+		return nil, err
+	}
+	if len(notes) == 0 {
+		notes = nil
+	}
+	review := &ChangeWorkflowReview{Verdict: wire.Verdict, Summary: wire.Summary, Findings: findings, Notes: notes}
 	return review, validateWorkflowReview(review)
 }
 
@@ -328,7 +342,7 @@ func validateWorkflowReview(review *ChangeWorkflowReview) error {
 		return fmt.Errorf("workflow verdict and findings disagree")
 	}
 	for _, item := range slices.Concat(review.Findings, review.Notes) {
-		if !boundedWorkflowText(item, 1024) {
+		if !validReviewItem(item) {
 			return fmt.Errorf("invalid workflow review finding")
 		}
 	}

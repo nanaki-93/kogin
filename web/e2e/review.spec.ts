@@ -72,7 +72,8 @@ test('overrides the reviewers with a reason, then approves with notes', async ({
 
   await gate.getByRole('button', { name: 'Override reviewers…' }).click();
   const dialog = page.getByRole('dialog', { name: 'Override the reviewers?' });
-  await expect(dialog).toContainText('Move the MIME table into its own package.');
+  await expect(dialog).toContainText('MIME table belongs in its own package');
+  await expect(dialog).toContainText('webui.go:42');
   await expect(dialog.getByRole('button', { name: 'Override reviewers' })).toBeDisabled();
   await dialog.getByLabel('Override reason').fill('The MIME table is private to this handler.');
   await dialog.getByRole('button', { name: 'Override reviewers' }).click();
@@ -353,4 +354,20 @@ test('a task in its own worktree shows new, deleted and moved files and is accep
   expect(daemon.mutations('/apply')[0].body).toMatchObject({ confirm: true, head: '41030b7e', branch: 'orca/reject-nested-a1b2c3', revision: 3 });
   await expect(gate).toContainText('Accepted');
   await expect(gate.getByRole('button', { name: 'Merge from Branches' })).toBeVisible();
+});
+
+test('a finding is a few words with a link to its line in the diff', async ({ page, daemon }) => {
+  daemon.sessions.set('chg-1', rejectedTask());
+  await page.goto('/#/tasks/chg-1');
+  const finding = page.locator('.review-item', { hasText: 'MIME table belongs in its own package' });
+  await expect(finding).toBeVisible();
+  // The detail waits behind "Why".
+  await expect(finding.getByText('Move the MIME table into its own package.')).toBeHidden();
+  await finding.getByText('Why').click();
+  await expect(finding.getByText('Move the MIME table into its own package.')).toBeVisible();
+
+  await finding.getByRole('button', { name: 'webui.go:42' }).click();
+  await expect(page).toHaveURL(/#\/tasks\/chg-1\/files\?.*file=internal%2Fapi%2Fhandlers%2Fwebui\.go.*line=42/);
+  const diff = page.getByRole('region', { name: /Diff of internal\/api\/handlers\/webui.go/ });
+  await expect(diff.locator('tr.is-focus')).toContainText('strings.Contains(name, "/")');
 });

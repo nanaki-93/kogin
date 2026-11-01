@@ -9,6 +9,7 @@ import { openComments, proposalReadiness, workflowActive } from '@/lib/readiness
 import { activeOverride, pauseTitle, stageStatusLabel, workflowSpecialists, workflowStages, type SpecialistView, type StageView } from '@/lib/workflow';
 import { formatDuration, formatElapsed, plural, timeAgo } from '@/lib/util';
 import { costCaveat, costLabel, formatTokens, usageLabel } from '@/lib/usage';
+import { firstSentence } from '@/lib/docs';
 import { Badge, Button, Callout, PhaseIcon, Textarea, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
 import { navigate } from '@/lib/router';
@@ -16,6 +17,7 @@ import { CodeRules } from './CodeRules';
 import { ReanalyzeTask } from './ReanalyzeTask';
 import { MainChanged } from './RetakeTask';
 import { RunAgents } from './RunAgents';
+import { ReviewItems } from './ReviewItems';
 
 export function TaskOverview({ session }: { session: LoadedSession }) {
   return (
@@ -109,7 +111,7 @@ function AgentRun({ session }: { session: LoadedSession }) {
       ) : null}
       <ol className="timeline">
         {stages.map(stage => (
-          <Stage key={stage.name} stage={stage} specialists={stage.name === 'review' ? specialists : []} />
+          <Stage key={stage.name} stage={stage} specialists={stage.name === 'review' ? specialists : []} session={session} />
         ))}
       </ol>
     </section>
@@ -126,7 +128,7 @@ function endedCallout(workflow: ChangeWorkflow): { tone: 'neutral' | 'info' | 'd
   return { tone: 'danger', title: 'The run did not finish' };
 }
 
-function Stage({ stage, specialists }: { stage: StageView; specialists: SpecialistView[] }) {
+function Stage({ stage, specialists, session }: { stage: StageView; specialists: SpecialistView[]; session: LoadedSession }) {
   return (
     <li className={cx('tl-item', `tl-${stage.tone}`)}>
       <div className="tl-marker">
@@ -150,7 +152,7 @@ function Stage({ stage, specialists }: { stage: StageView; specialists: Speciali
         {specialists.length ? (
           <div className="reviewers">
             {specialists.map(sp => (
-              <Reviewer key={sp.id} reviewer={sp} />
+              <Reviewer key={sp.id} reviewer={sp} session={session} />
             ))}
           </div>
         ) : null}
@@ -159,7 +161,7 @@ function Stage({ stage, specialists }: { stage: StageView; specialists: Speciali
   );
 }
 
-function Reviewer({ reviewer }: { reviewer: SpecialistView }) {
+function Reviewer({ reviewer, session }: { reviewer: SpecialistView; session: LoadedSession }) {
   const [open, setOpen] = useState(reviewer.verdict === 'changes_requested');
   const verdict = reviewer.verdict === 'approve' ? { label: 'Approved', tone: 'success' as const } : reviewer.verdict === 'changes_requested' ? { label: 'Changes requested', tone: 'warning' as const } : { label: reviewer.status, tone: 'neutral' as const };
   return (
@@ -175,23 +177,13 @@ function Reviewer({ reviewer }: { reviewer: SpecialistView }) {
       </button>
       {open ? (
         <div className="reviewer-body small">
-          {reviewer.summary ? <p>{reviewer.summary}</p> : null}
+          {reviewer.summary ? <p title={reviewer.summary}>{firstSentence(reviewer.summary, 200)}</p> : null}
           {reviewer.reason ? <p className="muted">{reviewer.reason}</p> : null}
-          {reviewer.findings.length ? (
-            <ul className="findings">
-              {reviewer.findings.map((f, i) => (
-                <li key={i}>{f}</li>
-              ))}
-            </ul>
-          ) : null}
+          {reviewer.findings.length ? <ReviewItems items={reviewer.findings} session={session} /> : null}
           {reviewer.notes.length ? (
             <>
               <div className="label-row">Advisory</div>
-              <ul className="findings findings-advisory">
-                {reviewer.notes.map((note, i) => (
-                  <li key={i}>{note}</li>
-                ))}
-              </ul>
+              <ReviewItems items={reviewer.notes} session={session} advisory />
             </>
           ) : null}
         </div>

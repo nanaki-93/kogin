@@ -2488,8 +2488,16 @@ components:
         proposal_hash: {type: string}
         verdict: {type: string, enum: [approve, changes_requested]}
         summary: {type: string, minLength: 1, maxLength: 4096}
-        findings: {type: array, maxItems: 80, description: Blocking issues; approve exactly when empty., items: {type: string, minLength: 1, maxLength: 1024}}
-        notes: {type: array, maxItems: 40, description: Advisory suggestions that never decide the verdict., items: {type: string, minLength: 1, maxLength: 1024}}
+        findings: {type: array, maxItems: 80, description: Blocking issues; approve exactly when empty., items: {$ref: '#/components/schemas/ReviewItem'}}
+        notes: {type: array, maxItems: 40, description: Advisory suggestions that never decide the verdict., items: {$ref: '#/components/schemas/ReviewItem'}}
+    ReviewItem:
+      type: object
+      required: [title]
+      properties:
+        title: {type: string, minLength: 1, description: A few words naming the problem (at most 100 characters).}
+        path: {type: string, maxLength: 512, description: The task file it is about.}
+        line: {type: integer, minimum: 1, description: The line in the file's proposed content that the reviewer quoted; absent when the quote was not found.}
+        detail: {type: string, maxLength: 1024, description: Why it matters and what to change.}
     ChangeSpecialistReview:
       type: object
       required: [id, status, evidence, model]

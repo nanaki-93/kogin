@@ -1,7 +1,7 @@
 // Agent workflow presentation and request shaping. Consent is captured per
 // request: every remote destination the run will use is listed and confirmed.
 
-import type { AgentSettings, BudgetUsage, ChangeHistoryEntry, ChangeWorkflow, CostEstimate, GitWorkspace, GitWorktree, ModelsCurrent, ProjectIdentity, StageTools, WorkflowPause } from '@/api/types';
+import type { AgentSettings, BudgetUsage, ChangeHistoryEntry, ChangeSession, ChangeWorkflow, CostEstimate, GitWorkspace, GitWorktree, ModelsCurrent, ProjectIdentity, ReviewItem, StageTools, WorkflowPause } from '@/api/types';
 import { durationBetween, plural } from './util';
 import { phaseTone, type PhaseTone } from './readiness';
 
@@ -132,8 +132,8 @@ export interface SpecialistView {
   tone: PhaseTone;
   verdict: string;
   summary: string;
-  findings: string[];
-  notes: string[];
+  findings: ReviewItem[];
+  notes: ReviewItem[];
   evidence: string;
   reason: string;
   model: string;
@@ -153,6 +153,21 @@ export function workflowSpecialists(workflow: ChangeWorkflow | undefined): Speci
     reason: item.reason ?? '',
     model: item.model?.model ?? '',
   }));
+}
+
+/** Where a finding leads: the task's diff of its file at its line, or the file in Code when the proposal does not change it. */
+export function reviewItemRoute(session: Pick<ChangeSession, 'id' | 'changes'>, item: ReviewItem): { path: string; params: Record<string, string | undefined> } | null {
+  if (!item.path) return null;
+  const line = item.line ? String(item.line) : undefined;
+  if ((session.changes ?? []).some(change => change.path === item.path)) return { path: `/tasks/${session.id}/files`, params: { file: item.path, line } };
+  return { path: '/code', params: { file: item.path, line } };
+}
+
+/** A finding's place as it reads in a list: the file's name and the line. */
+export function reviewItemPlace(item: ReviewItem): string {
+  if (!item.path) return '';
+  const name = item.path.slice(item.path.lastIndexOf('/') + 1);
+  return item.line ? `${name}:${item.line}` : name;
 }
 
 const BUILD_MANIFESTS = new Set(['go.mod', 'go.sum', 'go.work', 'go.work.sum', 'package.json', 'package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'tsconfig.json', 'Cargo.toml', 'Cargo.lock', 'pyproject.toml', 'setup.py', 'setup.cfg', 'requirements.txt', 'Pipfile', 'Pipfile.lock', 'Makefile', 'justfile']);

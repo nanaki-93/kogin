@@ -145,6 +145,10 @@ every guard when the action arrives.
   change”).
 - **Reviewer findings.** Specialists separate blocking findings from advisory
   notes; only findings request changes, and notes are shown apart from them.
+  Each reads as a few words with its place (`master.go:42`); the reason waits
+  behind **Why**. The place opens the task's diff of that file with the line
+  marked and scrolled to, or the file in Code when the proposal does not change
+  it. A reviewer's summary shows its first sentence.
 - **Override reviewers.** When the reviewers rejected the current version and
   its checks pass, the human may override them with a reason (up to 1024
   bytes). The verdict stays on record, the override is shown on the run and

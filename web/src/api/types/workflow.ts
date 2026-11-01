@@ -26,14 +26,24 @@ export interface StageTools {
   finished: boolean;
 }
 
+/** A reviewer's finding or note: a few words, where it is, and why. */
+export interface ReviewItem {
+  title: string;
+  /** The task file it is about. */
+  path?: string;
+  /** The line in the file's proposed content; absent when the reviewer's quote was not found. */
+  line?: number;
+  detail?: string;
+}
+
 export interface WorkflowReview {
   proposal_hash?: string;
   verdict: 'approve' | 'changes_requested' | string;
   summary: string;
   /** Blocking issues: a review approves exactly when there are none. */
-  findings: string[];
+  findings: ReviewItem[];
   /** Advisory suggestions that never decide the verdict. */
-  notes?: string[];
+  notes?: ReviewItem[];
 }
 
 /** A human override of the reviewers' rejection, bound to one proposal hash. */

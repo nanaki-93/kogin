@@ -45,7 +45,7 @@ func TestPreExistingTestFailuresAreNotSentToRepair(t *testing.T) {
 
 func TestRetryMessageKeepsFeedbackWhenTheRequestIsLong(t *testing.T) {
 	request := strings.Repeat("é", maxWorkflowRetryMessage) // 2 bytes per rune
-	workflow := &ChangeWorkflow{Review: &ChangeWorkflowReview{Verdict: "changes_requested", Findings: []string{"handle the nil config"}}}
+	workflow := &ChangeWorkflow{Review: &ChangeWorkflowReview{Verdict: "changes_requested", Findings: []ReviewItem{{Title: "handle the nil config"}}}}
 	message := workflowRetryMessage(request, workflow, nil)
 	if len(message) > maxWorkflowRetryMessage || !utf8.ValidString(message) {
 		t.Fatalf("retry message must fit the budget as valid UTF-8: %d bytes", len(message))
