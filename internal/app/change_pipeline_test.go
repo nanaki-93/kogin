@@ -247,16 +247,10 @@ func TestChangeWorkflowSupportsCatalogAndCLIModels(t *testing.T) {
 	}
 }
 
-func TestChangeWorkflowAndExplanationSupportPolyglotProjects(t *testing.T) {
+func TestChangeWorkflowSupportsPolyglotProjects(t *testing.T) {
 	tsImpl := `{"explanation":"Add compute helper.","changes":[{"path":"app.ts","content":"export function compute(): number {\n  return 42;\n}\n"}]}`
 	tsTests := `{"explanation":"Add TypeScript test.","changes":[{"path":"app.test.ts","content":"import { compute } from './app';\nif (compute() !== 42) throw new Error('bad');\n"}]}`
-	var fnCalls atomic.Int32
-	fnServer := changeProvider(t, func() string {
-		if fnCalls.Add(1) == 1 {
-			return validDeclarationExplanation
-		}
-		return workflowApproval
-	})
+	fnServer := changeProvider(t, func() string { return workflowApproval })
 	create, testSrv := changeProvider(t, func() string { return tsImpl }), changeProvider(t, func() string { return tsTests })
 
 	root := t.TempDir()
@@ -285,22 +279,6 @@ func TestChangeWorkflowAndExplanationSupportPolyglotProjects(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(s.CancelChangeWorkflows)
-
-	index, err := s.manager.Index()
-	if err != nil {
-		t.Fatal(err)
-	}
-	tsFile, err := s.manager.IndexedFile("app.ts")
-	if err != nil {
-		t.Fatal(err)
-	}
-	explanation, err := s.ExplainDeclaration(context.Background(), DeclarationExplanationRequest{
-		ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, BaseFileHash: tsFile.ContentHash,
-		TargetPath: "app.ts",
-	})
-	if err != nil || explanation.Anchor.Path != "app.ts" {
-		t.Fatalf("TypeScript declaration explanation failed: %+v, %v", explanation, err)
-	}
 
 	session := openChangeFixture(t, s, "app.ts", "app.test.ts")
 	if _, err := s.TrustProjectExecution(context.Background(), session.ProjectRevision, true); err != nil {

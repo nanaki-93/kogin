@@ -54,7 +54,7 @@ paths:
     post:
       tags: [Projects]
       summary: Confirm versioned settings for future admissions
-      description: Replace complete roles, limits and disabled configured skills, or reset to operator configuration. Limits cannot exceed configured ceilings. Active runs retain their captured settings. Stale overrides require explicit reset. No source writes, provider dispatch, credential changes or tool grants.
+      description: Replace complete roles and limits, or reset to operator configuration. Limits cannot exceed configured ceilings. Active runs retain their captured settings. Stale overrides require explicit reset. No source writes, provider dispatch, credential changes or tool grants.
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AgentSettingsControl'}}}}
       responses:
         '200': {description: Durably saved settings with an advanced version; no-store, content: {application/json: {schema: {$ref: '#/components/schemas/AgentSettings'}}}}
@@ -917,24 +917,6 @@ paths:
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/files/explanation:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    post:
-      tags: [Projects]
-      summary: Explain one exact indexed Go declaration without creating workflow state
-      requestBody:
-        required: true
-        content: {application/json: {schema: {$ref: '#/components/schemas/DeclarationExplanationRequest'}}}
-      responses:
-        '200': {description: Transient bounded explanation with source anchors and Function-context provenance, content: {application/json: {schema: {$ref: '#/components/schemas/DeclarationExplanation'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '403': {$ref: '#/components/responses/Error'}
-        '404': {$ref: '#/components/responses/Error'}
-        '408': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-        '422': {$ref: '#/components/responses/Error'}
-        '504': {$ref: '#/components/responses/Error'}
   /api/projects/current/reindex:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -991,16 +973,6 @@ components:
         application/json:
           schema: {$ref: '#/components/schemas/Error'}
   schemas:
-    IntegrationUse:
-      type: object
-      description: Ephemeral consent for one admitted investigation or explanation. A saved plan, discovered inventory, incoming principal grant or remote-agent connection does not inherit this source-sharing authority.
-      additionalProperties: false
-      required: [id, grant, schema_fingerprint, confirm_source_sharing]
-      properties:
-        id: {type: string, maxLength: 24}
-        grant: {type: string, description: Current in-memory discovery grant; invalidated by revoke, reindex, replacement or restart.}
-        schema_fingerprint: {type: string, pattern: '^[a-f0-9]{64}$'}
-        confirm_source_sharing: {type: boolean, enum: [true], description: Approve this investigation's admitted prompt, source, skill and memory context reaching this server.}
     AgentUsage:
       type: object
       description: Shared budget charges across descendants, including conservative estimates; do not add child totals together. Accounting is absent for legacy measurements that cannot be reconstructed.
@@ -1050,14 +1022,14 @@ components:
     AgentPreferences:
       type: object
       additionalProperties: false
-      required: [roles, limits, disabled_skills]
+      required: [roles, limits]
       properties:
         roles: {$ref: '#/components/schemas/AgentRoleSettings'}
         limits: {$ref: '#/components/schemas/AgentLimits'}
-        disabled_skills: {type: array, maxItems: 8, uniqueItems: true, items: {type: string, maxLength: 192}, description: Only explicitly configured directories; empty enables all configured skills.}
+        disabled_skills: {type: array, deprecated: true, maxItems: 8, items: {type: string, maxLength: 192}, description: Accepted from older clients and ignored; project skills were removed.}
     AgentSettings:
       type: object
-      required: [project_id, project_revision, configuration, version, state, roles, limits, ceilings, skills, models, role_models]
+      required: [project_id, project_revision, configuration, version, state, roles, limits, ceilings, models, role_models]
       properties:
         project_id: {type: string}
         project_revision: {type: string}
@@ -1067,15 +1039,6 @@ components:
         roles: {$ref: '#/components/schemas/AgentRoleSettings'}
         limits: {$ref: '#/components/schemas/AgentLimits'}
         ceilings: {$ref: '#/components/schemas/AgentLimits'}
-        skills:
-          type: array
-          maxItems: 8
-          items:
-            type: object
-            required: [directory, enabled]
-            properties:
-              directory: {type: string, maxLength: 192}
-              enabled: {type: boolean}
         models: {type: array, minItems: 3, maxItems: 3, items: {$ref: '#/components/schemas/ScopedModel'}}
     AgentSettingsControl:
       type: object
@@ -1723,41 +1686,6 @@ components:
         path: {type: string}
         include: {type: boolean}
         reason: {type: string}
-    DeclarationExplanationRequest:
-      type: object
-      required: [project_id, project_revision, base_file_hash, target_path, confirm_remote_provider]
-      additionalProperties: false
-      properties:
-        integrations: {type: array, maxItems: 2, items: {$ref: '#/components/schemas/IntegrationUse'}}
-        project_id: {type: string}
-        project_revision: {type: string}
-        base_file_hash: {type: string}
-        target_path: {type: string, description: Exact eligible project-relative Go source path.}
-        confirm_remote_provider: {type: boolean, description: Fresh Code-scope confirmation required for non-loopback providers.}
-    DeclarationExplanation:
-      type: object
-      required: [version, project_id, project_revision, base_file_hash, anchor, summary, behavior, inputs, outputs, side_effects, error_behavior, context_manifest]
-      properties:
-        version: {type: string, enum: [v1]}
-        project_id: {type: string}
-        project_revision: {type: string}
-        base_file_hash: {type: string}
-        anchor: {$ref: '#/components/schemas/DeclarationSourceAnchor'}
-        summary: {type: string}
-        behavior: {type: array, maxItems: 6, items: {type: string}}
-        inputs: {type: array, maxItems: 6, items: {type: string}}
-        outputs: {type: array, maxItems: 6, items: {type: string}}
-        side_effects: {type: array, maxItems: 6, items: {type: string}}
-        error_behavior: {type: array, maxItems: 6, items: {type: string}}
-        engineering_insight: {$ref: '#/components/schemas/EngineeringInsight'}
-        context_manifest: {$ref: '#/components/schemas/ContextManifest'}
-    DeclarationSourceAnchor:
-      type: object
-      required: [path, start_line, end_line]
-      properties:
-        path: {type: string}
-        start_line: {type: integer, minimum: 1}
-        end_line: {type: integer, minimum: 1}
     UnifiedDiff:
       type: object
       properties:

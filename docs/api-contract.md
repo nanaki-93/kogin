@@ -96,7 +96,7 @@ untrusted networks.
 | POST | `/api/projects/current/setup/timeouts` | Save only the project's time limits and apply them at once. |
 | POST | `/api/projects/current/setup/skip` | Keep the daemon's configuration for this project and stop offering setup. |
 | POST | `/api/projects/current/setup/test-model` | Send one short request to a model as setup would configure it for a scope. |
-| GET | `/api/projects/current/agent-settings` | Read configured or overridden role, budget and skill settings without dispatch. |
+| GET | `/api/projects/current/agent-settings` | Read configured or overridden role and budget settings without dispatch. |
 | POST | `/api/projects/current/agent-settings/control` | Confirm a versioned replacement or reset for future admissions. |
 | GET | `/api/projects/current/execution-trust` | Read remembered project trust bound to the current revision and exact project-code command scope; `task_test_name` selects a generated task-test argv. |
 | POST | `/api/projects/current/execution-trust` | Save or revoke local execution trust for the current project path. |
@@ -110,7 +110,6 @@ untrusted networks.
 | POST | `/api/projects/current/git/discard-worktree` | Remove a confirmed clean worktree without merging; keep its branch unless the current branch contains its commits. With `discard_work`, a worktree left with no tasks goes with its uncommitted changes and its branch, commits of its own included. |
 | POST | `/api/projects/current/git/abort-merge` | Abort the identified merge and discard conflict resolutions. |
 | GET | `/api/projects/current/files/analysis` | Read cached semantic analysis for one selected file and revision. |
-| POST | `/api/projects/current/files/explanation` | Explicitly explain one selected Go file using transient Code-scope context. |
 | POST | `/api/projects/current/reindex` | Refresh deterministic facts without an LLM request. |
 | GET | `/api/projects/current/changes` | List local change conversations without generation. |
 | POST | `/api/projects/current/changes` | Capture a task and 1–64 explicit text paths (planned tasks: 1–8), here or with `worktree` in a new branch and worktree created for it. |
@@ -151,10 +150,6 @@ reads that outcome without contacting the provider. When the overview is written
 again (Refresh docs, the end of an analysis run) and the model fails, the saved
 overview stays as it was, in memory and on disk, and `docs_refresh` / `run.docs`
 report the failure.
-
-File explanation requests bind `project_id`, `project_revision`, `base_file_hash`, and `target_path`. The target must resolve to an eligible indexed Go file. A non-loopback HTTP or CLI Code provider also requires `confirm_remote_provider: true` on that request. The daemon rechecks the project and file identity after provider work before returning the bounded explanation, source line anchor, optional engineering insight, and `ContextManifest` provenance.
-
-Explanation responses are transient. This route does not create chat sessions or drafts, persist chat or analysis history, run checks, or change Apply/Undo state. Cancellation, malformed provider output, and stale request identity return an error without publishing a result.
 
 An analysis run's `security_ai` stage reviews one file at a time with the run's Security model (Analyze by default). It needs `confirmations.security_review: true` on the run's start or resume, and the provider's ID in `confirmations.provider_ids` before a non-loopback HTTP or CLI provider receives source. It sends at most 64 KiB of target source plus up to 32 KiB of applicable project instructions, and accepts at most 64 KiB of one strict JSON response with at most five advisory `model_suspicion` findings. The provider receives a strict `json_schema` response format with lowercase rule/category identifiers and file-specific path and line bounds. Provider rejection of structured output fails the stage without falling back to unconstrained output. Prompt version `security-file-v4` also requires source-free explanations and an empty findings array when no concrete security concern is supported, including documentation and ignore files. Earlier prompt versions remain readable but are stale for current reviews. The service rechecks project, revision, file hash, policy, and provider identity before delivery, after response, before caching, and before returning. Reports omit source, redact stored/returned prose, and reject meaningful source-line token sequences even when spacing or punctuation changes. Findings are advisory suspicions, and `completed_empty` means no findings were returned; it does not mean the file is secure. The stage never runs suggested exploit code, scans, or project code; a configured CLI runs only as the model transport.
 
@@ -484,7 +479,9 @@ The Kotlin desktop, declaration chat/drafts, declaration Apply/Undo and benchmar
 comparison, Analyze-all jobs and separate Performance jobs have been removed.
 Their former routes return 404. Use `changes` for checked proposals and grouped
 Apply/Undo, and `analysis/preview`, `analysis/run` and `analysis/run/control` for
-analysis. Read-only declaration explanations remain supported.
+analysis. File explanation (`POST /api/projects/current/files/explanation`) and the
+project skills only it loaded were removed too; the route returns 404. Ask the
+code (`POST /api/projects/current/ask`) answers questions about a file.
 
 Version 5 removed the terminal UI and the features only it exposed: missions,
 live sessions, cloud copies, remote agents and delegations, the inbound agent
@@ -682,7 +679,7 @@ AGENTS.md guides are read from the project root to the target's directory,
 respecting context exclusions and rejecting symlinks. More local guidance
 applies within its own directory.
 Applicable guides are included by default in project and file analysis, performance
-and security AI reviews, declaration explanations, and proposal creation,
+and security AI reviews, docs questions, and proposal creation,
 testing and review. They grant no provider, execution or
 Apply authority. AI file reports carry optional `instructions_fingerprint`
 provenance; changed applicable guides make cached reports stale and invalidate
@@ -1090,8 +1087,8 @@ worker. Background work can continue while the client navigates or disconnects.
 
 ### Agent invocation history and progress
 
-Explicit project import and declaration explanation have
-native knowledge runs. Provider
+Explicit project import has a
+native knowledge run. Provider
 attempts appear as children and share the host budget; host retries, source
 checks and publication authority are unchanged. Import binds its run to the
 newly scanned checkout. A provider timeout/refusal retains a failed report and
@@ -1343,9 +1340,8 @@ file leaves the daemon's configuration in use and is reported by setup.
 GET `/api/projects/current/agent-settings` requires current `project_id` and
 `project_revision`. Its no-store response contains the configuration fingerprint,
 settings `version` (zero before the first edit), `state` (`configured`, `overridden`
-or `stale`), effective `roles`, `limits`, operator-configured `ceilings`, configured
-skill directories with `enabled` flags, non-secret configured model metadata, and
-`role_models`, the model each role runs with.
+or `stale`), effective `roles`, `limits`, operator-configured `ceilings`,
+non-secret configured model metadata, and `role_models`, the model each role runs with.
 This local read creates no journal, connection, process or provider request.
 
 POST `/api/projects/current/agent-settings/control` requires the same project
@@ -1354,9 +1350,9 @@ identity, `configuration`, `version`, `confirm: true` and `action: replace` or
 and `review`, each a configured scope (`analyze`, `bug` or `code`) or a model ID from
 `GET /api/models/available` (configured, Agy or Pi models; the catalog is checked
 when saving and again when a run starts); all seven `limits`
-fields; and an explicit `disabled_skills` array drawn only from configured skill
-directories. Positive limits must remain within the configured ceilings; `repairs`
-may be zero. No provider, credential, tool, skill directory or retention permission
+fields. A `disabled_skills` array sent by an older client is accepted and ignored.
+Positive limits must remain within the configured ceilings; `repairs`
+may be zero. No provider, credential, tool or retention permission
 can be added. Reset omits `values` and follows current operator defaults while
 advancing the version, so old editors cannot overwrite a reset.
 
@@ -1368,7 +1364,7 @@ stale; new work, analysis included, then answers 409 with a message that
 names Settings → Models & agents and requires an explicit reset,
 while retained data remains readable. Malformed requests return 400, stale scope
 or version returns 409, and corrupt or failed persistence returns 500 without
-replacing retained data. Existing runs keep their admitted roles, budget, skill
-selection, context policy and configuration fingerprint. Explicit per-request
+replacing retained data. Existing runs keep their admitted roles, budget,
+context policy and configuration fingerprint. Explicit per-request
 model choices still take precedence. A pending pure human-review handoff keeps
 its captured settings but rechecks operator, project, policy and proposal identity.

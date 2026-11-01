@@ -392,12 +392,11 @@ prices only reported tokens with sufficient rate information. Cache tokens are
 priced once within input. Remote agent consumption, non-token fees and taxes are
 outside this local token estimate.
 
-Project-specific role, budget and skill preferences are available through the
+Project-specific role and budget preferences are available through the
 guarded [agent settings API](docs/api-contract.md#agent-settings).
 They are saved privately in the canonical checkout's agent journal and apply to
-future admissions. Budgets can be reduced up to the configured ceilings; role
-choices reference the existing scopes, and skill controls can only disable or
-reenable configured directories. Active runs retain their captured configuration.
+future admissions. Budgets can be reduced up to the configured ceilings and role
+choices reference the existing scopes. Active runs retain their captured configuration.
 Explicit request model choices remain authoritative.
 Changing operator configuration makes saved overrides stale and requires an
 explicit reset before new work; reset follows current configuration defaults.
@@ -406,57 +405,19 @@ agents**.
 
 Each checkout has its own settings. A task created in its own worktree starts
 with the settings saved in the checkout that created it (when they were saved
-for the same configuration); other worktrees use configured budgets and skills
+for the same configuration); other worktrees use configured budgets
 until explicitly edited. When the Web UI starts agents it turns the
 checkout's role assignments into explicit workflow model choices. Remote workflow confirmation lists the selected role destinations and
 captured paths; changing either invalidates that confirmation. Unknown model
 metadata supplies no remote consent. Canceling a settings request may race a
 completed save: refresh to establish the stored outcome.
 
-### Scoped project skills
+### Project skills (removed)
 
-`agent_runtime.skills` is an explicit list of project-relative skill directories;
-the default is an empty list. For example:
-
-```yaml
-agent_runtime:
-  skills:
-    - project-skills/review-code
-```
-
-Each directory must contain an indexed `SKILL.md` with valid ADK YAML frontmatter
-and nonempty instructions. Its `name` must match the directory name. Configure
-at most eight distinct, non-overlapping directories. Reindex after adding or
-changing a skill. Excluded files and escaping symlinks cannot become skill context.
-Loading configuration and browsing project state do not run skill tools.
-
-Tool-capable Code profiles use the native ADK `list_skills`, `load_skill`, and
-`load_skill_resource` tools during file explanation.
-Only names and descriptions enter the initial prompt. Instructions and indexed
-resources under `references/`, `assets/`, and `scripts/` load on demand. Completion-only
-profiles retain their existing behavior and do not advertise these tools.
-
-Each manifest/resource must be 1–8192 bytes of UTF-8 text; each skill can have up
-to 16 resources, and the combined inventory is limited to 128 KiB. Descriptions
-are at most 512 bytes; serialized metadata is at most 2048 bytes. The existing
-16 KiB tool result, 128 KiB aggregate retrieval, model context, and shared run
-budgets also apply. Oversized encoded results fail explicitly instead of truncating
-instructions silently. Frontmatter `allowed-tools`, when supplied, must name only
-the tools already admitted to that investigation; unsupported tools fail before
-a model call.
-
-Skill text is advisory and cannot override the task, repository instructions, or
-grants. The Go SkillToolset has no script execution tool. Loading a script displays
-its text; it cannot install packages, run commands, or write source. Explicitly
-trusted fixed checks continue through the checked workflow's sandbox.
-
-Manifests and loaded resources are checked against their captured hashes before
-model dispatch and publication. Context manifests identify contributing skill
-files, and private run tool records retain bounded file/hash provenance. Native
-session events also record loaded-file identities. These source-bearing records
-stay in the private journal and do not enter public progress events.
-Conformance tests exercise native ADK tools with fake compatible and Google providers;
-they do not establish live-provider performance.
+`agent_runtime.skills` loaded project skill packages into file explanation,
+which was removed. An empty list, as older example configurations carry, still
+loads; a configuration that lists skill directories is refused with a message
+asking to delete the setting.
 
 ### Optional context compaction and caching
 
@@ -689,14 +650,6 @@ destination. Deletion and retention are explicit, preserve version counters, and
 reject evidence retained by an unfinished run or change recovery. Generic ADK
 artifact operations cannot delete recovery-pinned proposal/check snapshots. There
 is no automatic cleanup, source write or external upload.
-
-Explicit file explanations use an ADK investigation with the selected
-Code profile when it supports tools. Search, snippet, import and
-heuristic impact tools admit only the selected file's source span and
-indexed metadata. Other paths or line ranges return `scope_required`; they do
-not widen consent. The current-check tool returns source-free, proposal-bound
-check states; absent or stale evidence never implies a pass. It does not execute
-checks. Completion-only CLI profiles continue using the supplied bounded context.
 
 Each investigation retains its tool contracts, scope identity and tool events in
 the private journal. Limits survive provider retries: eight model turns, 24 tool

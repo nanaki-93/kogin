@@ -133,6 +133,10 @@ test('the code inspector says what the open file does and how analysis went for 
   await about.getByRole('button', { name: 'More from the summary' }).click();
   await expect(about).toContainText('Reads the embedded files');
   await expect(about.getByRole('button', { name: 'internal/api' })).toBeVisible();
+  await page.getByRole('complementary', { name: 'File inspector' }).getByRole('button', { name: 'Ask about it' }).click();
+  await expect(page).toHaveURL(/#\/docs\/ask\?q=What\+does\+internal%2Fapi%2Fhandlers%2Fwebui\.go\+do/);
+  await expect(page.getByLabel('Question about the code')).toHaveValue('What does internal/api/handlers/webui.go do, and where is it used?');
+  await page.goBack();
   expect(daemon.requests.filter(r => r.method === 'POST' && r.path.includes('/files/'))).toEqual([]);
   const stages = page.getByLabel('Analysis of this file');
   await expect(stages).toContainText('Bugs');

@@ -28,7 +28,7 @@ model_scopes:
     max_tokens: 12000
     context_max_tokens: 32000
 
-  # Code proposals, file explanations, and explicit repairs.
+  # Code proposals and explicit repairs.
   code:
     api_base_url: "http://localhost:1234/v1"
     api_key: ""
@@ -43,9 +43,6 @@ project_path: "."
 agent_runtime:
   # ADK budgets and future-run defaults. This section grants no execution,
   # source-sharing or source-write permission.
-  # Explicit project-relative directories containing indexed SKILL.md files.
-  # Example: [project-skills/review-code]. Resources load only during admitted investigations.
-  skills: []
   # Optional user-maintained token prices; no prices or exporters are inferred.
   # See CONFIG.md for a complete versioned table and the unknown-usage rules.
   telemetry:

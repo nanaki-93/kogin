@@ -277,7 +277,6 @@ func newProjectHTTPMux(application *app.Service, projectManager *project.Manager
 	mux.HandleFunc("GET /api/projects/current/index", projectHandler.Index)
 	mux.HandleFunc("GET /api/projects/current/files/info", projectHandler.FileInfo)
 	mux.HandleFunc("GET /api/projects/current/files/analysis", projectHandler.FileAnalysis)
-	mux.HandleFunc("POST /api/projects/current/files/explanation", projectHandler.ExplainDeclaration)
 	mux.HandleFunc("POST /api/projects/current/reindex", projectHandler.Reindex)
 	mux.HandleFunc("GET /api/projects/current/events", projectHandler.Events)
 

@@ -99,7 +99,7 @@ func TestEngineeringInsightPromptsRequireUsefulGroundedContentOrOmission(t *test
 		t.Fatal(err)
 	}
 	for name, prompt := range map[string]string{
-		"explanation": declarationExplanationPrompt("context"), "file": semantic, "performance": performance,
+		"file": semantic, "performance": performance,
 	} {
 		for _, required := range []string{"mechanism explains the concrete mechanism", "why_it_matters_here names the exact local evidence", "tradeoff_or_failure_mode names a real trade-off or failure condition", "transferable_lesson gives a reusable lesson with a concrete verification idea", "Omit trivial or generic lessons."} {
 			if !strings.Contains(prompt, required) {

@@ -306,8 +306,8 @@ every guard when the action arrives.
   (with its count), where **Open task** replaces Fix with agents; it is marked
   fixed when the task is merged and returns to Open when the task is deleted or
   its worktree discarded. The Code page keeps marking it until then.
-- **Explain a file.** Sends the file's admitted context to a model after remote
-  consent; the explanation is transient and cannot be applied.
+- **Ask about it.** The Code inspector's question about a file opens Docs →
+  Ask the code with the question filled in; nothing is sent until it is asked.
 
 ## Branches
 

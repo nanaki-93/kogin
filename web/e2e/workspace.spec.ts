@@ -359,7 +359,7 @@ test('agent roles can run with any listed model and a project budget', async ({ 
   await expect(page.getByText('Agent settings saved. New runs use them.')).toBeVisible();
   await expect(card).toContainText('Project settings');
   const [saved] = daemon.mutations('/agent-settings/control');
-  expect(saved.body).toMatchObject({ action: 'replace', confirm: true, version: 0, configuration: 'c'.repeat(64), values: { roles: { creation: 'bug', testing: 'code', review: 'agy:gemini-3.8-pro-high' }, disabled_skills: [] } });
+  expect(saved.body).toMatchObject({ action: 'replace', confirm: true, version: 0, configuration: 'c'.repeat(64), values: { roles: { creation: 'bug', testing: 'code', review: 'agy:gemini-3.8-pro-high' } } });
   expect((saved.body!.values as { limits: Record<string, number> }).limits.model_calls).toBe(20);
   await expect(review).toHaveValue('agy:gemini-3.8-pro-high');
 

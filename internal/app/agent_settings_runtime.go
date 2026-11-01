@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
@@ -86,7 +85,6 @@ func (s *Service) freezeAgentSettings(ctx context.Context, root string) (context
 
 func (s *Service) settingsRuntime(record agentstate.SettingsRecord, configuration string) (config.AgentRuntime, error) {
 	runtime := s.conf().agentRuntime
-	runtime.Skills = slices.Clone(runtime.Skills)
 	telemetry, err := config.ResolveAgentTelemetry(runtime.Telemetry)
 	if err != nil {
 		return runtime, err
@@ -104,7 +102,6 @@ func (s *Service) settingsRuntime(record agentstate.SettingsRecord, configuratio
 	values := record.Values
 	runtime.Roles = config.AgentRoles{Creation: config.ModelScope(values.Roles.Creation), Testing: config.ModelScope(values.Roles.Testing), Review: config.ModelScope(values.Roles.Review)}
 	runtime.Limits = values.Limits
-	runtime.Skills = slices.DeleteFunc(runtime.Skills, func(directory string) bool { return slices.Contains(values.DisabledSkills, directory) })
 	return runtime, nil
 }
 

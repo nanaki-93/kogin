@@ -12,16 +12,6 @@ import (
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
 
-func runKnowledge[T any](ctx context.Context, s *Service, runtime modelRuntime, kind agentruntime.KnowledgeKind, host func(context.Context) (T, string, error)) (T, error) {
-	admitted, release, err := s.agentRunContext(ctx, runtime)
-	if err != nil {
-		var empty T
-		return empty, err
-	}
-	defer release()
-	return runKnowledgeHost(admitted, kind, host)
-}
-
 func runKnowledgeHost[T any](ctx context.Context, kind agentruntime.KnowledgeKind, host func(context.Context) (T, string, error)) (value T, err error) {
 	_, err = agentruntime.RunKnowledgeGraph(ctx, kind, func(ctx context.Context) (string, error) {
 		var status string

@@ -390,8 +390,8 @@ export class FakeDaemon {
       this.settings = data.agentSettings(current.version! + 1, null, null);
       return this.settings;
     }
-    const values = body.values as { roles: Record<string, string>; limits: Record<string, number>; disabled_skills: string[] } | undefined;
-    if (body.action !== 'replace' || !values || !Array.isArray(values.disabled_skills)) throw new Error('Replace requires complete roles, limits and disabled skills.');
+    const values = body.values as { roles: Record<string, string>; limits: Record<string, number> } | undefined;
+    if (body.action !== 'replace' || !values || !values.roles || !values.limits) throw new Error('Replace requires complete roles and limits.');
     this.settings = data.agentSettings(current.version! + 1, values.roles, values.limits);
     return this.settings;
   }

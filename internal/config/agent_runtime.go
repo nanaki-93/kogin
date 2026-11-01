@@ -1,11 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
-	"io/fs"
 	"slices"
-	"strings"
-	"unicode"
 )
 
 type AgentRoles struct {
@@ -15,17 +13,19 @@ type AgentRoles struct {
 }
 
 type AgentRuntimeConfig struct {
-	Telemetry          AgentTelemetry `yaml:"telemetry"`
-	Roles              AgentRoles     `yaml:"roles"`
-	Context            AgentContext   `yaml:"context"`
-	Skills             []string       `yaml:"skills"`
-	MaxModelCalls      int            `yaml:"max_model_calls"`
-	MaxToolCalls       int            `yaml:"max_tool_calls"`
-	MaxInputTokens     int64          `yaml:"max_input_tokens"`
-	MaxOutputTokens    int64          `yaml:"max_output_tokens"`
-	MaxElapsedSeconds  int            `yaml:"max_elapsed_seconds"`
-	MaxConcurrentCalls int            `yaml:"max_concurrent_calls"`
-	MaxRepairs         *int           `yaml:"max_repairs"`
+	Telemetry AgentTelemetry `yaml:"telemetry"`
+	Roles     AgentRoles     `yaml:"roles"`
+	Context   AgentContext   `yaml:"context"`
+	// Skills is read only to refuse a list: project skills were removed with
+	// file explanation. The empty list older example configs carry is fine.
+	Skills             []string `yaml:"skills"`
+	MaxModelCalls      int      `yaml:"max_model_calls"`
+	MaxToolCalls       int      `yaml:"max_tool_calls"`
+	MaxInputTokens     int64    `yaml:"max_input_tokens"`
+	MaxOutputTokens    int64    `yaml:"max_output_tokens"`
+	MaxElapsedSeconds  int      `yaml:"max_elapsed_seconds"`
+	MaxConcurrentCalls int      `yaml:"max_concurrent_calls"`
+	MaxRepairs         *int     `yaml:"max_repairs"`
 }
 
 // AgentLimits is immutable after admission. Token budgets use reported usage
@@ -47,26 +47,14 @@ type AgentRuntime struct {
 	Roles     AgentRoles
 	Limits    AgentLimits
 	Context   AgentContext
-	Skills    []string
+	// RetiredSkills is always empty (nil or [], as the config file had it).
+	// It is kept, under its old name, only so the fingerprint of agent
+	// settings saved before project skills were removed stays the same.
+	RetiredSkills []string `json:"Skills"`
 }
 
-// Skill directories are explicit project-relative grants, never search paths.
-func ResolveAgentSkills(directories []string) ([]string, error) {
-	if len(directories) > 8 {
-		return nil, fmt.Errorf("agent_runtime.skills allows at most eight directories")
-	}
-	for i, directory := range directories {
-		if directory == "." || len(directory) > 192 || !fs.ValidPath(directory) || strings.ContainsAny(directory, "\\:") || strings.IndexFunc(directory, unicode.IsControl) >= 0 {
-			return nil, fmt.Errorf("agent_runtime.skills requires canonical project-relative directories")
-		}
-		for _, previous := range directories[:i] {
-			if directory == previous || strings.HasPrefix(directory, previous+"/") || strings.HasPrefix(previous, directory+"/") {
-				return nil, fmt.Errorf("agent_runtime.skills directories must be distinct and non-overlapping")
-			}
-		}
-	}
-	return slices.Clone(directories), nil
-}
+// ErrSkillsRemoved refuses a configured skill list.
+var ErrSkillsRemoved = errors.New("agent_runtime.skills is no longer supported: project skills were removed with file explanation; delete the setting")
 
 // AgentContext controls optional work beyond a normal completion. Provider
 // caching needs an explicit retention duration; zero never selects remote TTL.
@@ -166,15 +154,14 @@ func ResolveAgentRuntime(configured AgentRuntimeConfig) (AgentRuntime, error) {
 	if err != nil {
 		return AgentRuntime{}, err
 	}
-	skills, err := ResolveAgentSkills(configured.Skills)
-	if err != nil {
-		return AgentRuntime{}, err
+	if len(configured.Skills) > 0 {
+		return AgentRuntime{}, ErrSkillsRemoved
 	}
 	telemetry, err := ResolveAgentTelemetry(configured.Telemetry)
 	if err != nil {
 		return AgentRuntime{}, err
 	}
-	return AgentRuntime{Roles: roles, Limits: limits, Context: context, Skills: skills, Telemetry: telemetry}, nil
+	return AgentRuntime{Roles: roles, Limits: limits, Context: context, RetiredSkills: slices.Clone(configured.Skills), Telemetry: telemetry}, nil
 }
 
 func (limits AgentLimits) Validate() error {

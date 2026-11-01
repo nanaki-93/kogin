@@ -107,7 +107,7 @@ func TestLocalTracePreservesNativeContextCancellationAndSingleCompletion(t *test
 		t.Fatal(err)
 	}
 	if _, ok := child.(agent.Context); !ok {
-		t.Fatal("native skill context erased")
+		t.Fatal("native agent context erased")
 	}
 	if child.Value(traceParentKey{}) != trace.span.ID {
 		t.Fatal("trace parent not inherited")

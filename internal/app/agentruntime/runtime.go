@@ -59,7 +59,6 @@ func Complete(ctx context.Context, client CompletionClient, request Request) (Re
 		return Result{}, err
 	}
 	var err error
-	request = prepareSkillRequest(request)
 	var completion agent.Agent
 	if request.Investigation != nil {
 		if parent, ok := ctx.Value(investigationKey{}).(*Investigation); ok && parent != request.Investigation {

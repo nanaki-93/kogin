@@ -60,7 +60,7 @@ browser workspace is built for three jobs: **start a task and watch the agents**
 | **Inbox** | `g h` | What needs you now: tasks waiting for review, running agents, failures, branches ready to merge, open issues and analysis coverage. |
 | **Tasks** | `g t` | Every task grouped by state (Needs you, Agents working, Failed or stale, Drafts, Done), with filters and `j`/`k` navigation. |
 | **Task** | — | A pull-request style page: **Conversation** (brief, code rules per file, live agent timeline with stages and reviewers, revise box), **Files changed** (tree with viewed marks, unified/split diff, “since last review”), **Checks**, and a **Ready to apply?** gate with Apply, commit and Undo. |
-| **Code** | `g c` | IDE-style explorer: virtualized tree, editor tabs, highlighted source, issue markers, line links, Explain and “New task with this file”. |
+| **Code** | `g c` | IDE-style explorer: virtualized tree, editor tabs, highlighted source, issue markers, line links, Ask about it and “New task with this file”. |
 | **Issues** | `g i` | Findings by status and severity with evidence and **Fix with agents**, which opens the task the daemon drafts: the file, its conventional test in that language, and “done when” criteria. |
 | **Docs** | `g d` | A guide to the project: what it is for, how to run it, the components diagram, walkthroughs of its main features step by step through the files, a page per component with its files, dependencies, and **Ask the code** (an agent answers with checked line citations). |
 | **Branches** | `g b` | Task worktrees (each new task gets its own by default), merge preview (commits and diff), guarded merge or abort, the checks of the merged result, and removal of merged worktrees. |
@@ -265,10 +265,10 @@ and the [UI behavior contract](docs/ui-behavior.md).
 | Models and streaming | HTTP and native Gemini/Vertex adapters preserve tool identities, schemas, cancellation and usage. CLI profiles (pi, Claude Code, agy) provide completion and also run the tool-using coder and tester (below). Partial output never becomes an approved proposal. |
 | Plan limits | A CLI that reports its subscription plan's usage limit is not retried: the workflow pauses at that stage with the CLI and, when it said so, the reset time, and resumes from that stage. |
 | Task tools | A task in its own worktree whose creation or testing model runs in pi, Claude Code or agy gets a tool-using agent for that stage. Its only tools are Mini-Orca's, served by a per-run MCP server on a loopback port with a one-time token: read, list, search, outline, definitions and references, edit by exact text, create, delete, rename, run the checks, finish. Every call passes the context policy and the task's diff policy; the testing agent writes test files only. The worktree's diff becomes the proposal. |
-| Repository tools | File investigations use captured snippets, imports, search and impact evidence. Tools cannot widen their admitted scope or write source. |
+| Repository tools | The agent evaluation's investigations use captured snippets, imports, search and impact evidence. Tools cannot widen their admitted scope or write source. |
 | Workflow graphs | Sequential stages, parallel specialist reviews, conditional branches, bounded repairs and durable human-input checkpoints run through ADK with host-owned checks and budgets. |
 | Sessions and artifacts | Private local journals and versioned evidence; restart keeps history and charges, not execution authority. |
-| Skills and context | Indexed ADK skill packages load within the admitted scope. Compaction and context caching are optional; remote cache retention needs consent. |
+| Context | Compaction and context caching are optional; remote cache retention needs consent. |
 | Observability | Local source-free traces, reported and estimated usage and optional versioned cost estimates. Missing usage and unknown cost stay unknown. |
 
 Unrestricted shell tools, implicit credentials, automatic source writes and

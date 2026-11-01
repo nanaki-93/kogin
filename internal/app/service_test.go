@@ -29,10 +29,10 @@ func TestRemoteProviderRequiresConfirmation(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, scope := range []config.ModelScope{config.AnalyzeModelScope, config.BugModelScope, config.CodeModelScope} {
-		if err := service.RequireRemoteConfirmation(scope, false); err == nil {
+		if err := service.requireRemoteConfirmation(scope, false); err == nil {
 			t.Fatalf("expected %s confirmation error", scope)
 		}
-		if err := service.RequireRemoteConfirmation(scope, true); err != nil {
+		if err := service.requireRemoteConfirmation(scope, true); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -103,10 +103,10 @@ func TestNativeGoogleRuntimeImportsAndRetainsGuardedMetadata(t *testing.T) {
 	}
 	profile.APIBaseURL = "https://generativelanguage.googleapis.com"
 	service.conf().runtimes.analyze = newModelRuntime(profile, time.Minute, 3)
-	if err := service.RequireRemoteConfirmation(config.AnalyzeModelScope, false); err == nil {
+	if err := service.requireRemoteConfirmation(config.AnalyzeModelScope, false); err == nil {
 		t.Fatal("native remote admission skipped consent")
 	}
-	if err := service.RequireRemoteConfirmation(config.AnalyzeModelScope, true); err != nil {
+	if err := service.requireRemoteConfirmation(config.AnalyzeModelScope, true); err != nil {
 		t.Fatal(err)
 	}
 	metadata := service.CurrentModelCatalog().Scopes["analyze"]
@@ -200,13 +200,13 @@ func TestModelCatalogAndConfirmationAreScopeSpecific(t *testing.T) {
 	if strings.Contains(string(encoded), "do-not-return") || strings.Contains(string(encoded), "/v1") {
 		t.Fatalf("catalog leaked configured endpoint or key: %s", encoded)
 	}
-	if err := service.RequireRemoteConfirmation(config.BugModelScope, false); err != nil {
+	if err := service.requireRemoteConfirmation(config.BugModelScope, false); err != nil {
 		t.Fatalf("local bug provider was gated: %v", err)
 	}
-	if err := service.RequireRemoteConfirmation(config.AnalyzeModelScope, false); err == nil {
+	if err := service.requireRemoteConfirmation(config.AnalyzeModelScope, false); err == nil {
 		t.Fatal("remote analyze provider was not gated")
 	}
-	if err := service.RequireRemoteConfirmation(config.CodeModelScope, false); err == nil {
+	if err := service.requireRemoteConfirmation(config.CodeModelScope, false); err == nil {
 		t.Fatal("remote function provider was not gated")
 	}
 }
@@ -289,7 +289,7 @@ func TestScopedModelLocalMixedAndRemoteConfirmationMatrixUsesNoProvider(t *testi
 				if profile.RemoteProvider != test.remote[string(scope)] {
 					t.Fatalf("%s remote metadata = %+v", scope, profile)
 				}
-				err := service.RequireRemoteConfirmation(scope, false)
+				err := service.requireRemoteConfirmation(scope, false)
 				if test.remote[string(scope)] && err == nil || !test.remote[string(scope)] && err != nil {
 					t.Fatalf("%s confirmation error = %v", scope, err)
 				}
@@ -403,7 +403,7 @@ func TestScopedModelRuntimesRouteOnlyAssignedOperations(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&functionRequest); err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(functionRequest.Messages[0].Content, "captured file scope") || strings.Contains(functionRequest.Messages[0].Content, "Use the function_skill skill.") {
+		if !strings.Contains(functionRequest.Messages[0].Content, "captured file scope") {
 			t.Fatal("function proposal did not receive the direct scoped request")
 		}
 		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Model: "function-returned", Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: `{"explanation":"Updates Run.","changes":[{"path":"main.go","content":"package main\n\nfunc Run() { println(\"updated\") }\n"}]}`}}}})

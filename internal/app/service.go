@@ -224,16 +224,6 @@ func (s *Service) CurrentModelCatalog() ModelCatalog {
 	return catalog
 }
 
-// RequireRemoteConfirmation prevents accidental prompt delivery to the actual
-// selected scope's non-local provider.
-func (s *Service) RequireRemoteConfirmation(scope config.ModelScope, confirmed bool) error {
-	runtime, ok := s.conf().runtimes.forScope(string(scope))
-	if !ok {
-		return fmt.Errorf("unknown model scope %q", scope)
-	}
-	return requireModelRuntimeConfirmation(runtime, confirmed)
-}
-
 func requireModelRuntimeConfirmation(runtime modelRuntime, confirmed bool) error {
 	if runtime.effective.RemoteProvider && !confirmed {
 		return fmt.Errorf("remote %s provider requires explicit confirmation", runtime.effective.Scope)

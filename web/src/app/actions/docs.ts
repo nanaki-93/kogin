@@ -1,5 +1,5 @@
-// Actions that explain the code: explain a file, refresh the docs and ask the
-// codebase a question.
+// Actions that explain the code: refresh the docs and ask the codebase a
+// question.
 
 import { api, query, withWorktree } from '@/api/client';
 import type { AgentSettings, AskAnswer, DocsRefresh, Model, ModelsCurrent, Project } from '@/api/types';
@@ -7,21 +7,7 @@ import { keys } from '@/api/hooks';
 import type { ActionContext } from './context';
 
 export function docsActions(context: ActionContext) {
-  const { client, confirm, guarded, fail, confirmRemote } = context;
-
-  // Explains a source file in any language with the code model and its read-only tools.
-  async function explainFile(project: Project, worktreePath: string, file: { path: string; content_hash: string }) {
-    const consent = await confirmRemote('code', `Explaining ${file.path}`);
-    if (!consent.ok) return null;
-    return guarded('Explaining…', async () => {
-      try {
-        return await api.post<FileExplanation>(withWorktree('/api/projects/current/files/explanation', worktreePath), { project_id: project.project_id, project_revision: project.project_revision, base_file_hash: file.content_hash, target_path: file.path, confirm_remote_provider: consent.remote });
-      } catch (err) {
-        fail('Explanation failed', err);
-        return null;
-      }
-    });
-  }
+  const { client, confirm, guarded, fail } = context;
 
   /** Starts writing the docs' summaries and overview again; the Docs page shows how it ends. */
   async function refreshDocs(project: Project, worktreePath: string) {
@@ -72,13 +58,5 @@ export function docsActions(context: ActionContext) {
     }
   }
 
-  return { explainFile, refreshDocs, askCodebase };
-}
-
-export interface FileExplanation {
-  summary?: string;
-  behavior?: string[];
-  inputs?: string[];
-  outputs?: string[];
-  error_behavior?: string[];
+  return { refreshDocs, askCodebase };
 }

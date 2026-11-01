@@ -36,7 +36,6 @@ export interface AgentSettings extends ProjectIdentity {
   roles: Record<string, string>;
   limits?: Record<string, number>;
   ceilings?: Record<string, number>;
-  skills?: { directory: string; enabled: boolean }[];
   models?: Model[];
   /** The model each role runs with; a role whose model no longer resolves has no entry. */
   role_models?: Partial<Record<AgentRole, Model>>;
@@ -46,7 +45,6 @@ export interface AgentSettings extends ProjectIdentity {
 export interface AgentPreferences {
   roles: Record<AgentRole, string>;
   limits: Record<string, number>;
-  disabled_skills: string[];
 }
 
 /** A model the daemon can assign: a configured scope's model or one an installed CLI lists. */

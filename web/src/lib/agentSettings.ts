@@ -78,7 +78,6 @@ export function preferencesOf(settings: AgentSettings): AgentPreferences {
       review: settings.roles.review ?? DEFAULT_ROLES.review,
     },
     limits: { ...(settings.limits ?? {}) },
-    disabled_skills: (settings.skills ?? []).filter(skill => !skill.enabled).map(skill => skill.directory),
   };
 }
 

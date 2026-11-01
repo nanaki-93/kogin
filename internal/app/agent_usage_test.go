@@ -85,7 +85,7 @@ func TestAgentReportingSettingsPreserveLegacyExecutionIdentity(t *testing.T) {
 		}
 	}{Profiles: [3]config.ModelProfile{s.conf().runtimes.analyze.profile, s.conf().runtimes.bug.profile, s.conf().runtimes.function.profile}}
 	legacy.Runtime.Roles, legacy.Runtime.Limits = s.conf().agentRuntime.Roles, s.conf().agentRuntime.Limits
-	legacy.Runtime.Context, legacy.Runtime.Skills = s.conf().agentRuntime.Context, s.conf().agentRuntime.Skills
+	legacy.Runtime.Context, legacy.Runtime.Skills = s.conf().agentRuntime.Context, s.conf().agentRuntime.RetiredSkills
 	data, err := json.Marshal(legacy)
 	if err != nil || agentruntime.TraceIdentity(string(data)) != after {
 		t.Fatal("empty telemetry changed legacy identity", err)

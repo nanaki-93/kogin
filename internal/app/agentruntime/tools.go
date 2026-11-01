@@ -34,7 +34,6 @@ type Investigation struct {
 	scope                              string
 	tools                              []*guardedTool
 	authorize                          func(context.Context) error
-	skills                             *skillCatalog
 	mu                                 sync.Mutex
 	modelCalls, toolCalls, outputBytes int
 }

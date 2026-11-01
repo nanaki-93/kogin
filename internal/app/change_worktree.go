@@ -189,8 +189,8 @@ func (s *Service) shareExecutionTrust(ctx context.Context, child *Service, revis
 	return err == nil, err
 }
 
-// shareAgentSettings gives a new task worktree the agent roles, budget and
-// skill choices saved in this checkout, so its runs use what Settings shows.
+// shareAgentSettings gives a new task worktree the agent roles and budget
+// saved in this checkout, so its runs use what Settings shows.
 // Settings saved for another configuration are not shared.
 func (s *Service) shareAgentSettings(ctx context.Context, child *Service) (bool, error) {
 	store, _, err := s.agentJournal(s.manager.Root())

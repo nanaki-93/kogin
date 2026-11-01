@@ -13,11 +13,10 @@ import (
 	"google.golang.org/genai"
 )
 
-func investigationRun(worker agent.Agent, scope *Investigation) func(agent.InvocationContext) iter.Seq2[*session.Event, error] {
+func investigationRun(worker agent.Agent) func(agent.InvocationContext) iter.Seq2[*session.Event, error] {
 	return func(ctx agent.InvocationContext) iter.Seq2[*session.Event, error] {
 		return func(yield func(*session.Event, error) bool) {
 			for event, err := range worker.Run(ctx) {
-				recordSkillUse(event, scope)
 				if err == nil && event != nil && !event.Partial && event.Content != nil && event.IsFinalResponse() {
 					event.Output = completionResult(&event.LLMResponse)
 					event.TurnComplete = true

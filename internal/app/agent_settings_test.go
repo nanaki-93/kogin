@@ -2,23 +2,17 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/app/agentruntime"
 	"github.com/nanaki-93/mini-orca/v2/internal/app/agentstate"
-	"github.com/nanaki-93/mini-orca/v2/internal/llm"
 	"github.com/nanaki-93/mini-orca/v2/internal/project"
 )
 
@@ -37,12 +31,7 @@ func settingsControl(t *testing.T, s *Service) AgentSettingsControl {
 	if err != nil {
 		t.Fatal(err)
 	}
-	values := &agentstate.AgentPreferences{Roles: view.Roles, Limits: view.Limits, DisabledSkills: []string{}}
-	for _, skill := range view.Skills {
-		if !skill.Enabled {
-			values.DisabledSkills = append(values.DisabledSkills, skill.Directory)
-		}
-	}
+	values := &agentstate.AgentPreferences{Roles: view.Roles, Limits: view.Limits}
 	return AgentSettingsControl{ProjectID: view.ProjectID, ProjectRevision: view.ProjectRevision, Configuration: view.Configuration, Version: view.Version, Action: "replace", Confirm: true, Values: values}
 }
 
@@ -51,10 +40,9 @@ func TestAgentSettingsArePassiveGuardedDurableAndBounded(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls.Add(1) }))
 	defer server.Close()
 	s, root := newSemanticAnalysisService(t, server.URL, 0)
-	installSkillFixture(t, s, root)
 	query := settingsQuery(t, s)
 	view, err := s.AgentSettings(t.Context(), query)
-	if err != nil || view.State != "configured" || view.Version != 0 || len(view.Models) != 3 || len(view.Skills) != 1 || !view.Skills[0].Enabled {
+	if err != nil || view.State != "configured" || view.Version != 0 || len(view.Models) != 3 {
 		t.Fatal(view, err)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".mini-orca", "agents")); !os.IsNotExist(err) {
@@ -80,7 +68,6 @@ func TestAgentSettingsArePassiveGuardedDurableAndBounded(t *testing.T) {
 		func(r *AgentSettingsControl) { r.Values.Roles.Creation = "unconfigured" },
 		func(r *AgentSettingsControl) { r.Values.Limits.ModelCalls++ },
 		func(r *AgentSettingsControl) { r.Values.Limits.ToolCalls = 0 },
-		func(r *AgentSettingsControl) { r.Values.DisabledSkills = []string{"new/skill"} },
 	} {
 		invalid := request
 		copy := *request.Values
@@ -92,9 +79,8 @@ func TestAgentSettingsArePassiveGuardedDurableAndBounded(t *testing.T) {
 	}
 	request.Values.Roles.Creation = "code"
 	request.Values.Limits.ModelCalls = 10
-	request.Values.DisabledSkills = []string{"project-skills/review-code"}
 	updated, err := s.ControlAgentSettings(t.Context(), request)
-	if err != nil || updated.Version != 1 || updated.State != "overridden" || updated.Skills[0].Enabled || updated.Limits.ModelCalls != 10 {
+	if err != nil || updated.Version != 1 || updated.State != "overridden" || updated.Limits.ModelCalls != 10 {
 		t.Fatal(updated, err)
 	}
 	// A new owner reads the same private checkout overrides without calling a
@@ -111,14 +97,10 @@ func TestAgentSettingsArePassiveGuardedDurableAndBounded(t *testing.T) {
 	if calls.Load() != 0 {
 		t.Fatal("settings dispatched a provider", calls.Load())
 	}
-	if _, err := os.Stat(filepath.Join(root, "SHOULD_NEVER_EXIST")); !os.IsNotExist(err) {
-		t.Fatal("skill script executed", err)
-	}
 }
 
-func TestSettingsFreezeNestedBudgetsRolesSkillsAndDeadlines(t *testing.T) {
-	s, root := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
-	installSkillFixture(t, s, root)
+func TestSettingsFreezeNestedBudgetsRolesAndDeadlines(t *testing.T) {
+	s, _ := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
 	ctx, release, err := s.agentRunContext(t.Context(), s.conf().runtimes.function)
 	if err != nil {
 		t.Fatal(err)
@@ -130,7 +112,6 @@ func TestSettingsFreezeNestedBudgetsRolesSkillsAndDeadlines(t *testing.T) {
 	request := settingsControl(t, s)
 	request.Values.Limits.ToolCalls, request.Values.Limits.Repairs, request.Values.Limits.ConcurrentCalls = 1, 0, 1
 	request.Values.Roles.Creation = "code"
-	request.Values.DisabledSkills = []string{"project-skills/review-code"}
 	if _, err := s.ControlAgentSettings(t.Context(), request); err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +120,7 @@ func TestSettingsFreezeNestedBudgetsRolesSkillsAndDeadlines(t *testing.T) {
 		t.Fatal("active journal binding changed", err)
 	}
 	defer stop()
-	if agentruntime.BudgetFromContext(nested) != agentruntime.BudgetFromContext(ctx) || s.admittedRuntime(nested).Limits != before.Limits || !slices.Equal(s.admittedRuntime(nested).Skills, before.Skills) || s.resolveWorkflowModels(nested, ChangeWorkflowModels{}).Create != "bug" || s.changeWorkflowTimeout(nested, models, 0, true) != deadline {
+	if agentruntime.BudgetFromContext(nested) != agentruntime.BudgetFromContext(ctx) || s.admittedRuntime(nested).Limits != before.Limits || s.resolveWorkflowModels(nested, ChangeWorkflowModels{}).Create != "bug" || s.changeWorkflowTimeout(nested, models, 0, true) != deadline {
 		t.Fatal("settings changed an active operation")
 	}
 	for range 2 {
@@ -152,7 +133,7 @@ func TestSettingsFreezeNestedBudgetsRolesSkillsAndDeadlines(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer cancel()
-	if s.admittedRuntime(next).Limits.Repairs != 0 || len(s.admittedRuntime(next).Skills) != 0 || s.resolveWorkflowModels(next, ChangeWorkflowModels{}).Create != "code" || s.workflowReviewWaves(next, 3) != 3 {
+	if s.admittedRuntime(next).Limits.Repairs != 0 || s.resolveWorkflowModels(next, ChangeWorkflowModels{}).Create != "code" || s.workflowReviewWaves(next, 3) != 3 {
 		t.Fatal("future admission ignored settings")
 	}
 	if err := agentruntime.BudgetFromContext(next).AdmitTool(next); err != nil {
@@ -198,67 +179,6 @@ func TestStaleSettingsRequireResetAndReindexRejectsOldEditors(t *testing.T) {
 	}
 	if ctx, err := s.freezeAgentSettings(t.Context(), root); err != nil || s.admittedRuntime(ctx).Limits.ModelCalls != s.conf().agentRuntime.Limits.ModelCalls {
 		t.Fatal("explicit reset did not restore configured defaults", err)
-	}
-}
-
-func TestDisablingSkillDoesNotChangeAnAdmittedInvestigation(t *testing.T) {
-	started, release := make(chan struct{}), make(chan struct{})
-	var once sync.Once
-	var calls atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		call := calls.Add(1)
-		body, _ := io.ReadAll(r.Body)
-		if call == 1 {
-			if !strings.Contains(string(body), "list_skills") {
-				t.Error("initial settings omitted enabled skills")
-			}
-			close(started)
-			select {
-			case <-release:
-			case <-r.Context().Done():
-				return
-			}
-			repositoryToolCall(w, "load_skill", `{"name":"review-code"}`)
-			return
-		}
-		if call == 3 && strings.Contains(string(body), "list_skills") {
-			t.Error("future investigation retained disabled skill tools")
-		}
-		json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: validDeclarationExplanation}}}})
-	}))
-	t.Cleanup(func() { once.Do(func() { close(release) }); server.Close() })
-	s, root := newSemanticAnalysisService(t, server.URL, 0)
-	installSkillFixture(t, s, root)
-	request := declarationRequest(t, s)
-	done := make(chan error, 1)
-	work, cancel := context.WithCancel(t.Context())
-	var worker sync.WaitGroup
-	worker.Go(func() { _, err := s.ExplainDeclaration(work, request); done <- err })
-	t.Cleanup(func() { cancel(); once.Do(func() { close(release) }); worker.Wait() })
-	select {
-	case <-started:
-	case err := <-done:
-		t.Fatal("investigation failed before provider", err)
-	case <-time.After(10 * time.Second):
-		t.Fatal("investigation did not reach provider")
-	}
-	control := settingsControl(t, s)
-	control.Values.DisabledSkills = []string{"project-skills/review-code"}
-	control.Values.Limits.ModelCalls = 1
-	if _, err := s.ControlAgentSettings(t.Context(), control); err != nil {
-		t.Fatal(err)
-	}
-	once.Do(func() { close(release) })
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatal("settings interrupted captured skill work", err)
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("investigation did not finish")
-	}
-	if _, err := s.ExplainDeclaration(t.Context(), request); err != nil || calls.Load() != 3 {
-		t.Fatal("future settings did not take effect", calls.Load(), err)
 	}
 }
 

@@ -18,7 +18,7 @@ import (
 type traceParentKey struct{}
 
 // ADK tool contexts deliberately do not support WithAgentContext. Decorate only
-// Value so native skills keep their state/actions interface and cancellation.
+// Value so native tools keep their state/actions interface and cancellation.
 type tracedAgentContext struct {
 	agent.Context
 	parent string

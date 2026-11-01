@@ -10,7 +10,7 @@ Mini-Orca's interface is the browser workspace (`web/`, served by the daemon at
 3. **Understand the project** — browse code, read findings with their evidence
    and read the generated docs.
 
-Everything else (models, roles, budgets, skills, trust) is supporting
+Everything else (models, roles, budgets, trust) is supporting
 configuration and stays one step away from these jobs.
 [ui-behavior.md](ui-behavior.md) is the behavior contract for every workflow;
 this document owns how the interface is organized, looks and responds.
@@ -115,7 +115,7 @@ accent stays readable.
   (results with output), and the Ready to apply? rail with Apply, commit message
   and Undo.
 - **Code** — virtualized file tree, editor tabs per checkout, highlighted
-  source with issue markers and line links, an inspector with Explain, "New
+  source with issue markers and line links, an inspector with Ask about it, "New
   task with this file", one sentence on what the file does (the rest of its
   summary on demand) and the docs component it belongs to.
 - **Issues**, **Docs**, **Branches** (merge preview with commits and diff, merge

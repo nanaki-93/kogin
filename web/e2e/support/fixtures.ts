@@ -350,7 +350,6 @@ export function agentSettings(version: number, roles: Record<string, string> | n
     roles: effective,
     limits: limits ?? ceilings,
     ceilings,
-    skills: [],
     models: Object.values(models.scopes),
     role_models: roleModels,
   };

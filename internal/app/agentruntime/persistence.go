@@ -105,9 +105,6 @@ func createCompletionSession(ctx context.Context, request Request, providerBindi
 		initial["mini_orca.tools"] = request.Investigation.descriptors()
 		initial["mini_orca.scope"] = request.Investigation.scope
 		initial["mini_orca.context_tokens"] = request.ContextMaxTokens
-		if request.Investigation.skills != nil {
-			initial["mini_orca.skills"] = request.Investigation.skills.packages()
-		}
 		schemaVersion = "investigation-v1"
 	}
 	requestHash, schemaHash, err := invocationIdentity(request, initial)

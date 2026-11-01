@@ -3,7 +3,7 @@ import { fuzzyScore, rankItems } from './fuzzy';
 import { ancestors, buildTree, visibleRows } from './tree';
 import { buildHash, parseHash } from './router';
 import { escapeHtml, highlightLines } from './highlight';
-import { companionTestPath, explainable, formatElapsed, isTestPath, newFilePath, timeAgo } from './util';
+import { companionTestPath, formatElapsed, isTestPath, newFilePath, timeAgo } from './util';
 import { changeOverlaps, composerStartBlocker, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stageToolsLabel, taskFixingIssue, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeDiscardable, worktreeRemovable, worktreeTasks } from './workflow';
 import type { ChangeHistoryEntry, Finding, GitWorkspace, GitWorktree } from '@/api/types';
 import { isInProgressFinding, isOpenFinding, isUnresolvedFinding } from '@/components/domain';
@@ -12,17 +12,6 @@ import { applyEvent, finishedRun, parseFrames } from '@/api/events';
 import { QueryClient } from '@tanstack/react-query';
 import { costCaveat, costLabel, formatTokens, usageLabel } from './usage';
 import { ApiError, createApi, documentWriteToken, errorMessage, query, withWorktree } from '@/api/client';
-
-describe('explainable', () => {
-  it('follows the daemon: source files in any language, not prose or binaries', () => {
-    expect(explainable({ language: 'Go' })).toBe(true);
-    expect(explainable({ language: 'TypeScript' })).toBe(true);
-    expect(explainable({ language: 'Python' })).toBe(true);
-    expect(explainable({ language: 'Markdown' })).toBe(false);
-    expect(explainable({ language: 'Text' })).toBe(false);
-    expect(explainable({ language: 'Go', binary: true })).toBe(false);
-  });
-});
 
 describe('fuzzy', () => {
   it('prefers basename and contiguous hits', () => {

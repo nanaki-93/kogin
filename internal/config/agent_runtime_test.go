@@ -1,15 +1,23 @@
 package config
 
 import (
-	"slices"
+	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
 )
 
-func TestAgentSkillsAreExplicitBoundedAndImmutable(t *testing.T) {
-	if resolved, err := ResolveAgentRuntime(AgentRuntimeConfig{}); err != nil || len(resolved.Skills) != 0 {
-		t.Fatalf("skills enabled by default: %+v %v", resolved, err)
+func TestASkillListIsRefusedNowThatSkillsAreGone(t *testing.T) {
+	for _, data := range []string{"agent_runtime:\n  skills: []\n", "agent_runtime:\n  max_model_calls: 10\n"} {
+		var cfg Config
+		if err := yaml.Unmarshal([]byte(data), &cfg); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ResolveAgentRuntime(cfg.AgentRuntime); err != nil {
+			t.Fatalf("%q: %v", data, err)
+		}
 	}
 	data := []byte("agent_runtime:\n  skills:\n    - project-skills/review-code\n")
 	if err := rejectUnknownFields(data); err != nil {
@@ -19,17 +27,27 @@ func TestAgentSkillsAreExplicitBoundedAndImmutable(t *testing.T) {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		t.Fatal(err)
 	}
-	resolved, err := ResolveAgentRuntime(cfg.AgentRuntime)
-	if err != nil || !slices.Equal(resolved.Skills, []string{"project-skills/review-code"}) {
-		t.Fatalf("skills=%v %v", resolved.Skills, err)
+	if _, err := ResolveAgentRuntime(cfg.AgentRuntime); !errors.Is(err, ErrSkillsRemoved) {
+		t.Fatalf("a skill list was accepted: %v", err)
 	}
-	cfg.AgentRuntime.Skills[0] = "changed"
-	if resolved.Skills[0] != "project-skills/review-code" {
-		t.Fatal("caller mutated admitted configuration")
-	}
-	for _, paths := range [][]string{{"."}, {".."}, {"/absolute"}, {"a/../b"}, {"a//b"}, {"a\\b"}, {"https://example.com"}, {"a\x1b"}, {"a", "a"}, {"a", "a/b"}, {"a/b", "a"}, {"a", "b", "c", "d", "e", "f", "g", "h", "i"}} {
-		if _, err := ResolveAgentSkills(paths); err == nil {
-			t.Fatalf("unsafe skill directories accepted: %q", paths)
+}
+
+// The settings fingerprint hashes the runtime as JSON: it keeps the "Skills"
+// key the runtime had, so settings saved before skills were removed still
+// match their configuration.
+func TestTheRuntimeKeepsTheSkillsKeyOfEarlierFingerprints(t *testing.T) {
+	for config, want := range map[string]string{"agent_runtime: {}\n": `"Skills":null`, "agent_runtime:\n  skills: []\n": `"Skills":[]`} {
+		var cfg Config
+		if err := yaml.Unmarshal([]byte(config), &cfg); err != nil {
+			t.Fatal(err)
+		}
+		resolved, err := ResolveAgentRuntime(cfg.AgentRuntime)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := json.Marshal(resolved)
+		if err != nil || !strings.HasSuffix(string(data), want+"}") {
+			t.Fatalf("%q: %s %v", config, data, err)
 		}
 	}
 }

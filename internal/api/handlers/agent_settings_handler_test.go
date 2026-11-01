@@ -38,7 +38,7 @@ func TestAgentSettingsHTTPRequiresCurrentConfirmedCompleteValues(t *testing.T) {
 		handler.Control(w, httptest.NewRequest("POST", "/", bytes.NewReader(data)))
 		return w
 	}
-	request := app.AgentSettingsControl{ProjectID: view.ProjectID, ProjectRevision: view.ProjectRevision, Configuration: view.Configuration, Version: view.Version, Action: "replace", Values: &agentstate.AgentPreferences{Roles: view.Roles, Limits: view.Limits, DisabledSkills: []string{}}}
+	request := app.AgentSettingsControl{ProjectID: view.ProjectID, ProjectRevision: view.ProjectRevision, Configuration: view.Configuration, Version: view.Version, Action: "replace", Values: &agentstate.AgentPreferences{Roles: view.Roles, Limits: view.Limits}}
 	data, _ := json.Marshal(request)
 	if w := post(data); w.Code != http.StatusBadRequest {
 		t.Fatal("missing confirmation accepted", w.Code, w.Body.String())
@@ -52,7 +52,6 @@ func TestAgentSettingsHTTPRequiresCurrentConfirmedCompleteValues(t *testing.T) {
 		[]byte(strings.Replace(string(data), `"limits":{`, `"limits":{"unlimited":true,`, 1)),
 		[]byte(strings.Replace(string(data), `"repairs":2`, `"repairs":null`, 1)),
 		[]byte(strings.Replace(string(data), `,"repairs":2`, ``, 1)),
-		[]byte(strings.Replace(string(data), `"disabled_skills":[]`, `"disabled_skills":null`, 1)),
 	} {
 		if w := post(bad); w.Code != http.StatusBadRequest {
 			t.Fatal("ambiguous settings accepted", w.Code, w.Body.String())

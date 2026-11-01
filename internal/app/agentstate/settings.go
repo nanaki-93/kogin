@@ -21,14 +21,16 @@ type RoleSettings struct {
 }
 
 type AgentPreferences struct {
-	Roles          RoleSettings       `json:"roles"`
-	Limits         config.AgentLimits `json:"limits"`
-	DisabledSkills []string           `json:"disabled_skills"`
+	Roles  RoleSettings       `json:"roles"`
+	Limits config.AgentLimits `json:"limits"`
+	// RetiredDisabledSkills is read from records and requests made before
+	// project skills were removed, and ignored: it is dropped when read.
+	RetiredDisabledSkills []string `json:"disabled_skills,omitempty"`
 }
 
 // Replacements are complete values. In particular, an omitted repairs field
-// must not silently disable repairs, and a missing skill list must not reenable
-// configured skills. The same contract applies to durable records and HTTP.
+// must not silently disable repairs. The same contract applies to durable
+// records and HTTP.
 func (p *AgentPreferences) UnmarshalJSON(data []byte) error {
 	type plain AgentPreferences
 	var value plain
@@ -49,6 +51,7 @@ func (p *AgentPreferences) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("agent preferences require every budget value")
 		}
 	}
+	value.RetiredDisabledSkills = nil
 	if err := AgentPreferences(value).Validate(); err != nil {
 		return err
 	}
@@ -65,19 +68,12 @@ type SettingsRecord struct {
 }
 
 func (p AgentPreferences) Validate() error {
-	if p.DisabledSkills == nil {
-		return fmt.Errorf("disabled_skills must be an explicit array")
-	}
 	for _, role := range []string{p.Roles.Creation, p.Roles.Testing, p.Roles.Review} {
 		if !validRoleModel(role) {
 			return fmt.Errorf("roles must reference analyze, bug or code, or a catalog model ID")
 		}
 	}
-	if err := p.Limits.Validate(); err != nil {
-		return err
-	}
-	_, err := config.ResolveAgentSkills(p.DisabledSkills)
-	return err
+	return p.Limits.Validate()
 }
 
 // validRoleModel accepts a configured scope or the shape of a catalog model
@@ -113,7 +109,6 @@ func validateSettings(record *SettingsRecord) error {
 func cloneSettings(record SettingsRecord) SettingsRecord {
 	if record.Values != nil {
 		copy := *record.Values
-		copy.DisabledSkills = slices.Clone(copy.DisabledSkills)
 		record.Values = &copy
 	}
 	return record

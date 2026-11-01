@@ -37,7 +37,7 @@ func TestCLIProvidersAnalyzeAndProposeChangesWithScopeConsent(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, scope := range []config.ModelScope{config.AnalyzeModelScope, config.BugModelScope, config.CodeModelScope} {
-				if service.RequireRemoteConfirmation(scope, false) == nil {
+				if service.requireRemoteConfirmation(scope, false) == nil {
 					t.Fatalf("%s was not gated", scope)
 				}
 			}

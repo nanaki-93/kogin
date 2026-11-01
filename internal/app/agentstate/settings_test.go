@@ -20,7 +20,7 @@ func settingsPreferences(t *testing.T) *AgentPreferences {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &AgentPreferences{Roles: RoleSettings{"bug", "code", "analyze"}, Limits: runtime.Limits, DisabledSkills: []string{"skills/review-code"}}
+	return &AgentPreferences{Roles: RoleSettings{"bug", "code", "analyze"}, Limits: runtime.Limits}
 }
 
 func TestSettingsPassiveReadCASResetAndRestart(t *testing.T) {
@@ -62,13 +62,13 @@ func TestSettingsPassiveReadCASResetAndRestart(t *testing.T) {
 	if wins != 1 || conflicts != 1 {
 		t.Fatal("lost update", wins, conflicts)
 	}
-	values.DisabledSkills[0] = "changed/skill"
+	values.Roles.Creation = "code"
 	restarted, err := Open(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	read, err := restarted.Settings(t.Context())
-	if err != nil || read.Version != 1 || read.Values.DisabledSkills[0] != "skills/review-code" {
+	if err != nil || read.Version != 1 || read.Values.Roles.Creation != "bug" {
 		t.Fatal("restart or caller mutation changed settings", read, err)
 	}
 	reset, err := restarted.SaveSettings(t.Context(), 1, hash, nil)
@@ -114,7 +114,6 @@ func TestSettingsCorruptOverridesNeverBecomeDefaults(t *testing.T) {
 		func(r *SettingsRecord) { r.Version = 0 },
 		func(r *SettingsRecord) { r.Values.Roles.Creation = "arbitrary-provider" },
 		func(r *SettingsRecord) { r.Values.Limits.ModelCalls = 0 },
-		func(r *SettingsRecord) { r.Values.DisabledSkills = []string{"../outside"} },
 	} {
 		store, _ := testStore(t)
 		if _, err := store.SaveSettings(t.Context(), 0, strings.Repeat("c", 64), settingsPreferences(t)); err != nil {
@@ -146,5 +145,18 @@ func TestSettingsCorruptOverridesNeverBecomeDefaults(t *testing.T) {
 		if err != nil || !bytes.Equal(after, data) {
 			t.Fatal("corrupt settings were not preserved", err)
 		}
+	}
+}
+
+func TestSettingsSavedWithSkillSwitchesStillRead(t *testing.T) {
+	values := settingsPreferences(t)
+	data, err := json.Marshal(values)
+	if err != nil || strings.Contains(string(data), "disabled_skills") {
+		t.Fatalf("new settings still write skills: %s %v", data, err)
+	}
+	old := strings.Replace(string(data), `{"roles"`, `{"disabled_skills":["project-skills/review-code"],"roles"`, 1)
+	var read AgentPreferences
+	if err := json.Unmarshal([]byte(old), &read); err != nil || read.RetiredDisabledSkills != nil || read.Roles != values.Roles {
+		t.Fatalf("settings saved with skill switches = %+v, %v", read, err)
 	}
 }

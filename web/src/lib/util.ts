@@ -61,12 +61,6 @@ export function durationBetween(start?: string, end?: string): number {
   return Number.isFinite(a) && Number.isFinite(b) && b >= a ? b - a : 0;
 }
 
-/** Explain works on indexed source files, like the daemon: not binaries, prose or unrecognized text. */
-export function explainable(file: { language: string; binary?: boolean }): boolean {
-  const language = file.language.toLowerCase();
-  return !file.binary && language !== '' && language !== 'text' && language !== 'markdown';
-}
-
 export { companionTestPath, isTestPath } from './rules';
 
 /**

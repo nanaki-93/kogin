@@ -40,7 +40,7 @@ func newInvestigationAgent(client CompletionClient, request Request) (agent.Agen
 	if err != nil {
 		return nil, err
 	}
-	return agent.New(agent.Config{Name: "investigation_runner", Description: "Bounded repository investigation", Run: investigationRun(worker, request.Investigation)})
+	return agent.New(agent.Config{Name: "investigation_runner", Description: "Bounded repository investigation", Run: investigationRun(worker)})
 }
 
 func investigationMessages(request Request) (string, []*genai.Content, string, error) {

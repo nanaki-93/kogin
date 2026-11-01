@@ -3,18 +3,18 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ChevronRight, Copy, FileCode2, Folder, FolderOpen, Lightbulb, ListCollapse, PanelRight, Plus, RefreshCw, Search, Sparkles, X } from 'lucide-react';
+import { ChevronRight, Copy, FileCode2, Folder, FolderOpen, ListCollapse, MessageCircleQuestion, PanelRight, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { useFile, useFindings, useIndex, useProject } from '@/api/hooks';
 import type { FileInfo, Finding } from '@/api/types';
-import { useActions, useBusy, type FileExplanation } from '@/app/actions';
+import { useActions } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
 import { openNewTask, openPalette } from '@/app/store';
-import { setParam, useRoute } from '@/lib/router';
+import { navigate, setParam, useRoute } from '@/lib/router';
 import { highlightLines } from '@/lib/highlight';
 import { ancestors, buildTree, visibleRows } from '@/lib/tree';
 import { rankItems } from '@/lib/fuzzy';
-import { basename, companionTestPath, dirname, explainable, languageOf, plural } from '@/lib/util';
-import { Badge, Button, EmptyState, Highlight, IconButton, Input, Kbd, Skeleton, cx } from '@/components/ui';
+import { basename, companionTestPath, dirname, languageOf, plural } from '@/lib/util';
+import { Button, EmptyState, Highlight, IconButton, Input, Kbd, Skeleton, cx } from '@/components/ui';
 import { FileIcon, SeverityBadge, isUnresolvedFinding } from '@/components/domain';
 import { useFeedback } from '@/components/overlays';
 import { FileStages } from '@/features/analysis/FileStages';
@@ -236,14 +236,7 @@ function Editor({ path, line, inspector }: { path: string; line: number; inspect
 }
 
 function Inspector({ path, findings, file }: { path: string; findings: Finding[]; file: FileInfo }) {
-  const project = useProject().data;
-  const { worktreePath } = useCheckout();
-  const actions = useActions();
-  const busy = useBusy();
   const { toast } = useFeedback();
-  const canExplain = explainable(file);
-  const [result, setResult] = useState<FileExplanation | null>(null);
-  useEffect(() => setResult(null), [path]);
 
   const newTask = () => {
     const companion = companionTestPath(path);
@@ -262,17 +255,11 @@ function Inspector({ path, findings, file }: { path: string; findings: Finding[]
         </div>
         <div className="row-wrap">
           <Button size="sm" variant="primary" icon={Plus} onClick={newTask}>New task with this file</Button>
-          <Button size="sm" icon={Sparkles} onClick={async () => { if (project) setResult((await actions.explainFile(project, worktreePath, { path, content_hash: file.content_hash })) ?? null); }} disabled={!project || !canExplain || Boolean(busy)} loading={busy === 'Explaining…'} title={canExplain ? undefined : 'Explain works on source files'}>Explain</Button>
+          {file.binary ? null : (
+            <Button size="sm" icon={MessageCircleQuestion} onClick={() => navigate('/docs/ask', { q: `What does ${path} do, and where is it used?` })} title="Ask the code about this file: an agent reads it and answers with checked lines">Ask about it</Button>
+          )}
         </div>
       </div>
-      {result ? (
-        <div className="inspector-section stack">
-          <div className="row"><Lightbulb size={14} aria-hidden /><span className="strong small">Explanation</span><Badge tone="accent">AI</Badge></div>
-          {result.summary ? <p className="small">{result.summary}</p> : null}
-          {result.behavior?.length ? <ul className="small">{result.behavior.map((b, i) => <li key={i}>{b}</li>)}</ul> : null}
-          {result.error_behavior?.length ? (<><div className="xs muted">Errors and edge cases</div><ul className="small">{result.error_behavior.map((b, i) => <li key={i}>{b}</li>)}</ul></>) : null}
-        </div>
-      ) : null}
       <FileAbout key={path} path={path} />
       <div className="inspector-section">
         <div className="row"><span className="strong small">Open issues</span><span className="count">{findings.length}</span></div>
