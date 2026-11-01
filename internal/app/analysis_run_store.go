@@ -208,7 +208,8 @@ func (s *Service) saveAnalysisRunLocked(recoverFault bool) error {
 		return errAnalysisRunPersistence
 	}
 	c.fault = nil
-	s.notifyEvent("analysis")
+	// The run's ID and status let listeners tell when a run ends.
+	s.publishEvent(Event{Kind: "analysis", WorkflowID: c.run.Identity.ID, Status: string(c.run.Status)})
 	return nil
 }
 

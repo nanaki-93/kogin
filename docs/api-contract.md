@@ -792,8 +792,10 @@ Each `update` event of `/api/projects/current/events` carries a JSON `Event`:
 `workflow_id`, the task `title`, the `stage` that moved (`create`, `test`,
 `review`, `human_review`; empty when the run ended), the workflow `status`, and
 the run's `usage` and `cost` so far. Clients reload only the named task.
-Workflow events of a task in its own worktree are also published on the active
-project's stream, which is the one clients listen to.
+Analysis events name the run in `workflow_id` and carry its `status` (an
+analysis run status), so a client can tell when a run ends. Workflow events of a
+task in its own worktree are also published on the active project's stream,
+which is the one clients listen to, with the worktree in `worktree_path`.
 
 A workflow charges what its budget spent to the stage that was running, across
 attempts: each stage of `workflow.stages` has `usage` and, on read, a `cost`
@@ -801,7 +803,7 @@ estimate. `GET /api/projects/current/usage` (with the project guards) totals the
 agent journal per task: runs started for a task, including its manual
 revisions, carry its session ID. Each row has `session_id`, `title`, `kind`,
 `state`, `runs` (top-level runs), `usage` and `cost`; `other` covers work not
-tied to a task, such as analysis and explanations, and `total` everything. Costs come from
+tied to a task, such as analysis and the docs, and `total` everything. Costs come from
 `agent_runtime.telemetry.prices`: `status: estimated` with a `total` when every
 rate is known, otherwise `unknown` with the `known_subtotal` and `reasons`.
 

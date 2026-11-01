@@ -9,6 +9,7 @@ import (
 
 	"github.com/nanaki-93/mini-orca/v2/internal/launcher"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 )
 
 // startupWait bounds how long quitting waits for a launch in progress, so a
@@ -32,6 +33,8 @@ type shell struct {
 	state     launchStatus
 	session   *launcher.Session
 	log       *os.File
+	// notifications is set once system notifications started.
+	notifications *notifications.NotificationService
 }
 
 func newShell() *shell {
@@ -96,6 +99,7 @@ func (s *shell) start() {
 	if session.Daemon != nil {
 		go s.watch(session.Daemon)
 	}
+	go s.notifyOutcomes(session)
 }
 
 // open attaches to a running daemon or starts one, with its output in this
@@ -292,6 +296,9 @@ func (s *shell) stop() {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.notifications != nil {
+		_ = s.notifications.ServiceShutdown()
+	}
 	if s.session != nil {
 		s.session.Stop()
 	}

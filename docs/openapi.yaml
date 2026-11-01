@@ -2143,12 +2143,13 @@ components:
       properties:
         kind: {type: string, enum: [workflow, project_index, analysis, findings, docs, configuration, agent_settings, agent_run]}
         session_id: {type: string}
-        workflow_id: {type: string}
+        workflow_id: {type: string, description: The task's workflow run, or the analysis run of an analysis event.}
         title: {type: string}
         stage: {type: string, enum: [create, test, review, human_review, '']}
-        status: {type: string}
+        status: {type: string, description: The workflow status, or the analysis run status of an analysis event.}
         usage: {$ref: '#/components/schemas/AgentUsage'}
         cost: {$ref: '#/components/schemas/AgentCostEstimate'}
+        worktree_path: {type: string, description: The worktree a task's event comes from, on the active project's stream.}
     QuarantinedFile:
       type: object
       required: [kind, file, reason, remedy]

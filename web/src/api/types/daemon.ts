@@ -27,6 +27,8 @@ export interface DaemonEvent {
   status?: string;
   usage?: BudgetUsage;
   cost?: CostEstimate;
+  /** The worktree a task's event comes from. */
+  worktree_path?: string;
 }
 
 export interface DaemonStatus {

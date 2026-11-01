@@ -12,6 +12,11 @@ are listed here as they land.
   started when it quits. File → Open Project… switches projects; the daemon's
   log is in `~/Library/Logs/Mini-Orca`. Built with Wails v3 in `desktop/`, a Go
   module of its own. See [DESKTOP.md](DESKTOP.md).
+- **Desktop notifications:** while its window is not in front, the app tells
+  you when agents finish a task (ready for review, changes requested, failed,
+  out of date, paused) or an analysis run ends; clicking opens that page.
+  Analysis events now carry the run's ID and status, and a task's events from
+  its worktree carry `worktree_path`.
 - The `mini-orca` launcher and the desktop app share `internal/launcher`.
 
 ## v5.0.0 — Web-first workspace

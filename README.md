@@ -192,7 +192,8 @@ serves the folder it runs in at `http://127.0.0.1:9090/ui`.
 
 On macOS, `just desktop` (or `make install-desktop`) builds **Mini-Orca.app**
 into `~/Applications`: the same Web UI in a window of its own, with the daemon
-started beside it and stopped when the app quits. See [DESKTOP.md](DESKTOP.md).
+started beside it and stopped when the app quits, and notifications when agents
+or an analysis finish while you are elsewhere. See [DESKTOP.md](DESKTOP.md).
 
 The daemon listens on `127.0.0.1:9090` only, unless `MINI_ORCA_BIND_ADDRESS`
 opts into another address (see [DOCKER.md](DOCKER.md)). Keep `config.yaml`

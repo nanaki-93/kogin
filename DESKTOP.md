@@ -41,6 +41,15 @@ the repository's `config.yaml` there once), and each project's own
   same graceful stop as Ctrl+C on `mini-orca`: running workflows are stopped and
   the daemon exits.
 - **If the daemon stops.** The window says so, with Show Log and Quit.
+- **Notifications.** While the window is not in front, macOS tells you when
+  agents finish a task (ready for your review, changes requested, failed, out
+  of date, paused at a plan limit) and when an analysis run ends (finished,
+  finished with failures, failed, paused). Clicking one brings the window
+  forward on that task or on Analysis. In front, the Web UI's own messages say
+  the same. The first launch asks for permission; System Settings →
+  Notifications → Mini-Orca turns them off. Notifications need the app bundle
+  (`make desktop-app`); the bare `make desktop` program runs without them, and
+  the log says why when they are off.
 - **Keys.** Cmd+[ and Cmd+] go back and forward (Alt+Left and Alt+Right on
   Linux), as do the mouse's side buttons. Cmd+R reloads, Cmd+0, Cmd++
   and Cmd+- zoom. File → Open in Browser opens the same page in your browser.
@@ -66,7 +75,8 @@ it, and `./scripts/quality.sh` runs staticcheck on the macOS build.
 
 ## Not yet
 
-- No menu bar icon or notifications: closing the window quits the app.
+- No menu bar icon: closing the window quits the app, so notifications come
+  only while it is open.
 - The window shows a page served over `http://127.0.0.1`; links that would open
   a new browser window do nothing.
 - The app is ad-hoc signed for the Mac that built it. Sharing it with others
