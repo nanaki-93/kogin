@@ -27,6 +27,23 @@ test('g-sequences and the palette move between workspaces', async ({ page }) => 
   await expect(page.getByText('func ServeAsset() {}')).toBeVisible();
 });
 
+test('each action has one home: analysis runs from its page, a new task from the sidebar', async ({ page }) => {
+  await page.goto('/#/');
+  await expect(page.getByRole('heading', { name: 'Inbox', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /New task/ })).toHaveCount(1);
+  const analysis = page.locator('.card', { hasText: 'Project analysis' });
+  await expect(analysis.getByRole('button', { name: /Analyze/ })).toHaveCount(0);
+  await analysis.getByRole('button', { name: 'Dashboard' }).click();
+  await expect(page).toHaveURL(/#\/analysis/);
+  await page.goto('/#/tasks');
+  await expect(page.getByRole('button', { name: /New task/ })).toHaveCount(1);
+  await page.goto('/#/settings/analysis');
+  await expect(page).toHaveURL(/#\/analysis$/);
+  await page.goto('/#/settings');
+  await expect(page.getByRole('navigation', { name: 'Settings sections' }).getByRole('link')).toHaveText(['Project', 'Trust', 'Models & agents', 'Usage', 'Appearance']);
+  await expect(page.getByRole('button', { name: 'Reindex files' })).toHaveCount(0);
+});
+
 test('the task filters count their tasks and a search that matches nothing says so', async ({ page }) => {
   await page.goto('/#/tasks?filter=done');
   const filters = page.getByRole('radiogroup', { name: 'Show tasks' });

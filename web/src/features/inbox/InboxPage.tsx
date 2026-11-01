@@ -1,11 +1,9 @@
 // The landing page: what needs you now, what agents are doing, and the state
 // of the project, so a glance answers "what should I do next?".
 
-import { Bot, CircleAlert, FolderOpen, GitMerge, Inbox, Play, Plus, ShieldOff, Sparkles, Wrench } from 'lucide-react';
-import { useFindings, useGitWorkspace, useMainProject, useOverview, useProject, useSetup, useTasks, useTrust } from '@/api/hooks';
+import { Bot, CircleAlert, FolderOpen, GitMerge, Inbox, Plus, ShieldOff, Sparkles, Wrench } from 'lucide-react';
+import { useFindings, useGitWorkspace, useMainProject, useOverview, useSetup, useTasks, useTrust } from '@/api/hooks';
 import { openNewTask } from '@/app/store';
-import { useActions, useBusy } from '@/app/actions';
-import { useCheckout } from '@/app/checkout';
 import { navigate } from '@/lib/router';
 import { taskStatus } from '@/lib/readiness';
 import { plural, severityRank, timeAgo } from '@/lib/util';
@@ -19,15 +17,11 @@ import { OpenProject } from '@/features/settings/OpenProject';
 
 export function InboxPage() {
   const main = useMainProject();
-  const project = useProject().data;
   const { tasks, isLoading } = useTasks();
   const findings = (useFindings().data?.findings ?? []).filter(isOpenFinding);
   const overview = useOverview().data;
   const git = useGitWorkspace().data;
   const trust = useTrust().data;
-  const actions = useActions();
-  const busy = useBusy();
-  const { worktreePath } = useCheckout();
 
   if (main.isError) {
     return (
@@ -61,9 +55,6 @@ export function InboxPage() {
             <h1 className="page-title">Inbox</h1>
             <p className="page-sub">{isLoading ? ' ' : inboxSummary(needs.length, running.length, failed.length, toMerge.length)}</p>
           </div>
-          <Button variant="primary" icon={Plus} onClick={() => openNewTask()} kbd="C">
-            New task
-          </Button>
         </div>
         {trust && !trust.trusted ? (
           <Callout tone="warning" icon={ShieldOff} title="Agents can't verify their work yet" action={<Button size="sm" onClick={() => navigate('/settings/trust')}>Allow checks</Button>}>
@@ -187,13 +178,8 @@ export function InboxPage() {
                     {progress.failed ? <button type="button" className="link-btn xs tone-danger" onClick={() => navigate('/analysis')}>{plural(progress.failed, 'stage')} failed — see why</button> : null}
                   </div>
                 ) : (
-                  <p className="small muted">Analysis finds bugs, performance and security issues and writes the project docs.</p>
+                  <p className="small muted">Analysis finds bugs, performance and security issues and writes the project docs. Start it from its page.</p>
                 )}
-                {project ? (
-                  <Button size="sm" icon={Play} onClick={() => void actions.runAnalysis(project, worktreePath)} disabled={Boolean(busy)}>
-                    Analyze project
-                  </Button>
-                ) : null}
               </div>
             </div>
           </div>

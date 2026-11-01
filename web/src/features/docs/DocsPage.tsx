@@ -21,8 +21,6 @@ export function DocsPage({ section }: { section: string }) {
   const { data, isLoading } = useOverview();
   const project = useProject().data;
   const { worktreePath } = useCheckout();
-  const actions = useActions();
-  const busy = useBusy();
   const route = useRoute();
   const docs = data?.docs;
   const current = docsSection(section);
@@ -37,7 +35,7 @@ export function DocsPage({ section }: { section: string }) {
           ) : isLoading ? (
             <Skeleton lines={10} />
           ) : !docs ? (
-            <EmptyState icon={BookOpen} title="No docs yet" action={project ? <Button variant="primary" onClick={() => void actions.runAnalysis(project, worktreePath)} disabled={Boolean(busy)}>Analyze project</Button> : undefined}>
+            <EmptyState icon={BookOpen} title="No docs yet" action={<Button variant="primary" onClick={() => navigate('/analysis')}>Open Analysis</Button>}>
               Project analysis writes these docs from the source: what the project is for, its components, how its main features run and how to run it.
             </EmptyState>
           ) : (

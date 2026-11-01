@@ -20,6 +20,10 @@ this document owns how the interface is organized, looks and responds.
 - **Show the next step.** Every view answers "what needs me now?" first. Tasks
   that wait for review, failed runs and branches ready to merge rise to the top;
   the primary action for the selected item is always visible.
+- **One home per action.** An action lives on the page it belongs to (an
+  analysis runs from Analysis, files are reindexed from Code, a new task starts
+  from the sidebar or `c`); other pages link there instead of repeating the
+  button. The command palette reaches every action.
 - **Detail beside the list.** Lists stay on the left; the selected item's detail
   stays on the right. Moving the selection updates the detail without leaving
   the list.
@@ -44,7 +48,7 @@ this document owns how the interface is organized, looks and responds.
 | **Docs** | `g d` | A guide to the project: overview, get started (commands, entry points), architecture (components diagram), how it works (walkthroughs), a page per component with its files, dependencies, and Ask the code. |
 | **Branches** | `g b` | The main checkout and task worktrees with their tasks, integration state, merge preview and merge (removing the worktree and branch unless switched off), and removal of a worktree with nothing left to merge. |
 | **Setup** | — | The project's first-run wizard: models, agents & budget, checks, analysis. Opens once for a project without its own configuration; Settings → Project reopens it. |
-| **Settings** | `g s` | Project, trust, models and agents, analysis, usage, appearance. |
+| **Settings** | `g s` | Project, trust, models and agents, usage, appearance. |
 
 ### Task status
 

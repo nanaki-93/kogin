@@ -1,14 +1,16 @@
-// Settings: project, trust, models and agents, analysis, appearance.
+// Settings: project, trust, models and agents, usage, appearance. Analysis
+// has its own page; /settings/analysis leads there.
 
-import { Bot, Coins, Wrench, FolderOpen, Monitor, Moon, Palette, Play, RefreshCw, ShieldCheck, Sparkles, Sun } from 'lucide-react';
-import { useModels, useOverview, useSetup, useProject, useStatus, useTrust, useUsage } from '@/api/hooks';
+import { useEffect } from 'react';
+import { Bot, Coins, Wrench, FolderOpen, Monitor, Moon, Palette, ShieldCheck, Sparkles, Sun } from 'lucide-react';
+import { useModels, useSetup, useProject, useStatus, useTrust, useUsage } from '@/api/hooks';
 import type { UsageTotal } from '@/api/types';
 import { costCaveat, costLabel, formatTokens } from '@/lib/usage';
 import { useActions, useBusy } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
 import { DARK_PALETTES, setUI, useUI, type Theme } from '@/app/store';
 import { navigate } from '@/lib/router';
-import { plural, timeAgo } from '@/lib/util';
+import { plural } from '@/lib/util';
 import { Badge, Button, EmptyState, Segmented, Skeleton, cx } from '@/components/ui';
 import { OpenProject } from './OpenProject';
 import { QuarantineList } from './Quarantine';
@@ -20,23 +22,28 @@ const SECTIONS = [
   { id: 'project', label: 'Project', icon: FolderOpen },
   { id: 'trust', label: 'Trust', icon: ShieldCheck },
   { id: 'models', label: 'Models & agents', icon: Bot },
-  { id: 'analysis', label: 'Analysis', icon: Sparkles },
   { id: 'usage', label: 'Usage', icon: Coins },
   { id: 'appearance', label: 'Appearance', icon: Palette },
 ];
 
 export function SettingsPage({ section }: { section: string }) {
   const current = SECTIONS.find(s => s.id === section)?.id ?? 'project';
+  // Analysis moved out of Settings: old links open its page.
+  useEffect(() => {
+    if (section === 'analysis') navigate('/analysis', {}, { replace: true });
+  }, [section]);
   return (
     <div className="docs">
       <nav className="docs-nav" aria-label="Settings sections">
-        <div className="panel-title">Settings</div>
-        {SECTIONS.map(s => (
-          <a key={s.id} href={`#/settings/${s.id}`} className={cx('docs-link', s.id === current && 'is-active')} onClick={e => { e.preventDefault(); navigate(`/settings/${s.id}`); }}>
-            <s.icon size={14} aria-hidden />
-            {s.label}
-          </a>
-        ))}
+        <div className="docs-nav-scroll settings-nav">
+          <div className="panel-title">Settings</div>
+          {SECTIONS.map(s => (
+            <a key={s.id} href={`#/settings/${s.id}`} className={cx('docs-link', s.id === current && 'is-active')} onClick={e => { e.preventDefault(); navigate(`/settings/${s.id}`); }}>
+              <s.icon size={14} aria-hidden />
+              {s.label}
+            </a>
+          ))}
+        </div>
       </nav>
       <div className="docs-body page-scroll">
         <div className="page-inner page-narrow stack-lg">
@@ -55,8 +62,6 @@ function SettingsSection({ id }: { id: string }) {
       return <TrustSettings />;
     case 'models':
       return <ModelSettings />;
-    case 'analysis':
-      return <AnalysisSettings />;
     case 'usage':
       return <UsageSettings />;
     default:
@@ -125,9 +130,6 @@ function UsageCells({ total }: { total: UsageTotal }) {
 function ProjectSettings() {
   const project = useProject().data;
   const status = useStatus().data;
-  const { worktreePath } = useCheckout();
-  const actions = useActions();
-  const busy = useBusy();
   return (
     <>
       <h1 className="page-title">Project</h1>
@@ -141,9 +143,6 @@ function ProjectSettings() {
               <dt>Files</dt><dd>{plural(project.file_count, 'file')}{project.total_lines ? ` · ${project.total_lines.toLocaleString()} lines` : ''}</dd>
               <dt>Daemon</dt><dd>v{status?.version}</dd>
             </dl>
-          </div>
-          <div className="card-foot">
-            <Button icon={RefreshCw} onClick={() => void actions.reindex(project, worktreePath)} disabled={Boolean(busy)}>Reindex files</Button>
           </div>
         </div>
       ) : null}
@@ -253,39 +252,6 @@ function ModelSettings() {
       </div>
       {setup ? <TimeLimits key={`${setup.project_revision}:${JSON.stringify(setup.timeouts)}`} setup={setup} /> : null}
       <AgentRoles />
-    </>
-  );
-}
-
-function AnalysisSettings() {
-  const overview = useOverview().data;
-  const project = useProject().data;
-  const { worktreePath } = useCheckout();
-  const actions = useActions();
-  const busy = useBusy();
-  const coverage = overview?.analysis_coverage ?? {};
-  return (
-    <>
-      <h1 className="page-title">Analysis</h1>
-      <p className="muted">Analysis reads the project to find bugs, performance and security issues, and writes the handbook in Docs.</p>
-      <div className="card">
-        <div className="card-head">
-          <Sparkles size={15} aria-hidden />
-          <span className="strong">Coverage</span>
-          <span className="spacer" />
-          <Button onClick={() => navigate('/analysis')}>Open dashboard</Button>
-          {project ? <Button variant="primary" icon={Play} onClick={() => void actions.runAnalysis(project, worktreePath)} disabled={Boolean(busy)}>Analyze project</Button> : null}
-        </div>
-        <div className="card-body">
-          <div className="stat-row">
-            {['fresh', 'stale', 'missing', 'failed', 'running'].map(key => (
-              <div key={key} className="stat"><div className="stat-value">{coverage[key] ?? 0}</div><div className="stat-label">{key}</div></div>
-            ))}
-          </div>
-          {overview?.analysis_run ? <p className="small muted">Last run {overview.analysis_run.status}{overview.analysis_run.updated_at ? ` · ${timeAgo(overview.analysis_run.updated_at)}` : ''}{overview.analysis_run.reason ? ` — ${overview.analysis_run.reason}` : ''}</p> : null}
-          {overview?.analysis?.failure ? <p className="small tone-danger">{overview.analysis.failure}</p> : null}
-        </div>
-      </div>
     </>
   );
 }

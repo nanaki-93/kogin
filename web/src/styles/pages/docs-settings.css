@@ -27,6 +27,14 @@
   overflow-y: auto;
 }
 
+.settings-nav {
+  padding-top: 16px;
+}
+
+.docs-nav .panel-title {
+  padding: 0 10px 8px;
+}
+
 .docs-link {
   display: flex;
   align-items: center;

@@ -82,8 +82,6 @@ function AgentRun({ session }: { session: LoadedSession }) {
   const stages = workflowStages(workflow);
   const specialists = workflowSpecialists(workflow);
   const active = workflowActive(session);
-  const actions = useActions();
-  const busy = useBusy();
   const ended = ['failed', 'canceled', 'stale', 'outdated', 'interrupted', 'paused'].includes(workflow.status);
   const override = activeOverride(workflow, session.hash);
   return (
@@ -93,12 +91,7 @@ function AgentRun({ session }: { session: LoadedSession }) {
         <span className="strong">Agent run</span>
         {workflow.attempt && workflow.attempt > 1 ? <Badge>attempt {workflow.attempt}</Badge> : null}
         {workflow.auto_repair ? <Badge tone="neutral">auto-repair {workflow.auto_repair_attempts ?? 0}/2</Badge> : null}
-        <span className="spacer" />
-        {active ? (
-          <Button size="sm" variant="ghost" icon={Square} onClick={() => void actions.cancelAgents(session)} disabled={workflow.status === 'canceling' || Boolean(busy)}>
-            {workflow.status === 'canceling' ? 'Stopping…' : 'Stop'}
-          </Button>
-        ) : null}
+        {active && workflow.status === 'canceling' ? <><span className="spacer" /><span className="xs muted">Stopping…</span></> : null}
       </div>
       {ended && workflow.reason ? (
         <div className="card-body">

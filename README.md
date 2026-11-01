@@ -64,7 +64,7 @@ browser workspace is built for three jobs: **start a task and watch the agents**
 | **Issues** | `g i` | Findings by status and severity with evidence and **Fix with agents**, which opens the task the daemon drafts: the file, its conventional test in that language, and “done when” criteria. |
 | **Docs** | `g d` | A guide to the project: what it is for, how to run it, the components diagram, walkthroughs of its main features step by step through the files, a page per component with its files, dependencies, and **Ask the code** (an agent answers with checked line citations). |
 | **Branches** | `g b` | Task worktrees (each new task gets its own by default), merge preview (commits and diff), guarded merge or abort, the checks of the merged result, and removal of merged worktrees. |
-| **Settings** | `g s` | Project, execution trust, models and agents, analysis, appearance. |
+| **Settings** | `g s` | Project, execution trust, models and agents, usage, appearance. |
 
 `Ctrl+K` / `Cmd+K` opens the command palette (files, tasks, issues, commands);
 `Ctrl+P` / `Cmd+P` jumps to a file; `c` creates a task; `?` lists every shortcut.

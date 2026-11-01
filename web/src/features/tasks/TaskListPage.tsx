@@ -63,9 +63,6 @@ export function TaskListPage() {
           <h1 className="page-title">Tasks</h1>
           <p className="page-sub">Each task is a bounded change that agents write, test and review. Nothing reaches your files until you apply it.</p>
         </div>
-        <Button variant="primary" icon={Plus} onClick={() => openNewTask()} kbd="C">
-          New task
-        </Button>
       </div>
       <div className="toolbar">
         <Segmented
