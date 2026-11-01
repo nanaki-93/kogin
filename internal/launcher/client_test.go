@@ -123,3 +123,20 @@ func TestConfigurationNoteNamesTheProjectFileFirst(t *testing.T) {
 		t.Fatalf("project configuration: %q", note)
 	}
 }
+
+func TestVersionIsWhatTheDaemonReports(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = io.WriteString(w, `{"status":"ok","version":"5.0.0"}`)
+	}))
+	defer server.Close()
+	if version, err := NewClient(server.URL).Version(t.Context()); err != nil || version != "5.0.0" {
+		t.Fatalf("version = %q, %v", version, err)
+	}
+	if _, err := NewClient("http://127.0.0.1:1").Version(t.Context()); err == nil {
+		t.Fatal("no daemon reported a version")
+	}
+}

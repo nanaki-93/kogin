@@ -32,7 +32,9 @@ the repository's `config.yaml` there once), and each project's own
   opens the project it opened last; the first time, it asks for the project
   folder. When a daemon already answers at `127.0.0.1:9090` (one started with
   `mini-orca` or `just dev`, say), the app uses it and leaves it running when it
-  quits. Otherwise it starts its own daemon in the project folder.
+  quits; when that daemon is another version, the app says so, since the
+  window then shows that version's pages. Otherwise it starts its own daemon in
+  the project folder.
 - **Your PATH.** An app opened from the Finder or the Dock gets a minimal
   `PATH`. The app starts its daemon with the `PATH` of your login shell, so the
   agent CLIs (`claude`, `agy`, `pi`), Git, Go and Node are found as in a terminal.

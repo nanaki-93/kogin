@@ -62,6 +62,17 @@ func (c *Client) WaitHealthy(ctx context.Context, daemon *Daemon) error {
 	return nil
 }
 
+// Version is the version the daemon reports.
+func (c *Client) Version(ctx context.Context) (string, error) {
+	var health struct {
+		Version string `json:"version"`
+	}
+	if err := c.call(ctx, http.MethodGet, "/health", nil, &health); err != nil {
+		return "", err
+	}
+	return health.Version, nil
+}
+
 // OpenProject makes folder the daemon's project unless it already is:
 // restore saved data for a known path, otherwise import it.
 func (c *Client) OpenProject(ctx context.Context, folder string) error {

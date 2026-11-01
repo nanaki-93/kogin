@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nanaki-93/mini-orca/v2/internal/launcher"
+	"github.com/nanaki-93/mini-orca/v2/internal/version"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 )
@@ -98,8 +99,26 @@ func (s *shell) start() {
 	s.window.SetURL(session.Page())
 	if session.Daemon != nil {
 		go s.watch(session.Daemon)
+	} else {
+		s.checkVersion(session)
 	}
 	go s.notifyOutcomes(session)
+}
+
+// checkVersion warns when the daemon the app attached to is another version:
+// its pages are that version's, not this app's.
+func (s *shell) checkVersion(session *launcher.Session) {
+	running, err := session.Client.Version(s.app.Context())
+	if err != nil || running == version.Version {
+		return
+	}
+	s.note("The daemon already running at %s is version %s; this app is %s.", session.Client.Base, running, version.Version)
+	dialog := s.app.Dialog.Warning().
+		SetTitle("Another version of Mini-Orca is running").
+		SetMessage(fmt.Sprintf("The daemon already running at %s is version %s, and this app is %s, so the window shows that version's pages.\n\nTo use this version, stop that daemon (Ctrl+C where mini-orca or just dev runs it) and open Mini-Orca again.", session.Client.Base, running, version.Version))
+	dialog.AddButton("Quit").OnClick(s.app.Quit)
+	dialog.AddButton("Use It").SetAsDefault()
+	dialog.AttachToWindow(s.window).Show()
 }
 
 // open attaches to a running daemon or starts one, with its output in this
