@@ -22,6 +22,9 @@ profile.cov
 build/
 /mini-orca
 /mini-orca-daemon
+# A plain go build in the desktop module.
+/desktop/desktop
+/desktop/mini-orca-desktop
 
 # Go workspace file
 go.work

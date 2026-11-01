@@ -14,6 +14,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/nanaki-93/mini-orca/v2/internal/launcher"
 )
 
 func main() {
@@ -41,7 +43,7 @@ func parseOptions(args []string, out io.Writer) (options, error) {
 	}
 	defaultURL := os.Getenv("MINI_ORCA_URL")
 	if defaultURL == "" {
-		defaultURL = defaultDaemonURL
+		defaultURL = launcher.DefaultURL
 	}
 	url := flags.String("url", defaultURL, "daemon address (MINI_ORCA_URL)")
 	noOpen := flags.Bool("no-open", false, "do not open the Web UI in the browser")
@@ -58,38 +60,37 @@ func parseOptions(args []string, out io.Writer) (options, error) {
 	return options{url: *url, project: project, open: !*noOpen}, nil
 }
 
+// projectFolder resolves the folder to open: the argument, or the current one.
+func projectFolder(argument string) (string, error) {
+	if argument != "" {
+		return launcher.Folder(argument)
+	}
+	current, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	return launcher.Folder(current)
+}
+
 func run(ctx context.Context, args []string, out io.Writer) error {
 	opts, err := parseOptions(args, out)
 	if err != nil {
 		return err
 	}
-	client := newDaemonClient(opts.url)
-	var daemon *ownedDaemon
-	if !client.healthy(ctx) {
-		if opts.url != defaultDaemonURL {
-			return fmt.Errorf("no daemon answers at %s; start it there or leave --url unset", opts.url)
-		}
-		fmt.Fprintf(out, "Starting the Mini-Orca daemon for %s…\n", opts.project)
-		if daemon, err = startDaemon(ctx, opts.project, out); err != nil {
-			return err
-		}
-		defer daemon.stop()
-		if err := client.waitHealthy(ctx, daemon); err != nil {
-			return err
-		}
-	}
-	if err := client.openProject(ctx, opts.project); err != nil {
+	session, err := launcher.Open(ctx, launcher.Options{URL: opts.url, Project: opts.project, Notes: out, Stdout: os.Stdout, Stderr: os.Stderr})
+	if err != nil {
 		return err
 	}
-	page := client.base + "/ui"
+	defer session.Stop()
+	page := session.Page()
 	if opts.open {
 		if err := openBrowser(page); err != nil {
 			fmt.Fprintf(out, "Could not open the browser (%v); open %s yourself.\n", err, page)
 		}
 	}
-	if daemon == nil {
+	if session.Daemon == nil {
 		fmt.Fprintf(out, "Opened %s in the running daemon: %s\n", opts.project, page)
-		fmt.Fprintln(out, client.configNote(ctx))
+		fmt.Fprintln(out, session.Client.ConfigNote(ctx))
 		return nil
 	}
 	fmt.Fprintf(out, "Mini-Orca is running for %s at %s — press Ctrl+C to stop it.\n", opts.project, page)
@@ -97,7 +98,7 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 	case <-ctx.Done():
 		fmt.Fprintln(out, "\nStopping the daemon…")
 		return nil
-	case <-daemon.done:
-		return fmt.Errorf("the daemon stopped: %v", daemon.err)
+	case <-session.Daemon.Done():
+		return fmt.Errorf("the daemon stopped: %v", session.Daemon.Err())
 	}
 }

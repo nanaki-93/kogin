@@ -7,6 +7,10 @@ IMAGE_NAME := $(APP_NAME)
 IMAGE_TAG := $(VERSION)
 DOCKER_IMAGE := $(IMAGE_NAME):$(IMAGE_TAG)
 BUILD_DIR := build
+DESKTOP_APP := $(BUILD_DIR)/Mini-Orca.app
+DESKTOP_INSTALL_DIR ?= $(HOME)/Applications
+# Info.plist's short version is numbers only: 6.0.0-dev is 6.0.0.
+SHORT_VERSION := $(firstword $(subst -, ,$(VERSION)))
 
 # Go settings
 GO := go
@@ -24,7 +28,7 @@ COLOR_BLUE := \033[34m
 
 # ─── Phony Targets ────────────────────────────────────────────────────────────
 .PHONY: all build install build-linux clean test test-race vet fmt-check quality check agent-dispatcher webui-install webui-build webui-test webui-e2e webui-dev webui-dist-check docker-build docker-build-cache docker-run docker-run-detached docker-stop docker-logs docker-restart docker-clean compose-up compose-up-llm compose-down compose-logs compose-restart compose-clean dev dev-watch version help
-.PHONY: build-agents build-agents-linux
+.PHONY: build-agents build-agents-linux desktop desktop-app install-desktop desktop-check
 
 # ─── Default Target ────────────────────────────────────────────────────────────
 all: help
@@ -90,6 +94,36 @@ clean: ## Remove build artifacts
 	@rm -rf $(BUILD_DIR)
 	@echo "$(COLOR_YELLOW)Clean complete$(COLOR_RESET)"
 
+# ─── Desktop App ───────────────────────────────────────────────────────────────
+desktop: ## Build the desktop app's program (build/mini-orca-desktop) for this machine; it starts the daemon found beside it or on PATH
+	@mkdir -p $(BUILD_DIR)
+	@cd desktop && CGO_ENABLED=1 $(GO) build -tags production -trimpath -ldflags="-w -s" -o ../$(BUILD_DIR)/$(APP_NAME)-desktop .
+	@echo "$(COLOR_GREEN)Built $(BUILD_DIR)/$(APP_NAME)-desktop$(COLOR_RESET)"
+
+desktop-app: ## Build build/Mini-Orca.app (macOS): the desktop app with its daemon inside
+	@[ "$$(uname)" = Darwin ] || { echo "desktop-app builds a macOS app: run it on a Mac (make desktop builds the program elsewhere)"; exit 1; }
+	@rm -rf $(DESKTOP_APP)
+	@mkdir -p $(DESKTOP_APP)/Contents/MacOS $(DESKTOP_APP)/Contents/Resources
+	@cd desktop && CGO_ENABLED=1 $(GO) build -tags production -trimpath -ldflags="-w -s" -o ../$(DESKTOP_APP)/Contents/MacOS/$(APP_NAME)-desktop .
+	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/mini-orca/v2/internal/version.Version=$(VERSION)" -o $(DESKTOP_APP)/Contents/MacOS/$(APP_NAME)-daemon ./cmd/daemon
+	@sed -e 's/__SHORT_VERSION__/$(SHORT_VERSION)/' -e 's/__VERSION__/$(VERSION)/' desktop/macos/Info.plist > $(DESKTOP_APP)/Contents/Info.plist
+	@cp desktop/macos/icon.icns $(DESKTOP_APP)/Contents/Resources/icon.icns
+	@codesign --force --sign - $(DESKTOP_APP)/Contents/MacOS/$(APP_NAME)-daemon
+	@codesign --force --sign - $(DESKTOP_APP)
+	@echo "$(COLOR_GREEN)Built $(DESKTOP_APP) $(VERSION)$(COLOR_RESET)"
+
+install-desktop: desktop-app ## Build Mini-Orca.app and copy it into ~/Applications (DESKTOP_INSTALL_DIR)
+	@mkdir -p "$(DESKTOP_INSTALL_DIR)"
+	@rm -rf "$(DESKTOP_INSTALL_DIR)/Mini-Orca.app"
+	@ditto $(DESKTOP_APP) "$(DESKTOP_INSTALL_DIR)/Mini-Orca.app"
+	@echo "$(COLOR_GREEN)Installed $(DESKTOP_INSTALL_DIR)/Mini-Orca.app$(COLOR_RESET)"
+
+desktop-check: ## Vet and cross-build the desktop app for macOS and Linux without cgo (no Xcode or GTK needed)
+	@cd desktop && for target in darwin/arm64 darwin/amd64 linux/amd64; do \
+		CGO_ENABLED=0 GOOS=$${target%/*} GOARCH=$${target#*/} $(GO) vet -tags purego,production . && \
+		CGO_ENABLED=0 GOOS=$${target%/*} GOARCH=$${target#*/} $(GO) build -tags purego,production -o /dev/null . || exit $$?; \
+	done
+
 # ─── Testing ───────────────────────────────────────────────────────────────────
 test: ## Run Go tests and write the coverage report
 	@echo "$(COLOR_GREEN)Running tests...$(COLOR_RESET)"
@@ -131,7 +165,7 @@ webui-dev: ## Serve the Web UI with hot reload on :5173, proxying the API to the
 webui-dist-check: ## Fail when the committed Web UI bundle is out of date with web/src
 	@cd web && npm run build >/dev/null && cd .. && git diff --exit-code --stat -- internal/api/handlers/webui/dist && test -z "$$(git ls-files --others --exclude-standard internal/api/handlers/webui/dist)" || { echo "Run make webui-build and commit internal/api/handlers/webui/dist"; exit 1; }
 
-check: fmt-check test test-race vet agent-dispatcher webui-test webui-e2e ## Run the complete supported validation path
+check: fmt-check test test-race vet desktop-check agent-dispatcher webui-test webui-e2e ## Run the complete supported validation path
 
 # ─── Docker Build ──────────────────────────────────────────────────────────────
 docker-build: ## Build Docker image

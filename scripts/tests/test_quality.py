@@ -10,6 +10,12 @@ QUALITY_SCRIPT = Path(__file__).resolve().parents[1] / "quality.sh"
 
 GO_STUB = """#!/bin/sh
 printf '%s\\n' "go $*" >> "$QUALITY_CALLS"
+if [ "$1" = install ] && [ "$2" = honnef.co/go/tools/cmd/staticcheck@v0.8.2 ]; then
+  # The desktop module's staticcheck runs from GOBIN for another GOOS.
+  printf '%s\\n' '#!/bin/sh' 'printf "%s\\n" "$GOOS staticcheck $*" >> "$QUALITY_CALLS"' > "$GOBIN/staticcheck"
+  chmod +x "$GOBIN/staticcheck"
+  exit 0
+fi
 case "$2" in
   honnef.co/go/tools/cmd/staticcheck@v0.8.2|github.com/fzipp/gocyclo/cmd/gocyclo@v0.6.0)
     exit 0 ;;
@@ -36,8 +42,9 @@ class QualityTests(unittest.TestCase):
             '#!/bin/sh\nprintf "%s\\n" "npx $*" >> "$QUALITY_CALLS"\n',
         )
         # Only stubbed package runners are on PATH, so tests cannot download tools.
-        (self.bin / "find").symlink_to(shutil.which("find"))
-        for directory in ("cmd", "internal", "scripts"):
+        for tool in ("find", "mktemp", "rm", "chmod"):
+            (self.bin / tool).symlink_to(shutil.which(tool))
+        for directory in ("cmd", "internal", "desktop", "scripts"):
             (self.root / directory).mkdir()
         (self.root / "cmd" / "main.go").write_text("package main\n")
 
@@ -69,6 +76,8 @@ class QualityTests(unittest.TestCase):
             "./cmd/daemon ./cmd/engineering-insight-eval ./cmd/agent-eval ./cmd/agent-inspect",
             calls,
         )
+        self.assertIn("darwin staticcheck -tags purego,production ./...", calls)
+        self.assertIn("PASS Desktop static analysis", result.stdout)
         self.assertTrue(any("gocyclo@v0.6.0" in call for call in calls))
         self.assertTrue(any("jscpd@4.0.5" in call for call in calls))
         self.assertIn("PASS Go complexity", result.stdout)
@@ -153,7 +162,8 @@ class ValidationTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 1 if failure else 0)
                     self.assertIn("PASS go-quality", result.stdout)
                     self.assertIn("PASS daemon-contracts", result.stdout)
-                    self.assertEqual(len(calls.read_text().splitlines()), 6 if failure else 7)
+                    self.assertIn("PASS desktop-build", result.stdout)
+                    self.assertEqual(len(calls.read_text().splitlines()), 7 if failure else 8)
                     if failure:
                         self.assertIn("Validation failed: go-test", result.stderr)
                     else:

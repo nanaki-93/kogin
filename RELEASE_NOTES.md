@@ -5,6 +5,15 @@
 Version 6 starts from the stable v5.0.0 tag on the `v6` branch. Its changes
 are listed here as they land.
 
+- **Desktop app (macOS):** `just desktop` builds Mini-Orca.app into
+  `~/Applications`: the Web UI in a window of its own. It reopens the last
+  project (or asks for one), starts the daemon beside it with your login
+  shell's `PATH`, or uses one that is already running, and stops the daemon it
+  started when it quits. File → Open Project… switches projects; the daemon's
+  log is in `~/Library/Logs/Mini-Orca`. Built with Wails v3 in `desktop/`, a Go
+  module of its own. See [DESKTOP.md](DESKTOP.md).
+- The `mini-orca` launcher and the desktop app share `internal/launcher`.
+
 ## v5.0.0 — Web-first workspace
 
 The browser workspace served by the daemon at `/ui` is now Mini-Orca's only

@@ -190,6 +190,10 @@ configuration folder or the folder of the binaries. See [CONFIG.md](CONFIG.md).
 targets a daemon at another address. Without the launcher, `go run ./cmd/daemon`
 serves the folder it runs in at `http://127.0.0.1:9090/ui`.
 
+On macOS, `just desktop` (or `make install-desktop`) builds **Mini-Orca.app**
+into `~/Applications`: the same Web UI in a window of its own, with the daemon
+started beside it and stopped when the app quits. See [DESKTOP.md](DESKTOP.md).
+
 The daemon listens on `127.0.0.1:9090` only, unless `MINI_ORCA_BIND_ADDRESS`
 opts into another address (see [DOCKER.md](DOCKER.md)). Keep `config.yaml`
 local. Every prompt-bearing request to a non-loopback HTTP or CLI provider asks
@@ -230,6 +234,8 @@ in `web/`.
 | Layer / Path | Responsibility |
 | --- | --- |
 | `cmd/daemon` | The daemon: loopback HTTP API, embedded Web UI, startup and shutdown. |
+| `cmd/mini-orca`, `internal/launcher` | The launcher: attach to or start the daemon for a project folder; shared with the desktop app. |
+| `desktop/` | Mini-Orca.app: the Web UI in a native window (Wails v3, its own Go module, [guide](DESKTOP.md)). |
 | `cmd/agent-inspect` | Read-only inspection of local agent invocation history ([guide](docs/agent-inspect.md)). |
 | `cmd/agent-eval`, `cmd/engineering-insight-eval` | Synthetic agent task/trajectory evaluation and engineering-insight evaluation. |
 | `web/` | The browser workspace (React + TypeScript), built into `internal/api/handlers/webui/dist`. |
@@ -252,6 +258,7 @@ in `web/`.
 | **gotreesitter v0.56.0** | Pure-Go tree-sitter runtime (no CGO) with 206 embedded grammars for language-neutral syntax checks and function budgets. |
 | **Model providers** (OpenAI-compatible HTTP, Gemini, Vertex, `agy`, `pi`, `claude`) | Explicit local or remote execution for `analyze`, `bug` and `code`; the CLI profiles also run the tool-using agents. |
 | **React 19, TanStack Query, Radix UI, Vite** | The browser workspace. |
+| **Wails v3.1** (desktop module only) | The desktop app's native window, menus and dialogs, on the system WebView. |
 
 ## Agent capabilities
 
@@ -364,4 +371,4 @@ No live evaluation is run by tests or CI.
 
 - [UI guidelines](docs/UI_DESIGN_GUIDELINES.md) · [UI behavior](docs/ui-behavior.md) · [design direction](docs/design/ui-directions.md)
 - [API guide](docs/api-contract.md) · [OpenAPI](docs/openapi.yaml) · [configuration](CONFIG.md)
-- [Docker](DOCKER.md) · [agent inspection](docs/agent-inspect.md) · [release notes](RELEASE_NOTES.md) · [LICENSE](LICENSE)
+- [Desktop app](DESKTOP.md) · [Docker](DOCKER.md) · [agent inspection](docs/agent-inspect.md) · [release notes](RELEASE_NOTES.md) · [LICENSE](LICENSE)

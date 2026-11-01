@@ -46,3 +46,7 @@ build:
 # Build mini-orca and mini-orca-daemon into ~/DEV/lab/mini-orca and MINI_ORCA_HOME (or ~/DEV/programs/mini-orca)
 install:
     make install
+
+# Build Mini-Orca.app (macOS) and copy it into ~/Applications
+desktop:
+    make install-desktop

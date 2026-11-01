@@ -48,6 +48,7 @@ run_stage go-format make fmt-check
 run_stage go-test make test
 run_stage go-race make test-race
 run_stage go-vet make vet
+run_stage desktop-build make desktop-check
 run_stage daemon-contracts go test ./cmd/daemon -run 'Test(ReleaseDocumentationUsesCanonicalVersion|DocumentedRoutesAreHandledByDaemon)$'
 run_stage agent-dispatcher python3 -m unittest discover -s scripts/tests -p 'test_*.py'
 run_stage go-quality ./scripts/quality.sh --go-only

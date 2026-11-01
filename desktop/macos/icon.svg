@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#23252d"/>
+      <stop offset="1" stop-color="#0c0d10"/>
+    </linearGradient>
+    <linearGradient id="fin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b9bdff"/>
+      <stop offset="0.55" stop-color="#7f86ff"/>
+      <stop offset="1" stop-color="#5a61e8"/>
+    </linearGradient>
+    <clipPath id="above"><path d="M100 100 L924 100 L924 668 L828 668 C 730 628, 662 628, 596 668 C 530 708, 462 708, 396 668 C 330 628, 262 628, 196 668 L100 668 Z"/></clipPath>
+    <clipPath id="body"><rect x="100" y="100" width="824" height="824" rx="186"/></clipPath>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#tile)"/>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="185.5" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="3"/>
+  <g clip-path="url(#body)">
+    <!-- the dorsal fin, swept back, rising from the water -->
+    <path d="M312 694 C 420 640, 500 470, 566 262 C 576 232, 602 236, 600 270 C 590 420, 610 590, 712 694 Z" fill="url(#fin)" clip-path="url(#above)"/>
+    <!-- the water line and a lower ripple -->
+    <path d="M196 668 C 262 628, 330 628, 396 668 S 530 708, 596 668 S 730 628, 828 668" fill="none" stroke="#aeb3ff" stroke-width="34" stroke-linecap="round"/>
+    <path d="M276 766 C 330 736, 384 736, 438 766 S 546 796, 600 766 S 708 736, 750 760" fill="none" stroke="#7f86ff" stroke-opacity="0.45" stroke-width="26" stroke-linecap="round"/>
+  </g>
+</svg>
