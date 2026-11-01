@@ -84,12 +84,31 @@ interface.
   Undo still needs are kept.
 - **Analysis dashboard** (`g a`): live progress of the last or running analysis,
   failed stages grouped by reason, coverage and findings per section, models
-  used and every file's stages, with analyze, retry failed, re-analyze, pause,
-  resume and cancel. Issues filter by category. An analysis window now runs up
-  to 30 minutes before pausing.
+  used and every file's stages. It offers one next step (Analyze changes, or
+  Retry failed when stages failed) with the other runs under **More**, plus
+  pause, resume and cancel. Issues filter by category. An analysis window now
+  runs up to 30 minutes before pausing.
 - **Analysis failures say why:** a failed stage names an unreachable provider, a
   timeout, a rejected request or an unusable answer instead of one generic
   message.
+- **Docs:** a docs site with Overview, Get started, Architecture, How it works
+  (a walkthrough per main feature, each step at a file and function), a page
+  per component, Dependencies and Ask the code. The overview
+  (`project-analysis-v7`) and component summaries (`module-summary-v2`) are
+  short; **Refresh docs** writes them again, and a failed rewrite keeps the
+  saved overview. Older overviews still load, marked out of date.
+- **Issues by file:** Issues are grouped by file by default (**By severity**
+  lists them flat). A file with several open issues offers **Fix N together**:
+  one task for up to ten of them (`GET /api/projects/current/findings/task`)
+  that marks them all fixed when it is merged.
+- **One home per action:** analysis runs only from the Analysis page
+  (`/settings/analysis` opens it; Settings no longer has Reindex), and New
+  task lives in the sidebar and on `n`.
+- **Removed:** file explanation (`POST /api/projects/current/files/explanation`)
+  and the project skills only it loaded. The Code inspector's **Ask about it**
+  opens Ask the code with a question about the file. `agent_runtime.skills: []`
+  still loads, a list of skills is refused with a message to delete it, and
+  saved agent settings with `disabled_skills` still load.
 - **Launcher:** `mini-orca` (built and installed by `just build`) opens the
   project in the current folder: it starts the daemon when none is running,
   switches it to the folder and opens the Web UI; Ctrl+C stops a daemon it
