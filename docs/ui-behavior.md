@@ -263,7 +263,8 @@ every guard when the action arrives.
   **Refresh docs** does the same without a run and always writes the
   overview again: it asks first (naming a remote model), runs in the
   background, one at a time, and the page shows it running, then what it
-  wrote and kept or why it failed or was skipped. Coding agents start from
+  wrote and kept or why it failed or was skipped; a failed rewrite keeps the
+  overview the docs already had. Coding agents start from
   these summaries too: the components a task's files are in and the
   components those import or are used by, marked as model-written.
 - **Ask the code.** Docs → Ask the code (or the palette: **Ask the codebase**,

@@ -57,7 +57,11 @@ type FileInfo struct {
 type Analyzer struct {
 	// contextNote goes before the project context, such as the components'
 	// summaries an analysis run wrote.
-	contextNote     string
+	contextNote string
+	// keepSaved: a failed or unavailable interpretation leaves the saved
+	// report on disk, as when the overview of an analyzed project is written
+	// again.
+	keepSaved       bool
 	llm             projectAnalysisClient
 	model           string
 	profile         string
@@ -87,6 +91,14 @@ func (a *Analyzer) WithContextNote(note string) *Analyzer {
 	return a
 }
 
+// KeepingSavedOnFailure makes a failed interpretation leave the saved report
+// as it is: writing the overview again must not trade a good one for a
+// failure that a restart would then show.
+func (a *Analyzer) KeepingSavedOnFailure() *Analyzer {
+	a.keepSaved = true
+	return a
+}
+
 func (a *Analyzer) AnalyzeSnapshot(ctx context.Context, analysis *Analysis) (*Analysis, error) {
 	if err := validateAnalysisSnapshot(analysis); err != nil {
 		return nil, err
@@ -103,35 +115,9 @@ func (a *Analyzer) AnalyzeSnapshot(ctx context.Context, analysis *Analysis) (*An
 	if a.contextNote != "" {
 		contextText = a.contextNote + "\n\n" + contextText
 	}
-	report := newProjectAnalysisReportWithProvenance(analysis.ProjectID, analysis.ProjectRevision, a.model, a.profile, a.scope, a.providerOrigin, a.reasoningEffort)
-	if a.llm == nil {
-		report.Status = ProjectAnalysisStatusUnavailable
-		report.Failure = "AI analysis is unavailable because no LLM client is configured."
-	} else {
-		response, chatErr := a.llm.ChatWithJSONSchema(ctx, projectAnalysisMessages(contextText), projectAnalysisResponseSchema())
-		if errors.Is(chatErr, ErrAnalysisPublicationBlocked) {
-			return nil, chatErr
-		}
-		if failure := projectAnalysisResponseFailure(ctx, response, chatErr); failure != "" {
-			report.Status = ProjectAnalysisStatusFailed
-			report.Failure = failure + " The factual project inventory below is still valid."
-		} else {
-			parsed, parseErr := parseProjectAnalysisResponse(response.Choices[0].Message.Content)
-			if parseErr != nil {
-				report.Status = ProjectAnalysisStatusFailed
-				report.Failure = "AI analysis returned an unusable structured report. The factual project inventory below is still valid."
-			} else {
-				report.Purpose = parsed.Purpose
-				report.Architecture = parsed.Architecture
-				report.Components = parsed.Components
-				report.Walkthroughs = checkWalkthroughs(analysis.Path, analysis.Files, parsed.Walkthroughs)
-				report.Risks = parsed.Risks
-				report.EngineeringInsight = CloneEngineeringInsight(parsed.EngineeringInsight)
-				if response.Model != "" {
-					report.Model = response.Model
-				}
-			}
-		}
+	report, err := a.interpret(ctx, analysis, contextText)
+	if err != nil {
+		return nil, err
 	}
 	analysis.Report = report
 	analysis.AIStatus = report.Status
@@ -147,10 +133,50 @@ func (a *Analyzer) AnalyzeSnapshot(ctx context.Context, analysis *Analysis) (*An
 	if currentPolicy.Version() != policy.Version() {
 		return nil, ErrRevisionConflict
 	}
+	if a.keepSaved && report.Status != ProjectAnalysisStatusFresh {
+		return analysis, nil
+	}
 	if err := StoreProjectAnalysisReport(analysis.Path, report); err != nil {
 		return nil, err
 	}
 	return analysis, nil
+}
+
+// interpret asks the model for the overview of a snapshot. A failed or
+// unusable reply is a report with its failure; only a blocked publication is
+// an error.
+func (a *Analyzer) interpret(ctx context.Context, analysis *Analysis, contextText string) (ProjectAnalysisReport, error) {
+	report := newProjectAnalysisReportWithProvenance(analysis.ProjectID, analysis.ProjectRevision, a.model, a.profile, a.scope, a.providerOrigin, a.reasoningEffort)
+	if a.llm == nil {
+		report.Status = ProjectAnalysisStatusUnavailable
+		report.Failure = "AI analysis is unavailable because no LLM client is configured."
+		return report, nil
+	}
+	response, chatErr := a.llm.ChatWithJSONSchema(ctx, projectAnalysisMessages(contextText), projectAnalysisResponseSchema())
+	if errors.Is(chatErr, ErrAnalysisPublicationBlocked) {
+		return report, chatErr
+	}
+	if failure := projectAnalysisResponseFailure(ctx, response, chatErr); failure != "" {
+		report.Status = ProjectAnalysisStatusFailed
+		report.Failure = failure + " The factual project inventory below is still valid."
+		return report, nil
+	}
+	parsed, parseErr := parseProjectAnalysisResponse(response.Choices[0].Message.Content)
+	if parseErr != nil {
+		report.Status = ProjectAnalysisStatusFailed
+		report.Failure = "AI analysis returned an unusable structured report. The factual project inventory below is still valid."
+		return report, nil
+	}
+	report.Purpose = parsed.Purpose
+	report.Architecture = parsed.Architecture
+	report.Components = parsed.Components
+	report.Walkthroughs = checkWalkthroughs(analysis.Path, analysis.Files, parsed.Walkthroughs)
+	report.Risks = parsed.Risks
+	report.EngineeringInsight = CloneEngineeringInsight(parsed.EngineeringInsight)
+	if response.Model != "" {
+		report.Model = response.Model
+	}
+	return report, nil
 }
 
 func projectAnalysisResponseFailure(ctx context.Context, response *llm.ChatResponse, err error) string {

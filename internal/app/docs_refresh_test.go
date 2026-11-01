@@ -24,6 +24,8 @@ type docsModel struct {
 	summaries map[string]int
 	overviews int
 	other     int
+	// overviewFails makes the overview requests fail.
+	overviewFails bool
 }
 
 var componentLine = regexp.MustCompile(`(?m)^Component: (\S+)`)
@@ -52,6 +54,10 @@ func newDocsModelServer(t *testing.T) (*httptest.Server, *docsModel) {
 			content = `{"summary":"Summary of ` + match[1] + `.","responsibilities":["Owns ` + match[1] + `","b","c","d","e"]}`
 		case "project_analysis_response":
 			model.overviews++
+			if model.overviewFails {
+				http.Error(w, "model unavailable", http.StatusInternalServerError)
+				return
+			}
 			context := request.Messages[1].Content
 			if !strings.Contains(context, "Component summaries") || !strings.Contains(context, "Files and what each does") {
 				http.Error(w, "the overview did not read the component and file summaries", http.StatusBadRequest)
@@ -226,6 +232,33 @@ func TestDocsRefreshRollsFileSummariesUpAndRewritesOnlyWhatChanged(t *testing.T)
 	summaries, overviews := model.counts()
 	if summaries["store"] != 2 || summaries["model"] != 1 || overviews != 3 || model.other != 0 {
 		t.Fatalf("model calls: summaries %v, overviews %d, other %d", summaries, overviews, model.other)
+	}
+}
+
+func TestAFailedOverviewRewriteKeepsTheSavedOverview(t *testing.T) {
+	server, model := newDocsModelServer(t)
+	s, root := newSemanticAnalysisService(t, server.URL, 0)
+	writeDocsFixture(t, root)
+	storeFileSummaries(t, s, root, "store/store.go", "model/model.go")
+	if refresh := refreshDocsAndWait(t, s, docsRequest(t, s, false)); refresh.Overview != "written" {
+		t.Fatalf("first refresh = %+v", refresh)
+	}
+	model.mu.Lock()
+	model.overviewFails = true
+	model.mu.Unlock()
+	if refresh := refreshDocsAndWait(t, s, docsRequest(t, s, false)); refresh.Status != "failed" || refresh.Overview != "failed" || refresh.Reason == "" {
+		t.Fatalf("failed refresh = %+v", refresh)
+	}
+	analysis, err := s.manager.Analysis()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved, err := project.LoadProjectAnalysisReport(root, project.ProjectAnalysisInput{ProjectID: analysis.ProjectID})
+	if err != nil || saved == nil || saved.Purpose != "Keeps items." || saved.Failure != "" || len(saved.Walkthroughs) != 1 {
+		t.Fatalf("saved overview after a failed rewrite = %+v, %v", saved, err)
+	}
+	if overview, err := s.ProjectOverview(); err != nil || overview.Docs.Overview.Purpose != "Keeps items." {
+		t.Fatalf("docs after a failed rewrite = %+v, %v", overview, err)
 	}
 }
 

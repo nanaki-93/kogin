@@ -144,9 +144,12 @@ schema and refuse it whole, so the prompt (`project-analysis-v7`) asks for
 short text and the daemon trims longer walkthroughs instead of failing the
 overview. Provider rejection of the structured request does not trigger a
 fallback to unconstrained chat. Truncated or refused replies cannot become
-fresh reports, even when their content parses as JSON. Failed descriptions
-retain the factual inventory and persist a source-free failure reason; restore
-reads that outcome without contacting the provider.
+fresh reports, even when their content parses as JSON. A failed import
+retains the factual inventory and persists a source-free failure reason; restore
+reads that outcome without contacting the provider. When the overview is written
+again (Refresh docs, the end of an analysis run) and the model fails, the saved
+overview stays as it was, in memory and on disk, and `docs_refresh` / `run.docs`
+report the failure.
 
 File explanation requests bind `project_id`, `project_revision`, `base_file_hash`, and `target_path`. The target must resolve to an eligible indexed Go file. A non-loopback HTTP or CLI Code provider also requires `confirm_remote_provider: true` on that request. The daemon rechecks the project and file identity after provider work before returning the bounded explanation, source line anchor, optional engineering insight, and `ContextManifest` provenance.
 

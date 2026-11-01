@@ -276,6 +276,8 @@ func (s *Service) writeModuleSummary(ctx context.Context, runtime modelRuntime, 
 
 // writeOverview writes the project overview again, reading the note (the
 // components' and files' summaries) first, and makes it the active project's.
+// When the model fails, the saved overview stays, in memory and on disk; the
+// refresh reports the failure.
 func (s *Service) writeOverview(ctx context.Context, root string, runtime modelRuntime, note, projectID string) error {
 	timed, cancel := context.WithTimeout(ctx, s.conf().importTimeout)
 	defer cancel()
@@ -283,7 +285,7 @@ func (s *Service) writeOverview(ctx context.Context, root string, runtime modelR
 	if err != nil {
 		return fmt.Errorf("write the overview: %w", err)
 	}
-	written, err := s.writeKnowledgeOverview(timed, snapshot, runtime, note)
+	written, err := s.writeKnowledgeOverview(timed, snapshot, runtime, note, true)
 	if err != nil {
 		return fmt.Errorf("write the overview: %w", err)
 	}
