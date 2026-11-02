@@ -41,6 +41,7 @@ type ChangeSession struct {
 	Title               string                  `json:"title"`
 	AcceptanceCriteria  []string                `json:"acceptance_criteria"`
 	FindingTargets      []project.FindingTarget `json:"finding_targets,omitempty"`
+	Issues              []ChangeIssue           `json:"issues,omitempty"`
 	Targets             []ChangeTarget          `json:"targets"`
 	Instructions        map[string]string       `json:"instructions"`
 	PolicyFingerprint   string                  `json:"policy_fingerprint"`
@@ -86,6 +87,9 @@ type ChangeCreateRequest struct {
 	Paths              []string                `json:"paths"`
 	AcceptanceCriteria []string                `json:"acceptance_criteria"`
 	FindingTargets     []project.FindingTarget `json:"finding_targets,omitempty"`
+	// Issues, for a task that fixes several linked issues, are fixed one at a
+	// time when the task has its own worktree.
+	Issues []ChangeIssue `json:"issues,omitempty"`
 }
 
 type ChangeIdentity struct {

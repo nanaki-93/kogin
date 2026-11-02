@@ -15,10 +15,11 @@ test("issues group by file, and a file's open issues are fixed in one task", asy
   await file.getByRole('button', { name: 'Fix 2 together' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByPlaceholder('What should change?')).toHaveValue('Fix 2 issues in internal/api/handlers/change_handler.go');
+  await expect(dialog.getByRole('note')).toHaveText('Agents fix these 2 issues one at a time, with a commit for each; one they cannot fix is left out and opens again.');
   await dialog.getByRole('button', { name: 'Save draft' }).click();
   await expect(page.getByText('Draft saved.')).toBeVisible();
   expect(daemon.requests.filter(request => request.path === '/api/projects/current/findings/task')).toHaveLength(1);
-  expect(daemon.mutations('/changes')[0].body).toMatchObject({ finding_targets: [{ id: 'f1' }, { id: 'f4' }] });
+  expect(daemon.mutations('/changes')[0].body).toMatchObject({ finding_targets: [{ id: 'f1' }, { id: 'f4' }], issues: [{ finding_id: 'f1', path: 'internal/api/handlers/change_handler.go' }, { finding_id: 'f4' }] });
 
   await page.goto('/#/issues');
   await page.getByRole('radiogroup', { name: 'Group issues' }).getByRole('radio', { name: 'By severity' }).click();

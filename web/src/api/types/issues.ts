@@ -10,6 +10,23 @@ export interface IssueTaskDraft {
   paths: string[];
   acceptance_criteria: string[];
   finding_targets?: FindingTarget[];
+  /** For several issues: each one, fixed in a step of its own in the task's worktree. */
+  issues?: TaskIssue[];
+}
+
+/** An issue a task fixes in its own step, with that step's progress. */
+export interface TaskIssue {
+  finding_id: string;
+  path: string;
+  title: string;
+  detail: string;
+  criteria?: string[];
+  /** pending, fixing, fixed or not_fixed; absent on a draft. */
+  status?: string;
+  /** Why it was not fixed. */
+  reason?: string;
+  /** The commit of its fix. */
+  commit?: string;
 }
 
 export interface FindingTarget {

@@ -2,7 +2,7 @@
 // apply it, with the review gate tracking each step.
 
 import { expect, test } from './support/daemon';
-import { agentSettings, pausedTask, rejectedTask } from './support/fixtures';
+import { agentSettings, pausedTask, rejectedTask, reviewTask } from './support/fixtures';
 
 test('reviews, approves and applies a task through the gate', async ({ page, daemon }) => {
   await page.goto('/#/tasks/chg-1');
@@ -370,4 +370,25 @@ test('a finding is a few words with a link to its line in the diff', async ({ pa
   await expect(page).toHaveURL(/#\/tasks\/chg-1\/files\?.*file=internal%2Fapi%2Fhandlers%2Fwebui\.go.*line=42/);
   const diff = page.getByRole('region', { name: /Diff of internal\/api\/handlers\/webui.go/ });
   await expect(diff.locator('tr.is-focus')).toContainText('strings.Contains(name, "/")');
+});
+
+test('a task that fixes its issues one at a time shows each step', async ({ page, daemon }) => {
+  const issue = (id: string, title: string, step: Record<string, string>) => ({ finding_id: id, path: 'internal/api/handlers/webui.go', title, detail: title, ...step });
+  daemon.sessions.set('chg-1', {
+    ...reviewTask(),
+    issues: [
+      issue('f1', 'Nested asset paths are served', { status: 'fixed', commit: '3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d' }),
+      issue('f2', 'Missing assets return 500', { status: 'not_fixed', reason: 'The coding agent changed nothing: the handler already returns 404.' }),
+      issue('f3', 'Asset reads are not cached', { status: 'pending' }),
+    ],
+  });
+  await page.goto('/#/tasks/chg-1');
+  const steps = page.getByRole('list', { name: 'Issues, one at a time' });
+  await expect(steps.getByRole('listitem')).toHaveCount(3);
+  await expect(steps.getByRole('listitem').nth(0)).toContainText('1. Nested asset paths are served');
+  await expect(steps.getByRole('listitem').nth(0)).toContainText('3c4d5e6');
+  await expect(steps.getByRole('listitem').nth(0)).toContainText('Fixed');
+  await expect(steps.getByRole('listitem').nth(1)).toContainText('Not fixed');
+  await expect(steps.getByRole('listitem').nth(1)).toContainText('The coding agent changed nothing: the handler already returns 404. It is open again in Issues.');
+  await expect(steps.getByRole('listitem').nth(2)).toContainText('Waiting');
 });

@@ -66,6 +66,9 @@ func validateStoredChange(session ChangeSession) error {
 	if err := validateChangeFindingTargets(&session); err != nil {
 		return err
 	}
+	if err := validateChangeIssues(session.Issues, session.FindingTargets); err != nil {
+		return err
+	}
 	seen, err := validateStoredTargets(session.Targets)
 	if err != nil {
 		return err

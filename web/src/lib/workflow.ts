@@ -2,7 +2,7 @@
 // request: every remote destination the run will use is listed and confirmed.
 
 import type { AgentSettings, BudgetUsage, ChangeHistoryEntry, ChangeSession, ChangeWorkflow, CostEstimate, GitWorkspace, GitWorktree, ModelsCurrent, ProjectIdentity, ReviewItem, StageTools, WorkflowPause } from '@/api/types';
-import { durationBetween, plural } from './util';
+import { durationBetween, plural, type Tone } from './util';
 import { phaseTone, type PhaseTone } from './readiness';
 
 export const STAGE_LABELS: Record<string, string> = {
@@ -386,4 +386,18 @@ export function workflowBlocker(session: { state: string; freshness: string; kin
   if (!session.worktree && !(session.targets ?? []).some(target => target.test || isTestPath(target.path))) return 'Add a test file to the scope so the testing agent can write tests.';
   if (!trusted) return 'Allow this project to run checks (Settings → Trust) so agents can verify their work.';
   return '';
+}
+
+/** How an issue's step reads on the task page. */
+export function issueStepState(status: string | undefined): { label: string; tone: PhaseTone; badge: Tone } {
+  switch (status) {
+    case 'fixing':
+      return { label: 'Fixing', tone: 'running', badge: 'info' };
+    case 'fixed':
+      return { label: 'Fixed', tone: 'passed', badge: 'success' };
+    case 'not_fixed':
+      return { label: 'Not fixed', tone: 'failed', badge: 'warning' };
+    default:
+      return { label: 'Waiting', tone: 'idle', badge: 'neutral' };
+  }
 }

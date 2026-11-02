@@ -158,7 +158,7 @@ func recaptureRequest(root string, session *ChangeSession) ChangeCreateRequest {
 	for _, target := range session.Targets {
 		paths = append(paths, target.Path)
 	}
-	request := ChangeCreateRequest{Kind: session.Kind, Title: session.Title, Paths: paths, AcceptanceCriteria: session.AcceptanceCriteria, FindingTargets: session.FindingTargets}
+	request := ChangeCreateRequest{Kind: session.Kind, Title: session.Title, Paths: paths, AcceptanceCriteria: session.AcceptanceCriteria, FindingTargets: session.FindingTargets, Issues: issuesForRequest(session.Issues, session.FindingTargets)}
 	if session.Plan != nil {
 		plan := cloneChangePlanInput(session.Plan.ChangePlanInput)
 		plan.ReadPaths = slices.DeleteFunc(plan.ReadPaths, func(path string) bool { return currentSource(root, path) == nil })

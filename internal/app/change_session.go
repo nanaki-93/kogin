@@ -74,6 +74,9 @@ func (s *Service) captureChangeSession(ctx context.Context, root string, index *
 	now := time.Now().UTC()
 	session := &ChangeSession{SchemaVersion: 1, ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: request.Kind, Title: strings.TrimSpace(request.Title), AcceptanceCriteria: request.AcceptanceCriteria, Targets: []ChangeTarget{}, Changes: []ChangeEdit{}, Messages: []ChangeMessage{}, Instructions: map[string]string{}, Checks: []CheckResult{}, State: "draft", Freshness: "current", PolicyFingerprint: policy.Version(), CreatedAt: now, UpdatedAt: now}
 	session.FindingTargets = append([]project.FindingTarget(nil), request.FindingTargets...)
+	if session.Issues, err = newChangeIssues(request.Issues, session.FindingTargets); err != nil {
+		return nil, err
+	}
 	if err := captureChangeScope(root, session, request.Paths); err != nil {
 		return nil, err
 	}

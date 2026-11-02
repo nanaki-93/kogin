@@ -80,7 +80,11 @@ func (s *Service) StartChangeWorkflow(ctx context.Context, id string, request Ch
 	if start != startReview {
 		delete(s.changeAuthority, session.ProjectID+"/"+id)
 	}
-	s.launchChangeWorkflow(agentCtx, release, root, id, w, request, start, retryMessage)
+	steps := 0
+	if start.firstModelStage() == 0 {
+		steps = pendingIssueSteps(session)
+	}
+	s.launchChangeWorkflow(agentCtx, release, root, id, w, request, start, retryMessage, steps)
 	return session, nil
 }
 
@@ -113,9 +117,10 @@ func workflowRequestMessage(session *ChangeSession, request ChangeWorkflowReques
 	return message, sent, err
 }
 
-// launchChangeWorkflow starts the admitted run's worker under its total deadline.
-func (s *Service) launchChangeWorkflow(agentCtx context.Context, release context.CancelFunc, root, sessionID string, w *ChangeWorkflow, request ChangeWorkflowRequest, start workflowStart, message string) {
-	budget := s.changeWorkflowTimeout(agentCtx, request.Models, start.firstModelStage(), request.AutoRepair)
+// launchChangeWorkflow starts the admitted run's worker under its total
+// deadline, which grows with the issue steps it will run.
+func (s *Service) launchChangeWorkflow(agentCtx context.Context, release context.CancelFunc, root, sessionID string, w *ChangeWorkflow, request ChangeWorkflowRequest, start workflowStart, message string, steps int) {
+	budget := s.changeWorkflowTimeout(agentCtx, request.Models, start.firstModelStage(), request.AutoRepair) + s.issueStepsBudget(agentCtx, request.Models, steps)
 	workCtx, cancelTimeout := context.WithTimeoutCause(agentCtx, budget, &workflowTimeoutError{limit: budget})
 	cancel := func() { cancelTimeout(); release() }
 	workCtx, interrupt := context.WithCancelCause(workCtx)

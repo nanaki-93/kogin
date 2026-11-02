@@ -47,6 +47,16 @@ are listed here as they land.
   issues of a file (was ten), since tasks fixing ten at once often failed or
   came back with blocking review findings. A file with more open issues offers
   **Fix 5 of N together**; the rest can be grouped once those are in progress.
+- **Issues fixed one at a time:** a **Fix N together** task in its own
+  worktree no longer fixes all its issues in one run. Each issue gets a fresh
+  coding run with only that issue (fix plus regression test), then the checks,
+  with one repair; a fixed issue becomes a commit, `fix: <issue>`. An issue it
+  cannot fix (checks still failing, nothing changed because it does not hold or
+  needs a task of its own, or out of time) is rolled back, marked **Not fixed**
+  with the reason and opens again in Issues, and the next issue starts. Testing
+  and review then run once on the whole branch; a review repair acts only on
+  the feedback. The task page lists each issue's step, and accepting keeps one
+  commit per fixed issue, so merging marks only those fixed.
 - **Fixes stay focused:** three changes for tasks that fix issues, which often
   failed or ran long without a result.
   - A fix changes code only in the folders of its issues' files and of the

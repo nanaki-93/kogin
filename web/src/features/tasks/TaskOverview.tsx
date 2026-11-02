@@ -6,7 +6,7 @@ import { Bot, CornerDownLeft, FileText, Gavel, Hourglass, ListChecks, MessageSqu
 import type { ChangeWorkflow, LoadedSession } from '@/api/types';
 import { useActions, useBusy, usePendingRevision } from '@/app/actions';
 import { openComments, proposalReadiness, workflowActive } from '@/lib/readiness';
-import { activeOverride, pauseTitle, stageStatusLabel, workflowSpecialists, workflowStages, type SpecialistView, type StageView } from '@/lib/workflow';
+import { activeOverride, issueStepState, pauseTitle, stageStatusLabel, workflowSpecialists, workflowStages, type SpecialistView, type StageView } from '@/lib/workflow';
 import { formatDuration, formatElapsed, plural, timeAgo } from '@/lib/util';
 import { costCaveat, costLabel, formatTokens, usageLabel } from '@/lib/usage';
 import { firstSentence } from '@/lib/docs';
@@ -149,6 +149,7 @@ function Stage({ stage, specialists, session }: { stage: StageView; specialists:
         </div>
         {stage.tools ? <p className="xs muted">{stage.tools}</p> : null}
         {stage.reason ? <p className="small muted">{stage.reason}</p> : null}
+        {stage.name === 'create' ? <IssueSteps session={session} /> : null}
         {specialists.length ? (
           <div className="reviewers">
             {specialists.map(sp => (
@@ -158,6 +159,37 @@ function Stage({ stage, specialists, session }: { stage: StageView; specialists:
         ) : null}
       </div>
     </li>
+  );
+}
+
+/** A task that fixes its issues one at a time: each issue's step, its commit or why it was not fixed. */
+function IssueSteps({ session }: { session: LoadedSession }) {
+  const issues = session.issues ?? [];
+  if (issues.length < 2) return null;
+  return (
+    <ol className="issue-steps" aria-label="Issues, one at a time">
+      {issues.map((issue, index) => {
+        const state = issueStepState(issue.status);
+        return (
+          <li key={issue.finding_id} className="issue-step">
+            <div className="issue-step-head">
+              <PhaseIcon tone={state.tone} size={14} label={state.label} />
+              <span className="small truncate" title={issue.title}>
+                {index + 1}. {issue.title}
+              </span>
+              <span className="spacer" />
+              {issue.commit ? (
+                <span className="xs faint mono" title={`Commit ${issue.commit}`}>
+                  {issue.commit.slice(0, 7)}
+                </span>
+              ) : null}
+              <Badge tone={state.badge}>{state.label}</Badge>
+            </div>
+            {issue.status === 'not_fixed' && issue.reason ? <p className="xs muted">{issue.reason} It is open again in Issues.</p> : null}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

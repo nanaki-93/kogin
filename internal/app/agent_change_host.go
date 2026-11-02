@@ -66,7 +66,7 @@ func (s *Service) runChangeGraphModel(ctx context.Context, job *changeWorkflowJo
 		return agentruntime.ChangeNodeResult{}, err
 	}
 	runtime := s.workflowStageRuntime(stage, job.models.selections()[stage])
-	session, err = s.runWorkflowModelStage(ctx, job, session, runtime, stage, message)
+	session, err = s.runStageOrIssueSteps(ctx, job, session, runtime, stage, message)
 	if err != nil {
 		return agentruntime.ChangeNodeResult{}, err
 	}

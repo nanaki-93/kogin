@@ -1,10 +1,19 @@
 // Pure helpers for the Issues page: grouping issues by file.
 
-import type { Finding } from '@/api/types';
+import type { Finding, FindingTarget, TaskIssue } from '@/api/types';
 import { severityRank } from './util';
 
 /** The most issues one task fixes together; the daemon refuses more. */
 export const MAX_ISSUES_PER_TASK = 5;
+
+/**
+ * The issues a new task fixes one at a time: those it still links (the
+ * composer drops a link when its file leaves the scope), when two or more remain.
+ */
+export function issueSteps(issues: TaskIssue[] | undefined, linked: FindingTarget[] | undefined): TaskIssue[] | undefined {
+  const kept = (issues ?? []).filter(issue => linked?.some(target => target.id === issue.finding_id && target.path === issue.path));
+  return kept.length > 1 ? kept : undefined;
+}
 
 export interface FileIssues {
   /** The file, or '' for issues about the whole project. */

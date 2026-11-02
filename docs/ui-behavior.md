@@ -309,7 +309,10 @@ every guard when the action arrives.
   first, a file's issues by severity and line; **By severity** lists them
   flat). A file with more than one open issue offers **Fix N together**: one
   task drafted for up to five of them, which links each, so merging it marks
-  them all fixed.
+  them all fixed. In its own worktree such a task fixes them one at a time (the
+  composer says so): the Creation stage lists each issue as Waiting, Fixing,
+  Fixed (with its commit) or Not fixed (with the reason; it is open again in
+  Issues), and accepting the task keeps one commit per fixed issue.
   Once a task links an issue, the issue leaves **Open** for **In progress**
   (with its count), where **Open task** replaces Fix with agents; it is marked
   fixed when the task is merged and returns to Open when the task is deleted or

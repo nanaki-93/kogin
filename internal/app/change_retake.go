@@ -193,6 +193,7 @@ func retakeRequest(root string, session *ChangeSession, index *project.ProjectIn
 	request := recaptureRequest(root, session)
 	request.Paths = request.Paths[:min(len(request.Paths), maxTaskPaths)]
 	request.FindingTargets = slices.DeleteFunc(slices.Clone(request.FindingTargets), func(target project.FindingTarget) bool { return !slices.Contains(request.Paths, target.Path) })
+	request.Issues = issuesForRequest(request.Issues, request.FindingTargets)
 	request.ProjectID, request.ProjectRevision = index.ProjectID, index.ProjectRevision
 	return request
 }

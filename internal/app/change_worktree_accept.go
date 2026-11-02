@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -27,13 +26,16 @@ func (s *Service) acceptWorktreeChange(ctx context.Context, root string, session
 	if err := s.verifyChangeCurrent(ctx, root, session); err != nil {
 		return nil, err
 	}
-	oid, err := commitWorktreeProposal(ctx, root, session, message)
+	oid, warning, err := commitWorktreeProposal(ctx, root, session, message)
 	if err != nil {
 		return nil, err
 	}
 	commit := &ChangeCommit{GitIdentity: GitIdentity{Head: session.Worktree.Base, Branch: session.Worktree.Branch}, State: "committed", OID: oid, Message: message}
 	session.State, session.Commit, session.UpdatedAt = "applied", commit, time.Now().UTC()
 	result := &ChangeMutationResult{SessionID: session.ID, ProjectID: session.ProjectID, ProjectRevision: session.ProjectRevision, State: session.State, Hash: session.Hash, Commit: commit, Warnings: []string{}}
+	if warning != "" {
+		result.Warnings = append(result.Warnings, warning)
+	}
 	if err := storeChangeSession(root, session); err != nil {
 		result.Warnings = append(result.Warnings, "Committed as "+oid+", but the task history could not be updated: "+err.Error())
 	}
@@ -44,41 +46,33 @@ func (s *Service) acceptWorktreeChange(ctx context.Context, root string, session
 }
 
 // commitWorktreeProposal builds the commit from the base commit and the
-// reviewed proposal in a private index, then moves the task branch from the
-// base to it only if nothing else moved it, and finally lines the worktree's
-// own index up with the new commit.
-func commitWorktreeProposal(ctx context.Context, root string, session *ChangeSession, message string) (string, error) {
-	temporary, err := os.MkdirTemp("", "kasuri-git-index-")
-	if err != nil {
-		return "", err
-	}
-	defer os.RemoveAll(temporary)
-	index := filepath.Join(temporary, "index")
+// reviewed proposal in a private index, on top of the commits of the issues
+// the task fixed one at a time (when it adds anything to them), then moves
+// the task branch from the base to it only if nothing else moved it, and
+// finally lines the worktree's own index up with the new commit.
+func commitWorktreeProposal(ctx context.Context, root string, session *ChangeSession, message string) (string, string, error) {
 	base := session.Worktree.Base
-	if _, err := gitCommand(ctx, root, index, nil, "read-tree", base); err != nil {
-		return "", err
+	tree, err := worktreeProposalTree(ctx, root, session)
+	if err != nil {
+		return "", "", err
 	}
-	for _, edit := range session.Changes {
-		if err := stageWorktreeEdit(ctx, root, index, session, edit); err != nil {
-			return "", err
+	parent, warning := acceptParent(ctx, root, session)
+	oid := parent
+	if parent == base || !sameTree(ctx, root, parent, tree) {
+		created, err := gitCommand(ctx, root, "", strings.NewReader(message+"\n"), "commit-tree", tree, "-p", parent)
+		if err != nil {
+			return "", "", err
 		}
+		oid = strings.TrimSpace(created)
 	}
-	tree, err := gitCommand(ctx, root, index, nil, "write-tree")
-	if err != nil {
-		return "", err
-	}
-	oid, err := gitCommand(ctx, root, "", strings.NewReader(message+"\n"), "commit-tree", strings.TrimSpace(tree), "-p", base)
-	if err != nil {
-		return "", err
-	}
-	oid = strings.TrimSpace(oid)
 	if _, err := gitRead(ctx, root, "update-ref", "-m", "kasuri: "+strings.Split(message, "\n")[0], "refs/heads/"+session.Worktree.Branch, oid, base); err != nil {
-		return "", fmt.Errorf("%w: the task branch moved while it was accepted: %v", project.ErrRevisionConflict, err)
+		return "", "", fmt.Errorf("%w: the task branch moved while it was accepted: %v", project.ErrRevisionConflict, err)
 	}
+	dropIssueStepsRef(ctx, root, session)
 	if _, err := gitRead(ctx, root, "reset", "--quiet"); err != nil {
-		return oid, fmt.Errorf("committed as %s; refresh the worktree's staging area with git reset: %w", oid, err)
+		return oid, warning, fmt.Errorf("committed as %s; refresh the worktree's staging area with git reset: %w", oid, err)
 	}
-	return oid, nil
+	return oid, warning, nil
 }
 
 func stageWorktreeEdit(ctx context.Context, root, index string, session *ChangeSession, edit ChangeEdit) error {

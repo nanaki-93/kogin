@@ -17,7 +17,7 @@ export function issueActions(context: ActionContext) {
     if (!project) return;
     try {
       const draft = await api.get<IssueTaskDraft>(withWorktree(`/api/projects/current/findings/${encodeURIComponent(finding.id)}/task` + query({ project_revision: project.project_revision }), worktreePath));
-      openNewTask({ findingTargets: draft.finding_targets?.length ? draft.finding_targets : undefined, title: draft.title, kind: draft.kind, description: draft.description, paths: draft.paths, criteria: draft.acceptance_criteria });
+      openNewTask({ findingTargets: draft.finding_targets?.length ? draft.finding_targets : undefined, issues: draft.issues?.length ? draft.issues : undefined, title: draft.title, kind: draft.kind, description: draft.description, paths: draft.paths, criteria: draft.acceptance_criteria });
     } catch (err) {
       fail('Could not draft a task for this issue', err);
     }
@@ -25,8 +25,8 @@ export function issueActions(context: ActionContext) {
 
   /**
    * Opens the composer with one task the daemon drafts for several open
-   * issues of a file: each issue in the description, their criteria, and
-   * links to all of them.
+   * issues of a file: each issue in the description and as a step of its own
+   * (its worktree fixes them one at a time), their criteria, and links to all.
    */
   async function fixIssues(project: Project | undefined, worktreePath: string, findings: Finding[]) {
     if (!project || !findings.length) return;
@@ -35,7 +35,7 @@ export function issueActions(context: ActionContext) {
     params.set('project_revision', project.project_revision);
     try {
       const draft = await api.get<IssueTaskDraft>(withWorktree(`/api/projects/current/findings/task?${params}`, worktreePath));
-      openNewTask({ findingTargets: draft.finding_targets?.length ? draft.finding_targets : undefined, title: draft.title, kind: draft.kind, description: draft.description, paths: draft.paths, criteria: draft.acceptance_criteria });
+      openNewTask({ findingTargets: draft.finding_targets?.length ? draft.finding_targets : undefined, issues: draft.issues?.length ? draft.issues : undefined, title: draft.title, kind: draft.kind, description: draft.description, paths: draft.paths, criteria: draft.acceptance_criteria });
     } catch (err) {
       fail('Could not draft a task for these issues', err);
     }

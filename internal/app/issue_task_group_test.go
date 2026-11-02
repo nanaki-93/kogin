@@ -33,6 +33,13 @@ func TestSeveralIssuesOfAFileDraftOneTaskThatLinksThemAll(t *testing.T) {
 	if len(task.FindingTargets) != 2 || task.FindingTargets[0].ID != "a" || task.FindingTargets[1].ID != "b" {
 		t.Fatalf("targets = %+v", task.FindingTargets)
 	}
+	// Each issue is a step of its own: where it is, what is wrong, its evidence and criteria.
+	if len(task.Issues) != 2 || task.Issues[0].FindingID != "a" || task.Issues[1].Title != "Issue b" || task.Issues[1].Detail != "(line 140, in fnb)\nWhat b gets wrong.\nEvidence:\nRemediation: Write the vault first." || !slices.Equal(task.Issues[1].Criteria, []string{"The vault is written before the key file is removed"}) {
+		t.Fatalf("issues = %+v", task.Issues)
+	}
+	if _, err := newChangeIssues(task.Issues, task.FindingTargets); err != nil {
+		t.Fatalf("the drafted issues are refused: %v", err)
+	}
 	// Shared criteria appear once.
 	if !slices.Contains(task.AcceptanceCriteria, "The vault is written before the key file is removed") || strings.Count(strings.Join(task.AcceptanceCriteria, "\n"), "Add a regression test that fails before the fix") != 1 {
 		t.Fatalf("criteria = %q", task.AcceptanceCriteria)

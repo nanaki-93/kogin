@@ -87,7 +87,7 @@ untrusted networks.
 | GET | `/api/projects/current/rules` | Test file patterns (conventions plus AGENTS.md `test_files`), the indexed AGENTS.md files and any rules block that could not be read. |
 | PATCH | `/api/projects/current/findings/{findingID}` | Record an explicit user triage status for one finding. |
 | GET | `/api/projects/current/findings/{findingID}/task` | Draft the task that fixes one issue for the composer: kind, title, description, the file and its conventional test in any language, criteria and the linked finding. Nothing is saved. |
-| GET | `/api/projects/current/findings/task` | Draft one task that fixes several open issues of one file (`id` repeated, one to five): the file and its conventional test, every issue in line order with its line, function, message and evidence, their criteria once each, and links to all of them. 400 when the issues are not all open or not in one file; 409 when one is no longer listed. Nothing is saved. |
+| GET | `/api/projects/current/findings/task` | Draft one task that fixes several open issues of one file (`id` repeated, one to five): the file and its conventional test, every issue in line order with its line, function, message and evidence, their criteria once each, links to all of them, and each as one of `issues` (fixed one at a time in the task's worktree). 400 when the issues are not all open or not in one file; 409 when one is no longer listed. Nothing is saved. |
 | GET | `/api/projects/current/events` | Stream Server-Sent Events (SSE) when analysis runs, scans, reindexing or change workflows change state; workflow events name the task, stage and status and carry the run's usage and estimated cost. |
 | GET | `/api/projects/current/quarantine` | List records set aside because they were unreadable, and records skipped because a newer Kasuri wrote them, with the remedy. |
 | POST | `/api/projects/current/quarantine/delete` | Delete a set-aside file (`quarantined_as` as listed, with the project identity) and its record; answers with the records left. 404 when the file is not listed as set aside. |
@@ -127,7 +127,7 @@ untrusted networks.
 | POST | `/api/projects/current/changes/{sessionID}/comments/delete` | Delete an open line comment. |
 | POST | `/api/projects/current/changes/{sessionID}/review` | Record diff review for the current checked hash. |
 | POST | `/api/projects/current/changes/{sessionID}/review-override` | Override the model reviewers' rejection of the current checked hash with a reason; approves nothing. |
-| POST | `/api/projects/current/changes/{sessionID}/apply` | Explicitly apply the current reviewed proposal with grouped recovery; for a task that owns its worktree, accept it as a commit on its branch (no Undo). |
+| POST | `/api/projects/current/changes/{sessionID}/apply` | Explicitly apply the current reviewed proposal with grouped recovery; for a task that owns its worktree, accept it as a commit on its branch (after the commits of the issues it fixed one at a time; no Undo). |
 | POST | `/api/projects/current/changes/{sessionID}/delete` | Delete a task that is not running and whose Apply cannot be undone; stale tasks included. Publishes a `workflow` event with status `deleted`. |
 | POST | `/api/projects/current/changes/{sessionID}/reanalyze` | Re-check an out-of-date task's issue against the current files: still valid captures it again, not valid deletes it and dismisses its linked issues. |
 | POST | `/api/projects/current/changes/{sessionID}/retake` | Re-check the issue of a task in its own worktree whose files the main branch changed against the main branch: still valid opens it again in a new worktree from there, not valid dismisses its linked issues; the old task is deleted either way. |
@@ -956,6 +956,35 @@ remains in private completion sessions. Each node start is persisted before its
 host operation, with no SDK-owned node retry. Cancellation, invalid predecessor
 identity or journal failure stops successor nodes. Restored graph events cannot
 authorize or replay source mutations.
+
+A task that fixes several linked issues carries them as `issues` (two to five,
+each naming one of its `finding_targets`, with `title`, `detail` and `criteria`;
+`GET findings/task` drafts them). When the task owns its worktree, the create
+stage fixes them one at a time, in order, instead of in one run. Each issue gets
+a fresh coding run that reads only that issue (its title, detail and criteria,
+without the brief that lists them all) and is asked for the fix and a
+regression test; the checks then run on the proposal. When they fail, one more
+run gets the failures; when they still fail, or the agent changed nothing (the
+issue did not hold, or needs a task of its own), or the run ran past one
+creation run's time limit, the step is rolled back: the proposal returns to what
+it was before the step, the issue becomes `not_fixed` with its `reason`, and its
+finding target is dropped, so the issue is open again. A fixed issue becomes a
+commit (`fix: <issue>`) of the proposal at that point, chained from the
+worktree's base under `refs/kasuri/tasks/<task id>`; the worktree itself stays on
+its base, and `issues[].status` moves through `pending`, `fixing`, `fixed` and
+`not_fixed`, each move published as a workflow event of the create stage. Checks
+that cannot pass for any fix (failures from before the change, or checks that
+did not complete) stop the run, and its unfinished issue is tried again by the
+next run; so is an issue whose step a model, provider or identity error
+stopped. When no issue could be fixed, the run fails. Otherwise testing, checks
+and review cover the whole proposal, as for any task, and a repair after them is
+one coding run that reads only the review or check feedback and the issues'
+outcomes. The run's time budget grows by two coding runs and two check passes
+per issue. Accepting the task commits the reviewed proposal on top of the last
+fixed issue's commit (no extra commit when it adds nothing to it) and moves the
+branch there, so the branch holds one commit per fixed issue; the private ref is
+then removed, as it is when the task is deleted. Should the issue commits be
+gone, the task is committed as one commit on its base, with a warning.
 
 Review fans out to correctness and test-quality specialists, plus architecture
 for Go or multiple source files. Security tasks add a security specialist only

@@ -65,6 +65,9 @@ func (s *Service) removeChangeLocked(root string, session *ChangeSession) error 
 	if err := os.Remove(path); err != nil {
 		return fmt.Errorf("delete task: %w", err)
 	}
+	if ownsWorktree(session) {
+		dropIssueStepsRef(context.Background(), root, session)
+	}
 	delete(s.changeAuthority, session.ProjectID+"/"+session.ID)
 	s.publishEvent(Event{Kind: "workflow", SessionID: session.ID, Title: session.Title, Status: "deleted"})
 	return nil

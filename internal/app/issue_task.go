@@ -21,6 +21,9 @@ type IssueTask struct {
 	Paths              []string                `json:"paths"`
 	AcceptanceCriteria []string                `json:"acceptance_criteria"`
 	FindingTargets     []project.FindingTarget `json:"finding_targets,omitempty"`
+	// Issues lists the linked issues of a task for several issues, which its
+	// own worktree fixes one at a time.
+	Issues []ChangeIssue `json:"issues,omitempty"`
 }
 
 // DraftIssueTask turns an issue into a task: its file and that file's

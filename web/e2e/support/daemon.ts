@@ -380,6 +380,7 @@ export class FakeDaemon {
       paths: file.endsWith('.go') ? [file, file.replace(/\.go$/, '_test.go')] : [file],
       acceptance_criteria: [...issues.map(f => `Resolve “${f.title}” without breaking existing callers`), 'Add a regression test that fails before the fix'],
       finding_targets: issues.map(f => ({ project_id: f.project_id, kind: 'semantic', id: f.id, path: file })),
+      issues: issues.map(f => ({ finding_id: f.id, path: file, title: f.title, detail: `(line ${f.location?.start_line})\n${f.message}`, criteria: [`Resolve “${f.title}” without breaking existing callers`] })),
     };
   }
 
@@ -465,6 +466,7 @@ export class FakeDaemon {
       acceptance_criteria: (body.acceptance_criteria as string[] | undefined) ?? [],
       targets: paths.map(path => ({ path, hash: '', exists: data.indexedPaths.includes(path) })),
       finding_targets: body.finding_targets as ChangeSession['finding_targets'],
+      issues: (body.issues as ChangeSession['issues'])?.map(issue => ({ ...issue, status: 'pending' })),
       changes: [],
       messages: [],
       checks: [],

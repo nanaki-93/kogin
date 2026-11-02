@@ -267,3 +267,27 @@ func TestQuarantineDeleteHTTP(t *testing.T) {
 		t.Fatalf("set-aside file kept: %v", err)
 	}
 }
+
+func TestChangeHTTPKeepsTheIssuesATaskFixesOneAtATime(t *testing.T) {
+	h := newChangeHandlerFixture(t, "http://127.0.0.1:1")
+	index, _ := h.manager.Index()
+	targets := []project.FindingTarget{{ProjectID: index.ProjectID, Kind: "semantic", ID: "finding:a", Path: "main.go"}, {ProjectID: index.ProjectID, Kind: "semantic", ID: "finding:b", Path: "main.go"}}
+	issues := []app.ChangeIssue{{FindingID: "finding:a", Path: "main.go", Title: "Run ignores errors", Detail: "line 3"}, {FindingID: "finding:b", Path: "main.go", Title: "Run never logs"}}
+	request := app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "fix", Title: "Fix 2 issues in main.go", Paths: []string{"main.go"}, FindingTargets: targets, Issues: issues}
+	response := workflowResponse(t, h.Open, "POST", "/changes", "", request)
+	var session app.ChangeSession
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &session) != nil || len(session.Issues) != 2 || session.Issues[0].Status != app.IssuePending || session.Issues[1].Title != "Run never logs" {
+		t.Fatalf("open: %d %s", response.Code, response.Body)
+	}
+	unlinked := request
+	unlinked.Issues = []app.ChangeIssue{issues[0], {FindingID: "finding:c", Path: "main.go", Title: "Not linked"}}
+	started := request
+	started.Issues = []app.ChangeIssue{issues[0], {FindingID: "finding:b", Path: "main.go", Title: "Run never logs", Status: app.IssueFixed}}
+	for name, invalid := range map[string]app.ChangeCreateRequest{"an unlinked issue": unlinked, "an issue with progress": started} {
+		if response := workflowResponse(t, h.Open, "POST", "/changes", "", invalid); response.Code != http.StatusBadRequest {
+			t.Fatalf("%s: %d %s", name, response.Code, response.Body)
+		} else {
+			assertStructuredError(t, response)
+		}
+	}
+}

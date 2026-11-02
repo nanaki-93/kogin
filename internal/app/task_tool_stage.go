@@ -208,7 +208,10 @@ func (s *Service) storeToolProposal(ctx context.Context, root string, session *C
 		if finish := run.finished(); finish != nil && strings.TrimSpace(finish.Summary) != "" {
 			err = fmt.Errorf("%w; the agent said: %s", err, clip(strings.TrimSpace(finish.Summary), 600))
 		}
-		return nil, errors.Join(err, s.restoreStoredProposalLocked(context.WithoutCancel(ctx), root, current))
+		if restoreErr := s.restoreStoredProposalLocked(context.WithoutCancel(ctx), root, current); restoreErr != nil {
+			return nil, errors.Join(err, restoreErr)
+		}
+		return nil, &agentOutcomeError{err: err}
 	}
 	if err := ensureWorktreeTargets(ctx, root, current, edits); err != nil {
 		return nil, err

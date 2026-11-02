@@ -1,6 +1,6 @@
 // Tasks: their proposals, diffs, checks, comments, plans and history.
 
-import type { FindingTarget } from './issues';
+import type { FindingTarget, TaskIssue } from './issues';
 import type { GitIdentity, ProjectIdentity } from './project';
 import type { ChangeWorkflow } from './workflow';
 
@@ -135,6 +135,8 @@ export interface ChangeSession extends ProjectIdentity {
   workflow?: ChangeWorkflow;
   plan?: ChangePlan;
   finding_targets?: FindingTarget[];
+  /** The issues it fixes one at a time, each with its step's progress. */
+  issues?: TaskIssue[];
   git?: GitIdentity;
   commit?: ChangeCommit;
   worktree_path?: string;

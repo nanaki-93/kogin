@@ -13,6 +13,7 @@ import { companionTestPath, dirname, basename, isTestPath, newFilePath, plural, 
 import { Button, Highlight, Kbd, Segmented, Textarea, Tip, cx } from '@/components/ui';
 import { FileIcon, KINDS } from '@/components/domain';
 import { composerStartBlocker, ownWorktreeBlocker } from '@/lib/workflow';
+import { issueSteps } from '@/lib/issues';
 
 export const MAX_TASK_PATHS = 8;
 
@@ -50,6 +51,7 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
   const ownWorktree = !worktreePath && !worktreeBlocker && draft.worktree;
   // Why Start agents is unavailable, shown beside it rather than a silent disabled button.
   const startBlocker = composerStartBlocker(draft.paths, ownWorktree, Boolean(trust?.trusted), isTestPath);
+  const steps = issueSteps(draft.issues, draft.findingTargets?.filter(target => draft.paths.includes(target.path)));
 
   useEffect(() => titleRef.current?.focus(), []);
 
@@ -114,6 +116,11 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
         </div>
         <ScopePicker files={files.map(f => f.path)} selected={draft.paths} known={known} onAdd={addPath} onRemove={path => update({ paths: draft.paths.filter(p => p !== path) })} />
         <CriteriaEditor criteria={draft.criteria} onChange={criteria => update({ criteria })} />
+        {steps ? (
+          <p className="xs muted" role="note">
+            {ownWorktree ? `Agents fix these ${steps.length} issues one at a time, with a commit for each; one they cannot fix is left out and opens again.` : `Agents fix these ${steps.length} issues one at a time only in a worktree of its own; here they fix them together.`}
+          </p>
+        ) : null}
         {error ? (
           <div className="composer-error" role="alert">
             {error}

@@ -23,7 +23,10 @@ func workflowStageLabel(stage string) string {
 func workflowFailure(err error, checks []CheckResult) (string, string) {
 	var timeout *workflowTimeoutError
 	var stopped *workflowStopCause
+	var steps *issueStepsFailedError
 	switch {
+	case errors.As(err, &steps):
+		return "failed", steps.Error()
 	case errors.As(err, &stopped):
 		return "canceled", "Stopped because " + stopped.reason + ". No source was applied; run the task again to continue."
 	case errors.Is(err, context.Canceled):

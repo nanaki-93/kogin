@@ -9,6 +9,7 @@ import (
 
 	"github.com/nanaki-93/kasuri/v2/internal/project"
 	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
+	"github.com/nanaki-93/kasuri/v2/internal/textutil"
 )
 
 const (
@@ -96,7 +97,11 @@ func issuesTask(root string, findings []project.UnifiedFinding) *IssueTask {
 		description.WriteString("\n")
 		if finding.ProjectID != "" {
 			task.FindingTargets = append(task.FindingTargets, project.FindingTarget{ProjectID: finding.ProjectID, Kind: "semantic", ID: finding.ID, Path: file})
+			task.Issues = append(task.Issues, issueStep(finding, file))
 		}
+	}
+	if len(task.Issues) < 2 {
+		task.Issues = nil
 	}
 	task.Description = strings.TrimRight(description.String(), "\n")
 	for _, finding := range findings {
@@ -146,4 +151,24 @@ func groupKind(findings []project.UnifiedFinding) string {
 		kind = next
 	}
 	return kind
+}
+
+// issueStep is an issue as its own step reads it: what is wrong and where,
+// its evidence, and its criteria.
+func issueStep(finding project.UnifiedFinding, file string) ChangeIssue {
+	detail := strings.TrimSpace(strings.TrimPrefix(issuePlace(finding.Location), " ") + "\n" + finding.Message)
+	if finding.Evidence != "" {
+		detail += "\nEvidence:\n" + finding.Evidence
+	}
+	var criteria []string
+	for _, criterion := range issueCriteria(finding, file) {
+		if criterion = strings.TrimSpace(criterion); criterion != "" && len(criteria) < 16 {
+			criteria = append(criteria, textutil.Truncate(criterion, 1024))
+		}
+	}
+	title := issueTitle("", finding.Title)
+	if title == "" {
+		title = "Issue in " + file + issuePlace(finding.Location)
+	}
+	return ChangeIssue{FindingID: finding.ID, Path: file, Title: textutil.Truncate(title, maxIssueTitleBytes), Detail: textutil.Truncate(detail, maxIssueDetailBytes), Criteria: criteria}
 }

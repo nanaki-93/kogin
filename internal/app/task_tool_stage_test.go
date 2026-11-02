@@ -59,6 +59,12 @@ type toolFlow struct {
 // configure may give the stages other models.
 func startToolFlow(t *testing.T, coder, tester []fakePiStep, configure func(*config.Config)) *toolFlow {
 	t.Helper()
+	return startToolFlowWith(t, coder, tester, configure, nil)
+}
+
+// startToolFlowWith is startToolFlow for a task request that edit adjusts.
+func startToolFlowWith(t *testing.T, coder, tester []fakePiStep, configure func(*config.Config), edit func(*ChangeOpenRequest)) *toolFlow {
+	t.Helper()
 	dir := t.TempDir()
 	for role, steps := range map[string][]fakePiStep{"coder": coder, "tester": tester} {
 		data, _ := json.Marshal(steps)
@@ -91,6 +97,9 @@ func startToolFlow(t *testing.T, coder, tester []fakePiStep, configure func(*con
 	trustedGitRequest(t, configured)
 	request := worktreeTaskRequest(t, configured, "main.go", "calc.go")
 	request.Kind, request.Title, request.AcceptanceCriteria = "feature", "Add Sub", []string{"Sub returns a minus b.", "Sub is tested."}
+	if edit != nil {
+		edit(&request)
+	}
 	opened, err := configured.OpenChangeInWorktree(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)

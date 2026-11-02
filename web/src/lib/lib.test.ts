@@ -4,13 +4,14 @@ import { ancestors, buildTree, visibleRows } from './tree';
 import { buildHash, parseHash } from './router';
 import { escapeHtml, highlightLines } from './highlight';
 import { companionTestPath, formatElapsed, isTestPath, newFilePath, timeAgo } from './util';
-import { changeOverlaps, composerStartBlocker, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stageToolsLabel, taskFixingIssue, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeDiscardable, worktreeRemovable, worktreeTasks } from './workflow';
+import { changeOverlaps, composerStartBlocker, issueStepState, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stageToolsLabel, taskFixingIssue, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeDiscardable, worktreeRemovable, worktreeTasks } from './workflow';
 import type { ChangeHistoryEntry, Finding, GitWorkspace, GitWorktree } from '@/api/types';
 import { isInProgressFinding, isOpenFinding, isUnresolvedFinding } from '@/components/domain';
 import { limitErrors, modelLocation, roleModelOptions, selectedModel } from './agentSettings';
 import { applyEvent, finishedRun, parseFrames } from '@/api/events';
 import { QueryClient } from '@tanstack/react-query';
 import { costCaveat, costLabel, formatTokens, usageLabel } from './usage';
+import { issueSteps } from './issues';
 import { ApiError, createApi, documentWriteToken, errorMessage, query, withWorktree } from '@/api/client';
 
 describe('fuzzy', () => {
@@ -365,5 +366,21 @@ describe('agent settings', () => {
     expect(choice.selections).toEqual({ create: 'bug', test: 'code', review: 'agy:gemini-3.8-pro' });
     expect(choice.confirmed).toEqual(['agy:gemini-3.8-pro']);
     expect(choice.destinations).toEqual([{ stage: 'review', selection: 'agy:gemini-3.8-pro', model: 'gemini-3.8-pro', origin: 'cli://agy' }]);
+  });
+});
+
+describe('issues fixed one at a time', () => {
+  const issue = (id: string) => ({ finding_id: id, path: 'a.go', title: id, detail: id });
+  const target = (id: string, path = 'a.go') => ({ project_id: 'p', kind: 'semantic', id, path });
+  it('sends the linked issues when two or more remain', () => {
+    expect(issueSteps([issue('x'), issue('y'), issue('z')], [target('x'), target('z')])?.map(i => i.finding_id)).toEqual(['x', 'z']);
+    expect(issueSteps([issue('x'), issue('y')], [target('x'), target('y', 'b.go')])).toBeUndefined();
+    expect(issueSteps(undefined, [target('x')])).toBeUndefined();
+  });
+  it('reads each step state', () => {
+    expect(issueStepState('fixed')).toEqual({ label: 'Fixed', tone: 'passed', badge: 'success' });
+    expect(issueStepState('not_fixed').label).toBe('Not fixed');
+    expect(issueStepState('fixing').tone).toBe('running');
+    expect(issueStepState(undefined).label).toBe('Waiting');
   });
 });

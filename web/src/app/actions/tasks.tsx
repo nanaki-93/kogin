@@ -2,7 +2,8 @@
 // re-analyze it when stale and delete it.
 
 import { api, errorMessage, query, withWorktree } from '@/api/client';
-import type { AgentSettings, ChangeOpened, ChangeReanalysis, ChangeRetake, ChangeSession, FindingTarget, LoadedSession, ModelsCurrent, Project } from '@/api/types';
+import type { AgentSettings, ChangeOpened, ChangeReanalysis, ChangeRetake, ChangeSession, FindingTarget, LoadedSession, ModelsCurrent, Project, TaskIssue } from '@/api/types';
+import { issueSteps } from '@/lib/issues';
 import { changeIdentity, openComments, workflowActive } from '@/lib/readiness';
 import { runStartOptions, workflowDestinations, workflowRequest } from '@/lib/workflow';
 import { navigate } from '@/lib/router';
@@ -36,6 +37,8 @@ export interface DraftTask {
   worktree: boolean;
   /** The issues this task fixes; only those whose file stays in scope are sent. */
   findingTargets?: FindingTarget[];
+  /** Several issues, fixed one at a time; sent for the linked ones when two or more remain. */
+  issues?: TaskIssue[];
 }
 
 /** What deleting tasks does with the worktrees it leaves without tasks. */
@@ -57,6 +60,7 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
    */
   async function createTask(project: Project, worktreePath: string, draft: DraftTask): Promise<string | null> {
     const own = draft.worktree && !worktreePath;
+    const linked = draft.findingTargets?.filter(target => draft.paths.includes(target.path));
     const created = await guarded('Creating task…', async () => {
       const body = {
         project_id: project.project_id,
@@ -66,7 +70,8 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
         paths: draft.paths,
         acceptance_criteria: draft.criteria.length ? draft.criteria : ['Changes pass verification checks'],
         plan: draft.description.trim() ? { problem: draft.title.trim(), approach: draft.description.trim() } : undefined,
-        finding_targets: draft.findingTargets?.filter(target => draft.paths.includes(target.path)),
+        finding_targets: linked,
+        issues: issueSteps(draft.issues, linked),
       };
       try {
         if (own) return await api.post<ChangeOpened>('/api/projects/current/changes', { ...body, worktree: true, confirm_execution: true });

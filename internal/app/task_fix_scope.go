@@ -21,6 +21,9 @@ func issueFixScope(session *ChangeSession) fixScope {
 			folders[path.Dir(target.Path)] = true
 		}
 	}
+	for _, issue := range session.Issues {
+		folders[path.Dir(issue.Path)] = true // Unlinked ones too: the task still fixes that file.
+	}
 	if len(folders) == 0 {
 		return nil
 	}

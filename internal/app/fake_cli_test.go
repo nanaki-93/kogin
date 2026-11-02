@@ -37,6 +37,9 @@ type fakePiStep struct {
 	// Limit ends the run as the CLI does when its plan reached its usage
 	// limit. The step is used up: the next run continues the script.
 	Limit bool `json:"limit,omitempty"`
+	// Next, on a text step, ends this run there; the next run of the role
+	// continues the script after it.
+	Next bool `json:"next,omitempty"`
 }
 
 // fakePiRecord is what the fake saw and got, for the test to read.
@@ -142,6 +145,13 @@ func (run *fakeCLIRun) useLimit(index int) {
 	_ = os.WriteFile(filepath.Join(run.dir, run.role+".json"), data, 0o600)
 }
 
+// useSteps removes the script's steps through index, so the next run
+// continues after them.
+func (run *fakeCLIRun) useSteps(index int) {
+	data, _ := json.Marshal(run.steps[index+1:])
+	_ = os.WriteFile(filepath.Join(run.dir, run.role+".json"), data, 0o600)
+}
+
 func (run *fakeCLIRun) close() {
 	run.session.Close()
 	data, _ := json.Marshal(run.record)
@@ -209,6 +219,9 @@ func fakePi(args fakeCLIArgs) int {
 			emitJSON(map[string]any{"type": "agent_end", "willRetry": false})
 			return 1
 		case step.Tool == "":
+			if step.Next {
+				run.useSteps(index)
+			}
 			emitJSON(assistant("stop", step.Text, ""))
 			emitJSON(map[string]any{"type": "turn_end"})
 		default:
