@@ -222,3 +222,48 @@ func TestChangeHTTPReanalyzeAnswersWithTheDecision(t *testing.T) {
 		t.Fatalf("re-analysis = %d %s", w.Code, w.Body)
 	}
 }
+
+func TestQuarantineDeleteHTTP(t *testing.T) {
+	handler := newChangeHandlerFixture(t, "http://127.0.0.1:1")
+	index, _ := handler.manager.Index()
+	root := handler.manager.Root()
+	setAside := ".kasuri/analysis/run.quarantined-20261028T130610.402215000Z.json"
+	if err := os.MkdirAll(filepath.Join(root, ".kasuri", "analysis"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(setAside)), []byte(`{}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	record := `[{"kind":"analysis_run","file":".mini-orca/analysis/run.json","quarantined_as":".mini-orca/analysis/run.quarantined-20261028T130610.402215000Z.json","reason":"saved analysis progress is unreadable","remedy":"","at":"2026-10-28T13:06:10Z"}]`
+	if err := os.WriteFile(filepath.Join(root, ".kasuri", "quarantine.json"), []byte(record), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	request := func(body string) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		handler.DeleteQuarantined(response, httptest.NewRequest(http.MethodPost, "/api/projects/current/quarantine/delete", bytes.NewBufferString(body)))
+		return response
+	}
+	identity := `"project_id":"` + index.ProjectID + `","project_revision":"` + index.ProjectRevision + `"`
+	for body, want := range map[string]int{
+		`{` + identity + `,"quarantined_as":"` + setAside + `","unexpected":true}`:                                http.StatusBadRequest,
+		`{"project_id":"` + index.ProjectID + `","project_revision":"stale","quarantined_as":"` + setAside + `"}`: http.StatusConflict,
+		`{` + identity + `,"quarantined_as":".kasuri/index.json"}`:                                                http.StatusNotFound,
+	} {
+		if response := request(body); response.Code != want {
+			t.Fatalf("%s: status = %d, want %d: %s", body, response.Code, want, response.Body.String())
+		} else {
+			assertStructuredError(t, response)
+		}
+	}
+	response := request(`{` + identity + `,"quarantined_as":"` + setAside + `"}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("delete: %d %s", response.Code, response.Body.String())
+	}
+	var report app.QuarantineReport
+	if err := json.Unmarshal(response.Body.Bytes(), &report); err != nil || len(report.Files) != 0 || report.Skipped == nil {
+		t.Fatalf("report: %s %v", response.Body.String(), err)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(setAside))); !os.IsNotExist(err) {
+		t.Fatalf("set-aside file kept: %v", err)
+	}
+}

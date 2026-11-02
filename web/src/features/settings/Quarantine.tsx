@@ -1,9 +1,11 @@
 // Records Kasuri set aside because it could not read them, or skipped
 // because a newer version wrote them. Work continues without them.
 
-import { FileWarning } from 'lucide-react';
+import { FileWarning, Trash2 } from 'lucide-react';
 import type { QuarantinedFile, QuarantineReport } from '@/api/types';
-import { useQuarantine } from '@/api/hooks';
+import { useProject, useQuarantine } from '@/api/hooks';
+import { useCheckout } from '@/app/checkout';
+import { useActions, useBusy } from '@/app/actions';
 import { navigate } from '@/lib/router';
 import { plural, timeAgo } from '@/lib/util';
 import { Button, Callout } from '@/components/ui';
@@ -25,10 +27,15 @@ export function QuarantineNotice() {
   );
 }
 
-/** The list of set-aside and skipped files with their remedies. */
+/** The list of set-aside and skipped files with their remedies; a set-aside file can be deleted. */
 export function QuarantineList() {
   const report = useQuarantine().data;
+  const project = useProject().data;
+  const { worktreePath } = useCheckout();
+  const actions = useActions();
+  const busy = useBusy();
   if (!quarantineCount(report)) return null;
+  const remove = project ? (file: QuarantinedFile) => void actions.deleteSetAside(project, worktreePath, file) : undefined;
   return (
     <section className="card" aria-label="Set-aside files">
       <div className="card-head">
@@ -37,14 +44,14 @@ export function QuarantineList() {
       </div>
       <ul className="quarantine-list">
         {[...(report?.skipped ?? []), ...(report?.files ?? [])].map(file => (
-          <QuarantineItem key={file.file + (file.quarantined_as ?? '')} file={file} />
+          <QuarantineItem key={file.file + (file.quarantined_as ?? '')} file={file} onDelete={file.quarantined_as ? remove : undefined} busy={Boolean(busy)} />
         ))}
       </ul>
     </section>
   );
 }
 
-function QuarantineItem({ file }: { file: QuarantinedFile }) {
+function QuarantineItem({ file, onDelete, busy }: { file: QuarantinedFile; onDelete?: (file: QuarantinedFile) => void; busy: boolean }) {
   return (
     <li className="quarantine-item">
       <div className="row">
@@ -52,6 +59,7 @@ function QuarantineItem({ file }: { file: QuarantinedFile }) {
         <span className="mono small truncate" title={file.file}>{file.file}</span>
         <span className="spacer" />
         {file.at ? <span className="xs faint">{timeAgo(file.at)}</span> : <span className="xs muted">skipped</span>}
+        {onDelete ? <Button size="sm" variant="ghost" icon={Trash2} onClick={() => onDelete(file)} disabled={busy} title={`Delete ${file.quarantined_as}`}>Delete</Button> : null}
       </div>
       <p className="small">{file.reason[0]?.toUpperCase() + file.reason.slice(1)}.{file.quarantined_as ? <> Its bytes are in <span className="mono">{file.quarantined_as}</span>.</> : null}</p>
       <p className="xs muted">{file.remedy}</p>

@@ -1,7 +1,8 @@
-// Project actions: execution trust, reindexing and opening a project.
+// Project actions: execution trust, reindexing, opening a project and
+// deleting files Kasuri set aside.
 
 import { api, withWorktree } from '@/api/client';
-import type { ExecutionTrust, Project } from '@/api/types';
+import type { ExecutionTrust, Project, QuarantinedFile } from '@/api/types';
 import { navigate } from '@/lib/router';
 import type { ActionContext } from './context';
 
@@ -59,5 +60,27 @@ export function projectActions(context: ActionContext) {
     });
   }
 
-  return { setTrust, reindex, openProject };
+  /** Deletes a file Kasuri set aside because it could not read it, with its record. */
+  async function deleteSetAside(project: Project, worktreePath: string, file: QuarantinedFile) {
+    if (!file.quarantined_as) return;
+    const ok = await confirm({
+      title: 'Delete the set-aside file?',
+      body: `${file.quarantined_as} is deleted for good. Kasuri no longer reads it, so work is not affected; only the history it held is lost.`,
+      confirmLabel: 'Delete file',
+      danger: true,
+    });
+    if (!ok) return;
+    await guarded('Deleting the set-aside file…', async () => {
+      try {
+        await api.post(withWorktree('/api/projects/current/quarantine/delete', worktreePath), { project_id: project.project_id, project_revision: project.project_revision, quarantined_as: file.quarantined_as });
+        toast('Set-aside file deleted.', 'success');
+      } catch (err) {
+        fail('Could not delete the set-aside file', err);
+      } finally {
+        void client.invalidateQueries({ queryKey: ['quarantine'] });
+      }
+    });
+  }
+
+  return { setTrust, reindex, openProject, deleteSetAside };
 }

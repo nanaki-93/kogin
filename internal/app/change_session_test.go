@@ -346,6 +346,12 @@ func TestChangeCorruptHistoryIsSetAside(t *testing.T) {
 	if _, err := service.ChangeSession(context.Background(), "../escape"); err == nil {
 		t.Fatal("accepted history traversal")
 	}
+	if left, err := service.DeleteQuarantined(context.Background(), deleteRequest(t, service, report.Files[0].QuarantinedAs)); err != nil || len(left.Files) != 0 {
+		t.Fatalf("delete the set-aside task: %+v %v", left, err)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(report.Files[0].QuarantinedAs))); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("set-aside task kept: %v", err)
+	}
 }
 
 func TestChangeScopeAndRemoteConsent(t *testing.T) {

@@ -47,6 +47,13 @@ are listed here as they land.
   issues of a file (was ten), since tasks fixing ten at once often failed or
   came back with blocking review findings. A file with more open issues offers
   **Fix 5 of N together**; the rest can be grouped once those are in progress.
+- **Delete set-aside files:** Settings → Project now has **Delete** on each
+  file Kasuri set aside because it could not read it (an agent journal, task
+  file or saved analysis progress): after a confirmation it deletes the file
+  and its record (`POST /api/projects/current/quarantine/delete`), so the Inbox
+  notice goes away. Records made before the rename name their `.mini-orca/`
+  paths where the files are now, in `.kasuri/`, with Kasuri's remedy, and a
+  record whose file was deleted by hand is no longer listed.
 - **Short review findings:** reviewers write each finding and note as a few
   words with the file and a quoted line; the daemon finds the line, and the
   task page shows `master.go:42` as a link to that line in the diff, with the

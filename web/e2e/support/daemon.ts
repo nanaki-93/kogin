@@ -4,7 +4,7 @@
 // mutation must carry the Web UI header and the current proposal identity.
 
 import { test as base, expect, type Page, type Route } from '@playwright/test';
-import type { ChangeHistoryEntry, ChangeSession, DaemonEvent, DocsRefresh, Finding, GitWorktree, ProjectSetup } from '../../src/api/types';
+import type { ChangeHistoryEntry, ChangeSession, DaemonEvent, DocsRefresh, Finding, GitWorktree, ProjectSetup, QuarantineReport } from '../../src/api/types';
 import * as data from './fixtures';
 import { approveSession, overrideReview, reviseSession, startRun } from './review';
 
@@ -47,6 +47,20 @@ export class FakeDaemon {
 
   serveRun(run: ReturnType<typeof data.analysisRun> | undefined): void {
     this.run = run;
+  }
+
+  /** What the daemon set aside or skipped; tests set it with serveQuarantine. */
+  private quarantine: QuarantineReport = { files: [], skipped: [] };
+
+  serveQuarantine(report: QuarantineReport): void {
+    this.quarantine = report;
+  }
+
+  /** Deletes a listed set-aside file like the daemon; skipped files are never deleted. */
+  private deleteSetAside(body: Record<string, unknown>): QuarantineReport {
+    if (!this.quarantine.files.some(file => file.quarantined_as === body.quarantined_as)) throw new Error('This set-aside file is no longer listed. Refresh the list.');
+    this.quarantine = { ...this.quarantine, files: this.quarantine.files.filter(file => file.quarantined_as !== body.quarantined_as) };
+    return this.quarantine;
   }
 
   /** The latest refresh started from the Docs page; tests set it with serveDocsRefresh. */
@@ -246,7 +260,7 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/setup$/, () => this.setup],
     [/^\/api\/projects\/current\/analysis\/selection$/, () => this.selection],
     [/^\/api\/projects\/current\/usage$/, () => data.usage(this.sessions.get('chg-1')!)],
-    [/^\/api\/projects\/current\/quarantine$/, () => ({ files: [], skipped: [] })],
+    [/^\/api\/projects\/current\/quarantine$/, () => this.quarantine],
     [/^\/api\/projects\/current\/files\/info$/, () => ({ path: 'internal/api/handlers/webui.go', content_hash: 'h', language: 'Go', line_count: 3, content: data.fileSource })],
     [/^\/api\/projects\/current\/files\/analysis$/, () => ({ path: 'internal/api/handlers/webui.go', status: 'fresh', purpose: 'Serves the embedded Web UI bundle.', responsibilities: ['Return index.html for client routes'], side_effects: ['Reads the embedded files'], generated_at: new Date().toISOString() })],
   ];
@@ -265,6 +279,7 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/changes\/([^/]+)\/delete$/, (body, m) => this.deleteTask(m[1], body)],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/reanalyze$/, (body, m) => this.reanalyze(m[1], body)],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/retake$/, (body, m) => this.retake(m[1], body)],
+    [/^\/api\/projects\/current\/quarantine\/delete$/, body => this.deleteSetAside(body)],
     [/^\/api\/projects\/current\/agent-settings\/control$/, body => this.controlSettings(body)],
     [/^\/api\/projects\/current\/setup$/, body => this.saveSetup(body)],
     [/^\/api\/projects\/current\/setup\/timeouts$/, body => (this.setup = { ...this.setup, state: 'configured', timeouts: body.timeouts as ProjectSetup['timeouts'] })],

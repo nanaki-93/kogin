@@ -228,7 +228,9 @@ every guard when the action arrives.
 - **Set-aside files.** When the daemon set aside an unreadable agent journal,
   task file or saved analysis progress, or skipped one a newer Kasuri wrote,
   the Inbox says so and Settings → Project lists each file with where its bytes
-  went and the remedy.
+  went and the remedy. **Delete** on a set-aside file asks for confirmation,
+  then deletes it and its record; skipped newer files have no Delete, since
+  they need that Kasuri. A record whose file is already gone is not listed.
 - **Agent models.** Settings → Models & agents chooses the model each role runs
   with (writes the change, writes tests, reviews): a configured scope or a model
   Claude Code, the Agy CLI or the Pi CLI lists, each marked local or remote, so

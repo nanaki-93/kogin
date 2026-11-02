@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/nanaki-93/kasuri/v2/internal/api"
@@ -61,6 +62,26 @@ func (h *ChangeHandler) Quarantine(w http.ResponseWriter, r *http.Request) {
 	}
 	value, err := h.service.Quarantine(r.Context())
 	respondWorkflow(w, value, err)
+}
+
+// DeleteQuarantined deletes a set-aside file of the selected checkout and its
+// record, and answers with the records left.
+func (h *ChangeHandler) DeleteQuarantined(w http.ResponseWriter, r *http.Request) {
+	var request app.QuarantineDeleteRequest
+	if err := api.DecodeJSON(w, r, &request); err != nil {
+		api.WriteRequestError(w, err, "invalid set-aside file deletion", "Name the set-aside file as the list shows it.")
+		return
+	}
+	value, err := h.service.DeleteQuarantined(r.Context(), request)
+	if errors.Is(err, app.ErrQuarantineNotListed) {
+		api.WriteAppError(w, api.NotFound("set-aside file deletion failed", "This set-aside file is no longer listed. Refresh the list.", err))
+		return
+	}
+	if err != nil {
+		writeWorkflowError(w, "set-aside file deletion failed", err)
+		return
+	}
+	api.WriteJSON(w, http.StatusOK, value)
 }
 
 // Usage totals what agents spent per task in the selected checkout.

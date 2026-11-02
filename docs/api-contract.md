@@ -90,6 +90,7 @@ untrusted networks.
 | GET | `/api/projects/current/findings/task` | Draft one task that fixes several open issues of one file (`id` repeated, one to five): the file and its conventional test, every issue in line order with its line, function, message and evidence, their criteria once each, and links to all of them. 400 when the issues are not all open or not in one file; 409 when one is no longer listed. Nothing is saved. |
 | GET | `/api/projects/current/events` | Stream Server-Sent Events (SSE) when analysis runs, scans, reindexing or change workflows change state; workflow events name the task, stage and status and carry the run's usage and estimated cost. |
 | GET | `/api/projects/current/quarantine` | List records set aside because they were unreadable, and records skipped because a newer Kasuri wrote them, with the remedy. |
+| POST | `/api/projects/current/quarantine/delete` | Delete a set-aside file (`quarantined_as` as listed, with the project identity) and its record; answers with the records left. 404 when the file is not listed as set aside. |
 | GET | `/api/projects/current/usage` | Total agent model calls, tokens and estimated cost per task in the checkout, plus work not tied to a task. |
 | GET | `/api/projects/current/setup` | The project's configuration as setup edits it: `state` (`needed`, `skipped`, `configured`, `invalid`), the project and daemon files, models (secrets as `api_key_set`), roles and budget. |
 | POST | `/api/projects/current/setup` | Write the project's `.kasuri/config.yaml` and apply it live; 409 while work runs. |
@@ -784,7 +785,15 @@ set aside, since it may describe an unfinished Apply; its errors name the file
 and the remedy. `GET /api/projects/current/quarantine` (with the project
 guards) returns `files` (set aside: `kind` `agent_journal`, `task` or `analysis_run`, `file`,
 `quarantined_as`, `reason`, `remedy`, `at`) and `skipped` (newer files with the
-same fields but no move).
+same fields but no move). Records made before the rename to Kasuri are listed
+with their `.mini-orca/` paths as `.kasuri/` (opening the project moved that
+folder) and this version's remedy; a record whose set-aside file no longer
+exists is left out. `POST /api/projects/current/quarantine/delete` takes
+`project_id`, `project_revision` and a listed `quarantined_as`, deletes that
+file and its record (a file already gone only loses its record) and returns
+the report. It deletes only files set aside as `*.quarantined-*.json` beside
+the record they replaced: a skipped newer record, a live record or any other
+path is refused with `404`, and a stale project identity with `409`.
 
 Each `update` event of `/api/projects/current/events` carries a JSON `Event`:
 `kind` (`workflow`, `project_index`, `analysis`, `findings`, `docs`,

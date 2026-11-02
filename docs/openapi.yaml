@@ -834,6 +834,19 @@ paths:
       responses:
         '200': {description: Set-aside and skipped records, content: {application/json: {schema: {$ref: '#/components/schemas/QuarantineReport'}}}}
         '409': {$ref: '#/components/responses/Error'}
+  /api/projects/current/quarantine/delete:
+    parameters:
+      - {$ref: '#/components/parameters/WorktreePath'}
+    post:
+      tags: [Projects]
+      summary: Delete a set-aside file and its record
+      description: Deletes a file listed in `files` of the quarantine report (a task file, analysis progress or agent journal Kasuri set aside), named by its `quarantined_as`, and drops its record. A file already gone only loses its record. Skipped records of a newer Kasuri and files that were not set aside are never deleted.
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/QuarantineDeleteRequest'}}}}
+      responses:
+        '200': {description: The records left, content: {application/json: {schema: {$ref: '#/components/schemas/QuarantineReport'}}}}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/usage:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -2156,10 +2169,18 @@ components:
       properties:
         kind: {type: string, enum: [agent_journal, task, analysis_run]}
         file: {type: string, description: The record, relative to the checkout.}
-        quarantined_as: {type: string, description: Where its bytes were moved; absent for skipped newer records.}
+        quarantined_as: {type: string, description: Where its bytes were moved; absent for skipped newer records. Records made before the rename to Kasuri name .kasuri, where their .mini-orca folder moved.}
         reason: {type: string}
         remedy: {type: string}
         at: {type: string, format: date-time}
+    QuarantineDeleteRequest:
+      type: object
+      required: [project_id, project_revision, quarantined_as]
+      additionalProperties: false
+      properties:
+        project_id: {type: string}
+        project_revision: {type: string}
+        quarantined_as: {type: string, description: The set-aside file as the report lists it.}
     QuarantineReport:
       type: object
       required: [files, skipped]

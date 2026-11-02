@@ -6,9 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
+
+	"github.com/nanaki-93/kasuri/v2/internal/storage"
 )
 
 // An unreadable journal blocks every agent run in its checkout. The host may
@@ -18,6 +22,10 @@ import (
 
 // ErrNewerJournal marks a journal in a format this version cannot read.
 var ErrNewerJournal = errors.New("agent journal was written by a newer Kasuri")
+
+// ErrNotSetAside is returned for a path that names no journal set aside in
+// the checkout.
+var ErrNotSetAside = errors.New("no set-aside agent journal is listed at this path")
 
 const maxQuarantineRecords = 32
 
@@ -131,6 +139,61 @@ func Quarantine(ctx context.Context, root string) (*QuarantineRecord, error) {
 		return &record, fmt.Errorf("%w: record the set-aside journal: %w", ErrPersistence, err)
 	}
 	return &record, nil
+}
+
+// DeleteQuarantined deletes a journal set aside in the checkout, named by its
+// checkout-relative path as listed, and drops its record. A record made
+// before the rename to Kasuri names .mini-orca, where .kasuri is now. A
+// record whose file is already gone only loses its record.
+func DeleteQuarantined(ctx context.Context, root, quarantinedAs string) error {
+	s, err := newStore(root)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	lock, err := s.lock(ctx)
+	if err != nil {
+		return persistenceOperationError(ctx, "acquire journal lock", err)
+	}
+	defer lock.Close()
+	records, err := s.quarantines()
+	if err != nil {
+		return err
+	}
+	index := slices.IndexFunc(records, func(record QuarantineRecord) bool {
+		return storage.CurrentMetadataPath(record.QuarantinedAs) == quarantinedAs
+	})
+	file, ok := s.setAsideJournal(quarantinedAs)
+	if index < 0 || !ok {
+		return fmt.Errorf("%w: %s", ErrNotSetAside, quarantinedAs)
+	}
+	if err := os.Remove(file); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("%w: delete the set-aside journal: %w", ErrPersistence, err)
+	}
+	data, err := json.Marshal(slices.Delete(records, index, index+1))
+	if err != nil {
+		return err
+	}
+	log, err := s.path("quarantine.json")
+	if err != nil {
+		return err
+	}
+	if err := s.write(log, data, 0600, func() error { return context.Cause(ctx) }); err != nil {
+		return fmt.Errorf("%w: update the record of set-aside journals: %w", ErrPersistence, err)
+	}
+	return nil
+}
+
+// setAsideJournal resolves a checkout-relative path that names a set-aside
+// journal of this checkout (journal.quarantined-<UTC time>.json).
+func (s *Store) setAsideJournal(relative string) (string, bool) {
+	name := path.Base(relative)
+	if !strings.HasPrefix(name, "journal.quarantined-") || !strings.HasSuffix(name, ".json") || s.relative(name) != relative {
+		return "", false
+	}
+	file, err := s.path(name)
+	return file, err == nil
 }
 
 // Quarantines lists the journals set aside in the checkout, oldest first.

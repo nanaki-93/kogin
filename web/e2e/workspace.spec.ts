@@ -325,11 +325,11 @@ test('a finished agent run is announced with its spend', async ({ page, daemon }
   await expect(page.getByText('6 calls · 65k tokens · $0.194')).toBeVisible();
 });
 
-test('set-aside files are announced and explained with their remedy', async ({ page, daemon }) => {
-  daemon.serve('/api/projects/current/quarantine', () => ({
+test('set-aside files are announced, explained with their remedy and deleted', async ({ page, daemon }) => {
+  daemon.serveQuarantine({
     files: [{ kind: 'agent_journal', file: '.kasuri/agents/ab12/journal.json', quarantined_as: '.kasuri/agents/ab12/journal.quarantined-20261027T101500Z.json', reason: 'it is not valid JSON', remedy: 'Kasuri no longer reads the set-aside file. Inspect it if you need its history, then delete it.', at: '2026-10-27T10:15:00Z' }],
     skipped: [{ kind: 'task', file: '.kasuri/changes/change-9f.json', reason: 'written by a newer Kasuri', remedy: 'Upgrade Kasuri to use it, or move it away.' }],
-  }));
+  });
   await page.goto('/#/');
   await page.getByRole('button', { name: 'Review' }).click();
   await expect(page).toHaveURL(/#\/settings\/project/);
@@ -337,6 +337,14 @@ test('set-aside files are announced and explained with their remedy', async ({ p
   await expect(list).toContainText('.kasuri/agents/ab12/journal.json');
   await expect(list).toContainText('It is not valid JSON. Its bytes are in .kasuri/agents/ab12/journal.quarantined-20261027T101500Z.json.');
   await expect(list).toContainText('Upgrade Kasuri to use it, or move it away.');
+  // Only the set-aside file can be deleted; the skipped newer task needs an upgrade.
+  await expect(list.getByRole('button', { name: 'Delete' })).toHaveCount(1);
+  await list.getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete file' }).click();
+  await expect(page.getByText('Set-aside file deleted.')).toBeVisible();
+  expect(daemon.mutations('/quarantine/delete')[0].body).toMatchObject({ quarantined_as: '.kasuri/agents/ab12/journal.quarantined-20261027T101500Z.json', project_id: expect.any(String), project_revision: expect.any(String) });
+  await expect(list).not.toContainText('journal.json');
+  await expect(list).toContainText('.kasuri/changes/change-9f.json');
 });
 
 test('agent roles can run with any listed model and a project budget', async ({ page, daemon }) => {

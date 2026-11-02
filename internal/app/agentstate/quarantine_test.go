@@ -75,3 +75,69 @@ func TestNewerJournalIsNeverSetAside(t *testing.T) {
 		t.Fatal("newer journal changed", err)
 	}
 }
+
+func TestSetAsideJournalIsDeletedWithItsRecord(t *testing.T) {
+	root := t.TempDir()
+	s, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeJournal(t, s, `{"version":2,`)
+	record, err := Quarantine(t.Context(), root)
+	if err != nil || record == nil {
+		t.Fatalf("quarantine: %+v %v", record, err)
+	}
+	live, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	journal := writeJournal(t, live, `{"version":2,"workspace":"kept"}`)
+	for _, other := range []string{record.File, ".kasuri/agents/elsewhere/" + filepath.Base(record.QuarantinedAs), ".kasuri/quarantine.json"} {
+		if err := DeleteQuarantined(t.Context(), root, other); !errors.Is(err, ErrNotSetAside) {
+			t.Fatalf("%s: %v", other, err)
+		}
+	}
+	if data, err := os.ReadFile(journal); err != nil || !strings.Contains(string(data), "kept") {
+		t.Fatal("the live journal was touched", err)
+	}
+	if err := DeleteQuarantined(t.Context(), root, record.QuarantinedAs); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(record.QuarantinedAs))); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("set-aside journal kept: %v", err)
+	}
+	if records, err := Quarantines(root); err != nil || len(records) != 0 {
+		t.Fatalf("records: %+v %v", records, err)
+	}
+}
+
+func TestSetAsideJournalRecordedUnderMiniOrcaIsDeletedWhereItIsNow(t *testing.T) {
+	root := t.TempDir()
+	s, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeJournal(t, s, `{"version":2,`)
+	record, err := Quarantine(t.Context(), root)
+	if err != nil || record == nil {
+		t.Fatalf("quarantine: %+v %v", record, err)
+	}
+	legacy := strings.Replace(record.QuarantinedAs, ".kasuri/", ".mini-orca/", 1)
+	data := `[{"file":"` + strings.Replace(record.File, ".kasuri/", ".mini-orca/", 1) + `","quarantined_as":"` + legacy + `","reason":"not valid JSON","at":"2026-10-28T13:06:10Z"}]`
+	log, err := s.path("quarantine.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(log, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := DeleteQuarantined(t.Context(), root, legacy); !errors.Is(err, ErrNotSetAside) {
+		t.Fatalf("a .mini-orca path was resolved outside .kasuri: %v", err)
+	}
+	if err := DeleteQuarantined(t.Context(), root, record.QuarantinedAs); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(record.QuarantinedAs))); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("set-aside journal kept: %v", err)
+	}
+}

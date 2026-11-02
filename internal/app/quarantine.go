@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
@@ -27,6 +28,9 @@ const (
 	maxSetAsideRecords = 32
 	setAsideLogPath    = ".kasuri/quarantine.json"
 )
+
+// setAsideLogMu orders changes to a checkout's record of set-aside files.
+var setAsideLogMu sync.Mutex
 
 // QuarantinedFile is a record that was set aside or skipped.
 type QuarantinedFile struct {
@@ -124,6 +128,8 @@ func setAside(root, kind, file, from string, target func(stamp string) (string, 
 		return fmt.Errorf("set aside %s: %w", file, err)
 	}
 	logging.Error("Set aside an unreadable record", "kind", kind, "file", file, "quarantined_as", relativeMetadata(root, to), "reason", reason)
+	setAsideLogMu.Lock()
+	defer setAsideLogMu.Unlock()
 	records, err := setAsideRecords(root)
 	if err != nil {
 		records = nil // An unreadable log of earlier moves does not block this one.
@@ -132,6 +138,10 @@ func setAside(root, kind, file, from string, target func(stamp string) (string, 
 	if len(records) > maxSetAsideRecords {
 		records = slices.Clone(records[len(records)-maxSetAsideRecords:])
 	}
+	return writeSetAsideRecords(root, records)
+}
+
+func writeSetAsideRecords(root string, records []QuarantinedFile) error {
 	data, err := json.Marshal(records)
 	if err != nil {
 		return err
@@ -179,13 +189,15 @@ func (s *Service) Quarantine(ctx context.Context) (*QuarantineReport, error) {
 		return nil, err
 	}
 	for _, record := range journals {
-		report.Files = append(report.Files, QuarantinedFile{Kind: "agent_journal", File: record.File, QuarantinedAs: record.QuarantinedAs, Reason: record.Reason, Remedy: remedySetAside, At: record.At})
+		report.Files = appendSetAside(report.Files, root, QuarantinedFile{Kind: "agent_journal", File: record.File, QuarantinedAs: record.QuarantinedAs, Reason: record.Reason, At: record.At})
 	}
 	records, err := setAsideRecords(root)
 	if err != nil {
 		return nil, err
 	}
-	report.Files = append(report.Files, records...)
+	for _, record := range records {
+		report.Files = appendSetAside(report.Files, root, record)
+	}
 	slices.SortFunc(report.Files, func(a, b QuarantinedFile) int { return b.At.Compare(a.At) })
 	if _, err := loadAnalysisRun(root); errors.Is(err, ErrNewerAnalysisRun) {
 		report.Skipped = append(report.Skipped, QuarantinedFile{Kind: "analysis_run", File: analysisRunRelativePath, Reason: "written by a newer Kasuri", Remedy: remedyUpgrade})
@@ -196,4 +208,19 @@ func (s *Service) Quarantine(ctx context.Context) (*QuarantineReport, error) {
 		report.Skipped = append(report.Skipped, QuarantinedFile{Kind: "agent_journal", File: problem.Path, Reason: problem.Reason, Remedy: remedyUpgrade})
 	}
 	return report, ctx.Err()
+}
+
+// appendSetAside adds a set-aside record as it reads now: paths recorded
+// under .mini-orca name their place in .kasuri, the remedy is this
+// version's, and a record whose file was deleted is left out.
+func appendSetAside(files []QuarantinedFile, root string, record QuarantinedFile) []QuarantinedFile {
+	record.File = storage.CurrentMetadataPath(record.File)
+	record.QuarantinedAs = storage.CurrentMetadataPath(record.QuarantinedAs)
+	record.Remedy = remedySetAside
+	if path, err := storage.MetadataPath(root, record.QuarantinedAs); err == nil {
+		if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
+			return files
+		}
+	}
+	return append(files, record)
 }
