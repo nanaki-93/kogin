@@ -387,6 +387,7 @@ describe('issues fixed one at a time', () => {
   it('reads each step state', () => {
     expect(issueStepState('fixed')).toEqual({ label: 'Fixed', tone: 'passed', badge: 'success' });
     expect(issueStepState('not_fixed').label).toBe('Not fixed');
+    expect(issueStepState('does_not_hold')).toEqual({ label: 'Does not hold', tone: 'idle', badge: 'neutral' });
     expect(issueStepState('fixing').tone).toBe('running');
     expect(issueStepState(undefined).label).toBe('Waiting');
   });

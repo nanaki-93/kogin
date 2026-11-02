@@ -186,6 +186,52 @@ func TestAStepThatStopsTheRunIsRolledBackAndStartsAgain(t *testing.T) {
 	}
 }
 
+func TestAStepSaysHowItEndedWhenItChangesNothing(t *testing.T) {
+	coder := []fakePiStep{
+		{Tool: "edit_file", Arguments: map[string]any{"path": "calc.go", "old_text": stepAddSource, "new_text": stepSubSource}},
+		{Tool: "create_file", Arguments: map[string]any{"path": "calc_sub_test.go", "content": toolSubTest}},
+		{Tool: "finish", Arguments: map[string]any{"summary": "Added Sub and its test.", "outcome": "fixed"}},
+		{Text: "Done.", Next: true},
+		{Tool: "read_file", Arguments: map[string]any{"path": "calc.go"}},
+		{Tool: "finish", Arguments: map[string]any{"summary": "Add cannot overflow for int inputs here.", "outcome": "does_not_hold"}},
+		{Text: "Nothing to change.", Next: true},
+		{Tool: "finish", Arguments: map[string]any{"summary": "The first step added Sub with its test.", "outcome": "already_fixed"}},
+		{Text: "Nothing to change."},
+	}
+	tester := []fakePiStep{
+		{Tool: "finish", Arguments: map[string]any{"summary": "The fixes' tests cover the criteria."}},
+		{Text: "Done."},
+	}
+	flow := startToolFlowWith(t, coder, tester, nil, stepIssues("Sub is missing", "Add ignores overflow", "Sub has no test"))
+	finished := flow.finished(t)
+	if finished.Workflow.Status != "awaiting_human_review" {
+		t.Fatalf("workflow = %s (%s)", finished.Workflow.Status, finished.Workflow.Reason)
+	}
+	issues := finished.Issues
+	if issues[0].Status != IssueFixed || issues[0].Commit == "" {
+		t.Fatalf("first issue = %+v", issues[0])
+	}
+	if issue := issues[1]; issue.Status != IssueDoesNotHold || issue.Commit != "" || !strings.Contains(issue.Reason, "Add cannot overflow") {
+		t.Fatalf("an issue that does not hold = %+v", issue)
+	}
+	if issue := issues[2]; issue.Status != IssueFixed || issue.Commit != issues[0].Commit || !strings.HasPrefix(issue.Reason, "Already fixed by an earlier step: The first step added Sub") {
+		t.Fatalf("an issue already fixed = %+v", issue)
+	}
+	// Merging closes the fixed ones and dismisses the one that does not hold.
+	if len(finished.FindingTargets) != 2 || finished.FindingTargets[0].ID != "finding:a" || finished.FindingTargets[1].ID != "finding:c" {
+		t.Fatalf("linked issues: %+v", finished.FindingTargets)
+	}
+	if len(finished.DismissedTargets) != 1 || finished.DismissedTargets[0].ID != "finding:b" {
+		t.Fatalf("dismissed issues: %+v", finished.DismissedTargets)
+	}
+	if log := testGit(t, flow.worktree, "log", "--format=%s", finished.Worktree.Base+".."+issueStepsRef(finished)); log != "fix: sub is missing" {
+		t.Fatalf("issue commits:\n%s", log)
+	}
+	if first := fakePiLog(t, flow.dir, "coder"); !strings.Contains(first.Prompt, "finish with outcome already_fixed") {
+		t.Fatalf("the step's prompt does not ask how it ended:\n%s", first.Prompt)
+	}
+}
+
 func TestANewTaskNamesItsIssuesOnceAndWithoutProgress(t *testing.T) {
 	targets := []project.FindingTarget{{ProjectID: "p", Kind: "semantic", ID: "a", Path: "x.go"}, {ProjectID: "p", Kind: "semantic", ID: "b", Path: "x.go"}}
 	issue := func(id string) ChangeIssue { return ChangeIssue{FindingID: id, Path: "x.go", Title: "Issue " + id} }

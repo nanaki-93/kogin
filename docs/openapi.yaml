@@ -1475,8 +1475,8 @@ components:
         title: {type: string, maxLength: 300}
         detail: {type: string, maxLength: 4096, description: Where it is, what is wrong and its evidence; what the step's agent reads.}
         criteria: {type: array, maxItems: 16, items: {type: string, maxLength: 1024}}
-        status: {type: string, enum: [pending, fixing, fixed, not_fixed]}
-        reason: {type: string, maxLength: 1024, description: Why it was not fixed.}
+        status: {type: string, enum: [pending, fixing, fixed, not_fixed, does_not_hold]}
+        reason: {type: string, maxLength: 1024, description: 'Why it was not fixed or does not hold, or, for a fixed issue, that an earlier step fixed it.'}
         commit: {type: string, description: The commit of its fix, chained from the worktree's base.}
     FindingCompletion:
       type: object
@@ -2609,6 +2609,19 @@ components:
         acceptance_criteria: {type: array, items: {type: string}}
         finding_targets: {type: array, maxItems: 16, items: {$ref: '#/components/schemas/FindingTarget'}}
         issues: {type: array, maxItems: 5, items: {$ref: '#/components/schemas/ChangeIssue'}, description: The issues it fixes one at a time, with each step's progress; one not fixed is no longer in finding_targets.}
+        dismissed_targets: {type: array, maxItems: 5, items: {$ref: '#/components/schemas/FindingTarget'}, description: Linked issues a step found do not hold; they stay in progress and merging the task dismisses them.}
+        scope_grants:
+          type: array
+          maxItems: 8
+          description: Files outside the folders of a fix that its coding agent was allowed to change (widen_scope), because code in those folders imports them.
+          items:
+            type: object
+            additionalProperties: false
+            required: [path, reason]
+            properties:
+              path: {type: string}
+              reason: {type: string, maxLength: 500}
+              issue: {type: string, description: The finding of the issue step that asked; rolling that step back takes the grant away.}
         revision: {type: integer}
         hash: {type: string}
         state: {type: string, enum: [draft, applied, undone, prepared, undoing, recovery_required]}

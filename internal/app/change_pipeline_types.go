@@ -74,6 +74,8 @@ type ChangeStageTools struct {
 	Summary  string `json:"summary,omitempty"`
 	Turns    int    `json:"turns"`
 	Finished bool   `json:"finished"`
+	// finish is what the agent's finish call said; it is not stored.
+	finish *toolFinish
 }
 
 // Findings block approval; notes are advisory and never change the verdict.

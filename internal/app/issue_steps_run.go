@@ -11,11 +11,16 @@ import (
 	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
-// issueStepError is a step's outcome that leaves its issue not fixed while
-// the run goes on with the next one: the agent changed nothing (the issue
-// does not hold, or needs a task of its own), ran out of its time, or its
-// checks still failed after one repair.
-type issueStepError struct{ reason string }
+// issueStepError is a step that ends without a commit of its own while the
+// run goes on with the next one: the agent changed nothing (the issue was
+// already fixed by an earlier step, does not hold, or needs a task of its
+// own), ran out of its time, or its checks still failed after one repair.
+type issueStepError struct {
+	reason string
+	// outcome is what the agent said when it changed nothing: already_fixed
+	// or does_not_hold. Any other leaves the issue not fixed.
+	outcome string
+}
 
 func (e *issueStepError) Error() string { return e.reason }
 
@@ -80,7 +85,7 @@ func (s *Service) runIssueStep(ctx context.Context, job *changeWorkflowJob, sess
 	var notFixed *issueStepError
 	switch {
 	case errors.As(err, &notFixed):
-		return s.dropIssueStep(ctx, job, session, index, before, notFixed.reason)
+		return s.dropIssueStep(ctx, job, session, index, before, notFixed)
 	case err != nil:
 		return nil, s.resetIssueStep(ctx, job, index, before, err)
 	}
@@ -133,9 +138,10 @@ func (s *Service) runIssueAgent(ctx context.Context, job *changeWorkflowJob, ses
 	timed, cancel := context.WithTimeoutCause(ctx, limit, &workflowTimeoutError{stage: "Creation", limit: limit})
 	defer cancel()
 	var next *ChangeSession
+	var run *ChangeStageTools
 	var err error
 	if tools {
-		next, err = s.runToolStage(timed, job.root, issueStepView(session, index), runtime, toolCoder, message)
+		next, run, err = s.runToolAgent(timed, job.root, issueStepView(session, index), runtime, toolCoder, message)
 	} else {
 		next, err = s.generateChangeWithRuntime(timed, job.root, session, ChangeMessageRequest{ChangeIdentity: identityForChange(session), Message: message}, runtime)
 	}
@@ -145,14 +151,36 @@ func (s *Service) runIssueAgent(ctx context.Context, job *changeWorkflowJob, ses
 		return nil, context.Cause(ctx)
 	case timed.Err() != nil:
 		return nil, &issueStepError{reason: fmt.Sprintf("The coding agent did not finish within %s.", limit)}
+	case errors.Is(err, errCoderNoChange):
+		return nil, unchangedIssueStep(run, finishReport(run))
 	case errors.As(err, &refused):
 		return nil, &issueStepError{reason: "The coding agent made no usable change: " + clip(refused.Error(), maxIssueReasonBytes-64)}
 	case err != nil:
 		return nil, err
 	case next.Hash == session.Hash:
-		return nil, &issueStepError{reason: "The coding agent changed nothing: " + agentReport(next)}
+		return nil, unchangedIssueStep(run, agentReport(next))
 	}
 	return s.fitChangeToBudgets(ctx, job.root, next, runtime, false)
+}
+
+// unchangedIssueStep is a step whose agent changed nothing, as it said it
+// ended: an issue already fixed or that does not hold is settled that way,
+// any other is not fixed.
+func unchangedIssueStep(run *ChangeStageTools, report string) error {
+	if run != nil && run.finish != nil {
+		if outcome := run.finish.Outcome; outcome == outcomeAlreadyFixed || outcome == outcomeDoesNotHold {
+			return &issueStepError{reason: report, outcome: outcome}
+		}
+	}
+	return &issueStepError{reason: "The coding agent changed nothing: " + report}
+}
+
+// finishReport is what an agent's finish call said, for a reason.
+func finishReport(run *ChangeStageTools) string {
+	if run == nil || run.finish == nil || strings.TrimSpace(run.finish.Summary) == "" {
+		return "it gave no report."
+	}
+	return clip(strings.TrimSpace(run.finish.Summary), 600)
 }
 
 // agentReport is what the latest run said about its work, without the tool
@@ -186,8 +214,9 @@ func issueStepMessage(session *ChangeSession, index int) string {
 	var message strings.Builder
 	fmt.Fprintf(&message, "Fix issue %d of %d in %s: %s\n%s\n\n", index+1, len(session.Issues), issue.Path, issue.Title, strings.TrimSpace(issue.Detail))
 	message.WriteString("Fix only this issue; the task's other issues get steps of their own, and earlier ones are already in the worktree. ")
-	message.WriteString("Check it against the code first: if it does not hold, change nothing and say so in finish. ")
-	message.WriteString("Make the smallest change that fixes it, add a regression test that fails without the fix, and run the checks.")
+	message.WriteString("Check it against the code first. If it does not hold, change nothing and finish with outcome does_not_hold, saying why. If an earlier step of this task already fixed it, change nothing and finish with outcome already_fixed. ")
+	message.WriteString("Otherwise make the smallest change that fixes it, add a regression test that fails without the fix, run the checks and finish with outcome fixed. ")
+	message.WriteString("When the fix needs code outside this task's folders that its code imports, ask for those files with widen_scope and fix it there; when that is refused, change nothing and finish with outcome needs_own_task.")
 	if len(issue.Criteria) > 0 {
 		message.WriteString("\n\nDone when:")
 		for _, criterion := range issue.Criteria {
@@ -249,10 +278,11 @@ func trimStepMessages(messages []ChangeMessage) []ChangeMessage {
 	return append(messages[:2:2], messages[len(messages)-(limit-2):]...)
 }
 
-// dropIssueStep returns the task to the proposal it had before the step,
-// marks the issue not fixed with its reason and unlinks it, so it is open
-// again in Issues.
-func (s *Service) dropIssueStep(ctx context.Context, job *changeWorkflowJob, session *ChangeSession, index int, before []ChangeEdit, reason string) (*ChangeSession, error) {
+// dropIssueStep returns the task to the proposal it had before the step and
+// settles the issue as the step ended: fixed by an earlier step's commit,
+// set aside to be dismissed on merge when it does not hold, or not fixed
+// with its reason and unlinked, so it is open again in Issues.
+func (s *Service) dropIssueStep(ctx context.Context, job *changeWorkflowJob, session *ChangeSession, index int, before []ChangeEdit, step *issueStepError) (*ChangeSession, error) {
 	s.changesMu.Lock()
 	defer s.changesMu.Unlock()
 	current, err := loadChangeSession(job.root, job.sessionID)
@@ -268,9 +298,7 @@ func (s *Service) dropIssueStep(ctx context.Context, job *changeWorkflowJob, ses
 	if err := s.restoreStoredProposalLocked(context.WithoutCancel(ctx), job.root, current); err != nil {
 		return nil, fmt.Errorf("roll back the step of %q: %w", current.Issues[index].Title, err)
 	}
-	issue := &current.Issues[index]
-	issue.Status, issue.Reason = IssueNotFixed, clip(strings.TrimSpace(reason), maxIssueReasonBytes-8)
-	current.FindingTargets = slices.DeleteFunc(current.FindingTargets, func(target project.FindingTarget) bool { return target.ID == issue.FindingID })
+	settleIssueStep(current, index, step)
 	current.Messages = trimStepMessages(current.Messages)
 	current.UpdatedAt = time.Now().UTC()
 	if err := storeChangeSession(job.root, current); err != nil {
@@ -278,6 +306,34 @@ func (s *Service) dropIssueStep(ctx context.Context, job *changeWorkflowJob, ses
 	}
 	s.notifyWorkflow(ctx, current, "create")
 	return current, nil
+}
+
+// settleIssueStep records how a step that made no commit of its own ended.
+func settleIssueStep(current *ChangeSession, index int, step *issueStepError) {
+	issue := &current.Issues[index]
+	current.ScopeGrants = withoutStepGrants(current.ScopeGrants, issue.FindingID)
+	reason := strings.TrimSpace(step.reason)
+	linked := func(target project.FindingTarget) bool { return target.ID == issue.FindingID }
+	earlier := lastIssueCommit(current)
+	switch {
+	case step.outcome == outcomeAlreadyFixed && earlier != "":
+		issue.Status, issue.Commit, issue.Reason = IssueFixed, earlier, clip("Already fixed by an earlier step: "+reason, maxIssueReasonBytes-8)
+		return
+	case step.outcome == outcomeAlreadyFixed:
+		issue.Status, issue.Reason = IssueDoesNotHold, clip("Already fixed before this task: "+reason, maxIssueReasonBytes-8)
+	case step.outcome == outcomeDoesNotHold:
+		issue.Status, issue.Reason = IssueDoesNotHold, clip(reason, maxIssueReasonBytes-8)
+	default:
+		issue.Status, issue.Reason = IssueNotFixed, clip(reason, maxIssueReasonBytes-8)
+		current.FindingTargets = slices.DeleteFunc(current.FindingTargets, linked)
+		return
+	}
+	for _, target := range current.FindingTargets {
+		if linked(target) && !slices.Contains(current.DismissedTargets, target) {
+			current.DismissedTargets = append(current.DismissedTargets, target)
+		}
+	}
+	current.FindingTargets = slices.DeleteFunc(current.FindingTargets, linked)
 }
 
 // resetIssueStep rolls back the step that stopped the run with cause and
@@ -296,6 +352,7 @@ func (s *Service) resetIssueStep(ctx context.Context, job *changeWorkflowJob, in
 		return errors.Join(cause, fmt.Errorf("roll back the step of %q: %w", current.Issues[index].Title, err))
 	}
 	current.Issues[index].Status = IssuePending
+	current.ScopeGrants = withoutStepGrants(current.ScopeGrants, current.Issues[index].FindingID)
 	current.UpdatedAt = time.Now().UTC()
 	if err := storeChangeSession(job.root, current); err != nil {
 		return errors.Join(cause, err)

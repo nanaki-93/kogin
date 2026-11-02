@@ -110,8 +110,11 @@ func dropIssueStepsRef(ctx context.Context, root string, session *ChangeSession)
 // describeIssueCommits names the fixed issues' commits for a message.
 func describeIssueCommits(session *ChangeSession) string {
 	var parts []string
+	seen := map[string]bool{}
 	for _, issue := range session.Issues {
-		if issue.Status == IssueFixed {
+		// An issue an earlier step fixed shares that step's commit.
+		if issue.Status == IssueFixed && !seen[issue.Commit] {
+			seen[issue.Commit] = true
 			parts = append(parts, fmt.Sprintf("%s (%s)", issueCommitMessage(issue), issue.Commit[:min(len(issue.Commit), 8)]))
 		}
 	}

@@ -138,8 +138,10 @@ func toolTaskPrompt(root string, session *ChangeSession, role toolRole, message,
 	named := changeTargetPaths(session)
 	scope := issueFixScope(session)
 	switch {
+	case scope != nil && role == toolTester:
+		prompt.WriteString("\nFiles the task names: " + strings.Join(named, ", ") + "\nThis task fixes issues: its code changes stay in " + scope.describe() + "; the tests you write may be anywhere.\n")
 	case scope != nil:
-		prompt.WriteString("\nFiles the task names: " + strings.Join(named, ", ") + "\nThis task fixes issues: change code only in " + scope.describe() + "; test files may change anywhere. If the fix needs a file elsewhere, leave it unchanged, call finish and say the issue needs a task of its own.\n")
+		prompt.WriteString("\nFiles the task names: " + strings.Join(named, ", ") + "\nThis task fixes issues: change code only in " + scope.describe() + "; test files may change anywhere. If the fix needs code elsewhere that this task's code imports, ask for those files with widen_scope first; if that is refused, leave them unchanged and finish with outcome needs_own_task.\n")
 	case len(named) > 0:
 		prompt.WriteString("\nFiles the task names (a starting point; change others when the task needs it): " + strings.Join(named, ", ") + "\n")
 	}
@@ -204,6 +206,7 @@ func (s *Service) storeToolProposal(ctx context.Context, root string, session *C
 	if err != nil {
 		return nil, err
 	}
+	current.ScopeGrants = withGrants(current.ScopeGrants, run.grantsMade())
 	if err := toolProposalAllowed(current, run.role, edits, run.resolver.IsTestFile); err != nil {
 		if finish := run.finished(); finish != nil && strings.TrimSpace(finish.Summary) != "" {
 			err = fmt.Errorf("%w; the agent said: %s", err, clip(strings.TrimSpace(finish.Summary), 600))
@@ -250,6 +253,9 @@ func (s *Service) loadChangeAfterToolRun(ctx context.Context, root string, sessi
 	return current, verifyWorktreeBase(ctx, root, current)
 }
 
+// errCoderNoChange is a coding run that left the proposal empty.
+var errCoderNoChange = errors.New("the coding agent changed no files")
+
 // toolProposalAllowed checks the run's outcome as a whole: the coder must
 // change something, and the tester may change only test files.
 // A task that fixes issues keeps the changes of this run within its scope.
@@ -257,7 +263,7 @@ func (s *Service) loadChangeAfterToolRun(ctx context.Context, root string, sessi
 // tests (the coder wrote them); the checks that follow verify them.
 func toolProposalAllowed(session *ChangeSession, role toolRole, edits []ChangeEdit, isTest func(string) bool) error {
 	if role == toolCoder && len(edits) == 0 {
-		return errors.New("the coding agent changed no files")
+		return errCoderNoChange
 	}
 	before := map[string]string{}
 	for _, edit := range session.Changes {
@@ -324,7 +330,8 @@ func toolRunReport(run *taskToolRun, result *llm.AgentRunResult) string {
 // stageTools is what the run did with its tools.
 func stageTools(run *taskToolRun, result *llm.AgentRunResult) *ChangeStageTools {
 	calls, summary := run.usage()
-	tools := &ChangeStageTools{Calls: calls, Summary: summary, Finished: run.finished() != nil}
+	finish := run.finished()
+	tools := &ChangeStageTools{Calls: calls, Summary: summary, Finished: finish != nil, finish: finish}
 	if result != nil {
 		tools.Turns = result.Turns
 	}

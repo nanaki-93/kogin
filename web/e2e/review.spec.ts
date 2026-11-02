@@ -403,11 +403,20 @@ test('a task that fixes its issues one at a time shows each step', async ({ page
       issue('f1', 'Nested asset paths are served', { status: 'fixed', commit: '3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d' }),
       issue('f2', 'Missing assets return 500', { status: 'not_fixed', reason: 'The coding agent changed nothing: the handler already returns 404.' }),
       issue('f3', 'Asset reads are not cached', { status: 'pending' }),
+      issue('f4', 'Asset names are not escaped', { status: 'does_not_hold', reason: 'ServeAsset passes names through path.Clean before use.' }),
+      issue('f5', 'Nested names are accepted', { status: 'fixed', commit: '3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d', reason: 'Already fixed by an earlier step: the first step rejects nested names.' }),
     ],
+    scope_grants: [{ path: 'internal/api/assets.go', reason: 'The asset lookup the handler calls lives there.', issue: 'f1' }],
   });
   await page.goto('/#/tasks/chg-1');
   const steps = page.getByRole('list', { name: 'Issues, one at a time' });
-  await expect(steps.getByRole('listitem')).toHaveCount(3);
+  await expect(steps.getByRole('listitem')).toHaveCount(5);
+  await expect(steps.getByRole('listitem').nth(3)).toContainText('Does not hold');
+  await expect(steps.getByRole('listitem').nth(3)).toContainText('ServeAsset passes names through path.Clean before use. Merging the task dismisses it; you can reopen it in Issues.');
+  await expect(steps.getByRole('listitem').nth(4)).toContainText('Already fixed by an earlier step: the first step rejects nested names.');
+  const added = page.getByRole('list', { name: 'Added to the fix' });
+  await expect(added).toContainText('internal/api/assets.go');
+  await expect(added).toContainText('The asset lookup the handler calls lives there.');
   await expect(steps.getByRole('listitem').nth(0)).toContainText('1. Nested asset paths are served');
   await expect(steps.getByRole('listitem').nth(0)).toContainText('3c4d5e6');
   await expect(steps.getByRole('listitem').nth(0)).toContainText('Fixed');

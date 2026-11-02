@@ -33,8 +33,11 @@ type ChangeHistoryEntry struct {
 	WorkflowReason  string                  `json:"workflow_reason,omitempty"`
 	Commit          *ChangeCommit           `json:"commit,omitempty"`
 	FindingTargets  []project.FindingTarget `json:"finding_targets,omitempty"`
-	Paths           []string                `json:"paths,omitempty"`
-	UpdatedAt       time.Time               `json:"updated_at"`
+	// DismissedTargets are issues the task found do not hold: merging it
+	// dismisses them.
+	DismissedTargets []project.FindingTarget `json:"dismissed_targets,omitempty"`
+	Paths            []string                `json:"paths,omitempty"`
+	UpdatedAt        time.Time               `json:"updated_at"`
 }
 
 // Integrated reports whether the task was applied and committed on its

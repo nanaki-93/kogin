@@ -37,6 +37,7 @@ func collectSessionFindingTargets(root string, includeApplied bool) []project.Fi
 	for _, entry := range sessions {
 		if entry.State == "draft" || (includeApplied && entry.State == "applied") {
 			targets = append(targets, entry.FindingTargets...)
+			targets = append(targets, entry.DismissedTargets...) // Settled when the task merges.
 		}
 	}
 	return targets

@@ -422,6 +422,8 @@ export function issueStepState(status: string | undefined): { label: string; ton
       return { label: 'Fixed', tone: 'passed', badge: 'success' };
     case 'not_fixed':
       return { label: 'Not fixed', tone: 'failed', badge: 'warning' };
+    case 'does_not_hold':
+      return { label: 'Does not hold', tone: 'idle', badge: 'neutral' };
     default:
       return { label: 'Waiting', tone: 'idle', badge: 'neutral' };
   }

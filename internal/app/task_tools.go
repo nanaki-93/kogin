@@ -55,7 +55,18 @@ func defaultToolLimits(role toolRole) toolLimits {
 type toolFinish struct {
 	Summary  string          `json:"summary"`
 	Criteria []criterionNote `json:"criteria,omitempty"`
+	// Outcome is how an issue step ended: fixed (the default), already_fixed,
+	// does_not_hold or needs_own_task.
+	Outcome string `json:"outcome,omitempty"`
 }
+
+// How an issue step's coding agent says it ended.
+const (
+	outcomeFixed        = "fixed"
+	outcomeAlreadyFixed = "already_fixed"
+	outcomeDoesNotHold  = "does_not_hold"
+	outcomeNeedsOwnTask = "needs_own_task"
+)
 
 type criterionNote struct {
 	Criterion int    `json:"criterion"`
@@ -82,6 +93,8 @@ type taskToolRun struct {
 	written map[string]bool
 	checks  int
 	finish  *toolFinish
+	// grants are the files widen_scope added to a fix's scope in this run.
+	grants []ScopeGrant
 }
 
 func (s *Service) newTaskToolRun(root string, session *ChangeSession, role toolRole) (*taskToolRun, error) {
@@ -146,6 +159,7 @@ type toolSpec struct {
 // tools are the run's tools as the tool server serves them.
 func (run *taskToolRun) tools() []toolserver.Tool {
 	specs := append(run.readTools(), run.writeTools()...)
+	specs = append(specs, run.scopeTools()...)
 	return run.serve(append(specs, run.checkTools()...))
 }
 
@@ -221,8 +235,8 @@ func (run *taskToolRun) writable(file string) (string, string, error) {
 	if run.role == toolTester && !run.resolver.IsTestFile(clean) {
 		return "", "", fmt.Errorf("%s is not a test file; the testing agent writes tests only, and the implementation is fixed", clean)
 	}
-	if err := issueFixScope(run.session).check(clean, run.resolver.IsTestFile); err != nil {
-		return "", "", err
+	if err := run.scope().check(clean, run.resolver.IsTestFile); err != nil {
+		return "", "", fmt.Errorf("%w. If the fix needs it, ask for it with widen_scope; if that is refused, leave it unchanged and finish with outcome needs_own_task", err)
 	}
 	run.mu.Lock()
 	defer run.mu.Unlock()

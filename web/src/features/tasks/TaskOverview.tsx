@@ -150,6 +150,7 @@ function Stage({ stage, specialists, session }: { stage: StageView; specialists:
         {stage.tools ? <p className="xs muted">{stage.tools}</p> : null}
         {stage.reason ? <p className="small muted">{stage.reason}</p> : null}
         {stage.name === 'create' ? <IssueSteps session={session} /> : null}
+        {stage.name === 'create' ? <ScopeGrants session={session} /> : null}
         {specialists.length ? (
           <div className="reviewers">
             {specialists.map(sp => (
@@ -186,10 +187,33 @@ function IssueSteps({ session }: { session: LoadedSession }) {
               <Badge tone={state.badge}>{state.label}</Badge>
             </div>
             {issue.status === 'not_fixed' && issue.reason ? <p className="xs muted">{issue.reason} It is open again in Issues.</p> : null}
+            {issue.status === 'does_not_hold' && issue.reason ? <p className="xs muted">{issue.reason} Merging the task dismisses it; you can reopen it in Issues.</p> : null}
+            {issue.status === 'fixed' && issue.reason ? <p className="xs muted">{issue.reason}</p> : null}
           </li>
         );
       })}
     </ol>
+  );
+}
+
+/** Files outside the fix's folders its agents were allowed to change, and why. */
+function ScopeGrants({ session }: { session: LoadedSession }) {
+  const grants = session.scope_grants ?? [];
+  if (!grants.length) return null;
+  return (
+    <ul className="issue-steps" aria-label="Added to the fix">
+      {grants.map(grant => (
+        <li key={grant.path} className="issue-step scope-grant">
+          <div className="issue-step-head">
+            <span className="xs muted">Added to the fix</span>
+            <span className="small mono truncate" title={grant.path}>
+              {grant.path}
+            </span>
+          </div>
+          <p className="xs muted">{grant.reason}</p>
+        </li>
+      ))}
+    </ul>
   );
 }
 

@@ -21,9 +21,9 @@ export interface TaskIssue {
   title: string;
   detail: string;
   criteria?: string[];
-  /** pending, fixing, fixed or not_fixed; absent on a draft. */
+  /** pending, fixing, fixed, not_fixed or does_not_hold; absent on a draft. */
   status?: string;
-  /** Why it was not fixed. */
+  /** Why it was not fixed or does not hold, or that an earlier step fixed it. */
   reason?: string;
   /** The commit of its fix. */
   commit?: string;
@@ -63,4 +63,12 @@ export interface Finding {
 
 export interface FindingsResponse extends ProjectIdentity {
   findings: Finding[];
+}
+
+/** A file outside a fix's folders its agent may change, because the fix needs it. */
+export interface ScopeGrant {
+  path: string;
+  reason: string;
+  /** The finding of the issue step that asked for it. */
+  issue?: string;
 }

@@ -45,7 +45,7 @@ func (s *Service) MergeGitWorktree(ctx context.Context, request GitMutationReque
 	if err := requireFinishedWorktreeTasks(source.Path); err != nil {
 		return nil, err
 	}
-	completed, err := gitops.MergedFindingTargets(ctx, repository, source, listChangeSessions)
+	settled, err := mergedIssues(ctx, repository, source)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (s *Service) MergeGitWorktree(ctx context.Context, request GitMutationReque
 	result := s.completeGitMutation(repository.Root, "merged", err)
 	if result.State == "merged" {
 		result.PreviousHead = repository.Head
-		s.completeMergedWorktree(ctx, repository.Root, source, completed, result, !request.KeepWorktree)
+		s.completeMergedWorktree(ctx, repository.Root, source, settled, result, !request.KeepWorktree)
 	}
 	return result, nil
 }
@@ -77,13 +77,13 @@ func (s *Service) CleanupMergedWorktree(ctx context.Context, request GitMutation
 	if err := gitops.ValidateWorktreeRemoval(ctx, repository.Root, source, gitops.WorktreeMerged); err != nil {
 		return nil, err
 	}
-	completed, err := gitops.MergedFindingTargets(ctx, repository, source, listChangeSessions)
+	settled, err := mergedIssues(ctx, repository, source)
 	if err != nil {
 		return nil, err
 	}
 	s.invalidateWholeTreeJobs()
 	result := s.completeGitMutation(repository.Root, "merged", nil)
-	s.completeMergedWorktree(ctx, repository.Root, source, completed, result, true)
+	s.completeMergedWorktree(ctx, repository.Root, source, settled, result, true)
 	return result, nil
 }
 
@@ -100,14 +100,35 @@ func requireFinishedWorktreeTasks(path string) error {
 	return nil
 }
 
-// completeMergedWorktree marks the merged findings done, then removes the
-// worktree and its branch unless they are kept.
-func (s *Service) completeMergedWorktree(ctx context.Context, root string, source *GitWorktree, completed []project.FindingCompletion, result *GitMutationResult, remove bool) {
-	if err := gitops.CompleteMergedFindings(ctx, root, source.Head, completed); err != nil {
+// settledIssues are what merging a worktree settles: the issues its tasks
+// fixed and those they found do not hold.
+type settledIssues struct {
+	completed []project.FindingCompletion
+	dismissed []project.FindingTarget
+}
+
+func mergedIssues(ctx context.Context, repository *gitops.GitRepository, source *GitWorktree) (settledIssues, error) {
+	completed, err := gitops.MergedFindingTargets(ctx, repository, source, listChangeSessions)
+	if err != nil {
+		return settledIssues{}, err
+	}
+	dismissed, err := gitops.MergedDismissedTargets(ctx, repository, source, listChangeSessions)
+	return settledIssues{completed: completed, dismissed: dismissed}, err
+}
+
+// completeMergedWorktree marks the merged findings done (and dismisses those
+// its tasks found do not hold), then removes the worktree and its branch
+// unless they are kept.
+func (s *Service) completeMergedWorktree(ctx context.Context, root string, source *GitWorktree, settled settledIssues, result *GitMutationResult, remove bool) {
+	err := gitops.CompleteMergedFindings(ctx, root, source.Head, settled.completed)
+	if err == nil {
+		err = gitops.DismissMergedFindings(ctx, root, source.Head, settled.dismissed)
+	}
+	if err != nil {
 		result.Warnings = append(result.Warnings, fmt.Sprintf("Merge completed, but findings could not be marked Done: %v. Worktree %s and its task history were retained.", err, source.Path))
 		return
 	}
-	result.Completed = completed
+	result.Completed = settled.completed
 	if !remove {
 		return
 	}

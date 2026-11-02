@@ -957,16 +957,25 @@ each naming one of its `finding_targets`, with `title`, `detail` and `criteria`;
 stage fixes them one at a time, in order, instead of in one run. Each issue gets
 a fresh coding run that reads only that issue (its title, detail and criteria,
 without the brief that lists them all) and is asked for the fix and a
-regression test; the checks then run on the proposal. When they fail, one more
-run gets the failures; when they still fail, or the agent changed nothing (the
-issue did not hold, or needs a task of its own), or the run ran past one
-creation run's time limit, the step is rolled back: the proposal returns to what
-it was before the step, the issue becomes `not_fixed` with its `reason`, and its
-finding target is dropped, so the issue is open again. A fixed issue becomes a
+regression test, and to end its `finish` with an `outcome`: `fixed`,
+`already_fixed` (an earlier step fixed it), `does_not_hold` or
+`needs_own_task`; the checks then run on the proposal. A step that changed
+nothing settles as its outcome says: `already_fixed` makes the issue `fixed`
+with the latest fixed issue's `commit` and a `reason` saying so (with no
+earlier fixed issue it does not hold: the code before the task had it fixed);
+`does_not_hold` makes it `does_not_hold` with the agent's `reason` and moves its
+target from `finding_targets` to `dismissed_targets`, which stay in progress
+and are dismissed when the task merges. When the checks fail, one more run gets
+the failures; when they still fail, or the agent changed nothing for any other
+outcome, or the run ran past one creation run's time limit, the step is rolled
+back: the proposal returns to what it was before the step, the issue becomes
+`not_fixed` with its `reason`, and its finding target is dropped, so the issue
+is open again. A fixed issue becomes a
 commit (`fix: <issue>`) of the proposal at that point, chained from the
 worktree's base under `refs/kasuri/tasks/<task id>`; the worktree itself stays on
-its base, and `issues[].status` moves through `pending`, `fixing`, `fixed` and
-`not_fixed`, each move published as a workflow event of the create stage. Checks
+its base, and `issues[].status` moves through `pending`, `fixing`, `fixed`,
+`does_not_hold` and `not_fixed`, each move published as a workflow event of the
+create stage. Checks
 that cannot pass for any fix (failures from before the change, or checks that
 did not complete) stop the run; so does a model, provider or identity error.
 The unfinished step is then rolled back and its issue is `pending` again, so
@@ -1018,14 +1027,22 @@ one-time bearer token; the CLI starts in a private directory with no other
 extensions, MCP servers, built-in tools, skills or context files, a call to any
 other tool stops the run, and its model can call only `read_file`, `list_files`, `search`,
 `outline`, `find_definitions`, `find_references`, `edit_file`, `create_file`,
-`delete_file`, `rename_file`, `run_checks` and `finish`. Reads follow the context
+`delete_file`, `rename_file`, `run_checks` and `finish` (and `widen_scope`, for
+the coder of a task that fixes issues). Reads follow the context
 policy, writes the task's diff policy; the testing agent writes test files only
 (and so needs no test path in the task's scope). A task that fixes linked issues
 (`finding_targets` with a file) changes code only in the folders of those files
-and of the files it names; test files may change anywhere. A write elsewhere,
-by a tool or in a one-shot proposal, is refused and tells the agent to leave the
-file, finish and say the issue needs a task of its own; a coder that then
-changes nothing fails with its own `finish` summary in the reason. A run has budgets for tool
+and of the files it names, and in the files it was granted; test files may
+change anywhere. Its coding agent may ask for more with `widen_scope` (files
+and why): Kasuri grants files in the project's own folders that code in the
+task's folders imports (by the project map's import edges), within the diff
+policy, at most two folders beyond the task's own and eight code files in all.
+Grants are stored in `scope_grants` (`path`, `reason`, and the `issue` step
+that asked, whose rollback takes them away) and shown on the task. A write
+elsewhere, by a tool or in a one-shot proposal, is refused and tells the agent
+to ask with `widen_scope` or, when that is refused, to leave the file and finish
+with outcome `needs_own_task`; a coder that then changes nothing fails with its
+own `finish` summary in the reason. A run has budgets for tool
 calls (150 for the coder, 80 for the tester), changed files and check runs, and a
 turn limit; its time limit is four model timeouts plus two focused check timeouts.
 The worktree's diff becomes the next proposal version, the agent's `finish`

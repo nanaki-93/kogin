@@ -16,11 +16,14 @@ import (
 // again, and the next one starts. Testing and review then cover the branch.
 
 // Issue step states. A new step is pending; fixing marks the one running.
+// An issue an earlier step already fixed is fixed with that step's commit;
+// one that does not hold is dismissed when the task merges.
 const (
-	IssuePending  = "pending"
-	IssueFixing   = "fixing"
-	IssueFixed    = "fixed"
-	IssueNotFixed = "not_fixed"
+	IssuePending     = "pending"
+	IssueFixing      = "fixing"
+	IssueFixed       = "fixed"
+	IssueNotFixed    = "not_fixed"
+	IssueDoesNotHold = "does_not_hold"
 )
 
 const (
@@ -119,7 +122,7 @@ func validIssueStep(issue ChangeIssue, linked bool) bool {
 		return linked && issue.Commit == "" && issue.Reason == ""
 	case IssueFixed:
 		return linked && validCommitOID(issue.Commit)
-	case IssueNotFixed:
+	case IssueNotFixed, IssueDoesNotHold:
 		return !linked && issue.Commit == "" && issue.Reason != ""
 	default:
 		return false
@@ -154,4 +157,30 @@ func issuesForRequest(issues []ChangeIssue, targets []project.FindingTarget) []C
 		return nil
 	}
 	return kept
+}
+
+// validateSettledIssues checks what steps recorded beside the issues: a
+// dismissed target is an issue the task found does not hold, and a scope
+// grant names one bounded file with a reason.
+func validateSettledIssues(session *ChangeSession) error {
+	for _, target := range session.DismissedTargets {
+		if err := target.Validate(); err != nil {
+			return err
+		}
+		if !slices.ContainsFunc(session.Issues, func(issue ChangeIssue) bool {
+			return issue.FindingID == target.ID && issue.Path == target.Path && issue.Status == IssueDoesNotHold
+		}) {
+			return fmt.Errorf("a dismissed issue must be one the task found does not hold")
+		}
+	}
+	if len(session.ScopeGrants) > maxScopeFiles {
+		return fmt.Errorf("a task is granted at most %d files", maxScopeFiles)
+	}
+	for _, grant := range session.ScopeGrants {
+		clean, err := cleanToolPath(grant.Path)
+		if err != nil || clean != grant.Path || !boundedIssueText(grant.Reason, maxScopeGrantReason, true) {
+			return fmt.Errorf("a scope grant names one project file and why")
+		}
+	}
+	return nil
 }

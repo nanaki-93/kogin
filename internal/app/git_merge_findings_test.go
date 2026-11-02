@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -272,5 +273,55 @@ func TestGitMergeConflictsAbortAndDiscardDoNotCompleteFindings(t *testing.T) {
 	}
 	if completed, err := service.FindingCompletions(); err != nil || len(completed) != 0 {
 		t.Fatalf("abort/discard completed findings: %+v, %v", completed, err)
+	}
+}
+
+func TestGitMergeDismissesTheIssuesATaskFoundDoNotHold(t *testing.T) {
+	service, root, request := gitWorkflowFixture(t)
+	path, session := recordedFindingFix(t, service, request)
+	_, _, input, err := service.workspaceState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := project.NewFindingStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	findings, err := store.ReconcileSource(input, project.FindingSourceAI, []project.UnifiedFinding{
+		{Source: project.FindingSourceAI, Confidence: project.FindingConfidenceSuggested, Severity: "high", Title: "Run ignores errors", Message: "Fix Run", Location: project.FindingLocation{Path: "main.go", StartLine: 5, EndLine: 5}},
+		{Source: project.FindingSourceAI, Confidence: project.FindingConfidenceSuggested, Severity: "low", Title: "Run leaks", Message: "Run leaks a file", Location: project.FindingLocation{Path: "main.go", StartLine: 6, EndLine: 6}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixed := project.FindingTarget{ProjectID: input.ProjectID, Kind: "semantic", ID: findings[0].ID, Path: "main.go"}
+	notReal := project.FindingTarget{ProjectID: input.ProjectID, Kind: "semantic", ID: findings[1].ID, Path: "main.go"}
+	session.FindingTargets, session.DismissedTargets = []project.FindingTarget{fixed}, []project.FindingTarget{notReal}
+	session.Issues = []ChangeIssue{
+		{FindingID: fixed.ID, Path: "main.go", Title: "Run ignores errors", Status: IssueFixed, Commit: session.Commit.OID},
+		{FindingID: notReal.ID, Path: "main.go", Title: "Run leaks", Status: IssueDoesNotHold, Reason: "Run closes the file it opens."},
+	}
+	if err := storeChangeSession(path, session); err != nil {
+		t.Fatal(err)
+	}
+	// Until the task merges, the issue that does not hold stays with it, in progress.
+	if !slices.Contains(service.inProgressFindingTargets(context.Background(), root, input.ProjectID), notReal) {
+		t.Fatal("the issue that does not hold is open again before the merge")
+	}
+	request = trustedGitRequest(t, service)
+	request.Path, request.SourceHead = path, testGit(t, path, "rev-parse", "HEAD")
+	if result, err := service.MergeGitWorktree(context.Background(), request); err != nil || result.State != "merged" || len(result.Warnings) != 0 || len(result.Completed) != 1 {
+		t.Fatalf("merge: %+v, %v", result, err)
+	}
+	loaded, err := store.Load(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statuses := map[string]string{}
+	for _, finding := range loaded {
+		statuses[finding.ID] = finding.Status
+	}
+	if statuses[fixed.ID] != project.FindingStatusFixed || statuses[notReal.ID] != project.FindingStatusDismissed {
+		t.Fatalf("after the merge: %+v", statuses)
 	}
 }

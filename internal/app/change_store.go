@@ -69,6 +69,9 @@ func validateStoredChange(session ChangeSession) error {
 	if err := validateChangeIssues(session.Issues, session.FindingTargets); err != nil {
 		return err
 	}
+	if err := validateSettledIssues(&session); err != nil {
+		return err
+	}
 	seen, err := validateStoredTargets(session.Targets)
 	if err != nil {
 		return err
@@ -264,6 +267,7 @@ func listChangeSessionsWith(root string, listing sessionListing) ([]ChangeHistor
 			entry.Paths = append(entry.Paths, target.Path)
 		}
 		entry.FindingTargets = session.FindingTargets
+		entry.DismissedTargets = session.DismissedTargets
 		if session.Workflow != nil {
 			entry.WorkflowStatus = session.Workflow.Status
 			entry.WorkflowReason = session.Workflow.Reason

@@ -69,6 +69,10 @@
   margin: 4px 0 0 22px;
 }
 
+.scope-grant p {
+  margin-left: 0;
+}
+
 .reviewers {
   display: flex;
   flex-direction: column;

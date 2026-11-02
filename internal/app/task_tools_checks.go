@@ -25,8 +25,8 @@ func (run *taskToolRun) checkTools() []toolSpec {
 			description: "Run the task's checks on the change as it stands: formatting and parsing, architecture and code budgets from AGENTS.md, and the lint and tests of every subproject the change touches. Failures that also happened before the change are marked as such. Run it before finish when you changed code.",
 			schema:      `{"type":"object","properties":{},"additionalProperties":false}`},
 		{name: "finish", call: run.finishRun,
-			description: "End the run with a summary of what you changed and, for each acceptance criterion, how the change meets it. Call it once, last.",
-			schema:      `{"type":"object","properties":{"summary":{"type":"string","minLength":1,"maxLength":4000},"criteria":{"type":"array","maxItems":16,"items":{"type":"object","properties":{"criterion":{"type":"integer","minimum":1},"how":{"type":"string","minLength":1,"maxLength":1000}},"required":["criterion","how"],"additionalProperties":false}}},"required":["summary"],"additionalProperties":false}`},
+			description: "End the run with a summary of what you changed and, for each acceptance criterion, how the change meets it. When you fix one issue, also say how it ended: fixed (you changed code for it), already_fixed (an earlier step of this task already fixed it; change nothing), does_not_hold (the code does not have the problem; change nothing and say why), or needs_own_task (the fix needs code this task may not change). Call it once, last.",
+			schema:      `{"type":"object","properties":{"summary":{"type":"string","minLength":1,"maxLength":4000},"criteria":{"type":"array","maxItems":16,"items":{"type":"object","properties":{"criterion":{"type":"integer","minimum":1},"how":{"type":"string","minLength":1,"maxLength":1000}},"required":["criterion","how"],"additionalProperties":false}},"outcome":{"type":"string","enum":["fixed","already_fixed","does_not_hold","needs_own_task"]}},"required":["summary"],"additionalProperties":false}`},
 	}
 }
 
@@ -141,6 +141,9 @@ func (run *taskToolRun) finishRun(_ context.Context, arguments json.RawMessage) 
 		if note.Criterion < 1 || note.Criterion > len(run.session.AcceptanceCriteria) || strings.TrimSpace(note.How) == "" || len(note.How) > 1000 {
 			return "", fmt.Errorf("criteria must number the task's %d acceptance criteria, each with how it is met", len(run.session.AcceptanceCriteria))
 		}
+	}
+	if !slices.Contains([]string{"", outcomeFixed, outcomeAlreadyFixed, outcomeDoesNotHold, outcomeNeedsOwnTask}, input.Outcome) {
+		return "", errors.New("outcome is fixed, already_fixed, does_not_hold or needs_own_task")
 	}
 	run.mu.Lock()
 	defer run.mu.Unlock()

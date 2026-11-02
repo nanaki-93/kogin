@@ -42,6 +42,11 @@ type ChangeSession struct {
 	AcceptanceCriteria  []string                `json:"acceptance_criteria"`
 	FindingTargets      []project.FindingTarget `json:"finding_targets,omitempty"`
 	Issues              []ChangeIssue           `json:"issues,omitempty"`
+	// DismissedTargets are the linked issues a step found do not hold: merging
+	// the task dismisses them.
+	DismissedTargets []project.FindingTarget `json:"dismissed_targets,omitempty"`
+	// ScopeGrants are files outside a fix's folders that its agents may change.
+	ScopeGrants         []ScopeGrant            `json:"scope_grants,omitempty"`
 	Targets             []ChangeTarget          `json:"targets"`
 	Instructions        map[string]string       `json:"instructions"`
 	PolicyFingerprint   string                  `json:"policy_fingerprint"`

@@ -77,6 +77,20 @@ are listed here as they land.
   Stop), that issue's step is rolled back, so the next run starts it over from
   the last fixed issue instead of finding its edits already made and marking
   it **Not fixed** with "the coding agent changed nothing".
+- **A fix can reach the code it calls:** a task that fixes issues no longer
+  stops when the fix belongs in code its files import (a fix in
+  `cmd/master.go` that needs `internal/utils`). Its coding agent asks for those
+  files, says why, and Kasuri allows them when the task's code imports them:
+  at most two more folders and eight code files in all, never files the
+  project's context policy leaves out. The task page lists them as **Added to
+  the fix**, with the reason, and the reviewers judge the wider change.
+  Anything further is still refused, and the issue is left for a task of its
+  own.
+- **Each issue step says how it ended:** an issue an earlier step of the task
+  already fixed is now **Fixed** with that step's commit (it used to be marked
+  Not fixed and open again), and one that does not hold is **Does not hold**,
+  with the agent's reason: it stays with the task and merging the task
+  dismisses it (you can reopen it in Issues).
 - **Go on with another model when a plan runs out:** resuming a run paused at
   a plan's usage limit now offers **Models for this run**: the model of each
   stage that runs, starting from the roles, with the plan that ran out marked

@@ -1,6 +1,6 @@
 // Tasks: their proposals, diffs, checks, comments, plans and history.
 
-import type { FindingTarget, TaskIssue } from './issues';
+import type { FindingTarget, ScopeGrant, TaskIssue } from './issues';
 import type { GitIdentity, ProjectIdentity } from './project';
 import type { ChangeWorkflow } from './workflow';
 
@@ -132,6 +132,10 @@ export interface ChangeSession extends ProjectIdentity {
   finding_targets?: FindingTarget[];
   /** The issues it fixes one at a time, each with its step's progress. */
   issues?: TaskIssue[];
+  /** Linked issues a step found do not hold: merging the task dismisses them. */
+  dismissed_targets?: FindingTarget[];
+  /** Files outside the fix's folders its agents may change, and why. */
+  scope_grants?: ScopeGrant[];
   git?: GitIdentity;
   commit?: ChangeCommit;
   worktree_path?: string;

@@ -171,13 +171,48 @@ func ValidateWorktreeRemoval(ctx context.Context, root string, source *GitWorktr
 // MergedFindingTargets captures finding completions before merging: merge drivers
 // and later work must not change which findings the reviewed commits address.
 func MergedFindingTargets(ctx context.Context, repository *GitRepository, source *GitWorktree, loadHistory func(string) ([]ChangeHistoryEntry, error)) ([]project.FindingCompletion, error) {
+	merged, err := mergedEntries(ctx, repository, source, loadHistory)
+	if err != nil {
+		return nil, err
+	}
+	completed := []project.FindingCompletion{}
+	for _, entry := range merged {
+		for _, target := range entry.FindingTargets {
+			if target.ProjectID == repository.ProjectID {
+				completed = append(completed, project.FindingCompletion{FindingTarget: target, CommitOID: entry.Commit.OID})
+			}
+		}
+	}
+	return completed, nil
+}
+
+// MergedDismissedTargets are the issues the merged tasks found do not hold.
+func MergedDismissedTargets(ctx context.Context, repository *GitRepository, source *GitWorktree, loadHistory func(string) ([]ChangeHistoryEntry, error)) ([]project.FindingTarget, error) {
+	merged, err := mergedEntries(ctx, repository, source, loadHistory)
+	if err != nil {
+		return nil, err
+	}
+	dismissed := []project.FindingTarget{}
+	for _, entry := range merged {
+		for _, target := range entry.DismissedTargets {
+			if target.ProjectID == repository.ProjectID {
+				dismissed = append(dismissed, target)
+			}
+		}
+	}
+	return dismissed, nil
+}
+
+// mergedEntries are the worktree's integrated tasks with issues whose commit
+// the merged head holds.
+func mergedEntries(ctx context.Context, repository *GitRepository, source *GitWorktree, loadHistory func(string) ([]ChangeHistoryEntry, error)) ([]ChangeHistoryEntry, error) {
 	history, err := loadHistory(source.Path)
 	if err != nil {
 		return nil, fmt.Errorf("read worktree finding targets: %w", err)
 	}
-	completed := []project.FindingCompletion{}
+	var merged []ChangeHistoryEntry
 	for _, entry := range history {
-		if len(entry.FindingTargets) == 0 || !entry.Integrated() {
+		if len(entry.FindingTargets)+len(entry.DismissedTargets) == 0 || !entry.Integrated() {
 			continue
 		}
 		if !commitOIDPattern.MatchString(entry.Commit.OID) {
@@ -190,13 +225,29 @@ func MergedFindingTargets(ctx context.Context, repository *GitRepository, source
 		if err != nil {
 			return nil, fmt.Errorf("verify finding commit %s: %w", entry.Commit.OID, err)
 		}
-		for _, target := range entry.FindingTargets {
-			if target.ProjectID == repository.ProjectID {
-				completed = append(completed, project.FindingCompletion{FindingTarget: target, CommitOID: entry.Commit.OID})
-			}
+		merged = append(merged, entry)
+	}
+	return merged, nil
+}
+
+// DismissMergedFindings dismisses the issues merged tasks found do not hold.
+func DismissMergedFindings(ctx context.Context, root, head string, targets []project.FindingTarget) error {
+	if len(targets) == 0 {
+		return nil
+	}
+	if _, err := Read(ctx, root, "merge-base", "--is-ancestor", head, "HEAD"); err != nil {
+		return fmt.Errorf("verify the reviewed commit was merged: %w", err)
+	}
+	store, err := project.NewFindingStore(root)
+	if err != nil {
+		return err
+	}
+	for _, target := range targets {
+		if err := store.SetTargetStatus(target, project.FindingStatusDismissed, ""); err != nil {
+			return err
 		}
 	}
-	return completed, nil
+	return nil
 }
 
 func CompleteMergedFindings(ctx context.Context, root, head string, completions []project.FindingCompletion) error {
