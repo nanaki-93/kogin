@@ -2,14 +2,15 @@
 // re-analyze it when stale and delete it.
 
 import { api, errorMessage, query, withWorktree } from '@/api/client';
-import type { AgentSettings, ChangeOpened, ChangeReanalysis, ChangeRetake, ChangeSession, FindingTarget, LoadedSession, ModelsCurrent, Project, TaskIssue } from '@/api/types';
+import type { AgentSettings, AvailableModels, ChangeOpened, ChangeReanalysis, ChangeRetake, ChangeSession, FindingTarget, LoadedSession, Model, ModelsCurrent, Project, TaskIssue } from '@/api/types';
 import { issueSteps } from '@/lib/issues';
 import { changeIdentity, openComments, workflowActive } from '@/lib/readiness';
-import { runStartOptions, workflowDestinations, workflowRequest } from '@/lib/workflow';
+import { chooseRunModels, runStartOptions, workflowDestinations, workflowRequest, type DestinationChoice, type ModelStage } from '@/lib/workflow';
+import { roleModelOptions, selectedModel, type ModelOptionGroup } from '@/lib/agentSettings';
 import { navigate } from '@/lib/router';
 import { openWorkspace } from '@/app/checkout';
 import { commentsBrief, isTestPath, plural } from '@/lib/util';
-import { RunStartChoice } from '@/components/domain';
+import { ResumeChoice, RunStartChoice } from '@/components/domain';
 import { keys } from '@/api/hooks';
 import { pendingRevision, setPendingRevision } from './busy';
 import { changePath, type ActionContext } from './context';
@@ -112,20 +113,36 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
     const starts = runStartOptions(session, choice.selections.create, isTestPath);
     let start = starts.initial; // The choice below updates it while the dialog is open.
     const again = starts.options.length > 0;
-    const paused = session.workflow?.status === 'paused';
+    const pause = session.workflow?.status === 'paused' ? session.workflow.pause : undefined;
+    const paused = Boolean(pause);
+    // A run paused at a plan's limit can go on now with another model.
+    const models = pause ? await modelOptions(settings, choice, session) : null;
+    const picked: Partial<Record<ModelStage, string>> = {};
     const ok = await confirm({
       title: paused ? 'Resume the agents?' : again ? 'Run the agents again?' : 'Start the agents?',
       body: (
         <div className="stack">
+          {models ? (
+            <ResumeChoice
+              starts={starts}
+              comments={comments}
+              previous={models.previous}
+              groups={models.groups}
+              initial={choice.selections}
+              limited={pause?.provider}
+              onStart={value => (start = value)}
+              onModel={(stage, selection) => (picked[stage] = selection)}
+            />
+          ) : null}
           {again ? (
             <>
-              <RunStartChoice options={starts.options} initial={starts.initial} comments={comments} onChange={value => (start = value)} />
+              {models ? null : <RunStartChoice options={starts.options} initial={starts.initial} comments={comments} onChange={value => (start = value)} />}
               <p className="small muted">Checks run in an isolated copy of the project. Nothing is committed until you review and accept the result. A failed check or a rejecting review starts an automatic repair of the code (up to two).</p>
             </>
           ) : (
             <p>Agents write the change, write and run tests in an isolated copy of the project, then specialist reviewers check it. Nothing reaches your files until you review and apply it.</p>
           )}
-          {choice.destinations.length ? (
+          {models ? null : choice.destinations.length ? (
             <div className="consent-list">
               <div className="small strong">Sends code to remote models</div>
               {choice.destinations.map(d => (
@@ -147,7 +164,8 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
     return Boolean(
       await guarded('Starting agents…', async () => {
         try {
-          const body = workflowRequest(changeIdentity(session), message, choice, { autoRepair: true, confirmSecurity: security, planHash: session.plan?.hash, includeComments: comments > 0 && start !== 'checks', start });
+          const run = models ? chooseRunModels(choice, picked, start, session.workflow, models.modelOf) : choice;
+          const body = workflowRequest(changeIdentity(session), message, run, { autoRepair: true, confirmSecurity: security, planHash: session.plan?.hash, includeComments: comments > 0 && start !== 'checks', start });
           setSession(await api.post<ChangeSession>(changePath(session, '/workflow'), body), session);
           toast('Agents started. Progress updates live.', 'info');
           return true;
@@ -157,6 +175,36 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
         }
       }),
     );
+  }
+
+  /**
+   * The models a resumed run can choose from: the configured scopes and what
+   * the CLIs list (only the scopes when listing fails), and how each runs.
+   */
+  async function modelOptions(settings: AgentSettings | null, choice: DestinationChoice, session: LoadedSession): Promise<{ groups: ModelOptionGroup[]; previous: Partial<Record<ModelStage, string>>; modelOf: (selection: string) => Model | undefined }> {
+    const scopes = client.getQueryData<ModelsCurrent>(keys.models)?.scopes ?? {};
+    let catalog: AvailableModels | undefined;
+    try {
+      catalog = await client.fetchQuery({ queryKey: keys.availableModels, queryFn: () => api.get<AvailableModels>('/api/models/available'), staleTime: 5 * 60_000 });
+    } catch {
+      catalog = undefined;
+    }
+    const roleOf = { create: 'creation', test: 'testing', review: 'review' } as const;
+    const known: Record<string, Model> = {};
+    for (const stage of ['create', 'test', 'review'] as const) {
+      const model = settings?.role_models?.[roleOf[stage]];
+      if (model) known[choice.selections[stage]] = model;
+    }
+    // The model each stage ran with last time, which a stage the start keeps keeps.
+    const previous: Partial<Record<ModelStage, string>> = {};
+    for (const stage of session.workflow?.stages ?? []) {
+      if ((stage.name === 'create' || stage.name === 'test' || stage.name === 'review') && stage.model?.profile) {
+        previous[stage.name] = stage.model.profile;
+        known[stage.model.profile] ??= stage.model;
+      }
+    }
+    const groups = roleModelOptions(scopes, catalog, [...Object.values(choice.selections), ...Object.values(previous)], known);
+    return { groups, previous, modelOf: selection => selectedModel(groups, selection) ?? known[selection] };
   }
 
   /**

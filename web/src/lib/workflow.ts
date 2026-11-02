@@ -1,7 +1,7 @@
 // Agent workflow presentation and request shaping. Consent is captured per
 // request: every remote destination the run will use is listed and confirmed.
 
-import type { AgentSettings, BudgetUsage, ChangeHistoryEntry, ChangeSession, ChangeWorkflow, CostEstimate, GitWorkspace, GitWorktree, ModelsCurrent, ProjectIdentity, ReviewItem, StageTools, WorkflowPause } from '@/api/types';
+import type { AgentSettings, BudgetUsage, ChangeHistoryEntry, ChangeSession, ChangeWorkflow, CostEstimate, GitWorkspace, GitWorktree, Model, ModelsCurrent, ProjectIdentity, ReviewItem, StageTools, WorkflowPause } from '@/api/types';
 import { durationBetween, plural, type Tone } from './util';
 import { phaseTone, type PhaseTone } from './readiness';
 
@@ -186,19 +186,29 @@ export interface DestinationChoice {
   local: { stage: string; model: string }[];
 }
 
+/** The model stages of a run, in order. */
+export type ModelStage = 'create' | 'test' | 'review';
+export const MODEL_STAGES: ModelStage[] = ['create', 'test', 'review'];
+
 /** Resolves role selections and which of them reach a remote provider. */
 export function workflowDestinations(settings: AgentSettings | null | undefined, models: ModelsCurrent | null | undefined): DestinationChoice {
   const roles = { ...DEFAULT_ROLES, ...(settings?.roles ?? {}) };
   const selections = { create: roles.creation, test: roles.testing, review: roles.review };
   const scopes = models?.scopes ?? {};
   const catalog = settings?.models ?? [];
+  const roleOf = { create: 'creation', test: 'testing', review: 'review' } as const;
+  const roleModel = (stage: ModelStage) => settings?.role_models?.[roleOf[stage]] ?? scopes[selections[stage]] ?? catalog.find(entry => entry.scope === selections[stage]);
+  return destinationsFor(selections, stage => roleModel(stage));
+}
+
+/** Which of a run's model selections reach a remote provider, so they are listed and confirmed. */
+function destinationsFor(selections: DestinationChoice['selections'], modelOf: (stage: ModelStage) => Model | undefined): DestinationChoice {
   const destinations: Destination[] = [];
   const local: { stage: string; model: string }[] = [];
   const confirmed: string[] = [];
-  const roleOf = { create: 'creation', test: 'testing', review: 'review' } as const;
-  for (const stage of ['create', 'test', 'review'] as const) {
+  for (const stage of MODEL_STAGES) {
     const selection = selections[stage];
-    const model = settings?.role_models?.[roleOf[stage]] ?? scopes[selection] ?? catalog.find(entry => entry.scope === selection);
+    const model = modelOf(stage);
     if (model?.remote_provider) {
       destinations.push({ stage, selection, model: model.model || selection, origin: model.provider_origin || 'remote provider' });
       if (!confirmed.includes(selection)) confirmed.push(selection);
@@ -207,6 +217,44 @@ export function workflowDestinations(settings: AgentSettings | null | undefined,
     }
   }
   return { selections, destinations, confirmed, local };
+}
+
+/** The model stages a run starting at `start` runs; the earlier ones are kept. */
+export function stagesRunFrom(start: RunStart): ModelStage[] {
+  return { create: MODEL_STAGES, test: ['test', 'review'] as ModelStage[], checks: ['review'] as ModelStage[], review: ['review'] as ModelStage[] }[start];
+}
+
+/**
+ * A run's models after the person chose some for its stages: a stage the start
+ * keeps runs with the model it ran with last time (the daemon refuses any
+ * other), the others with the chosen model, else the role's. Every remote one
+ * is confirmed again.
+ */
+export function chooseRunModels(base: DestinationChoice, picked: Partial<Record<ModelStage, string>>, start: RunStart, workflow: ChangeWorkflow | undefined, modelOf: (selection: string) => Model | undefined): DestinationChoice {
+  const runs = stagesRunFrom(start);
+  const selections = { ...base.selections };
+  for (const stage of MODEL_STAGES) {
+    const previous = workflow?.stages.find(entry => entry.name === stage)?.model?.profile;
+    if (!runs.includes(stage) && previous) selections[stage] = previous;
+    else if (picked[stage]) selections[stage] = picked[stage]!;
+  }
+  const known = new Map<string, Model | undefined>();
+  for (const stage of MODEL_STAGES) {
+    const kept = workflow?.stages.find(entry => entry.name === stage)?.model;
+    if (kept?.profile) known.set(kept.profile, kept);
+  }
+  return destinationsFor(selections, stage => modelOf(selections[stage]) ?? known.get(selections[stage]));
+}
+
+/** The CLI or provider a model runs on: cli://pi is "pi". */
+export function modelProvider(model: Pick<Model, 'provider_origin'> | undefined): string {
+  const origin = model?.provider_origin ?? '';
+  return origin.startsWith('cli://') ? origin.slice('cli://'.length) : origin;
+}
+
+/** The plan a CLI signs in with, as a pause names it. */
+export function planName(provider: string | undefined): string {
+  return { claude: 'Claude plan', agy: 'Google AI plan', pi: 'Pi subscription' }[provider ?? ''] ?? 'plan';
 }
 
 export function workflowRequest(identity: ProjectIdentity & { revision: number; hash: string }, message: string, choice: DestinationChoice, options: { autoRepair?: boolean; confirmSecurity?: boolean; planHash?: string; includeComments?: boolean; start?: RunStart } = {}) {
@@ -261,7 +309,7 @@ export function runStartOptions(session: { changes?: { path: string }[] | null; 
 
 /** The title of a paused run: when the plan's limit resets, when the CLI said. */
 export function pauseTitle(pause: WorkflowPause | undefined, now = new Date()): string {
-  const plan = { claude: 'Claude plan', agy: 'Google AI plan', pi: 'Pi subscription' }[pause?.provider ?? ''] ?? 'plan';
+  const plan = planName(pause?.provider);
   const resets = pause?.resumes_at ? new Date(pause.resumes_at) : undefined;
   if (!resets || Number.isNaN(resets.getTime())) return `Paused: the ${plan} reached its usage limit`;
   const time = resets.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });

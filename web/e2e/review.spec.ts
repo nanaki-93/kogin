@@ -2,7 +2,7 @@
 // accept it as a commit on the task's branch, with the review gate tracking each step.
 
 import { expect, test } from './support/daemon';
-import { agentSettings, pausedTask, rejectedTask, reviewTask } from './support/fixtures';
+import { agentSettings, pausedTask, rejectedTask, reviewTask, stageModel } from './support/fixtures';
 
 test('reviews, approves and accepts a task through the gate', async ({ page, daemon }) => {
   await page.goto('/#/tasks/chg-1');
@@ -276,6 +276,26 @@ test('a run paused at a plan limit says when it can continue and resumes where i
   await dialog.getByRole('button', { name: 'Resume agents' }).click();
   await expect(page.locator('header.task-header').getByRole('button', { name: 'Stop agents' })).toBeVisible();
   expect(daemon.mutations('/workflow')[0].body).toMatchObject({ resume_from: 'review' });
+});
+
+test('a run paused at a plan limit can go on now with another model', async ({ page, daemon }) => {
+  daemon.serve('/api/projects/current/agent-settings', () => agentSettings(1, { creation: 'bug', testing: 'code', review: 'claude:opus' }, null));
+  const task = pausedTask();
+  daemon.sessions.set('chg-1', { ...task, workflow: { ...task.workflow!, stages: task.workflow!.stages.map(stage => (stage.name === 'review' ? { ...stage, model: stageModel('claude:opus') } : stage)) } });
+  await page.goto('/#/tasks/chg-1');
+  await page.getByRole('region', { name: 'Agent run' }).getByRole('button', { name: 'Resume agents' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog.getByText('The Claude plan reached its usage limit: choose another model to continue now.')).toBeVisible();
+  // Continuing the review keeps the change and its tests with the models they ran with.
+  await expect(dialog.getByLabel('Write the change', { exact: true })).toBeDisabled();
+  await expect(dialog.getByLabel('Write and run tests', { exact: true })).toBeDisabled();
+  await dialog.getByLabel('Specialist review', { exact: true }).selectOption('agy:gemini-3.8-flash-medium');
+  await expect(dialog.getByText('The Claude plan reached its usage limit: choose another model to continue now.')).toBeHidden();
+  await dialog.getByRole('button', { name: 'Resume agents' }).click();
+  await expect(page.locator('header.task-header').getByRole('button', { name: 'Stop agents' })).toBeVisible();
+  const body = daemon.mutations('/workflow')[0].body as { models: Record<string, string>; confirmed_profiles: string[] };
+  expect(body).toMatchObject({ resume_from: 'review', models: { create: 'bug', test: 'code', review: 'agy:gemini-3.8-flash-medium' } });
+  expect(body.confirmed_profiles).toContain('agy:gemini-3.8-flash-medium');
 });
 
 test('a changed creation model makes the agents write the change again', async ({ page, daemon }) => {

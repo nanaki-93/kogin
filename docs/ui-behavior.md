@@ -71,8 +71,13 @@ every guard when the action arrives.
   reason, and nothing half done is kept. **Resume agents** opens the same
   confirmation with the start that continues the run chosen: **Continue the
   review** (keeps the change and its passing checks), **Write new tests**, or
-  **Write the change again**. Another model can be chosen for the stage in the
-  role settings before resuming.
+  **Write the change again**. Under **Models for this run** it also picks the
+  model of each stage that runs, starting from the roles': a model of the plan
+  that reached its limit is marked "limit reached", so another (a configured
+  scope or one Claude Code, agy or pi lists) can take the stage over now
+  instead of waiting for the reset. A stage the chosen start keeps shows the
+  model it ran with and keeps it. The choice is for this run only; Settings →
+  Models & agents keeps the roles for new runs.
 - **Watch.** The Conversation shows each stage with its model and duration and
   each specialist's verdict and findings. A running stage spins; a stage that
   waits on someone (your review, or a paused stage waiting for a plan's reset)

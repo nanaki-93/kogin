@@ -4,7 +4,7 @@ import { ancestors, buildTree, visibleRows } from './tree';
 import { buildHash, parseHash } from './router';
 import { escapeHtml, highlightLines } from './highlight';
 import { companionTestPath, formatElapsed, isTestPath, newFilePath, timeAgo } from './util';
-import { composerStartBlocker, issueStepState, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stageToolsLabel, taskFixingIssue, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeDiscardable, worktreeRemovable, worktreeTasks } from './workflow';
+import { chooseRunModels, composerStartBlocker, issueStepState, modelProvider, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stagesRunFrom, stageToolsLabel, taskFixingIssue, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeDiscardable, worktreeRemovable, worktreeTasks } from './workflow';
 import type { ChangeHistoryEntry, Finding, GitWorkspace, GitWorktree } from '@/api/types';
 import { isInProgressFinding, isOpenFinding, isUnresolvedFinding } from '@/components/domain';
 import { limitErrors, modelLocation, roleModelOptions, selectedModel } from './agentSettings';
@@ -191,6 +191,28 @@ describe('running the agents again', () => {
     // A changed creation model still writes the change again.
     expect(runStartOptions(paused('review'), 'code', isTestPath).initial).toBe('create');
     expect(workflowRequest({ project_id: 'p', project_revision: 'r', revision: 1, hash: 'h' }, 'Fix', { selections: { create: 'bug', test: 'code', review: 'analyze' }, destinations: [], confirmed: [], local: [] }, { start: 'review' }).resume_from).toBe('review');
+  });
+
+  it('lets a paused run go on with another model, keeping the stages it keeps', () => {
+    expect(stagesRunFrom('test')).toEqual(['test', 'review']);
+    expect(stagesRunFrom('checks')).toEqual(['review']);
+    expect(modelProvider({ provider_origin: 'cli://pi' })).toBe('pi');
+    const workflow = { id: 'wf', status: 'paused', stages: [
+      { name: 'create', status: 'completed', model: { scope: 'bug', profile: 'bug', model: 'opus', provider_origin: 'cli://claude', remote_provider: true } },
+      { name: 'test', status: 'paused', model: { scope: '', profile: 'pi:openai/gpt-6.1-sol', model: 'openai/gpt-6.1-sol', provider_origin: 'cli://pi', remote_provider: true } },
+    ] } as never;
+    const base = { selections: { create: 'code', test: 'pi:openai/gpt-6.1-sol', review: 'analyze' }, destinations: [], confirmed: [], local: [] };
+    const catalog: Record<string, { scope: string; model: string; provider_origin: string; remote_provider: boolean }> = {
+      code: { scope: 'code', model: 'opus', provider_origin: 'cli://claude', remote_provider: true },
+      analyze: { scope: 'analyze', model: 'qwen', provider_origin: 'http://127.0.0.1:1234', remote_provider: false },
+      'agy:gemini-3.8-flash-high': { scope: '', model: 'gemini-3.8-flash-high', provider_origin: 'cli://agy', remote_provider: true },
+    };
+    const run = chooseRunModels(base, { create: 'analyze', test: 'agy:gemini-3.8-flash-high' }, 'test', workflow, id => catalog[id]);
+    // The kept creation stage keeps the model it ran with, whatever was chosen for it.
+    expect(run.selections).toEqual({ create: 'bug', test: 'agy:gemini-3.8-flash-high', review: 'analyze' });
+    expect(run.confirmed).toEqual(['bug', 'agy:gemini-3.8-flash-high']);
+    expect(run.local).toEqual([{ stage: 'review', model: 'qwen' }]);
+    expect(chooseRunModels(base, { create: 'analyze' }, 'create', workflow, id => catalog[id]).selections.create).toBe('analyze');
   });
 
   it('says when a paused run can continue', () => {
