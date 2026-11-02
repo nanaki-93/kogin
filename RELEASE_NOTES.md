@@ -77,6 +77,14 @@ are listed here as they land.
   Stop), that issue's step is rolled back, so the next run starts it over from
   the last fixed issue instead of finding its edits already made and marking
   it **Not fixed** with "the coding agent changed nothing".
+- **Kasuri lints with the language's own linter:** the lint check is
+  `go vet ./...` for Go, `cargo check --all-targets` for Rust and a
+  package.json `lint` or `typecheck` script for Node, no longer a `lint`, `vet`
+  or `check` target of the project's justfile, Taskfile or Makefile (nor a
+  package.json `check` script): those often run the whole test suite too, so
+  every check pass ran the tests twice and timed out. Tests still use the
+  runner's `test` target. An AGENTS.md checks block can still declare either
+  command.
 - **Fixes stay focused:** three changes for tasks that fix issues, which often
   failed or ran long without a result.
   - A fix changes code only in the folders of its issues' files and of the

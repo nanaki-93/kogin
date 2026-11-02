@@ -142,9 +142,12 @@ checks:
   card shows where every file stands.
 - **Checks per subproject.** `checks` declares the test and lint commands of
   the subproject the `AGENTS.md` sits in (one command each, no shell syntax).
-  Without it Kasuri uses a `test` and `lint` (or `vet`, or `check`) target of
-  a justfile, Taskfile or Makefile there, then the ecosystem's defaults. The
-  commands are part of what execution trust lists. A failing check is compared
+  Without it Kasuri tests with the `test` target of a justfile, Taskfile or
+  Makefile there, else the ecosystem's default, and lints with the ecosystem's
+  own linter (`go vet ./...`, `cargo check --all-targets`, a package.json
+  `lint` or `typecheck` script), never a runner's `lint` or `check` target,
+  which often runs the tests too. The commands are part of what execution
+  trust lists. A failing check is compared
   with the same command on the tree before the change: when every failing test
   (or lint finding) already failed there, the check passes as “only failures
   from before the change”; new ones are named and block.

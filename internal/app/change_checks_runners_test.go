@@ -51,8 +51,10 @@ func TestNonGoJustfileChecksAndTestsExecuteUnderTrust(t *testing.T) {
 		t.Fatal(err)
 	}
 	trust, err := service.ExecutionTrust(context.Background(), analysis.ProjectRevision, "")
-	if err != nil || len(trust.Commands) != 2 || strings.Join(trust.Commands[0], " ") != "just test" || strings.Join(trust.Commands[1], " ") != "just check" {
-		t.Fatalf("expected just test and just check in execution trust commands, got %+v, err=%v", trust, err)
+	// The justfile's check target is not the lint: a project's check often
+	// runs its tests as well.
+	if err != nil || len(trust.Commands) != 1 || strings.Join(trust.Commands[0], " ") != "just test" {
+		t.Fatalf("expected only just test in execution trust commands, got %+v, err=%v", trust, err)
 	}
 	if _, err := service.TrustProjectExecution(context.Background(), analysis.ProjectRevision, true); err != nil {
 		t.Fatal(err)
@@ -78,7 +80,7 @@ func TestNonGoJustfileChecksAndTestsExecuteUnderTrust(t *testing.T) {
 		CheckOptions:   CheckOptions{RunTests: true, RunLint: true},
 	})
 	if err != nil || !requiredChecksPassed(passedCheck.Checks) {
-		t.Fatalf("expected just test and just check to pass after repair, got %+v, err=%v", passedCheck, err)
+		t.Fatalf("expected just test to pass after repair, got %+v, err=%v", passedCheck, err)
 	}
 }
 

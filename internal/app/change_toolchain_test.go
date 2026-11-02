@@ -91,17 +91,20 @@ func TestAMixedRepositoryRunsEveryTouchedToolchain(t *testing.T) {
 		"tools/Makefile": "test:\n\t@false\n",
 	})
 	checked := checkedWithTests(t, service, "add.go", "web/app.ts")
-	for _, name := range []string{"tests", "lint", "tests: web", "lint: web"} {
+	for _, name := range []string{"tests", "lint", "tests: web"} {
 		if check := checkNamed(checked.Checks, name); check == nil || check.State != CheckPassed {
 			t.Fatalf("%s did not pass: %+v", name, checked.Checks)
 		}
+	}
+	if check := checkNamed(checked.Checks, "lint: web"); check != nil {
+		t.Fatalf("a Makefile's lint target was run: %+v", check)
 	}
 	other := checkNamed(checked.Checks, "other subprojects")
 	if other == nil || !strings.Contains(other.Output, "tools") || !requiredChecksPassed(checked.Checks) {
 		t.Fatalf("checks = %+v", checked.Checks)
 	}
 	trust, err := service.ExecutionTrust(context.Background(), checked.ProjectRevision, "")
-	if err != nil || len(trust.Commands) != 5 || strings.Join(trust.Commands[2], " ") != "(in tools) make test" {
+	if err != nil || len(trust.Commands) != 4 || strings.Join(trust.Commands[2], " ") != "(in tools) make test" {
 		t.Fatalf("trust commands = %+v, %v", trust, err)
 	}
 }

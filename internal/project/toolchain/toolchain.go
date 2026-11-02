@@ -1,11 +1,15 @@
 // Package toolchain finds how each subproject of a repository is tested and
 // linted. A subproject is a directory with a build manifest, a task runner
-// file or an AGENTS.md that declares checks. For each one the commands come,
-// in order, from its AGENTS.md checks block, from test/lint targets of its
+// file or an AGENTS.md that declares checks. Its test command comes, in
+// order, from its AGENTS.md checks block, from the test target of its
 // justfile, Taskfile or Makefile, and from the defaults of its ecosystem
 // (Go, npm/pnpm/yarn/bun, Cargo, pytest, Maven, Gradle, .NET), preferring a
-// project's own wrapper (mvnw, gradlew) where it has one. Commands are argument
-// lists and never run through a shell.
+// project's own wrapper (mvnw, gradlew) where it has one. Its lint command
+// comes from its AGENTS.md checks block or else from its ecosystem (go vet,
+// cargo check, a package.json lint or typecheck script), never from a task
+// runner: a runner's lint or check target often runs the tests as well, or
+// tools that are not installed. Commands are argument lists and never run
+// through a shell.
 package toolchain
 
 import (
@@ -172,28 +176,18 @@ func taskRunnerProfile(dir string, names map[string]bool, read func(string) stri
 			if !names[name] {
 				continue
 			}
-			test, lint := runnerTargets(read(name), runner.tool == "task")
-			if test == "" && lint == "" {
+			if !hasTestTarget(read(name), runner.tool == "task") {
 				continue
 			}
-			profile := Profile{Dir: dir, Kind: runner.tool, Source: path.Join(dir, name)}
-			if test != "" {
-				profile.Test = []string{runner.tool, test}
-			}
-			if lint != "" {
-				profile.Lint = []string{runner.tool, lint}
-			}
-			return profile, true
+			return Profile{Dir: dir, Kind: runner.tool, Source: path.Join(dir, name), Test: []string{runner.tool, "test"}}, true
 		}
 	}
 	return Profile{}, false
 }
 
-// runnerTargets finds a test target and a lint target. A "check" target is a
-// lint target only when there is no lint or vet target: many projects use
-// check for their whole validation, tests included.
-func runnerTargets(content string, taskfile bool) (string, string) {
-	targets := map[string]bool{}
+// hasTestTarget reports whether a justfile, Taskfile or Makefile has a test
+// target. Its other targets are not used.
+func hasTestTarget(content string, taskfile bool) bool {
 	for _, raw := range strings.Split(content, "\n") {
 		line := raw
 		if taskfile {
@@ -202,20 +196,11 @@ func runnerTargets(content string, taskfile bool) (string, string) {
 				continue
 			}
 		}
-		if match := runnerTargetPattern.FindStringSubmatch(line); match != nil {
-			targets[match[1]] = true
+		if match := runnerTargetPattern.FindStringSubmatch(line); match != nil && match[1] == "test" {
+			return true
 		}
 	}
-	test := ""
-	if targets["test"] {
-		test = "test"
-	}
-	for _, lint := range []string{"lint", "vet", "check"} {
-		if targets[lint] {
-			return test, lint
-		}
-	}
-	return test, ""
+	return false
 }
 
 func ecosystemProfile(dir string, names map[string]bool, read func(string) string) Profile {
@@ -286,7 +271,9 @@ func nodeProfile(dir string, read func(string) string) Profile {
 	if script := manifest.Scripts["test"]; script != "" && !strings.Contains(script, "no test specified") {
 		profile.Test = nodeScript(manager, "test")
 	}
-	for _, lint := range []string{"lint", "typecheck", "check"} {
+	// Not a "check" script: like a runner's check target, it often runs the
+	// tests as well.
+	for _, lint := range []string{"lint", "typecheck"} {
 		if manifest.Scripts[lint] != "" {
 			profile.Lint = nodeScript(manager, lint)
 			break

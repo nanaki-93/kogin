@@ -52,7 +52,7 @@ func TestEachSubprojectGetsItsOwnProfile(t *testing.T) {
 		{Dir: "py", Kind: "python", Source: "py/pyproject.toml", Test: []string{"python", "-m", "pytest", "-q"}},
 		{Dir: "site", Kind: "just", Source: "site/justfile", Test: []string{"just", "test"}},
 		{Dir: "svc", Kind: "rust", Source: "svc/Cargo.toml", Test: []string{"cargo", "test"}, Lint: []string{"cargo", "check", "--all-targets"}},
-		{Dir: "tools", Kind: "make", Source: "tools/Makefile", Test: []string{"make", "test"}, Lint: []string{"make", "lint"}},
+		{Dir: "tools", Kind: "make", Source: "tools/Makefile", Test: []string{"make", "test"}},
 		{Dir: "web", Kind: "node", Source: "web/package.json", Test: []string{"pnpm", "test"}, Lint: []string{"pnpm", "typecheck"}},
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -70,6 +70,23 @@ func TestAGENTSChecksOverrideAndTaskRunnersBeatDefaults(t *testing.T) {
 	})
 	got := Detect(root, files, rules.NewResolver(root))
 	want := []Profile{{Dir: "", Kind: "make", Source: "AGENTS.md", Test: []string{"make", "test"}, Lint: []string{"go", "vet", "./..."}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("profiles:\n got %+v\nwant %+v", got, want)
+	}
+}
+
+func TestLintIsTheEcosystemsOwnNeverATaskRunnerTarget(t *testing.T) {
+	root, files := writeFiles(t, map[string]string{
+		"go.mod":             "module example.test/m\n",
+		"justfile":           "test:\n    go test -race ./...\n\ncheck:\n    go vet ./...\n    go test -race ./...\n\nlint:\n    golangci-lint run\n",
+		"web/package.json":   `{"scripts":{"test":"vitest run","check":"tsc -b && vitest run"}}`,
+		"tools/Taskfile.yml": "version: '3'\ntasks:\n  lint:\n    cmds: [ruff check .]\n",
+	})
+	got := Detect(root, files, rules.NewResolver(root))
+	want := []Profile{
+		{Dir: "", Kind: "just", Source: "justfile", Test: []string{"just", "test"}, Lint: []string{"go", "vet", "./..."}},
+		{Dir: "web", Kind: "node", Source: "web/package.json", Test: []string{"npm", "test"}},
+	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("profiles:\n got %+v\nwant %+v", got, want)
 	}

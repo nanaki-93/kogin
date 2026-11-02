@@ -117,7 +117,7 @@ func TestPolyglotArchitectureBoundariesQualityBudgetsAndEcosystemRunners(t *test
 	if err := os.WriteFile(filepath.Join(root, "src", "ui", "view.ts"), []byte("export function renderView() { return 0; }\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"polyglot-app","scripts":{"test":"node -e \"process.exit(0)\"","check":"node -e \"process.exit(0)\""}}`), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"polyglot-app","scripts":{"test":"node -e \"process.exit(0)\"","lint":"node -e \"process.exit(0)\""}}`), 0644); err != nil {
 		t.Fatal(err)
 	}
 	agentsContract := "# Agent Contract\n## Architecture boundaries & ownership\n- `src/ui/` must never import `src/db/`.\n- Max function complexity: 5\n- Max function lines: 25\n- Max file lines: 200\n"
@@ -140,8 +140,8 @@ func TestPolyglotArchitectureBoundariesQualityBudgetsAndEcosystemRunners(t *test
 		t.Fatal(err)
 	}
 	trust, err := service.ExecutionTrust(context.Background(), analysis.ProjectRevision, "")
-	if err != nil || len(trust.Commands) != 2 || strings.Join(trust.Commands[0], " ") != "npm test" || strings.Join(trust.Commands[1], " ") != "npm run check" {
-		t.Fatalf("expected npm test and npm run check in execution trust commands, got %+v, err=%v", trust, err)
+	if err != nil || len(trust.Commands) != 2 || strings.Join(trust.Commands[0], " ") != "npm test" || strings.Join(trust.Commands[1], " ") != "npm run lint" {
+		t.Fatalf("expected npm test and npm run lint in execution trust commands, got %+v, err=%v", trust, err)
 	}
 
 	session := prepareChangeFixture(t, service, "src/ui/view.ts")

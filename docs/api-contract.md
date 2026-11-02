@@ -360,8 +360,11 @@ Every preview of a run with files also plans the project checks
 (`preview.checks`), which run after the files and before the docs and make no
 model requests: the parser diagnostics and AGENTS.md code budgets of every code
 file; each subproject's lint and test commands from its toolchain profile
-(AGENTS.md checks block, justfile/Taskfile/Makefile targets, or the ecosystem's
-defaults), listed with their argument lists so the confirmation names them; and
+(the test command from its AGENTS.md checks block, the `test` target of its
+justfile/Taskfile/Makefile, or the ecosystem's default; the lint command from
+its AGENTS.md checks block or the ecosystem's own linter: `go vet ./...`,
+`cargo check --all-targets`, a package.json `lint` or `typecheck` script, never
+a task runner's target), listed with their argument lists so the confirmation names them; and
 `semgrep scan --config <the project's .semgrep.yml|.semgrep.yaml|.semgrep/>
 --json --metrics=off` when semgrep is installed and the project has its own
 rules (registry rules are never downloaded). Commands that run the project's
