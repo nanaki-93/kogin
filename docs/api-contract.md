@@ -965,9 +965,10 @@ worktree's base under `refs/kasuri/tasks/<task id>`; the worktree itself stays o
 its base, and `issues[].status` moves through `pending`, `fixing`, `fixed` and
 `not_fixed`, each move published as a workflow event of the create stage. Checks
 that cannot pass for any fix (failures from before the change, or checks that
-did not complete) stop the run, and its unfinished issue is tried again by the
-next run; so is an issue whose step a model, provider or identity error
-stopped. When no issue could be fixed, the run fails. Otherwise testing, checks
+did not complete) stop the run; so does a model, provider or identity error.
+The unfinished step is then rolled back and its issue is `pending` again, so
+the next run starts it over from the last fixed issue; the checks that stopped
+the run stay as its evidence. When no issue could be fixed, the run fails. Otherwise testing, checks
 and review cover the whole proposal, as for any task, and a repair after them is
 one coding run that reads only the review or check feedback and the issues'
 outcomes. The run's time budget grows by two coding runs and two check passes

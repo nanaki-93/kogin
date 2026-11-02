@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/nanaki-93/kasuri/v2/internal/config"
 	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
@@ -126,6 +128,61 @@ func TestAnIssueWhoseChecksStillFailIsRolledBack(t *testing.T) {
 	}
 	if data, err := os.ReadFile(filepath.Join(flow.worktree, "calc.go")); err != nil || string(data) != toolCalcSource {
 		t.Fatalf("the failed fix was not rolled back: %q %v", data, err)
+	}
+}
+
+func TestAStepThatStopsTheRunIsRolledBackAndStartsAgain(t *testing.T) {
+	slowTest := "package main\n\nimport (\n\t\"testing\"\n\t\"time\"\n)\n\nfunc TestSub(t *testing.T) {\n\ttime.Sleep(5 * time.Second)\n\tif Sub(5, 3) != 2 {\n\t\tt.Fatal(\"Sub\")\n\t}\n}\n"
+	addSub := func(test string) []fakePiStep {
+		return []fakePiStep{
+			{Tool: "edit_file", Arguments: map[string]any{"path": "calc.go", "old_text": stepAddSource, "new_text": stepSubSource}},
+			{Tool: "create_file", Arguments: map[string]any{"path": "calc_sub_test.go", "content": test}},
+			{Tool: "finish", Arguments: map[string]any{"summary": "Added Sub and its test."}},
+			{Text: "Done.", Next: true},
+		}
+	}
+	coder := append(addSub(slowTest), addSub(toolSubTest)...)
+	coder = append(coder,
+		fakePiStep{Tool: "edit_file", Arguments: map[string]any{"path": "calc.go", "old_text": stepSubSource, "new_text": stepMulSource}},
+		fakePiStep{Tool: "create_file", Arguments: map[string]any{"path": "calc_mul_test.go", "content": stepMulTest}},
+		fakePiStep{Tool: "finish", Arguments: map[string]any{"summary": "Added Mul and its test."}},
+		fakePiStep{Text: "Done."},
+	)
+	tester := []fakePiStep{
+		{Tool: "finish", Arguments: map[string]any{"summary": "The fixes' tests cover the criteria."}},
+		{Text: "Done."},
+	}
+	limit := func(cfg *config.Config) { cfg.Timeouts.FocusedCheckSeconds = 1 }
+	flow := startToolFlowWith(t, coder, tester, limit, stepIssues("Sub is missing", "Mul is missing"))
+	stopped := flow.finished(t)
+	if stopped.Workflow.Status != "failed" || !strings.Contains(stopped.Workflow.Reason, "Required checks did not complete") {
+		t.Fatalf("workflow = %s (%s)", stopped.Workflow.Status, stopped.Workflow.Reason)
+	}
+	if stopped.Issues[0].Status != IssuePending || stopped.Issues[1].Status != IssuePending || len(stopped.FindingTargets) != 2 {
+		t.Fatalf("issues %+v, links %+v", stopped.Issues, stopped.FindingTargets)
+	}
+	if len(stopped.Changes) != 0 || len(stopped.Checks) == 0 {
+		t.Fatalf("changes %+v, checks %+v", stopped.Changes, stopped.Checks)
+	}
+	if data, err := os.ReadFile(filepath.Join(flow.worktree, "calc.go")); err != nil || string(data) != toolCalcSource {
+		t.Fatalf("the stopped step was not rolled back: %q %v", data, err)
+	}
+	if _, err := os.Stat(filepath.Join(flow.worktree, "calc_sub_test.go")); !os.IsNotExist(err) {
+		t.Fatalf("the stopped step's test was kept: %v", err)
+	}
+
+	flow.service.conf().focusedCheckTimeout = time.Minute
+	request := flow.request
+	request.ChangeIdentity = changeIdentity(stopped)
+	if _, err := flow.service.StartChangeWorkflow(context.Background(), flow.id, request); err != nil {
+		t.Fatal(err)
+	}
+	finished := flow.finished(t)
+	if finished.Issues[0].Status != IssueFixed || finished.Issues[1].Status != IssueFixed {
+		t.Fatalf("workflow = %s (%s), issues = %+v", finished.Workflow.Status, finished.Workflow.Reason, finished.Issues)
+	}
+	if log := testGit(t, flow.worktree, "log", "--format=%s", finished.Worktree.Base+".."+issueStepsRef(finished)); log != "fix: mul is missing\nfix: sub is missing" {
+		t.Fatalf("issue commits:\n%s", log)
 	}
 }
 

@@ -72,7 +72,11 @@ are listed here as they land.
   with the reason and opens again in Issues, and the next issue starts. Testing
   and review then run once on the whole branch; a review repair acts only on
   the feedback. The task page lists each issue's step, and accepting keeps one
-  commit per fixed issue, so merging marks only those fixed.
+  commit per fixed issue, so merging marks only those fixed. When the run stops
+  in the middle of an issue (checks that did not complete, a model error, a
+  Stop), that issue's step is rolled back, so the next run starts it over from
+  the last fixed issue instead of finding its edits already made and marking
+  it **Not fixed** with "the coding agent changed nothing".
 - **Fixes stay focused:** three changes for tasks that fix issues, which often
   failed or ran long without a result.
   - A fix changes code only in the folders of its issues' files and of the

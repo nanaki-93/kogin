@@ -64,8 +64,9 @@ func (s *Service) runIssueSteps(ctx context.Context, job *changeWorkflowJob, ses
 
 // runIssueStep fixes one issue: a coding run with only that issue, the
 // checks, one repair when they fail, then a commit. An issue it cannot fix
-// is rolled back and unlinked. Any other error stops the run, and the issue
-// is tried again by the next one.
+// is rolled back and unlinked. Any other error stops the run: the step is
+// rolled back too, and the next run tries the issue again from the last
+// fixed one.
 func (s *Service) runIssueStep(ctx context.Context, job *changeWorkflowJob, session *ChangeSession, runtime modelRuntime, index int) (*ChangeSession, error) {
 	session, err := s.updateIssueStep(ctx, job, session, func(current *ChangeSession) error {
 		current.Issues[index].Status = IssueFixing
@@ -81,7 +82,7 @@ func (s *Service) runIssueStep(ctx context.Context, job *changeWorkflowJob, sess
 	case errors.As(err, &notFixed):
 		return s.dropIssueStep(ctx, job, session, index, before, notFixed.reason)
 	case err != nil:
-		return nil, err
+		return nil, s.resetIssueStep(ctx, job, index, before, err)
 	}
 	return s.updateIssueStep(ctx, job, next, func(current *ChangeSession) error {
 		oid, err := commitIssueStep(ctx, job.root, current, current.Issues[index])
@@ -261,12 +262,8 @@ func (s *Service) dropIssueStep(ctx context.Context, job *changeWorkflowJob, ses
 	if current.Workflow == nil || current.Workflow.ID != job.id || current.Issues[index].FindingID != session.Issues[index].FindingID {
 		return nil, project.ErrRevisionConflict
 	}
-	if hash := changeProposalHash(before); hash != current.Hash {
-		current.Changes, current.Hash = before, hash
-		current.Revision++
-		current.Checks, current.PinnedTests = []CheckResult{}, nil
-		revokeApproval(current)
-		delete(s.changeAuthority, current.ProjectID+"/"+current.ID)
+	if s.rollbackIssueStepLocked(current, before) {
+		current.Checks = []CheckResult{}
 	}
 	if err := s.restoreStoredProposalLocked(context.WithoutCancel(ctx), job.root, current); err != nil {
 		return nil, fmt.Errorf("roll back the step of %q: %w", current.Issues[index].Title, err)
@@ -281,6 +278,45 @@ func (s *Service) dropIssueStep(ctx context.Context, job *changeWorkflowJob, ses
 	}
 	s.notifyWorkflow(ctx, current, "create")
 	return current, nil
+}
+
+// resetIssueStep rolls back the step that stopped the run with cause and
+// marks its issue waiting, so the next run starts it again instead of
+// finding its edits already made. The checks stay: they say why the run
+// stopped. It returns cause, with a rollback that failed joined to it.
+func (s *Service) resetIssueStep(ctx context.Context, job *changeWorkflowJob, index int, before []ChangeEdit, cause error) error {
+	s.changesMu.Lock()
+	defer s.changesMu.Unlock()
+	current, err := loadChangeSession(job.root, job.sessionID)
+	if err != nil || current.Workflow == nil || current.Workflow.ID != job.id || index >= len(current.Issues) {
+		return cause
+	}
+	s.rollbackIssueStepLocked(current, before)
+	if err := s.restoreStoredProposalLocked(context.WithoutCancel(ctx), job.root, current); err != nil {
+		return errors.Join(cause, fmt.Errorf("roll back the step of %q: %w", current.Issues[index].Title, err))
+	}
+	current.Issues[index].Status = IssuePending
+	current.UpdatedAt = time.Now().UTC()
+	if err := storeChangeSession(job.root, current); err != nil {
+		return errors.Join(cause, err)
+	}
+	return cause
+}
+
+// rollbackIssueStepLocked returns the stored proposal to the one before a
+// step, revoking what was approved for the step's version. It reports
+// whether the proposal changed.
+func (s *Service) rollbackIssueStepLocked(current *ChangeSession, before []ChangeEdit) bool {
+	hash := changeProposalHash(before)
+	if hash == current.Hash {
+		return false
+	}
+	current.Changes, current.Hash = before, hash
+	current.Revision++
+	current.PinnedTests = nil
+	revokeApproval(current)
+	delete(s.changeAuthority, current.ProjectID+"/"+current.ID)
+	return true
 }
 
 // issueStepsBudget is the time a run needs beyond one creation run when it
