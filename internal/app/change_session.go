@@ -12,6 +12,10 @@ import (
 	"github.com/nanaki-93/kasuri/v2/internal/project"
 )
 
+// OpenChangeSession captures a task in this checkout, without a worktree of
+// its own, as tasks were before every task got one. The API no longer makes
+// such tasks (POST /changes always calls OpenChangeInWorktree, and Accept
+// refuses them); tests still build fixtures with it.
 func (s *Service) OpenChangeSession(ctx context.Context, request ChangeCreateRequest) (*ChangeSession, error) {
 	return s.openChangeSession(ctx, request, false)
 }

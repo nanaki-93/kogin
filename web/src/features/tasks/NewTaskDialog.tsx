@@ -4,21 +4,21 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { ArrowUp, FilePlus, FileSearch, FlaskConical, GitBranch, Play, Plus, Save, X } from 'lucide-react';
-import { useGitWorkspace, useIndex, useProject, useTrust } from '@/api/hooks';
+import { useGitWorkspace, useIndex, useMainProject, useMainTrust } from '@/api/hooks';
 import { useActions, useBusy, type DraftTask } from '@/app/actions';
-import { useCheckout } from '@/app/checkout';
 import { setUI, useUI } from '@/app/store';
 import { rankItems } from '@/lib/fuzzy';
 import { companionTestPath, dirname, basename, isTestPath, newFilePath, plural, unique } from '@/lib/util';
-import { Button, Highlight, Kbd, Segmented, Textarea, Tip, cx } from '@/components/ui';
-import { FileIcon, KINDS } from '@/components/domain';
+import { Button, Highlight, Kbd, Textarea, Tip, cx } from '@/components/ui';
+import { FileIcon } from '@/components/domain';
 import { composerStartBlocker, ownWorktreeBlocker } from '@/lib/workflow';
 import { issueSteps } from '@/lib/issues';
 
 export const MAX_TASK_PATHS = 8;
 
-// A new task gets its own worktree by default, so several run in parallel.
-const EMPTY: DraftTask = { title: '', kind: 'fix', description: '', paths: [], criteria: [], start: 'agents', autoRepair: true, worktree: true };
+// A new task is a feature unless an issue drafted it; every task gets its own
+// worktree from the main checkout, so several run in parallel.
+const EMPTY: DraftTask = { title: '', kind: 'feature', description: '', paths: [], criteria: [], start: 'agents' };
 
 export function NewTaskDialog() {
   const prefill = useUI(s => s.newTask);
@@ -38,19 +38,17 @@ export function NewTaskDialog() {
 function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
   const [draft, setDraft] = useState<DraftTask>({ ...EMPTY, ...prefill });
   const [error, setError] = useState('');
-  const project = useProject().data;
-  const trust = useTrust().data;
+  // Tasks start from the main checkout, whichever checkout is shown.
+  const project = useMainProject().data;
+  const trust = useMainTrust().data;
   const files = useIndex().data?.files ?? [];
-  const { worktreePath } = useCheckout();
   const git = useGitWorkspace().data;
   const actions = useActions();
   const busy = useBusy();
   const titleRef = useRef<HTMLTextAreaElement>(null);
-  // Only the main checkout makes worktrees; a task opened in one stays there.
-  const worktreeBlocker = worktreePath ? '' : ownWorktreeBlocker(git, Boolean(trust?.trusted));
-  const ownWorktree = !worktreePath && !worktreeBlocker && draft.worktree;
-  // Why Start agents is unavailable, shown beside it rather than a silent disabled button.
-  const startBlocker = composerStartBlocker(draft.paths, ownWorktree, Boolean(trust?.trusted), isTestPath);
+  // Why no task can be made yet (no Git, no commit, no trust), else why the agents cannot start.
+  const worktreeBlocker = git ? ownWorktreeBlocker(git, Boolean(trust?.trusted)) : '';
+  const startBlocker = worktreeBlocker || composerStartBlocker(draft.paths, Boolean(trust?.trusted));
   const steps = issueSteps(draft.issues, draft.findingTargets?.filter(target => draft.paths.includes(target.path)));
 
   useEffect(() => titleRef.current?.focus(), []);
@@ -76,8 +74,9 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
     if (!project) return;
     if (!draft.title.trim()) return setError('Give the task a title.');
     if (!draft.paths.length) return setError('Choose at least one file the agents may change.');
+    if (worktreeBlocker) return setError(worktreeBlocker);
     if (start === 'agents' && startBlocker) return setError(startBlocker);
-    const id = await actions.createTask(project, worktreePath, { ...draft, worktree: ownWorktree, start });
+    const id = await actions.createTask(project, { ...draft, start });
     if (id) setUI({ newTask: null });
   }
 
@@ -111,14 +110,11 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
       <div className="composer-body">
         <Textarea ref={titleRef} className="composer-title" rows={1} placeholder="What should change?" value={draft.title} onChange={e => update({ title: e.target.value.replace(/\n/g, ' ') })} aria-label="Task title" maxLength={200} />
         <Textarea className="composer-desc" rows={4} placeholder="Add context: the bug you see, the behavior you want, constraints the agents must respect…" value={draft.description} onChange={e => update({ description: e.target.value })} aria-label="Description" />
-        <div className="composer-row">
-          <Segmented label="Task kind" value={draft.kind} onChange={kind => update({ kind })} options={KINDS} />
-        </div>
         <ScopePicker files={files.map(f => f.path)} selected={draft.paths} known={known} onAdd={addPath} onRemove={path => update({ paths: draft.paths.filter(p => p !== path) })} />
         <CriteriaEditor criteria={draft.criteria} onChange={criteria => update({ criteria })} />
         {steps ? (
           <p className="xs muted" role="note">
-            {ownWorktree ? `Agents fix these ${steps.length} issues one at a time, with a commit for each; one they cannot fix is left out and opens again.` : `Agents fix these ${steps.length} issues one at a time only in a worktree of its own; here they fix them together.`}
+            {`Agents fix these ${steps.length} issues one at a time, with a commit for each; one they cannot fix is left out and opens again.`}
           </p>
         ) : null}
         {error ? (
@@ -132,26 +128,11 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
         ) : null}
       </div>
       <div className="composer-foot">
-        <div className="composer-options">
-          <label className="check-label">
-            <input type="checkbox" checked={draft.autoRepair} onChange={e => update({ autoRepair: e.target.checked })} />
-            Let agents repair failing checks (up to 2 tries)
-          </label>
-          {worktreePath ? (
-            <span className="check-label" title={worktreePath}>
-              <GitBranch size={13} aria-hidden /> In the worktree {basename(worktreePath)}
-            </span>
-          ) : (
-            <Tip label={worktreeBlocker || 'A new branch and worktree from HEAD, so this task runs beside the others; merge it from Branches'}>
-              <label className="check-label">
-                <input type="checkbox" checked={ownWorktree} disabled={Boolean(worktreeBlocker)} onChange={e => update({ worktree: e.target.checked })} />
-                Work in its own worktree
-              </label>
-            </Tip>
-          )}
-        </div>
+        <span className="check-label" title="A new branch and worktree from the main checkout's HEAD, so this task runs beside the others; merge it from Branches">
+          <GitBranch size={13} aria-hidden /> In a new worktree · agents repair failing checks (up to 2 tries)
+        </span>
         <span className="spacer" />
-        <Button variant="ghost" icon={Save} onClick={() => void submit('draft')} disabled={Boolean(busy)}>
+        <Button variant="ghost" icon={Save} onClick={() => void submit('draft')} disabled={Boolean(busy) || Boolean(worktreeBlocker)}>
           Save draft
         </Button>
         <Tip label={startBlocker || 'Agents write the change, tests, and review it'}>

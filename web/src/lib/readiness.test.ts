@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ChangeSession, Check, FileChange } from '@/api/types';
-import { canOverrideReview, checkSummary, effectiveEdits, nextUnreviewedPath, phaseTone, proposalReadiness, reviewProgress, taskStatus, undoFromRecovery } from './readiness';
+import { canOverrideReview, checkSummary, effectiveEdits, nextUnreviewedPath, phaseTone, proposalReadiness, reviewProgress, taskStatus } from './readiness';
 
 function edit(path: string): FileChange {
   return { path, content: '', hash: 'h-' + path, diff: { lines: [] } } as unknown as FileChange;
@@ -14,7 +14,7 @@ function session(overrides: Partial<ChangeSession> = {}): ChangeSession {
   return {
     project_id: 'p', project_revision: 'r', id: 'chg-1', kind: 'fix', title: 'Fix', acceptance_criteria: [],
     revision: 2, hash: 'sha-2', state: 'draft', freshness: 'current', targets: [], changes: [edit('a.go'), edit('a_test.go')],
-    messages: [], checks: [], updated_at: '2026-10-01T00:00:00Z', ...overrides,
+    messages: [], checks: [], updated_at: '2026-10-01T00:00:00Z', worktree: { base: 'b0', branch: 'orca/fix-a1' }, ...overrides,
   };
 }
 
@@ -63,10 +63,16 @@ describe('proposalReadiness', () => {
     expect(checkSummary(outdated.checks, true)).toMatchObject({ label: 'Outdated', tone: 'warning' });
   });
 
-  it('blocks stale proposals and reports undo for applied ones', () => {
+  it('blocks stale proposals and reports accepted ones', () => {
     expect(proposalReadiness(session({ freshness: 'stale' }))).toMatchObject({ step: 'stale', editable: false });
-    expect(proposalReadiness({ ...session({ state: 'applied' }), undo: { available: false, reason: 'Already undone.' } })).toMatchObject({ step: 'applied', canUndo: false });
+    expect(proposalReadiness(session({ state: 'applied' }))).toMatchObject({ step: 'applied', message: 'Accepted as a commit on orca/fix-a1. Merge it from Branches, or remove the worktree to drop it.' });
     expect(proposalReadiness(session({ changes: [] })).step).toBe('generate');
+  });
+
+  it('keeps a task made in the main checkout to reading and deleting', () => {
+    const checkout = session({ ...reviewed, worktree: undefined, checks: [check('tests', 'passed')], reviewed_hash: 'sha-2' });
+    expect(proposalReadiness(checkout)).toMatchObject({ step: 'checkout', editable: false, canApprove: false, canApply: false });
+    expect(proposalReadiness({ ...checkout, state: 'applied' })).toMatchObject({ step: 'applied', message: 'Applied in the main checkout, before every task got its own worktree.' });
   });
 });
 
@@ -97,15 +103,6 @@ describe('review helpers', () => {
     // Waiting on a person or a plan's reset is not work in progress.
     expect(['waiting', 'awaiting_human_review', 'paused'].map(phaseTone)).toEqual(['waiting', 'waiting', 'waiting']);
     expect(phaseTone('running')).toBe('running');
-  });
-});
-
-describe('undoFromRecovery', () => {
-  it('offers undo only for the latest apply that was not undone', () => {
-    expect(undoFromRecovery({ id: 'a' }, null).available).toBe(false);
-    expect(undoFromRecovery({ id: 'a' }, { session_id: 'b', undo_available: true, state: 'applied' } as never).reason).toMatch(/latest Apply/);
-    expect(undoFromRecovery({ id: 'a' }, { session_id: 'a', undo_available: true, state: 'undone' } as never).available).toBe(false);
-    expect(undoFromRecovery({ id: 'a' }, { session_id: 'a', undo_available: true, state: 'applied' } as never).available).toBe(true);
   });
 });
 

@@ -127,24 +127,22 @@ type ChangeCheckRequest struct {
 	CheckOptions
 }
 
+// ChangeApplyRequest accepts a task's reviewed proposal as a commit on its
+// worktree's branch, with this message (the task's title when empty).
 type ChangeApplyRequest struct {
 	ChangeIdentity
-	GitIdentity
 	Confirm       bool   `json:"confirm"`
 	CommitMessage string `json:"commit_message,omitempty"`
 }
 
 type ChangeMutationResult struct {
-	SessionID       string                `json:"session_id"`
-	ProjectID       string                `json:"project_id"`
-	ProjectRevision string                `json:"project_revision"`
-	State           string                `json:"state"`
-	Hash            string                `json:"hash"`
-	UndoAvailable   bool                  `json:"undo_available"`
-	Index           *project.ProjectIndex `json:"index,omitempty"`
-	Warnings        []string              `json:"warnings"`
-	Verification    *ChangeVerification   `json:"verification,omitempty"`
-	Commit          *ChangeCommit         `json:"commit,omitempty"`
+	SessionID       string        `json:"session_id"`
+	ProjectID       string        `json:"project_id"`
+	ProjectRevision string        `json:"project_revision"`
+	State           string        `json:"state"`
+	Hash            string        `json:"hash"`
+	Warnings        []string      `json:"warnings"`
+	Commit          *ChangeCommit `json:"commit,omitempty"`
 }
 
 // ChangeMessage is retained in its private proposal conversation.

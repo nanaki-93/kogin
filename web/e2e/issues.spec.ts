@@ -124,7 +124,4 @@ test('an issue without a file opens a composer that says what Start agents needs
   await expect(dialog.getByText('README.md')).toBeVisible();
   await expect(start).toBeEnabled();
   await expect(dialog.getByRole('status')).toHaveCount(0);
-  await dialog.getByLabel('Work in its own worktree').uncheck();
-  await expect(start).toBeDisabled();
-  await expect(dialog.getByRole('status')).toHaveText('Add a test file to the scope so the testing agent can write tests.');
 });

@@ -12,9 +12,9 @@ import (
 
 // acceptWorktreeChange accepts a task in its own worktree: the reviewed
 // proposal, already in the worktree's files, is committed on the task's
-// branch on top of its base. Nothing is written to the files, so there is no
-// Undo; discarding the worktree drops the task. The caller holds the locks
-// and has checked approval.
+// branch on top of its base. Nothing is written to the files; discarding the
+// worktree drops the task. The caller holds the locks and has checked
+// approval.
 func (s *Service) acceptWorktreeChange(ctx context.Context, root string, session *ChangeSession, request ChangeApplyRequest) (*ChangeMutationResult, error) {
 	message := strings.TrimSpace(request.CommitMessage)
 	if message == "" {
@@ -39,7 +39,7 @@ func (s *Service) acceptWorktreeChange(ctx context.Context, root string, session
 	if err := storeChangeSession(root, session); err != nil {
 		result.Warnings = append(result.Warnings, "Committed as "+oid+", but the task history could not be updated: "+err.Error())
 	}
-	syncDirectChangeFindingCompletions(root, &changeJournal{Session: *session, State: "applied", Commit: commit})
+	completeFindingTargets(root, session, commit)
 	delete(s.changeAuthority, session.ProjectID+"/"+session.ID)
 	s.publishEvent(Event{Kind: "workflow", SessionID: session.ID, Title: session.Title, Status: "applied"})
 	return result, nil

@@ -101,19 +101,18 @@ func (h *ChangeHandler) Get(w http.ResponseWriter, r *http.Request) {
 	respondWorkflow(w, value, err)
 }
 
-// Open captures a task in this checkout or, with worktree, in a new branch and
-// worktree created for it.
+// Open captures a task in a new branch and worktree created for it from the
+// main checkout.
 func (h *ChangeHandler) Open(w http.ResponseWriter, r *http.Request) {
 	var request app.ChangeOpenRequest
 	if !decodeWorkflowBody(w, r, &request) {
 		return
 	}
-	if request.Worktree {
-		value, err := h.service.OpenChangeInWorktree(r.Context(), request)
-		respondWorkflow(w, value, err)
+	value, err := h.service.OpenChangeInWorktree(r.Context(), request)
+	if errors.Is(err, app.ErrTaskFromWorktree) {
+		api.WriteAppError(w, api.BadRequest("task creation failed", "Create tasks from the main checkout: each one gets a new worktree from it.", err))
 		return
 	}
-	value, err := h.service.OpenChangeSession(r.Context(), request.ChangeCreateRequest)
 	respondWorkflow(w, value, err)
 }
 
@@ -210,34 +209,18 @@ func (h *ChangeHandler) Retake(w http.ResponseWriter, r *http.Request) {
 	api.WriteJSON(w, http.StatusOK, value)
 }
 
+// Apply accepts the task's reviewed proposal as a commit on its worktree's branch.
 func (h *ChangeHandler) Apply(w http.ResponseWriter, r *http.Request) {
 	var request app.ChangeApplyRequest
 	if !decodeWorkflowBody(w, r, &request) {
 		return
 	}
 	value, err := h.service.ApplyChange(r.Context(), r.PathValue("sessionID"), request)
-	if request.CommitMessage != "" || request.Head != "" {
-		respondGit(w, value, err)
+	if errors.Is(err, app.ErrCheckoutTask) {
+		api.WriteAppError(w, api.BadRequest("accept failed", "This task was made in the main checkout, which Kasuri no longer changes. Delete it and create it again: every task now gets its own worktree.", err))
 		return
 	}
-	respondWorkflow(w, value, err)
-}
-
-func (h *ChangeHandler) Undo(w http.ResponseWriter, r *http.Request) {
-	var request app.ChangeApplyRequest
-	if !decodeWorkflowBody(w, r, &request) {
-		return
-	}
-	value, err := h.service.UndoChange(r.Context(), r.PathValue("sessionID"), request)
-	respondWorkflow(w, value, err)
-}
-
-func (h *ChangeHandler) Recovery(w http.ResponseWriter, r *http.Request) {
-	if !guardedWorkflowRead(w, r, h.manager) {
-		return
-	}
-	value, err := h.service.ChangeRecovery()
-	respondWorkflow(w, value, err)
+	respondGit(w, value, err)
 }
 
 func (h *ChangeHandler) ReviewFile(w http.ResponseWriter, r *http.Request) {

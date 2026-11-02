@@ -8,6 +8,9 @@ import (
 	"testing"
 )
 
+// groupedChangeResponse is a model's proposal that changes main.go and adds a doc.
+const groupedChangeResponse = `{"explanation":"Update Run and add documentation.","changes":[{"path":"main.go","content":"package main\nfunc Run() { println(\"updated\") }\n"},{"path":"docs/change.md","content":"A documented change.\n"}]}`
+
 func prepareChangeFixture(t *testing.T, service *Service, paths ...string) *ChangeSession {
 	t.Helper()
 	session := openChangeFixture(t, service, paths...)

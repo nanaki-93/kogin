@@ -75,7 +75,7 @@ func TestTaskInItsOwnWorktreeIsServedThroughItsScope(t *testing.T) {
 		return response
 	}
 
-	response := call("POST", "/api/projects/current/changes", map[string]any{"project_id": index.ProjectID, "project_revision": index.ProjectRevision, "kind": "feature", "title": "Document usage", "paths": []string{"README.md"}, "worktree": true, "confirm_execution": true})
+	response := call("POST", "/api/projects/current/changes", map[string]any{"project_id": index.ProjectID, "project_revision": index.ProjectRevision, "kind": "feature", "title": "Document usage", "paths": []string{"README.md"}, "confirm_execution": true})
 	var opened struct {
 		app.ChangeSession
 		WorktreePath string   `json:"worktree_path"`

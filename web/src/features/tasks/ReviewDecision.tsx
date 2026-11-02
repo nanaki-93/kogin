@@ -37,7 +37,7 @@ export function OverrideReview({ session }: { session: LoadedSession }) {
         open={open}
         onOpenChange={setOpen}
         title="Override the reviewers?"
-        description="The reviewers' verdict stays on record. This version then waits for your review: view every file, keep checks passing and approve it before Apply."
+        description="The reviewers' verdict stays on record. This version then waits for your review: view every file, keep checks passing and approve it before Accept."
         footer={
           <>
             <Button variant="ghost" onClick={() => setOpen(false)}>

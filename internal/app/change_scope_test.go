@@ -105,8 +105,8 @@ func TestUnrelatedChangesKeepTheProposalCurrentButOutdateChecks(t *testing.T) {
 	if _, err := service.ReviewChange(ctx, session.ID, ChangeReviewRequest{ChangeIdentity: changeIdentity(rechecked)}); err != nil {
 		t.Fatalf("approval after fresh checks: %v", err)
 	}
-	if _, err := service.ApplyChange(ctx, session.ID, ChangeApplyRequest{ChangeIdentity: changeIdentity(rechecked), Confirm: true}); err != nil {
-		t.Fatalf("apply after unrelated edits: %v", err)
+	if _, err := service.ApplyChange(ctx, session.ID, ChangeApplyRequest{ChangeIdentity: changeIdentity(rechecked), Confirm: true}); !errors.Is(err, ErrCheckoutTask) {
+		t.Fatalf("the approved task did not pass the gate after unrelated edits: %v", err)
 	}
 }
 

@@ -6,8 +6,9 @@
 
 Kasuri is a loopback daemon serving one active project to its embedded Web UI.
 The shared change workflow captures explicit text paths (up to eight write paths for a planned task),
-prepares versioned proposals, checks them, records diff review and explicitly
-applies them with guarded recovery/Undo.
+prepares versioned proposals in a Git worktree of its own for every task,
+checks them, records diff review and explicitly accepts them as commits on the
+task's branch.
 Native ADK execution records generation, test generation, verification,
 specialist review and human input separately. Run events, artifacts and model
 verdicts are evidence; they cannot replace current host admission or source
@@ -114,7 +115,6 @@ untrusted networks.
 | POST | `/api/projects/current/reindex` | Refresh deterministic facts without an LLM request. |
 | GET | `/api/projects/current/changes` | List local change conversations without generation. |
 | POST | `/api/projects/current/changes` | Capture a task and 1–64 explicit text paths (planned tasks: 1–8), here or with `worktree` in a new branch and worktree created for it. |
-| GET | `/api/projects/current/changes/recovery` | Read the latest grouped mutation or interrupted recovery journal. |
 | GET | `/api/projects/current/changes/{sessionID}` | Read a proposal and recheck its scoped freshness and whether its checks describe the current tree. |
 | GET | `/api/projects/current/changes/{sessionID}/rules` | Measure each task file against the budgets and import rules of its AGENTS.md files (the proposal where the task changed it); nothing runs. |
 | POST | `/api/projects/current/changes/{sessionID}/messages` | Generate a scoped proposal or explicitly request bounded check-driven repair. |
@@ -127,11 +127,10 @@ untrusted networks.
 | POST | `/api/projects/current/changes/{sessionID}/comments/delete` | Delete an open line comment. |
 | POST | `/api/projects/current/changes/{sessionID}/review` | Record diff review for the current checked hash. |
 | POST | `/api/projects/current/changes/{sessionID}/review-override` | Override the model reviewers' rejection of the current checked hash with a reason; approves nothing. |
-| POST | `/api/projects/current/changes/{sessionID}/apply` | Explicitly apply the current reviewed proposal with grouped recovery; for a task that owns its worktree, accept it as a commit on its branch (after the commits of the issues it fixed one at a time; no Undo). |
-| POST | `/api/projects/current/changes/{sessionID}/delete` | Delete a task that is not running and whose Apply cannot be undone; stale tasks included. Publishes a `workflow` event with status `deleted`. |
+| POST | `/api/projects/current/changes/{sessionID}/apply` | Accept the current reviewed proposal as a commit on the task's branch (after the commits of the issues it fixed one at a time). A task made in the main checkout, before every task got its own worktree, is refused with 400. |
+| POST | `/api/projects/current/changes/{sessionID}/delete` | Delete a task that is not running; stale tasks included. Publishes a `workflow` event with status `deleted`. |
 | POST | `/api/projects/current/changes/{sessionID}/reanalyze` | Re-check an out-of-date task's issue against the current files: still valid captures it again, not valid deletes it and dismisses its linked issues. |
 | POST | `/api/projects/current/changes/{sessionID}/retake` | Re-check the issue of a task in its own worktree whose files the main branch changed against the main branch: still valid opens it again in a new worktree from there, not valid dismisses its linked issues; the old task is deleted either way. |
-| POST | `/api/projects/current/changes/{sessionID}/undo` | Restore the latest unchanged grouped Apply or recover an interrupted mutation. |
 
 Project analysis (the overview) holds short prose (`purpose`, `architecture`),
 `components` lines as `path (Module name): responsibility`, structured
@@ -185,8 +184,8 @@ prompt request checks the effective scope shown by `/api/models/current`: projec
 import and explicit source-based Performance reviews use `analyze`, selected-file analysis uses `bug`, and
 code proposals use `code`. A non-loopback HTTP or CLI scope requires
 `confirm_remote_provider: true` for that request only; confirmation for one
-scope never authorizes another. Restore, reindex, scans, validation, checks,
-Apply, and Undo never require provider confirmation.
+scope never authorizes another. Restore, reindex, scans, validation, checks
+and Accept never require provider confirmation.
 
 Context policy reads `.gitignore` and `.kasuriignore` in each traversed
 directory. Patterns use directory-relative Git ignore semantics, including
@@ -732,9 +731,8 @@ decision; the agents can then run. `outcome: not_valid` deletes the task, as
 delete would, and dismisses its finding targets that belong to this checkout
 or, for a task in its own worktree, to the checkout that created it;
 `dismissed_issues` counts them and `warnings` reports a dismissal that failed.
-A current task returns 400; running agents and an Apply that can still be undone
-return 409, as does a task or source file that changed before the answer was
-saved. Nothing is written when the request fails or is canceled.
+A current task returns 400; running agents return 409, as does a task or
+source file that changed before the answer was saved. Nothing is written when the request fails or is canceled.
 
 A task in its own worktree keeps the base commit it started from, so it never
 goes stale when the main branch moves. When the main branch changed any of the
@@ -752,8 +750,8 @@ deletes the old task; its linked issues follow the new one. `not_valid` deletes
 the old task and dismisses its linked issues. The old worktree is never removed
 here: it may hold the task's work, and the client offers to remove or discard
 it. A task the main branch did not change returns 400, as does a missing
-`confirm_execution`; running agents, an Apply that can still be undone, and a
-task or main-branch file that changed before the answer return 409.
+`confirm_execution`; running agents and a task or main-branch file that
+changed before the answer return 409.
 
 The whole-tree fingerprint still guards checks. Every check copy must equal the
 tree it was copied from and hold the captured sources and scope, and the
@@ -780,9 +778,8 @@ Records written by a newer Kasuri (a higher journal `version`, task
 agent journal refuses work with an error naming the file and asking to
 upgrade, newer task files are skipped, and the overview loads without newer
 analysis progress while an analysis preview returns `409` asking to upgrade.
-The change recovery journal (`.kasuri/changes/last-mutation.json`) is never
-set aside, since it may describe an unfinished Apply; its errors name the file
-and the remedy. `GET /api/projects/current/quarantine` (with the project
+Kasuri no longer reads the recovery journal that applying a task in the main
+checkout once wrote (`.kasuri/changes/last-mutation.json`); it can be deleted. `GET /api/projects/current/quarantine` (with the project
 guards) returns `files` (set aside: `kind` `agent_journal`, `task` or `analysis_run`, `file`,
 `quarantined_as`, `reason`, `remedy`, `at`) and `skipped` (newer files with the
 same fields but no move). Records made before the rename to Kasuri are listed
@@ -829,7 +826,7 @@ comment on an earlier version says so) after the optional message, which may
 then be empty, and marks them `sent_revision`. A workflow request with its
 brief stays within 8192 bytes. Without open comments the flag is rejected.
 
-Apply, Undo, Git merges, merge aborts and reindexing stop only
+Git merges, merge aborts and reindexing stop only
 the running workflows whose tasks they made stale, by the same check: captured
 sources, scope and, for path-scoped sessions, the checkout branch (commits on
 it do not matter). A stopped workflow reads `canceled` with a reason naming the
@@ -873,7 +870,7 @@ the session and history when the task is prepared in another worktree. Existing
 schema-1 sessions without references remain readable; titles and paths alone are
 never used to infer which findings a historical commit addressed.
 
-Messages, checks, review, Apply and Undo carry `project_id`, `project_revision`,
+Messages, checks, review and Accept (`apply`) carry `project_id`, `project_revision`,
 `revision` and `hash`; the session ID is in the route. Messages add `message`,
 `confirm_remote_provider`, optional `profile` (`configured:<hash>`,
 `pi:<provider>/<model>`, `agy:<slug>`, or legacy `analyze`, `bug`, `function`,
@@ -894,33 +891,27 @@ observation does not replace them. A failing existing baseline predates the
 proposal, so the workflow stops without automatic repair and says so. The
 workflow's own verification runs tests and lint (`go vet` or the declared check
 target), matching an explicit check with both options. Executed checks include `duration_ms`. Passing parser checks alone
-does not establish runtime correctness. Apply and Undo require `confirm: true`.
+does not establish runtime correctness. Accept requires `confirm: true`.
 
-Apply optionally accepts `commit_message` (non-empty, at most 4096 UTF-8 bytes),
-`head` and `branch` to apply and commit the reviewed paths. Git-backed sessions
-capture branch/HEAD in addition to source identity; a branch switch or external
-commit invalidates the proposal. Git mutations require opening the repository or
-worktree root on a local branch with an initial commit and no merge/rebase in progress.
-Existing schema-1 history without Git identity remains readable; current request
-Git identity and existing source guards still apply when committing it.
+Accept takes an optional `commit_message` (non-empty, at most 4096 UTF-8 bytes;
+the task's title when empty). The reviewed proposal is already in the task's
+worktree files; the commit is built from the worktree's base and the proposal in
+a private index with `git commit-tree` (on top of the commits of issues fixed one
+at a time), and the task branch moves from the base to it only if nothing else
+moved it. Nothing is written to files, so there is nothing to undo: discarding
+the worktree drops the task. This skips hooks, attribute filters and signing; Git
+identity comes from normal Git configuration, and no push or remote request
+occurs. The `commit` object on receipts, sessions and history records `state`,
+message, base, branch and `oid`. Tasks made in the main checkout before every
+task got its own worktree still load and can be deleted; Accept refuses them
+with 400, and Kasuri never writes their proposals into the main checkout.
 
-The commit uses a private index, raw reviewed blobs, `git commit-tree` and a
-compare-and-swap branch update. Unrelated staged/untracked content is excluded;
-pre-existing edits or staging on proposal paths block Apply & Commit before any
-source writes. This operation skips hooks, attribute filters and signing. Git
-identity comes from normal Git configuration. No push or remote request occurs.
-The optional `commit` object on mutation receipts, sessions and history records
-`state` (`pending`, `failed`, `committed`), message, original branch/HEAD, candidate
-`oid` and any error. A failed commit leaves source applied. A recorded candidate
-is reconciled after an interruption; ambiguous outcomes stay pending.
-Undo restores source as working-tree changes and does not rewrite commit history.
-
-Every proposal revision clears earlier checks/review. Apply uses current-session
+Every proposal revision clears earlier checks/review. Accept uses current-session
 authority and rechecks source, policy, instruction and whole check-workspace hashes.
 Local `.kasuri/changes/` history intentionally contains source, proposed contents
 and conversations in private files; it is excluded from prompt context and Git
 source indexing. Limits are eight paths, 256 KiB prompt/response content, forty
-messages, 2 MiB per conversation/recovery journal and two hundred conversations.
+messages, 2 MiB per conversation and two hundred conversations.
 A stage prompt carries a file the current proposal changes once, as its
 proposed content, and at most 48 KiB of the conversation: the task as first
 asked (up to 16 KiB) and the newest messages that fit (up to 8 KiB each), with a
@@ -1111,7 +1102,7 @@ captured model metadata, and the review's `proposal_hash`, `verdict`, `summary`
 and `findings`. Status distinguishes `running`, `canceling`, `failed`, `canceled`,
 `stale`, `interrupted`, `outdated`, `changes_requested`,
 `awaiting_human_review` and `paused`. The final human stage waits for explicit diff review;
-model approval never sets `reviewed_hash`. Existing Review/Apply/Undo routes retain
+model approval never sets `reviewed_hash`. Existing Review and Accept routes retain
 their identity and hash guards. Changing a proposal invalidates workflow review.
 
 Approving critic results create a native ADK human-input checkpoint, exposed as
@@ -1130,7 +1121,7 @@ project/configuration/policy binding. Approval additionally requires live passin
 checks and the existing plan/file review guards. Existing `/review` records the
 same explicit approval receipt and accepts optional `notes` (at most 2048 bytes),
 returned as `review_notes`; notes are cleared with the approval. The receipt is durable before native graph resume;
-responses invoke no providers, checks, source writes or Git operations. Apply
+responses invoke no providers, checks, source writes or Git operations. Accept
 remains a separate explicit action.
 
 Repeating the same decision retains its original receipt; a conflicting decision
@@ -1204,19 +1195,10 @@ history without the optional `workflow` field remains readable. After a daemon
 restart, unfinished workers read as interrupted and do not automatically dispatch.
 Waiting input stays visible without resuming its graph. An unchanged approval checkpoint
 can be answered after explicit fresh checks; a new workflow requires fresh
-admission. A saved approval receipt never restores in-memory Apply authority.
+admission. A saved approval receipt never restores in-memory Accept authority.
 Progress persistence failures remain
-visible and cannot authorize Apply. No provider or project-code execution occurs
+visible and cannot authorize Accept. No provider or project-code execution occurs
 when reading progress, restoring history or configuring the workflow.
-
-Grouped writes are journaled before source replacement. A failed write rolls back
-when current hashes still match; an unrelated concurrent edit blocks recovery
-instead of being overwritten. `prepared`, `undoing` and `recovery_required` receipts
-expose interrupted/partial work and must be recovered before another grouped Apply.
-A mutation receipt reports the actual state, index (when available), warnings and
-Undo availability. Metadata failure after source changes does not erase the receipt.
-Undo verifies post-Apply hashes and removes files that the proposal created. The
-latest grouped change owns the Undo journal.
 
 ## Git and worktrees
 
@@ -1252,15 +1234,16 @@ It runs `git worktree add` from the captured HEAD; uncommitted content is not co
 A local inventory marked AI-unavailable allows the new checkout to reopen without
 model access. Creation returns its path without changing the active project.
 
-A task can get its own worktree: `POST /api/projects/current/changes` with
-`worktree: true` and `confirm_execution: true` (and the usual task fields and
-this checkout's identity) creates branch `orca/<title slug>-<6 hex>` (the
-slug is the title's first words, within 24 characters) and
-`.worktrees/<same name>` from the current HEAD under the creation guards above,
-then captures the task there with the worktree's own project identity. It needs
-a Git repository on a branch with a commit, and the task's paths must have no
-uncommitted or untracked changes here, since the worktree would not have them
-(400 names the first such path). The worktree is trusted to run checks when this
+Every task gets its own worktree: `POST /api/projects/current/changes` with
+`confirm_execution: true` (and the usual task fields and the main checkout's
+identity) creates branch `orca/<title slug>-<6 hex>` (the slug is the title's
+first words, within 24 characters) and `.worktrees/<same name>` from the main
+checkout's HEAD under the creation guards above, then captures the task there
+with the worktree's own project identity. It needs a Git repository on a branch
+with a commit, and the task's paths must have no uncommitted or untracked
+changes in the main checkout, since the worktree would not have them (400 names
+the first such path). A request scoped to a worktree is refused with 400: tasks
+start from the main checkout. The worktree is trusted to run checks when this
 checkout is trusted and the worktree's command scope is identical, and it gets
 the agent settings saved here when they were saved for the same configuration;
 otherwise `warnings` says what it lacks. The response is the task plus
@@ -1277,8 +1260,8 @@ Subsequent requests use its own project ID/revision and ordinary proposal guards
 Each checkout has a separate manager, execution trust, proposal authority and
 bounded workflow worker. Reads and navigation never start generation or transfer
 consent. The client keeps the original branch selected while
-separate implementations run; task Review/Apply/Commit/Undo target only their
-captured checkout. Daemon shutdown and explicit project replacement stop these
+separate implementations run; task Review and Accept target only their
+captured worktree. Daemon shutdown and explicit project replacement stop these
 workers; reindexing or switching branches in the original checkout does not
 replace their task state. Existing initialized worktrees outside `.worktrees` remain readable.
 

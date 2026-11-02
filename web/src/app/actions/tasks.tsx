@@ -32,9 +32,6 @@ export interface DraftTask {
   paths: string[];
   criteria: string[];
   start: 'agents' | 'quick' | 'draft';
-  autoRepair: boolean;
-  /** Capture the task in a new branch and worktree of its own (from the main checkout). */
-  worktree: boolean;
   /** The issues this task fixes; only those whose file stays in scope are sent. */
   findingTargets?: FindingTarget[];
   /** Several issues, fixed one at a time; sent for the linked ones when two or more remain. */
@@ -55,11 +52,10 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
   // ---------------------------------------------------------------- tasks
 
   /**
-   * Captures a task in the selected checkout or, from the main checkout with
-   * `draft.worktree`, in a new branch and worktree the daemon creates for it.
+   * Captures a task in a new branch and worktree the daemon creates for it
+   * from the main checkout (`project` is the main checkout's identity).
    */
-  async function createTask(project: Project, worktreePath: string, draft: DraftTask): Promise<string | null> {
-    const own = draft.worktree && !worktreePath;
+  async function createTask(project: Project, draft: DraftTask): Promise<string | null> {
     const linked = draft.findingTargets?.filter(target => draft.paths.includes(target.path));
     const created = await guarded('Creating task…', async () => {
       const body = {
@@ -72,34 +68,33 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
         plan: draft.description.trim() ? { problem: draft.title.trim(), approach: draft.description.trim() } : undefined,
         finding_targets: linked,
         issues: issueSteps(draft.issues, linked),
+        confirm_execution: true,
       };
       try {
-        if (own) return await api.post<ChangeOpened>('/api/projects/current/changes', { ...body, worktree: true, confirm_execution: true });
-        return await api.post<ChangeSession>(withWorktree('/api/projects/current/changes', worktreePath), body);
+        return await api.post<ChangeOpened>('/api/projects/current/changes', body);
       } catch (err) {
-        fail(own ? 'Could not create the task in its own worktree' : 'Could not create the task', err);
+        fail('Could not create the task', err);
         return null;
       }
     });
     if (!created) return null;
-    const opened = own ? (created as ChangeOpened) : null;
-    const checkout = opened ? opened.worktree_path : worktreePath;
+    const checkout = created.worktree_path;
     const loaded: LoadedSession = { ...created, checkout: { project_id: created.project_id || project.project_id, project_revision: created.project_revision || project.project_revision, worktreePath: checkout } };
     client.setQueryData(keys.session(created.id), loaded);
     void client.invalidateQueries({ queryKey: ['changes'] });
-    if (opened) void client.invalidateQueries({ queryKey: ['git'] });
+    void client.invalidateQueries({ queryKey: ['git'] });
     // The issues it fixes are in progress now.
     if (created.finding_targets?.length) void client.invalidateQueries({ queryKey: ['findings'] });
-    for (const warning of opened?.warnings ?? []) toast(warning, 'warning');
+    for (const warning of created.warnings ?? []) toast(warning, 'warning');
     navigate(`/tasks/${created.id}`, { wt: checkout || undefined });
     const prompt = draft.title.trim() + (draft.description.trim() ? `\n\nSpecification:\n${draft.description.trim()}` : '');
-    if (draft.start === 'agents') await startAgents(loaded, { message: prompt, autoRepair: draft.autoRepair });
+    if (draft.start === 'agents') await startAgents(loaded, { message: prompt });
     else if (draft.start === 'quick') await refine(loaded, prompt);
-    else toast(opened ? `Draft saved. It has its own worktree on ${opened.branch}.` : 'Draft saved.', 'success');
+    else toast(`Draft saved. It has its own worktree on ${created.branch}.`, 'success');
     return created.id;
   }
 
-  async function startAgents(session: LoadedSession, options: { message?: string; autoRepair?: boolean } = {}): Promise<boolean> {
+  async function startAgents(session: LoadedSession, options: { message?: string } = {}): Promise<boolean> {
     const comments = openComments(session).length;
     const message = (options.message ?? session.title).trim();
     if (!message) {
@@ -125,7 +120,7 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
           {again ? (
             <>
               <RunStartChoice options={starts.options} initial={starts.initial} comments={comments} onChange={value => (start = value)} />
-              <p className="small muted">Checks run in an isolated copy of the project. Nothing reaches your files until you review and apply the result.{options.autoRepair ? ' A failed check or a rejecting review starts an automatic repair of the code (up to two).' : ''}</p>
+              <p className="small muted">Checks run in an isolated copy of the project. Nothing is committed until you review and accept the result. A failed check or a rejecting review starts an automatic repair of the code (up to two).</p>
             </>
           ) : (
             <p>Agents write the change, write and run tests in an isolated copy of the project, then specialist reviewers check it. Nothing reaches your files until you review and apply it.</p>
@@ -152,7 +147,7 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
     return Boolean(
       await guarded('Starting agents…', async () => {
         try {
-          const body = workflowRequest(changeIdentity(session), message, choice, { autoRepair: options.autoRepair, confirmSecurity: security, planHash: session.plan?.hash, includeComments: comments > 0 && start !== 'checks', start });
+          const body = workflowRequest(changeIdentity(session), message, choice, { autoRepair: true, confirmSecurity: security, planHash: session.plan?.hash, includeComments: comments > 0 && start !== 'checks', start });
           setSession(await api.post<ChangeSession>(changePath(session, '/workflow'), body), session);
           toast('Agents started. Progress updates live.', 'info');
           return true;

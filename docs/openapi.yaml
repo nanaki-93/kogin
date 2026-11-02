@@ -76,23 +76,10 @@ paths:
         '409': {$ref: '#/components/responses/Error'}
     post:
       tags: [Chat]
-      description: Capture a task and one to eight explicit Go/Markdown paths in this checkout or, with worktree, in a new branch (orca/<title slug>-<random>) and worktree under .worktrees/ created from the current HEAD. A worktree task needs confirm_execution and execution trust, a Git repository on a branch with a commit, and task files without uncommitted changes here; the worktree inherits this checkout's execution trust when it runs the same commands and its saved agent settings, and the task is captured with the worktree's project identity. A task that cannot be captured leaves no worktree or branch.
+      description: Capture a task and one to eight explicit Go/Markdown paths in a new branch (orca/<title slug>-<random>) and worktree under .worktrees/, created for it from the main checkout's HEAD; every task gets one. It needs confirm_execution and execution trust, a Git repository on a branch with a commit, and task files without uncommitted changes in the main checkout; the worktree inherits the main checkout's execution trust when it runs the same commands and its saved agent settings, and the task is captured with the worktree's project identity. A task that cannot be captured leaves no worktree or branch. A request scoped to a worktree (worktree_path) is refused with 400; tasks start from the main checkout.
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeOpenRequest'}}}}
       responses:
-        '200': {description: The task; with worktree, also where it lives, content: {application/json: {schema: {oneOf: [{$ref: '#/components/schemas/ChangeSession'}, {$ref: '#/components/schemas/ChangeOpened'}]}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/changes/recovery:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-    get:
-      tags: [Chat]
-      description: Read the latest grouped mutation or interrupted recovery journal.
-      parameters:
-        - {in: query, name: project_id, required: true, schema: {type: string}}
-        - {in: query, name: project_revision, required: true, schema: {type: string}}
-      responses:
-        '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeMutationResult'}}}}
+        '200': {description: The task and where it lives, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeOpened'}}}}
         '400': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/changes/{sessionID}:
@@ -249,7 +236,7 @@ paths:
       - {in: path, name: sessionID, required: true, schema: {type: string}}
     post:
       tags: [Chat]
-      description: "Explicitly apply the current reviewed proposal with grouped recovery. For a task that owns its worktree (session.worktree), this accepts it instead: the reviewed proposal, already in the worktree's files, is committed on the task branch on top of its base (head names the base, branch the task branch); nothing is written, and there is no Undo."
+      description: "Accept the current reviewed, checked proposal: it is already in the task's worktree files, and it is committed on the task branch on top of its base (after the commits of issues fixed one at a time); nothing is written. A task made in the main checkout before every task got its own worktree is refused with 400: delete it and create it again."
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeApplyRequest'}}}}
       responses:
         '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeMutationResult'}}}}
@@ -261,7 +248,7 @@ paths:
       - {in: path, name: sessionID, required: true, schema: {type: string}}
     post:
       tags: [Chat]
-      description: Delete a task's history. The body names the task version shown (project_id, revision, hash; project_revision is not checked, so stale tasks can be deleted). A task with running agents, or whose latest Apply can still be undone, returns 409.
+      description: Delete a task's history. The body names the task version shown (project_id, revision, hash; project_revision is not checked, so stale tasks can be deleted). A task with running agents returns 409.
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeIdentity'}}}}
       responses:
         '200': {description: The deleted task, content: {application/json: {schema: {type: object, required: [deleted], properties: {deleted: {type: string}}}}}}
@@ -274,7 +261,7 @@ paths:
       - {in: path, name: sessionID, required: true, schema: {type: string}}
     post:
       tags: [Chat]
-      description: Re-check an out-of-date task's issue against the current files with the Bug model (one request; remote models need confirm_remote_provider). still_valid captures the task again at the current source with its title, kind, plan, criteria, scope and linked issues, drops its proposal, checks, approval, comments and conversation, and adds a note; not_valid deletes the task and dismisses its linked issues in this checkout or, for a task in its own worktree, in the checkout that created it. The body names the task version shown (project_revision is not checked). A task that matches the current files returns 400; running agents, an Apply that can still be undone, or a task or file that changed during the request return 409. Publishes a `workflow` event with status `reanalyzed` or `deleted`.
+      description: Re-check an out-of-date task's issue against the current files with the Bug model (one request; remote models need confirm_remote_provider). still_valid captures the task again at the current source with its title, kind, plan, criteria, scope and linked issues, drops its proposal, checks, approval, comments and conversation, and adds a note; not_valid deletes the task and dismisses its linked issues in this checkout or, for a task in its own worktree, in the checkout that created it. The body names the task version shown (project_revision is not checked). A task that matches the current files returns 400; running agents, or a task or file that changed during the request return 409. Publishes a `workflow` event with status `reanalyzed` or `deleted`.
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeReanalysisRequest'}}}}
       responses:
         '200': {description: The decision and its effect, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeReanalysis'}}}}
@@ -287,7 +274,7 @@ paths:
       - {in: path, name: sessionID, required: true, schema: {type: string}}
     post:
       tags: [Chat]
-      description: Retake a task in its own worktree whose files the main branch changed since it started (its main_changed), finished or not. One Bug-model request (remote models need confirm_remote_provider) checks whether the task's issue is still present in the main branch's current files; confirm_execution is required because a still-valid task checks out a new worktree. still_valid opens the task again in a new worktree from the main branch, with its title, kind, plan, criteria, scope (its first eight files) and linked issues, and a note; not_valid dismisses its linked issues. Either way the old task is deleted; its worktree is kept for the client to remove. A task the main branch did not change returns 400; running agents, an Apply that can still be undone, or a task or file that changed during the request return 409.
+      description: Retake a task in its own worktree whose files the main branch changed since it started (its main_changed), finished or not. One Bug-model request (remote models need confirm_remote_provider) checks whether the task's issue is still present in the main branch's current files; confirm_execution is required because a still-valid task checks out a new worktree. still_valid opens the task again in a new worktree from the main branch, with its title, kind, plan, criteria, scope (its first eight files) and linked issues, and a note; not_valid dismisses its linked issues. Either way the old task is deleted; its worktree is kept for the client to remove. A task the main branch did not change returns 400; running agents, or a task or file that changed during the request return 409.
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeRetakeRequest'}}}}
       responses:
         '200': {description: The decision and its effect, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeRetake'}}}}
@@ -369,18 +356,6 @@ paths:
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/GitMutationRequest'}}}}
       responses:
         '200': {description: Observed Git outcome, content: {application/json: {schema: {$ref: '#/components/schemas/GitMutationResult'}}}}
-        '400': {$ref: '#/components/responses/Error'}
-        '409': {$ref: '#/components/responses/Error'}
-  /api/projects/current/changes/{sessionID}/undo:
-    parameters:
-      - {$ref: '#/components/parameters/WorktreePath'}
-      - {in: path, name: sessionID, required: true, schema: {type: string}}
-    post:
-      tags: [Chat]
-      description: Restore the latest unchanged grouped Apply or recover an interrupted mutation.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeApplyRequest'}}}}
-      responses:
-        '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeMutationResult'}}}}
         '400': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/analysis/selection:
@@ -2408,8 +2383,7 @@ components:
         - {$ref: '#/components/schemas/ChangeCreateRequest'}
         - type: object
           properties:
-            worktree: {type: boolean, description: Capture the task in a new branch and worktree created for it from the current HEAD.}
-            confirm_execution: {type: boolean, description: Required true with worktree; checking out the worktree can run repository filters.}
+            confirm_execution: {type: boolean, description: Required true; checking out the task's new worktree can run repository filters.}
     ChangeOpened:
       allOf:
         - {$ref: '#/components/schemas/ChangeSession'}
@@ -2443,9 +2417,7 @@ components:
           required: [confirm]
           properties:
             confirm: {type: boolean, enum: [true]}
-            head: {type: string, description: Reviewed Git HEAD for Apply and Commit}
-            branch: {type: string, description: Reviewed local branch}
-            commit_message: {type: string, maxLength: 4096, description: Supplying this opts into Apply and Commit; limit is 4096 UTF-8 bytes}
+            commit_message: {type: string, maxLength: 4096, description: The accepted commit's message (the task title when empty); at most 4096 UTF-8 bytes.}
     ChangeWorkflowModels:
       type: object
       additionalProperties: false
@@ -2696,10 +2668,7 @@ components:
         project_revision: {type: string}
         state: {type: string}
         hash: {type: string}
-        undo_available: {type: boolean}
-        index: {$ref: '#/components/schemas/ProjectIndex'}
         warnings: {type: array, items: {type: string}}
-        verification: {$ref: '#/components/schemas/ChangeVerification'}
     ChangeHistoryEntry:
       type: object
       description: Local conversation summary; use a guarded selected read or resume for contents.
@@ -2719,20 +2688,6 @@ components:
         workflow_status: {type: string}
         workflow_reason: {type: string}
         paths: {type: array, maxItems: 64, items: {type: string}, description: The task's write paths.}
-        updated_at: {type: string, format: date-time}
-    ChangeVerification:
-      type: object
-      required: [schema_version, session_id, project_id, project_revision, proposal_hash, workspace_hash, status, checks, updated_at]
-      properties:
-        schema_version: {type: integer, enum: [1]}
-        session_id: {type: string}
-        project_id: {type: string}
-        project_revision: {type: string}
-        proposal_hash: {type: string}
-        workspace_hash: {type: string}
-        status: {type: string, enum: [verified, failed, unavailable, canceled, stale]}
-        reason: {type: string}
-        checks: {type: array, items: {type: object}}
         updated_at: {type: string, format: date-time}
     GitIdentity:
       type: object

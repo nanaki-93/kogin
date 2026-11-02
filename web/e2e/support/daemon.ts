@@ -11,6 +11,8 @@ import { approveSession, overrideReview, reviseSession, startRun } from './revie
 export interface RecordedRequest {
   method: string;
   path: string;
+  /** The query string, with its leading "?" (worktree_path scopes a request to a worktree). */
+  query: string;
   body: Record<string, unknown> | null;
 }
 
@@ -218,7 +220,7 @@ export class FakeDaemon {
     this.deleted.add(session.id);
     this.sessions.delete(session.id);
     if (this.retakeOutcome === 'not_valid') return { outcome: 'not_valid', reason: 'The merged change already rejects nested paths.', deleted: session.id, dismissed_issues: (session.finding_targets ?? []).length, warnings: [] };
-    const request = { kind: session.kind, title: session.title, paths: session.targets.map(target => target.path), acceptance_criteria: session.acceptance_criteria, finding_targets: session.finding_targets, worktree: true, confirm_execution: true };
+    const request = { kind: session.kind, title: session.title, paths: session.targets.map(target => target.path), acceptance_criteria: session.acceptance_criteria, finding_targets: session.finding_targets, confirm_execution: true };
     return { outcome: 'still_valid', reason: 'ServeAsset still accepts nested paths.', opened: this.createTask(request, 'd4e5f6'), deleted: session.id, warnings: [] };
   }
 
@@ -251,7 +253,6 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/execution-trust$/, () => ({ ...data.project, trusted: true, commands: [['go', 'test', './...']] })],
     [/^\/api\/projects\/current\/git\/workspace$/, () => this.gitWorkspace()],
     [/^\/api\/projects\/current\/changes$/, () => this.tasks()],
-    [/^\/api\/projects\/current\/changes\/recovery$/, () => ({ ...data.project, session_id: '', state: '', hash: '', undo_available: false, warnings: [] })],
     [/^\/api\/projects\/current\/findings$/, () => this.findings()],
     [/^\/api\/projects\/current\/rules$/, () => ({ ...data.project, test_patterns: ['*_test.go', '*.test.ts', '**/tests/**'], guides: ['AGENTS.md'], problems: [] })],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/rules$/, () => ({ session_id: 'chg-1', revision: 3, files: [], problems: [] })],
@@ -304,7 +305,7 @@ export class FakeDaemon {
     const url = new URL(request.url());
     const method = request.method();
     const body = method === 'GET' ? null : ((request.postDataJSON() ?? {}) as Record<string, unknown>);
-    this.requests.push({ method, path: url.pathname, body });
+    this.requests.push({ method, path: url.pathname, query: url.search, body });
 
     if (url.pathname.endsWith('/events')) {
       const frames = this.pending.map(event => `event: update\ndata: ${JSON.stringify(event)}\n\n`).join('');
@@ -433,13 +434,16 @@ export class FakeDaemon {
     return { ...s, comments: [...(s.comments ?? []), comment] };
   }
 
+  /** Accepts a task like the daemon: only one in its own worktree, approved at this version. */
   private apply(id: string, body: Record<string, unknown>) {
-    if (body.confirm !== true) throw new Error('Apply needs explicit confirmation.');
+    if (body.confirm !== true) throw new Error('Accept needs explicit confirmation.');
+    if ('head' in body || 'branch' in body) throw new Error('json: unknown field "head"');
     const updated = this.update(id, body, s => {
       if (s.reviewed_hash !== s.hash) throw new Error('Approve this version first.');
-      return { ...s, state: 'applied', commit: body.commit_message ? { state: 'committed', oid: 'c0ffee12', message: String(body.commit_message) } : undefined };
+      if (!s.worktree) throw new Error('This task was made in the main checkout, which Kasuri no longer changes.');
+      return { ...s, state: 'applied', commit: { state: 'committed', oid: 'c0ffee12', message: String(body.commit_message || s.title) } };
     });
-    return { ...data.project, session_id: updated.id, state: 'applied', hash: updated.hash, undo_available: !updated.worktree, warnings: [], commit: updated.commit };
+    return { ...data.project, session_id: updated.id, state: 'applied', hash: updated.hash, warnings: [], commit: updated.commit };
   }
 
   /** The issues as the daemon reports them: an open one a draft task links is in progress. */
@@ -451,7 +455,6 @@ export class FakeDaemon {
   /** Creates a task like the daemon; with worktree, in a new branch and worktree of its own. */
   private createTask(body: Record<string, unknown>, suffix = 'a1b2c3'): ChangeSession {
     const id = `chg-${this.nextId++}`;
-    if (body.worktree === true && body.confirm_execution !== true) throw new Error('confirm the Git action and execution of repository filters or merge drivers');
     const paths = (body.paths as string[] | undefined) ?? [];
     const session: ChangeSession = {
       ...data.project,
@@ -471,8 +474,9 @@ export class FakeDaemon {
       messages: [],
       checks: [],
     };
+    if (body.confirm_execution !== true) throw new Error('confirm the Git action and execution of repository filters or merge drivers');
+    if ('worktree' in body) throw new Error('json: unknown field "worktree"');
     this.sessions.set(id, session);
-    if (body.worktree !== true) return session;
     const name = `${taskSlug(String(body.title))}-${suffix}`;
     const path = `${data.project.path}/.worktrees/${name}`;
     session.worktree = { base: '41030b7e', branch: `orca/${name}` };

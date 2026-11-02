@@ -31,22 +31,14 @@ func TestGitMergeCompletesLinkedFindingsAfterApplyCommitAndRestart(t *testing.T)
 		{ProjectID: request.ProjectID, Kind: "performance", ID: "performance-risk", Path: "main.go"},
 		{ProjectID: request.ProjectID, Kind: "security", Source: "ai", ID: "security-risk", Path: "main.go"},
 	}
-	path := createWorkflowWorktree(t, service, request)
-	child, manager, err := service.WorktreeService(context.Background(), path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	index, _ := manager.Index()
-	session, err := child.OpenChangeSession(context.Background(), ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "fix", Title: "Fix Run", Paths: []string{"main.go", "docs/change.md"}, FindingTargets: targets})
-	if err != nil {
-		t.Fatal(err)
-	}
-	session, err = child.SendChangeMessage(context.Background(), session.ID, ChangeMessageRequest{ChangeIdentity: changeIdentity(session), Message: "Fix Run"})
+	child, opened := ownTask(t, service, ChangeCreateRequest{ProjectID: request.ProjectID, ProjectRevision: request.ProjectRevision, Kind: "fix", Title: "Fix Run", Paths: []string{"main.go", "docs/change.md"}, FindingTargets: targets})
+	path := opened.WorktreePath
+	session, err := child.SendChangeMessage(context.Background(), opened.ID, ChangeMessageRequest{ChangeIdentity: changeIdentity(opened.ChangeSession), Message: "Fix Run"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	session = approveChangeFixture(t, child, session)
-	receipt, err := child.ApplyChange(context.Background(), session.ID, ChangeApplyRequest{ChangeIdentity: changeIdentity(session), GitIdentity: *session.Git, Confirm: true, CommitMessage: "Fix Run"})
+	receipt, err := child.ApplyChange(context.Background(), session.ID, ChangeApplyRequest{ChangeIdentity: changeIdentity(session), Confirm: true, CommitMessage: "Fix Run"})
 	if err != nil || receipt.Commit == nil || receipt.Commit.State != "committed" {
 		t.Fatalf("apply and commit: %+v, %v", receipt, err)
 	}
@@ -69,7 +61,7 @@ func TestGitMergeCompletesLinkedFindingsAfterApplyCommitAndRestart(t *testing.T)
 		t.Fatal("preview completed findings")
 	}
 	result, err := restarted.MergeGitWorktree(context.Background(), request)
-	if err != nil || result.State != "merged" || result.RemovedWorktree != path || result.RemovedBranch != "codex/fix" || len(result.Completed) != len(targets) || len(result.Warnings) != 0 {
+	if err != nil || result.State != "merged" || result.RemovedWorktree != path || result.RemovedBranch != opened.Branch || len(result.Completed) != len(targets) || len(result.Warnings) != 0 {
 		t.Fatalf("merge: %+v, %v", result, err)
 	}
 	completed, err := restarted.FindingCompletions()

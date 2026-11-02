@@ -4,9 +4,9 @@
 import { useState, type ReactNode } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import {
-  ArrowLeft, CheckCircle2, Circle, ExternalLink, FileDiff, FlaskConical, GitBranch, GitCommitHorizontal, MessageSquare, RotateCcw, ShieldCheck, Square, ThumbsDown, ThumbsUp, Trash2, Upload,
+  ArrowLeft, Archive, CheckCircle2, Circle, ExternalLink, FileDiff, FlaskConical, GitBranch, GitCommitHorizontal, MessageSquare, ShieldCheck, Square, ThumbsDown, ThumbsUp, Trash2,
 } from 'lucide-react';
-import { useProject, useSession, useTrust, useUsage } from '@/api/hooks';
+import { useSession, useTrust, useUsage } from '@/api/hooks';
 import { costCaveat, costLabel, usageLabel } from '@/lib/usage';
 import type { LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
@@ -125,7 +125,7 @@ function DeleteTask({ session }: { session: LoadedSession }) {
  */
 function offersRunBesidePrimary(session: LoadedSession): boolean {
   const step = proposalReadiness(session).step;
-  return !workflowActive(session) && !['applied', 'generate', 'agents', 'stale'].includes(step);
+  return !workflowActive(session) && !['applied', 'generate', 'agents', 'stale', 'checkout'].includes(step);
 }
 
 /** The single most useful next step, as a button. */
@@ -165,12 +165,6 @@ function PrimaryAction({ session }: { session: LoadedSession }) {
           Approve
         </Button>
       );
-    case 'applied':
-      return ready.canUndo ? (
-        <Button variant="secondary" icon={RotateCcw} onClick={() => void actions.undo(session)} disabled={Boolean(busy)}>
-          Undo
-        </Button>
-      ) : null;
     default:
       return null;
   }
@@ -194,7 +188,7 @@ function ReviewRail({ session }: { session: LoadedSession }) {
   return (
     <aside className="rail" aria-label="Review gate">
       <section className="rail-section">
-        <div className="rail-title">{session.worktree ? 'Ready to accept?' : 'Ready to apply?'}</div>
+        <div className="rail-title">Ready to accept?</div>
         <ol className="gate">
           {steps.map(step => (
             <li key={step.label} className={cx('gate-step', step.done && 'is-done', step.active && 'is-active')}>
@@ -210,7 +204,7 @@ function ReviewRail({ session }: { session: LoadedSession }) {
         <ApprovalNotes session={session} />
       </section>
       {canOverrideReview(session) ? <OverrideReview session={session} /> : null}
-      {(session.changes ?? []).length || session.state === 'applied' ? <ApplyBox session={session} /> : null}
+      {(session.changes ?? []).length || session.state === 'applied' || ready.step === 'checkout' ? <ApplyBox session={session} /> : null}
       <section className="rail-section">
         <div className="rail-title">Details</div>
         <dl className="details">
@@ -249,19 +243,17 @@ function TaskSpend({ id }: { id: string }) {
 function ApplyBox({ session }: { session: LoadedSession }) {
   const actions = useActions();
   const busy = useBusy();
-  const project = useProject().data;
   const ready = proposalReadiness(session);
-  const [commit, setCommit] = useState(Boolean(session.git?.head));
   const [message, setMessage] = useState(`${session.kind === 'fix' ? 'fix' : 'feat'}: ${session.title}`.slice(0, 120));
   const input = session.workflow?.input;
 
   if (session.state === 'applied') {
     return (
       <section className="rail-section">
-        <Callout tone="success" icon={ShieldCheck} title={session.worktree ? 'Accepted' : session.commit?.state === 'committed' ? 'Applied and committed' : 'Applied'}>
-          {ready.message.replace(/^Applied\. /, '')}
+        <Callout tone="success" icon={ShieldCheck} title={session.worktree ? 'Accepted' : 'Applied'}>
+          {ready.message}
         </Callout>
-        {session.checkout.worktreePath || session.worktree ? (
+        {session.worktree ? (
           <Button icon={ExternalLink} onClick={() => navigate('/git')}>
             Merge from Branches
           </Button>
@@ -269,35 +261,30 @@ function ApplyBox({ session }: { session: LoadedSession }) {
       </section>
     );
   }
-  if (!ready.editable) return null;
-  if (session.worktree && ready.canApply) {
+  if (ready.step === 'checkout') {
     return (
       <section className="rail-section">
-        <Input value={message} onChange={e => setMessage(e.target.value)} aria-label="Commit message" maxLength={200} />
-        <Button variant="primary" icon={GitCommitHorizontal} onClick={() => void actions.apply(session, project, { commit: true, message })} disabled={Boolean(busy)} loading={busy === 'Accepting…'}>
-          Accept & commit
-        </Button>
+        <Callout tone="neutral" icon={Archive} title="Read only">
+          Kasuri no longer changes tasks made in the main checkout. Delete it, and create it again if it is still needed: it gets its own worktree.
+        </Callout>
       </section>
     );
   }
+  if (!ready.editable) return null;
   return (
     <section className="rail-section">
       {ready.canApply ? (
         <>
-          <label className="check-label">
-            <input type="checkbox" checked={commit} onChange={e => setCommit(e.target.checked)} disabled={!session.git?.head} />
-            <GitCommitHorizontal size={14} aria-hidden /> Commit after apply
-          </label>
-          {commit ? <Input value={message} onChange={e => setMessage(e.target.value)} aria-label="Commit message" maxLength={200} /> : null}
-          <Button variant="primary" icon={Upload} onClick={() => void actions.apply(session, project, { commit, message })} disabled={Boolean(busy)} loading={busy === 'Applying…'}>
-            {commit ? 'Apply & commit' : 'Apply changes'}
+          <Input value={message} onChange={e => setMessage(e.target.value)} aria-label="Commit message" maxLength={200} />
+          <Button variant="primary" icon={GitCommitHorizontal} onClick={() => void actions.apply(session, message)} disabled={Boolean(busy)} loading={busy === 'Accepting…'}>
+            Accept & commit
           </Button>
         </>
       ) : ready.canApprove ? (
         <ApproveWithNotes session={session} />
       ) : (
-        <Button variant="primary" icon={Upload} disabled>
-          Apply changes
+        <Button variant="primary" icon={GitCommitHorizontal} disabled>
+          Accept & commit
         </Button>
       )}
       {input?.status === 'waiting' ? (

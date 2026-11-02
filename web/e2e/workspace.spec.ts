@@ -69,7 +69,8 @@ test('creates a draft task with a scope and criteria', async ({ page, daemon }) 
 
   await expect(page.getByText('Draft saved. It has its own worktree on orca/return-404-for-missing-a1b2c3.')).toBeVisible();
   const [create] = daemon.mutations('/changes');
-  expect(create.body).toMatchObject({ project_id: 'p1', title: 'Return 404 for missing assets', acceptance_criteria: ['Missing assets return 404'], worktree: true, confirm_execution: true });
+  expect(create.body).toMatchObject({ project_id: 'p1', kind: 'feature', title: 'Return 404 for missing assets', acceptance_criteria: ['Missing assets return 404'], confirm_execution: true });
+  expect(create.body).not.toHaveProperty('worktree');
   expect(create.body?.paths).toContain('internal/api/handlers/webui.go');
   await expect(page).toHaveURL(/#\/tasks\/chg-100\?wt=%2Fwork%2Fkasuri%2F.worktrees%2Freturn-404-for-missing-a1b2c3$/);
   await expect(page.getByRole('complementary', { name: 'Review gate' }).getByText('return-404-for-missing-a1b2c3')).toBeVisible();
@@ -98,21 +99,22 @@ test('a task in its own worktree does not switch the workspace pages', async ({ 
   await expect(page).toHaveURL(/#\/tasks$/);
 });
 
-test('a task can stay in the main checkout instead of its own worktree', async ({ page, daemon }) => {
-  await page.goto('/#/tasks');
+test('every task gets its own worktree, made from the main checkout', async ({ page, daemon }) => {
+  // Shown from a worktree, the composer still creates the task from the main checkout.
+  await page.goto('/#/tasks?wt=%2Fwork%2Fkasuri%2F.kasuri%2Fwt%2Fchg-2');
   await page.keyboard.press('c');
   const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('checkbox')).toHaveCount(0);
+  await expect(dialog.getByRole('radiogroup', { name: 'Task kind' })).toHaveCount(0);
+  await expect(dialog).toContainText('In a new worktree');
   await dialog.getByPlaceholder('What should change?').fill('Return 404 for missing assets');
   await dialog.getByLabel('Search files to add').fill('webui');
   await dialog.getByRole('option', { name: /internal\/api\/handlers\/webui\.go/ }).first().click();
-  const own = dialog.getByRole('checkbox', { name: 'Work in its own worktree' });
-  await expect(own).toBeChecked();
-  await own.uncheck();
   await dialog.getByRole('button', { name: 'Save draft' }).click();
-
-  await expect(page.getByText('Draft saved.', { exact: true })).toBeVisible();
-  expect(daemon.mutations('/changes')[0].body?.worktree).toBeUndefined();
-  await expect(page).toHaveURL(/#\/tasks\/chg-100$/);
+  await expect(page.getByText('Draft saved. It has its own worktree on orca/return-404-for-missing-a1b2c3.')).toBeVisible();
+  const [create] = daemon.mutations('/changes');
+  expect(create.query).not.toContain('worktree_path');
+  expect(create.body).toMatchObject({ project_id: 'p1', project_revision: 'r42', kind: 'feature' });
 });
 
 test('deleting a task removes the worktree created for it', async ({ page, daemon }) => {

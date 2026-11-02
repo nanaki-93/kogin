@@ -33,24 +33,16 @@ func (s *Service) DeleteChange(ctx context.Context, id string, request ChangeIde
 	if request.ProjectID != session.ProjectID || request.Revision != session.Revision || request.Hash != session.Hash {
 		return project.ErrRevisionConflict
 	}
-	if err := requireDeletableChange(root, session); err != nil {
+	if err := requireDeletableChange(session); err != nil {
 		return err
 	}
 	return s.removeChangeLocked(root, session)
 }
 
-// requireDeletableChange refuses a task with running agents and the task whose
-// latest Apply can still be undone.
-func requireDeletableChange(root string, session *ChangeSession) error {
+// requireDeletableChange refuses a task with running agents.
+func requireDeletableChange(session *ChangeSession) error {
 	if isChangePipelineActive(session.Workflow) {
 		return fmt.Errorf("%w: stop its agents before deleting it", ErrChangeInUse)
-	}
-	journal, err := readChangeJournal(root)
-	if err != nil {
-		return err
-	}
-	if journal != nil && journal.Session.ID == session.ID && journal.State != "undone" {
-		return fmt.Errorf("%w: its latest Apply can still be undone; undo it or apply another task first", ErrChangeInUse)
 	}
 	return nil
 }

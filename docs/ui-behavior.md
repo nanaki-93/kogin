@@ -14,7 +14,7 @@ every guard when the action arrives.
 - Every mutation carries the identity it was decided on (project, revision,
   proposal revision and hash); a changed identity is rejected and the UI shows
   the daemon's message instead of retrying with fresh data.
-- Remote model use, check execution, Apply, Undo, merges, trust and stopping
+- Remote model use, check execution, Accept, merges, trust and stopping
   agents each ask first and name their exact effect. A request is never sent
   twice behind the user's back, and one mutation runs at a time.
 - Unknown, unavailable, stale, partial, failed and canceled states keep their
@@ -28,27 +28,28 @@ every guard when the action arrives.
   criteria are explicit. A file that does not exist yet joins the scope by
   typing its path (**New file**); agents can write only the files in scope,
   and a run whose proposal writes another file fails naming it. **Save
-  draft** stores it without model work.
-- **Own worktree.** From the main checkout a new task gets its own branch
-  (`orca/<title>-<suffix>`) and worktree from HEAD by default (**Work in its
-  own worktree**), so several tasks run, apply and commit in parallel; the task
-  then opens in that checkout. It needs Git, a commit and trust, and the
-  task's files must be committed (the daemon names a file that is not).
-  Unticking it, or creating a task while a worktree is selected, keeps the task
-  in the selected checkout. The worktree runs checks under this checkout's
+  draft** stores it without model work. The composer has no kind picker: a
+  new task is a feature, and a task drafted from an issue keeps its issue's
+  kind (fix, security, performance). Repairs are always on (up to two).
+- **Own worktree.** Every task gets its own branch (`orca/<title>-<suffix>`)
+  and worktree from the main checkout's HEAD, so several tasks run and commit
+  in parallel; the task then opens in that checkout. It is made from the main
+  checkout even while a worktree is selected. It needs Git, a commit and trust,
+  and the task's files must be committed (the daemon names a file that is
+  not); until then the composer says what is missing and makes no task. The
+  worktree runs checks under the main checkout's
   trust when its commands are the same, and with the agent roles and budget
   saved here; otherwise a warning says what to set. A task page shows its own
   checkout, but the workspace pages (sidebar, `g` keys and the Tasks crumb)
   keep the checkout chosen in the top bar, so opening a task in its own
   worktree does not switch Issues or Analysis to it.
-- **Start agents.** Requires a trusted project, and a test file in scope unless
-  the task has its own worktree (there a testing agent on a CLI model creates
-  the test files it needs; the daemon refuses the run when the testing model
-  cannot). When something is missing, the composer says what instead of
+- **Start agents.** Requires a trusted project (a testing agent on a CLI model
+  creates the test files it needs; the daemon refuses the run when the testing
+  model cannot). When something is missing, the composer says what instead of
   leaving the button silently disabled. The
   confirmation lists every remote destination the Creation, Testing and Review
-  roles will use; local-only runs say so. Repairs are opt-in and capped at two.
-  A security task adds a security specialist.
+  roles will use; local-only runs say so. Repairs run automatically, at most
+  two. A security task adds a security specialist.
 - **Run again.** Whenever no run is active and the task is not applied, the
   task page offers **Run agents again** (beside the review step, or as the
   primary action when the agents must run before human review, and on a run
@@ -100,7 +101,7 @@ every guard when the action arrives.
 - **Stale.** A task is stale only when a file it depends on changed: its
   targets and read context, the other files of the target packages, or a build
   manifest above them. The task then reads Stale, names the changed file and
-  offers no Apply and no run; changes elsewhere keep the task current.
+  offers no Accept and no run; changes elsewhere keep the task current.
 - **Re-analyze.** A stale task's primary action. After one confirmation (and
   remote consent for a remote Bug model) a model checks whether the issue is
   still present in the current files. Still valid: the task is captured again
@@ -109,7 +110,7 @@ every guard when the action arrives.
   dropped, a note records the decision, and the agents can start. Not valid:
   the task is deleted and its linked issues are dismissed; the task list opens.
   The model's reason is shown either way. **Fix with agents** links the task to
-  its issue so this, Apply & commit and merging update the issue.
+  its issue so this, Accept & commit and merging update the issue.
 - **Main changed the task's files.** A task in its own worktree keeps its base
   commit, so a merge of another task on the same files does not make it stale.
   Its page then says which of its files the main branch changed since it
@@ -121,9 +122,9 @@ every guard when the action arrives.
   way the old task is deleted, and its worktree is removed or, when it holds
   work, offered for discarding.
 - **Live progress.** A task's stages and the end of its run update the page and
-  the task lists as they happen, in its own worktree as in the main checkout.
+  the task lists as they happen.
 
-## Review and apply
+## Review and accept
 
 - **View files.** Each changed file is marked viewed at the current proposal
   hash (`v` marks it and moves to the next unviewed file). "Since last review"
@@ -137,7 +138,7 @@ every guard when the action arrives.
 - **Checks.** Running checks needs execution trust and runs in an isolated copy.
   Only required checks gate approval; an optional failure is a warning. When
   the project changed after checks ran, they read Outdated and must run again
-  before approval or Apply. Tests and lint run per subproject the task touches
+  before approval or Accept. Tests and lint run per subproject the task touches
   (“tests: web”); the others are listed as not affected. A check whose failures
   all happened before the change too passes, labeled “Only failures from before
   the change”; one with new failures names them; one that also failed before but
@@ -175,12 +176,13 @@ every guard when the action arrives.
   the reason, never unopenable. A commit on
   the task branch by someone else makes the task stale. While agents run, the
   worktree is locked against removal. The gate reads **Ready to accept?**, and
-  **Accept & commit** commits the approved diff on the task branch (no Undo:
-  discard the worktree instead); re-analysis does not apply.
-- **Apply.** Writes the approved version to its checkout, optionally followed
-  by a commit with the shown message. The confirmation names the destination,
-  the branch for a commit, and the running tasks in that checkout whose files
-  it changes; Apply stops only those, and other tasks keep running.
+  **Accept & commit** commits the approved diff on the task branch with the
+  shown message; nothing is written to files, so there is nothing to undo
+  (discard the worktree instead); re-analysis does not apply.
+- **Tasks from before worktrees.** A task made in the main checkout before every
+  task got its own worktree opens read only: the gate says where it was made,
+  and there is no run, revision, approval or Accept, only Delete. Kasuri never
+  writes a proposal into the main checkout.
 - **Issues from the keyboard.** `j`/`k` select the next or previous issue and
   open its detail, `f` starts "Fix with agents", `x` dismisses or reopens it and
   `Esc` closes the detail. Chips filter by kind (bugs, performance, security).
@@ -196,13 +198,11 @@ every guard when the action arrives.
   confirmation names the tasks; project files never change. A worktree left
   with no tasks and no commits of its own is removed with its branch (as after
   a re-analysis that deletes the task), and the main checkout is selected again. Tasks with running
-  agents, and the task whose latest Apply can still be undone, are kept. A
+  agents are kept. A
   worktree left with no tasks that still holds their work (uncommitted changes,
   or commits the main branch lacks, as after an aborted merge) is offered for
   **Discard worktree**: a second confirmation names what is lost; **Keep it**
   leaves it on Branches.
-- **Undo.** Covers only the latest Apply in a checkout and restores files only
-  when they still match the applied version; a commit stays in history.
 
 ## Project
 
@@ -309,8 +309,8 @@ every guard when the action arrives.
   first, a file's issues by severity and line; **By severity** lists them
   flat). A file with more than one open issue offers **Fix N together**: one
   task drafted for up to five of them, which links each, so merging it marks
-  them all fixed. In its own worktree such a task fixes them one at a time (the
-  composer says so): the Creation stage lists each issue as Waiting, Fixing,
+  them all fixed. Such a task fixes them one at a time (the composer says so):
+  the Creation stage lists each issue as Waiting, Fixing,
   Fixed (with its commit) or Not fixed (with the reason; it is open again in
   Issues), and accepting the task keeps one commit per fixed issue.
   Once a task links an issue, the issue leaves **Open** for **In progress**

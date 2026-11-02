@@ -68,7 +68,10 @@ func TestGitMutationsRejectUnconfirmedAndUnknownFields(t *testing.T) {
 	}
 }
 
-func TestChangeOpenHTTPCreatesTheTaskInItsOwnWorktree(t *testing.T) {
+// gitChangeHandlerFixture is the change handler fixture as a trusted Git
+// repository with a first commit, where tasks get their own worktrees.
+func gitChangeHandlerFixture(t *testing.T) *ChangeHandler {
+	t.Helper()
 	fixture := newChangeHandlerFixture(t, "http://127.0.0.1:1")
 	root := fixture.manager.Root()
 	git := func(args ...string) {
@@ -91,19 +94,32 @@ func TestChangeOpenHTTPCreatesTheTaskInItsOwnWorktree(t *testing.T) {
 	if _, err := fixture.service.TrustProjectExecution(context.Background(), index.ProjectRevision, true); err != nil {
 		t.Fatal(err)
 	}
-	body := map[string]any{"project_id": index.ProjectID, "project_revision": index.ProjectRevision, "kind": "fix", "title": "Fix Run", "paths": []string{"main.go"}, "worktree": true, "confirm_execution": true}
-	response := workflowResponse(t, fixture.Open, "POST", "/api/projects/current/changes", "", body)
-	var opened struct {
-		app.ChangeSession
-		WorktreePath string   `json:"worktree_path"`
-		Branch       string   `json:"branch"`
-		Warnings     []string `json:"warnings"`
+	return fixture
+}
+
+// openedTask is a POST /changes response: the task and the worktree made for it.
+type openedTask struct {
+	app.ChangeSession
+	WorktreePath string   `json:"worktree_path"`
+	Branch       string   `json:"branch"`
+	Warnings     []string `json:"warnings"`
+}
+
+func TestChangeOpenHTTPCreatesTheTaskInItsOwnWorktree(t *testing.T) {
+	fixture := gitChangeHandlerFixture(t)
+	root := fixture.manager.Root()
+	index, _ := fixture.manager.Index()
+	body := map[string]any{"project_id": index.ProjectID, "project_revision": index.ProjectRevision, "kind": "fix", "title": "Fix Run", "paths": []string{"main.go"}, "confirm_execution": true}
+	for range 2 {
+		response := workflowResponse(t, fixture.Open, "POST", "/api/projects/current/changes", "", body)
+		var opened openedTask
+		if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &opened) != nil || opened.ID == "" || opened.Title != "Fix Run" || !strings.HasPrefix(opened.Branch, "orca/fix-run-") || !strings.HasPrefix(opened.WorktreePath, filepath.Join(root, ".worktrees")) {
+			t.Fatalf("open = %d %s", response.Code, response.Body)
+		}
 	}
-	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &opened) != nil || opened.ID == "" || opened.Title != "Fix Run" || !strings.HasPrefix(opened.Branch, "orca/fix-run-") || !strings.HasPrefix(opened.WorktreePath, filepath.Join(root, ".worktrees")) {
-		t.Fatalf("open in a worktree = %d %s", response.Code, response.Body)
-	}
-	delete(body, "worktree")
-	if response := workflowResponse(t, fixture.Open, "POST", "/api/projects/current/changes", "", body); response.Code != http.StatusOK || strings.Contains(response.Body.String(), "worktree_path") {
-		t.Fatalf("open in this checkout = %d %s", response.Code, response.Body)
+	// The flag that once chose this checkout is gone: every task gets a worktree.
+	body["worktree"] = false
+	if response := workflowResponse(t, fixture.Open, "POST", "/api/projects/current/changes", "", body); response.Code != http.StatusBadRequest {
+		t.Fatalf("open with the retired worktree flag = %d %s", response.Code, response.Body)
 	}
 }

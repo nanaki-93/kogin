@@ -4,7 +4,7 @@ import { ancestors, buildTree, visibleRows } from './tree';
 import { buildHash, parseHash } from './router';
 import { escapeHtml, highlightLines } from './highlight';
 import { companionTestPath, formatElapsed, isTestPath, newFilePath, timeAgo } from './util';
-import { changeOverlaps, composerStartBlocker, issueStepState, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stageToolsLabel, taskFixingIssue, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeDiscardable, worktreeRemovable, worktreeTasks } from './workflow';
+import { composerStartBlocker, issueStepState, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stageToolsLabel, taskFixingIssue, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeDiscardable, worktreeRemovable, worktreeTasks } from './workflow';
 import type { ChangeHistoryEntry, Finding, GitWorkspace, GitWorktree } from '@/api/types';
 import { isInProgressFinding, isOpenFinding, isUnresolvedFinding } from '@/components/domain';
 import { limitErrors, modelLocation, roleModelOptions, selectedModel } from './agentSettings';
@@ -80,23 +80,19 @@ describe('util and workflow', () => {
 
   it('parses commits and explains workflow blockers', () => {
     expect(parseCommits('abc123 Fix thing\n\ndef456')).toEqual([{ sha: 'abc123', subject: 'Fix thing' }, { sha: 'def456', subject: '' }]);
-    const s = { state: 'draft', freshness: 'current', kind: 'fix', targets: [{ path: 'a.go' }] };
-    expect(workflowBlocker(s, true, isTestPath)).toMatch(/test file/);
-    expect(workflowBlocker({ ...s, targets: [{ path: 'a_test.go' }] }, false, isTestPath)).toMatch(/Trust/);
-    expect(workflowBlocker({ ...s, targets: [{ path: 'a_test.go' }] }, true, isTestPath)).toBe('');
-    // In its own worktree, the testing agent creates the test files it needs.
-    expect(workflowBlocker({ ...s, worktree: { base: 'b', branch: 'mo/x' } }, true, isTestPath)).toBe('');
-    expect(workflowBlocker({ ...s, workflow: { id: 'w', status: 'paused', stages: [] } as never, targets: [{ path: 'a_test.go' }] }, true, isTestPath)).toBe('');
-    expect(workflowBlocker(null, true, isTestPath)).toMatch(/Select/);
+    // Every task has its own worktree, where the testing agent creates the test files it needs.
+    const s = { state: 'draft', freshness: 'current', kind: 'fix', worktree: { base: 'b', branch: 'orca/x' } };
+    expect(workflowBlocker(s, true)).toBe('');
+    expect(workflowBlocker(s, false)).toMatch(/Trust/);
+    expect(workflowBlocker({ ...s, workflow: { id: 'w', status: 'paused', stages: [] } as never }, true)).toBe('');
+    expect(workflowBlocker({ ...s, worktree: undefined }, true)).toMatch(/made in the main checkout/);
+    expect(workflowBlocker(null, true)).toMatch(/Select/);
   });
 
   it('says why the composer cannot start agents', () => {
-    expect(composerStartBlocker([], true, true, isTestPath)).toMatch(/at least one file/);
-    expect(composerStartBlocker(['cmd/master.go'], false, true, isTestPath)).toMatch(/test file/);
-    // In its own worktree, the testing agent creates the test files it needs.
-    expect(composerStartBlocker(['cmd/master.go'], true, true, isTestPath)).toBe('');
-    expect(composerStartBlocker(['cmd/master.go', 'cmd/master_test.go'], false, true, isTestPath)).toBe('');
-    expect(composerStartBlocker(['cmd/master.go'], true, false, isTestPath)).toMatch(/Trust/);
+    expect(composerStartBlocker([], true)).toMatch(/at least one file/);
+    expect(composerStartBlocker(['cmd/master.go'], true)).toBe('');
+    expect(composerStartBlocker(['cmd/master.go'], false)).toMatch(/Trust/);
   });
 });
 
@@ -258,17 +254,6 @@ describe('client', () => {
     expect(errorMessage(new ApiError('Review the request and try again.', 400, { detail: 'saved analysis progress is unreadable' }))).toBe('Review the request and try again. (saved analysis progress is unreadable)');
     expect(errorMessage(new ApiError('Disk full', 500, { detail: 'Disk full' }))).toBe('Disk full');
     expect(errorMessage(new Error('plain'))).toBe('plain');
-  });
-});
-
-describe('changeOverlaps', () => {
-  it('flags shared files, packages and build manifests above a task', () => {
-    expect(changeOverlaps(['internal/app/a.go'], ['internal/app/b.go'])).toBe(true);
-    expect(changeOverlaps(['internal/app/a.go'], ['internal/llm/c.go'])).toBe(false);
-    expect(changeOverlaps(['go.mod'], ['internal/llm/c.go'])).toBe(true);
-    expect(changeOverlaps(['web/package.json'], ['web/src/app.tsx'])).toBe(true);
-    expect(changeOverlaps(['web/package.json'], ['internal/app/a.go'])).toBe(false);
-    expect(changeOverlaps(['README.md'], ['internal/app/a.go'])).toBe(false);
   });
 });
 

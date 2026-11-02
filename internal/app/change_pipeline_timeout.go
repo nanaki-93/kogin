@@ -31,7 +31,6 @@ func (c *workflowStopCause) Unwrap() error { return context.Canceled }
 // Reasons name the event in the user's terms; they complete "Stopped because …".
 const (
 	stopReasonReindex         = "the project was reindexed"
-	stopReasonApply           = "changes were applied or undone in this checkout"
 	stopReasonGit             = "a Git merge or worktree change touched this checkout"
 	stopReasonProjectSwitch   = "another project was opened"
 	stopReasonShutdown        = "the daemon is shutting down"

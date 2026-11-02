@@ -272,20 +272,19 @@ func TestGitWorktreeListsCompletedFixes(t *testing.T) {
 	server := changeProvider(t, func() string { return groupedChangeResponse })
 	service, root := newSemanticAnalysisService(t, server.URL, 0)
 	initializeChangeGit(t, service, root)
-	path := createWorkflowWorktree(t, service, trustedGitRequest(t, service))
-	analysis, err := service.RestoreProject(path)
+	request := trustedGitRequest(t, service)
+	child, opened := ownTask(t, service, ChangeCreateRequest{ProjectID: request.ProjectID, ProjectRevision: request.ProjectRevision, Kind: "feature", Title: "Implement a bounded task", Paths: []string{"main.go", "docs/change.md"}, AcceptanceCriteria: []string{"Preserve existing behavior."}})
+	path := opened.WorktreePath
+	proposal, err := child.SendChangeMessage(context.Background(), opened.ID, ChangeMessageRequest{ChangeIdentity: changeIdentity(opened.ChangeSession), Message: "Implement the change."})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := service.RestoreActiveProject(path, analysis); err != nil {
-		t.Fatal(err)
-	}
-	session := approveChangeFixture(t, service, prepareChangeFixture(t, service, "main.go", "docs/change.md"))
-	receipt, err := service.ApplyChange(context.Background(), session.ID, ChangeApplyRequest{ChangeIdentity: changeIdentity(session), GitIdentity: *session.Git, Confirm: true, CommitMessage: session.Title})
+	session := approveChangeFixture(t, child, proposal)
+	receipt, err := child.ApplyChange(context.Background(), session.ID, ChangeApplyRequest{ChangeIdentity: changeIdentity(session), Confirm: true, CommitMessage: session.Title})
 	if err != nil || receipt.Commit.State != "committed" {
-		t.Fatalf("worktree apply: %+v %v", receipt, err)
+		t.Fatalf("worktree accept: %+v %v", receipt, err)
 	}
-	workspace, err := service.GitWorkspace(context.Background(), receipt.ProjectID, receipt.ProjectRevision)
+	workspace, err := service.GitWorkspace(context.Background(), request.ProjectID, request.ProjectRevision)
 	if err != nil {
 		t.Fatal(err)
 	}

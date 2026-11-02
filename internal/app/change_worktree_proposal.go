@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"go/format"
 	"os"
 	"path"
 	"path/filepath"
@@ -103,7 +104,7 @@ func worktreeEdit(policy *project.ContextPolicy, session *ChangeSession, input C
 	if err := worktreeWritable(policy, session, input.Path); err != nil {
 		return ChangeEdit{}, err
 	}
-	edit := ChangeEdit{Path: input.Path, Content: input.Content, Summary: sanitizeEditSummary(input.Summary), Criteria: input.Criteria}
+	edit := ChangeEdit{Path: input.Path, Content: gofmtSource(input.Path, input.Content), Summary: sanitizeEditSummary(input.Summary), Criteria: input.Criteria}
 	if len(input.Criteria) > 16 {
 		return ChangeEdit{}, fmt.Errorf("at most 16 criterion references per file")
 	}
@@ -259,6 +260,36 @@ func writeWorktreeFile(root string, session *ChangeSession, file string, edit *C
 		return err
 	}
 	return writeChangeSource(root, *target, content, atomicWrite)
+}
+
+// gofmtSource formats a Go file a model proposed in one piece, as Go's
+// tools would; content that does not parse is kept for the checks to name.
+func gofmtSource(path, content string) string {
+	if filepath.Ext(path) != ".go" {
+		return content
+	}
+	if formatted, err := format.Source([]byte(content)); err == nil {
+		return string(formatted)
+	}
+	return content
+}
+
+// writeChangeSource writes a file of the worktree with its captured mode.
+func writeChangeSource(root string, target ChangeTarget, content string, write func(string, []byte) error) error {
+	path, err := project.ResolveWritePath(root, target.Path)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	if _, err := project.ResolveWritePath(root, target.Path); err != nil {
+		return err
+	}
+	if err := write(path, []byte(content)); err != nil {
+		return err
+	}
+	return os.Chmod(path, os.FileMode(target.Mode))
 }
 
 // setProposal stores new edits as the task's proposal. For a task in its own

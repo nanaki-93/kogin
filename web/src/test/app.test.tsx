@@ -10,7 +10,7 @@ const project = { project_id: 'p1', project_revision: 'r1', name: 'demo', path: 
 const file = (path: string) => ({ path, language: 'go', line_count: 10 });
 const session = {
   ...project, id: 'chg-1', kind: 'fix', title: 'Reject nested asset paths', acceptance_criteria: ['Nested paths return 404'],
-  revision: 2, hash: 'sha-2', state: 'checked', freshness: 'current', updated_at: '2026-10-01T00:00:00Z',
+  revision: 2, hash: 'sha-2', state: 'checked', freshness: 'current', updated_at: '2026-10-01T00:00:00Z', worktree: { base: 'abc', branch: 'orca/reject-nested-a1b2c3' },
   targets: [{ path: 'web.go' }, { path: 'web_test.go' }], messages: [],
   changes: [
     { path: 'web.go', content: '', hash: 'a', diff: { lines: [{ kind: 'removed', old_line: 1, text: 'old' }, { kind: 'added', new_line: 1, text: 'new' }] } },
@@ -74,7 +74,7 @@ describe('App', () => {
     const gate = await screen.findByRole('complementary', { name: 'Review gate' });
     expect(within(gate).getByText('Files viewed')).toBeInTheDocument();
     expect(within(gate).getByText('1 of 2')).toBeInTheDocument();
-    expect(within(gate).getByRole('button', { name: /apply changes/i })).toBeDisabled();
+    expect(within(gate).getByRole('button', { name: 'Accept & commit' })).toBeDisabled();
   });
 
   it('offers to open a project when none is active, without refetching in a loop', async () => {

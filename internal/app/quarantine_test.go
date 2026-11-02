@@ -12,29 +12,6 @@ import (
 	"github.com/nanaki-93/kasuri/v2/internal/storage"
 )
 
-func TestRecoveryJournalErrorsNameTheFileAndRemedy(t *testing.T) {
-	service, root := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
-	path := filepath.Join(root, ".kasuri", "changes", "last-mutation.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	for content, want := range map[string]string{
-		"broken":        "is unreadable",
-		`{"version":7}`: "written by a newer Kasuri",
-	} {
-		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		_, err := service.ChangeRecovery()
-		if err == nil || !strings.Contains(err.Error(), ".kasuri/changes/last-mutation.json") || !strings.Contains(err.Error(), want) {
-			t.Fatalf("%s: %v", content, err)
-		}
-		if kept, _ := os.ReadFile(path); string(kept) != content {
-			t.Fatal("recovery journal was moved or changed")
-		}
-	}
-}
-
 func TestNewerTaskFilesAreSkippedNotSetAside(t *testing.T) {
 	server := changeProvider(t, func() string { return workflowImplementation })
 	service, root := newSemanticAnalysisService(t, server.URL, 0)

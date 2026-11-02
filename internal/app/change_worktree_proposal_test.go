@@ -96,7 +96,7 @@ func TestATaskInItsOwnWorktreeAddsRenamesAndDeletesFilesAndIsAcceptedAsACommit(t
 		t.Fatal(err)
 	}
 	result, err := child.ApplyChange(context.Background(), reviewed.ID, ChangeApplyRequest{ChangeIdentity: changeIdentity(reviewed), Confirm: true, CommitMessage: "Return the print error"})
-	if err != nil || result.State != "applied" || result.UndoAvailable || result.Commit == nil || result.Commit.State != "committed" {
+	if err != nil || result.State != "applied" || result.Commit == nil || result.Commit.State != "committed" {
 		t.Fatalf("accept = %+v, %v", result, err)
 	}
 	if head := testGit(t, worktree, "rev-parse", "HEAD"); head != result.Commit.OID || testGit(t, worktree, "log", "-1", "--format=%s") != "Return the print error" {

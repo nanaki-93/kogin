@@ -130,7 +130,7 @@ func openCoderTask(ctx context.Context, cfg *config.Config, root string, task Co
 	if _, err := service.TrustProjectExecution(ctx, index.ProjectRevision, true); err != nil {
 		return nil, nil, "", err
 	}
-	opened, err := service.OpenChangeInWorktree(ctx, ChangeOpenRequest{ChangeCreateRequest: ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: task.Kind, Title: task.Title, Paths: task.Paths, AcceptanceCriteria: task.Criteria}, Worktree: true, ConfirmExecution: true})
+	opened, err := service.OpenChangeInWorktree(ctx, ChangeOpenRequest{ChangeCreateRequest: ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: task.Kind, Title: task.Title, Paths: task.Paths, AcceptanceCriteria: task.Criteria}, ConfirmExecution: true})
 	if err != nil {
 		return nil, nil, "", err
 	}

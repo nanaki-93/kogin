@@ -4,10 +4,8 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { errorMessage, withWorktree } from '@/api/client';
-import type { ChangeHistoryEntry, ChangeSession, LoadedSession, ModelsCurrent } from '@/api/types';
+import type { ChangeSession, LoadedSession, ModelsCurrent } from '@/api/types';
 import { useFeedback } from '@/components/overlays';
-import { changeOverlaps } from '@/lib/workflow';
-import { plural } from '@/lib/util';
 import { keys } from '@/api/hooks';
 import { busyLabel, setBusy } from './busy';
 
@@ -36,7 +34,7 @@ export function useActionContext() {
 
   function setSession(next: ChangeSession | null | undefined, previous: LoadedSession) {
     if (!next) return;
-    const merged: LoadedSession = { ...next, checkout: previous.checkout, undo: previous.undo };
+    const merged: LoadedSession = { ...next, checkout: previous.checkout };
     client.setQueryData(keys.session(previous.id), merged);
     void client.invalidateQueries({ queryKey: ['changes'] });
   }
@@ -57,23 +55,7 @@ export function useActionContext() {
     return { ok, remote: true };
   }
 
-  /** Names the running tasks in this checkout that applying `changed` likely stops; the rest keep running. */
-  function runningTasksNote(session: { id: string; checkout: { worktreePath: string } }, changed: string[]): string {
-    const lists = client.getQueriesData<ChangeHistoryEntry[]>({ queryKey: ['changes'] });
-    const running = new Map<string, ChangeHistoryEntry>();
-    for (const [key, list] of lists) {
-      const checkout = String(key[1] ?? '');
-      for (const task of list ?? []) {
-        const where = task.worktree_path || checkout;
-        if (task.id !== session.id && where === session.checkout.worktreePath && ['running', 'canceling'].includes(task.workflow_status ?? '') && changeOverlaps(changed, task.paths ?? [])) running.set(task.id, task);
-      }
-    }
-    if (!running.size) return '';
-    const names = [...running.values()].slice(0, 3).map(task => `“${task.title || task.id}”`).join(', ');
-    return ` It stops ${plural(running.size, 'running task')} whose files it changes: ${names}${running.size > 3 ? ', …' : ''}.`;
-  }
-
-  return { client, confirm, toast, guarded, fail, setSession, refreshAll, confirmRemote, runningTasksNote };
+  return { client, confirm, toast, guarded, fail, setSession, refreshAll, confirmRemote };
 }
 
 /** What each area's actions are built from. */

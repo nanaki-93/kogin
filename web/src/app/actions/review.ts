@@ -1,15 +1,14 @@
 // Review actions: line comments, viewed files, checks, approval, reviewer
-// override and rejection, then Apply (or Accept in a task's own worktree) and
-// Undo.
+// override and rejection, then Accept: a commit on the task's own branch.
 
 import { api } from '@/api/client';
-import type { ChangeMutationResult, ChangeSession, LoadedSession, Project } from '@/api/types';
+import type { ChangeMutationResult, ChangeSession, LoadedSession } from '@/api/types';
 import { canOverrideReview, changeIdentity, proposalReadiness } from '@/lib/readiness';
 import { plural } from '@/lib/util';
 import { changePath, type ActionContext } from './context';
 
 export function reviewActions(context: ActionContext) {
-  const { confirm, toast, guarded, fail, setSession, refreshAll, runningTasksNote } = context;
+  const { confirm, toast, guarded, fail, setSession, refreshAll } = context;
 
   // ---------------------------------------------------------------- review
 
@@ -71,7 +70,7 @@ export function reviewActions(context: ActionContext) {
       try {
         const body = notes.trim() ? { ...changeIdentity(session), notes: notes.trim() } : changeIdentity(session);
         setSession(await api.post<ChangeSession>(changePath(session, '/review'), body), session);
-        toast('Approved this exact version. You can apply it now.', 'success');
+        toast('Approved this exact version. You can accept it now.', 'success');
         return true;
       } catch (err) {
         fail('Approval failed', err);
@@ -87,7 +86,7 @@ export function reviewActions(context: ActionContext) {
     const result = await guarded('Overriding…', async () => {
       try {
         setSession(await api.post<ChangeSession>(changePath(session, '/review-override'), { ...changeIdentity(session), workflow_id: session.workflow!.id, reason: reason.trim() }), session);
-        toast('Reviewers overridden. View the files and approve this version to apply it.', 'info');
+        toast('Reviewers overridden. View the files and approve this version to accept it.', 'info');
         return true;
       } catch (err) {
         fail('Could not override the reviewers', err);
@@ -111,42 +110,10 @@ export function reviewActions(context: ActionContext) {
     });
   }
 
-  async function apply(session: LoadedSession, project: Project | undefined, options: { commit: boolean; message: string }) {
-    if (!proposalReadiness(session).canApply) return;
-    if (session.worktree) {
-      await accept(session, options.message);
-      return;
-    }
-    const destination = session.checkout.worktreePath || project?.path || 'the current checkout';
-    const commit = options.commit && Boolean(session.git?.head);
-    if (commit && !options.message.trim()) {
-      toast('Enter a commit message or turn off “Commit”.', 'warning');
-      return;
-    }
-    const ok = await confirm({
-      title: commit ? 'Apply and commit?' : 'Apply these changes?',
-      body: `Writes “${session.title || session.id}” to ${destination}${commit ? ` and commits it on ${session.git?.branch || 'the current branch'}` : ''}. Undo stays available for the latest Apply while the files are unchanged${commit ? '; it restores the files but keeps the commit' : ''}.${runningTasksNote(session, (session.changes ?? []).map(change => change.path))}`,
-      confirmLabel: commit ? 'Apply & commit' : 'Apply',
-    });
-    if (!ok) return;
-    await guarded('Applying…', async () => {
-      try {
-        const body: Record<string, unknown> = { ...changeIdentity(session), confirm: true };
-        if (commit) Object.assign(body, { head: session.git!.head, branch: session.git!.branch, commit_message: options.message.trim() });
-        const result = await api.post<ChangeMutationResult>(changePath(session, '/apply'), body);
-        if (result?.commit?.state === 'failed') toast('Applied, but the commit failed.', 'warning', result.commit.error);
-        else toast(result?.commit?.state === 'committed' ? 'Applied and committed.' : 'Applied.', 'success');
-        for (const warning of result?.warnings ?? []) toast(warning, 'warning');
-        await refreshAll();
-      } catch (err) {
-        fail('Apply failed', err);
-      }
-    });
-  }
-
-  /** Accepts a task in its own worktree: its reviewed version is committed on the task branch. */
-  async function accept(session: LoadedSession, message: string) {
-    const branch = session.worktree!.branch;
+  /** Accepts a task: its reviewed version is committed on the task branch, in its own worktree. */
+  async function apply(session: LoadedSession, message: string) {
+    if (!proposalReadiness(session).canApply || !session.worktree) return;
+    const branch = session.worktree.branch;
     if (!message.trim()) {
       toast('Enter a commit message.', 'warning');
       return;
@@ -159,8 +126,7 @@ export function reviewActions(context: ActionContext) {
     if (!ok) return;
     await guarded('Accepting…', async () => {
       try {
-        const body = { ...changeIdentity(session), confirm: true, head: session.worktree!.base, branch, commit_message: message.trim() };
-        const result = await api.post<ChangeMutationResult>(changePath(session, '/apply'), body);
+        const result = await api.post<ChangeMutationResult>(changePath(session, '/apply'), { ...changeIdentity(session), confirm: true, commit_message: message.trim() });
         toast(`Accepted and committed on ${branch}.`, 'success');
         for (const warning of result?.warnings ?? []) toast(warning, 'warning');
         await refreshAll();
@@ -170,25 +136,5 @@ export function reviewActions(context: ActionContext) {
     });
   }
 
-  async function undo(session: LoadedSession) {
-    if (!proposalReadiness(session).canUndo) return;
-    const ok = await confirm({
-      title: 'Undo these changes?',
-      body: `Restores the files changed by “${session.title || session.id}” after verifying they still match the applied version.${session.commit?.state === 'committed' ? ' The commit stays in history.' : ''}${runningTasksNote(session, (session.changes ?? []).map(change => change.path))}`,
-      confirmLabel: 'Undo',
-      danger: true,
-    });
-    if (!ok) return;
-    await guarded('Undoing…', async () => {
-      try {
-        await api.post(changePath(session, '/undo'), { ...changeIdentity(session), confirm: true });
-        toast('Changes undone.', 'success');
-        await refreshAll();
-      } catch (err) {
-        fail('Undo failed', err);
-      }
-    });
-  }
-
-  return { markViewed, runChecks, addComment, deleteComment, approve, overrideReview, reject, apply, undo };
+  return { markViewed, runChecks, addComment, deleteComment, approve, overrideReview, reject, apply };
 }

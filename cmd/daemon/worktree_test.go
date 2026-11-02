@@ -151,12 +151,23 @@ func TestWorktreeRoutesPreserveProjectAndRequireScopedIdentity(t *testing.T) {
 			t.Fatalf("scope boundary: %d %s", got.Code, got.Body.String())
 		}
 	}
+	// Tasks start from the main checkout: a worktree makes none of its own.
 	for _, id := range []string{index.ProjectID, child.ProjectID} {
 		body, _ := json.Marshal(app.ChangeCreateRequest{ProjectID: id, ProjectRevision: child.ProjectRevision, Kind: "feature", Title: "Document behavior", Paths: []string{"README.md"}})
 		got := call("POST", "/api/projects/current/changes"+scope, string(body), "")
-		if (got.Code == http.StatusOK) != (id == child.ProjectID) {
-			t.Fatalf("identity boundary: %d %s", got.Code, got.Body.String())
+		if got.Code != http.StatusBadRequest || !strings.Contains(got.Body.String(), "Create tasks from the main checkout") {
+			t.Fatalf("task from a worktree: %d %s", got.Code, got.Body.String())
 		}
+	}
+	// An unfinished task in the worktree, as one made in its checkout before
+	// tasks got their own worktrees, holds back the merge below.
+	worktreeService, worktreeManager, err := service.WorktreeService(context.Background(), created.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	worktreeIndex, _ := worktreeManager.Index()
+	if _, err := worktreeService.OpenChangeSession(context.Background(), app.ChangeCreateRequest{ProjectID: worktreeIndex.ProjectID, ProjectRevision: worktreeIndex.ProjectRevision, Kind: "feature", Title: "Document behavior", Paths: []string{"README.md"}}); err != nil {
+		t.Fatal(err)
 	}
 	current, _ := manager.Index()
 	if manager.Root() != root || current.ProjectID != index.ProjectID || current.ProjectRevision != index.ProjectRevision {

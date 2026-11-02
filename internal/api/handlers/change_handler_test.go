@@ -75,7 +75,7 @@ func TestChangeHTTPSelectedProfile(t *testing.T) {
 }
 
 func TestChangeHTTPPreservesFindingTargetsAndRejectsInvalidScope(t *testing.T) {
-	h := newChangeHandlerFixture(t, "http://127.0.0.1:1")
+	h := gitChangeHandlerFixture(t)
 	index, _ := h.manager.Index()
 	target := project.FindingTarget{ProjectID: "origin-project", Kind: "semantic", ID: "finding:origin", Path: "main.go"}
 	for _, state := range []string{"valid", "legacy", "duplicate", "outside scope", "unknown producer", "unknown security source", "missing origin", "too many"} {
@@ -97,18 +97,22 @@ func TestChangeHTTPPreservesFindingTargetsAndRejectsInvalidScope(t *testing.T) {
 			case "too many":
 				request.FindingTargets = make([]project.FindingTarget, 17)
 			}
-			response := workflowResponse(t, h.Open, "POST", "/changes", "", request)
+			response := workflowResponse(t, h.Open, "POST", "/changes", "", app.ChangeOpenRequest{ChangeCreateRequest: request, ConfirmExecution: true})
 			if state != "valid" && state != "legacy" {
 				if response.Code != http.StatusBadRequest {
 					t.Fatalf("invalid finding targets: %d %s", response.Code, response.Body)
 				}
 				return
 			}
-			var session app.ChangeSession
-			if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &session) != nil {
+			var opened openedTask
+			if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &opened) != nil {
 				t.Fatalf("open: %d %s", response.Code, response.Body)
 			}
-			restored, err := h.service.ChangeSession(context.Background(), session.ID)
+			child, _, err := h.service.WorktreeService(context.Background(), opened.WorktreePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			restored, err := child.ChangeSession(context.Background(), opened.ID)
 			if err != nil || len(restored.FindingTargets) != len(request.FindingTargets) {
 				t.Fatalf("restored targets: %+v, %v", restored, err)
 			}
@@ -117,9 +121,9 @@ func TestChangeHTTPPreservesFindingTargetsAndRejectsInvalidScope(t *testing.T) {
 			}
 		})
 	}
-	history, err := h.service.ChangeHistory(context.Background())
-	if err != nil || len(history) != 2 {
-		t.Fatalf("invalid input wrote sessions: %+v, %v", history, err)
+	// Invalid input leaves no worktree behind.
+	if entries, err := os.ReadDir(filepath.Join(h.manager.Root(), ".worktrees")); err != nil || len(entries) != 2 {
+		t.Fatalf("worktrees: %d, %v", len(entries), err)
 	}
 }
 
@@ -127,7 +131,7 @@ func TestChangeHTTPReadGuardsAndStrictRequests(t *testing.T) {
 	handler := newChangeHandlerFixture(t, "http://127.0.0.1:1")
 	index, _ := handler.manager.Index()
 	query := "?project_id=" + index.ProjectID + "&project_revision=" + index.ProjectRevision
-	for _, step := range []http.HandlerFunc{handler.List, handler.Recovery} {
+	for _, step := range []http.HandlerFunc{handler.List} {
 		denied := workflowResponse(t, step, "GET", "/changes", "", nil)
 		if denied.Code != 409 {
 			t.Fatal("unguarded history read accepted")
@@ -269,13 +273,13 @@ func TestQuarantineDeleteHTTP(t *testing.T) {
 }
 
 func TestChangeHTTPKeepsTheIssuesATaskFixesOneAtATime(t *testing.T) {
-	h := newChangeHandlerFixture(t, "http://127.0.0.1:1")
+	h := gitChangeHandlerFixture(t)
 	index, _ := h.manager.Index()
 	targets := []project.FindingTarget{{ProjectID: index.ProjectID, Kind: "semantic", ID: "finding:a", Path: "main.go"}, {ProjectID: index.ProjectID, Kind: "semantic", ID: "finding:b", Path: "main.go"}}
 	issues := []app.ChangeIssue{{FindingID: "finding:a", Path: "main.go", Title: "Run ignores errors", Detail: "line 3"}, {FindingID: "finding:b", Path: "main.go", Title: "Run never logs"}}
 	request := app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "fix", Title: "Fix 2 issues in main.go", Paths: []string{"main.go"}, FindingTargets: targets, Issues: issues}
-	response := workflowResponse(t, h.Open, "POST", "/changes", "", request)
-	var session app.ChangeSession
+	response := workflowResponse(t, h.Open, "POST", "/changes", "", app.ChangeOpenRequest{ChangeCreateRequest: request, ConfirmExecution: true})
+	var session openedTask
 	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &session) != nil || len(session.Issues) != 2 || session.Issues[0].Status != app.IssuePending || session.Issues[1].Title != "Run never logs" {
 		t.Fatalf("open: %d %s", response.Code, response.Body)
 	}
@@ -284,7 +288,7 @@ func TestChangeHTTPKeepsTheIssuesATaskFixesOneAtATime(t *testing.T) {
 	started := request
 	started.Issues = []app.ChangeIssue{issues[0], {FindingID: "finding:b", Path: "main.go", Title: "Run never logs", Status: app.IssueFixed}}
 	for name, invalid := range map[string]app.ChangeCreateRequest{"an unlinked issue": unlinked, "an issue with progress": started} {
-		if response := workflowResponse(t, h.Open, "POST", "/changes", "", invalid); response.Code != http.StatusBadRequest {
+		if response := workflowResponse(t, h.Open, "POST", "/changes", "", app.ChangeOpenRequest{ChangeCreateRequest: invalid, ConfirmExecution: true}); response.Code != http.StatusBadRequest {
 			t.Fatalf("%s: %d %s", name, response.Code, response.Body)
 		} else {
 			assertStructuredError(t, response)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -13,19 +14,22 @@ import (
 	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
 )
 
-// A task can live in its own Git worktree: a new branch from the current HEAD,
-// checked out under .worktrees/. Tasks in separate worktrees run, apply and
-// commit without touching each other's files, and come back through a merge.
+// Every task lives in its own Git worktree: a new branch from the main
+// checkout's HEAD, checked out under .worktrees/. Tasks in separate
+// worktrees run and commit without touching each other's files, and come
+// back through a merge.
 
-// ChangeOpenRequest captures a task in this checkout or, with Worktree, in a
-// new branch and worktree created for it.
+// ChangeOpenRequest captures a task in a new branch and worktree created for it.
 type ChangeOpenRequest struct {
 	ChangeCreateRequest
-	Worktree bool `json:"worktree,omitempty"`
 	// ConfirmExecution accepts that checking out the new worktree can run
 	// the repository's filters, as for any Git mutation.
 	ConfirmExecution bool `json:"confirm_execution,omitempty"`
 }
+
+// ErrTaskFromWorktree refuses a task created from a task's worktree: tasks
+// start from the main checkout.
+var ErrTaskFromWorktree = errors.New("create tasks from the main checkout; each one gets a new worktree from it")
 
 // ChangeOpened is a task captured in the worktree created for it. The task
 // carries the worktree's project identity.
@@ -44,6 +48,9 @@ const taskBranchPrefix = "orca/"
 // that cannot be captured leaves no worktree or branch behind, even when the
 // request is canceled.
 func (s *Service) OpenChangeInWorktree(ctx context.Context, request ChangeOpenRequest) (*ChangeOpened, error) {
+	if s.owner != nil {
+		return nil, ErrTaskFromWorktree
+	}
 	repository, err := s.taskWorktreeBase(ctx, request)
 	if err != nil {
 		return nil, err
@@ -75,7 +82,7 @@ func (s *Service) taskWorktreeBase(ctx context.Context, request ChangeOpenReques
 		return nil, err
 	}
 	if !repository.Available || repository.Branch == "" || repository.Head == "" {
-		return nil, fmt.Errorf("a task gets its own worktree only in a Git repository on a branch with a commit; create it in this checkout")
+		return nil, fmt.Errorf("a task needs its own worktree, which needs a Git repository on a branch with a commit; make a first commit, then create the task")
 	}
 	// Task paths are relative to the project root; the Git runner reads
 	// every pathspec literally.
@@ -84,7 +91,7 @@ func (s *Service) taskWorktreeBase(ctx context.Context, request ChangeOpenReques
 		return nil, fmt.Errorf("read the status of the task's files: %w", err)
 	}
 	if entry, _, _ := strings.Cut(status, "\x00"); len(entry) > 3 {
-		return nil, fmt.Errorf("%s has uncommitted changes that a new worktree would not have; commit them, or create the task in this checkout", entry[3:])
+		return nil, fmt.Errorf("%s has uncommitted changes that the task's new worktree would not have; commit or stash them, then create the task", entry[3:])
 	}
 	return repository, nil
 }

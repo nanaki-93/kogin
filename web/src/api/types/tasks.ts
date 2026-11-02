@@ -97,11 +97,6 @@ export interface ChangePlan {
   approved_hash?: string;
 }
 
-export interface UndoAvailability {
-  available: boolean;
-  reason: string;
-}
-
 export interface ChangeSession extends ProjectIdentity {
   id: string;
   kind: string;
@@ -153,7 +148,6 @@ export interface ChangeOpened extends ChangeSession {
 /** A change session as the UI tracks it: where it lives and its checkout identity. */
 export interface LoadedSession extends ChangeSession {
   checkout: CheckoutRef;
-  undo?: UndoAvailability;
 }
 
 export interface CheckoutRef extends ProjectIdentity {
@@ -218,7 +212,6 @@ export interface ChangeMutationResult extends ProjectIdentity {
   session_id: string;
   state: string;
   hash: string;
-  undo_available: boolean;
   warnings: string[];
   commit?: ChangeCommit;
 }

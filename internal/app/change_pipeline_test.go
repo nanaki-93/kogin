@@ -106,12 +106,12 @@ func TestChangeWorkflowSelectedModelsTestsReviewAndHumanApply(t *testing.T) {
 	if _, err := s.ReviewChange(context.Background(), session.ID, ChangeReviewRequest{ChangeIdentity: changeIdentity(session)}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.ApplyChange(context.Background(), session.ID, ChangeApplyRequest{ChangeIdentity: changeIdentity(session), Confirm: true}); err != nil {
-		t.Fatal(err)
+	// Approved, the task passes the gate; one made in the main checkout is then refused, writing nothing.
+	if _, err := s.ApplyChange(context.Background(), session.ID, ChangeApplyRequest{ChangeIdentity: changeIdentity(session), Confirm: true}); !errors.Is(err, ErrCheckoutTask) {
+		t.Fatalf("approved checkout task: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(root, "new.go"))
-	if err != nil || !strings.Contains(string(data), "return 2") {
-		t.Fatalf("human Apply: %s, %v", data, err)
+	if _, err := os.Stat(filepath.Join(root, "new.go")); !os.IsNotExist(err) {
+		t.Fatal("a checkout task wrote project source")
 	}
 }
 

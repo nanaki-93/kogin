@@ -11,12 +11,12 @@ func TestDaemonStoppedWorkflowsSayWhy(t *testing.T) {
 	ctx, interrupt := context.WithCancelCause(context.Background())
 	canceled := false
 	job := &changeWorkflowJob{interrupt: interrupt, cancel: func() { canceled = true }}
-	job.stop(stopReasonApply)
+	job.stop(stopReasonGit)
 	if !canceled {
 		t.Fatal("stop must also cancel the job")
 	}
 	status, reason := workflowFailure(workflowDeadlineCause(ctx, ctx.Err()), nil)
-	if status != "canceled" || !strings.Contains(reason, "Stopped because changes were applied or undone in this checkout") {
+	if status != "canceled" || !strings.Contains(reason, "Stopped because a Git merge or worktree change touched this checkout") {
 		t.Fatalf("daemon stop must name its cause: %s, %q", status, reason)
 	}
 

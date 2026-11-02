@@ -20,8 +20,23 @@ func worktreeTaskRequest(t *testing.T, service *Service, paths ...string) Change
 	return ChangeOpenRequest{
 		ChangeCreateRequest: ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "fix", Title: "Fix: Run ignores errors!", Paths: paths, AcceptanceCriteria: []string{"Run reports print errors."},
 			FindingTargets: []project.FindingTarget{{ProjectID: index.ProjectID, Kind: "semantic", ID: "finding:run", Path: "main.go"}}},
-		Worktree: true, ConfirmExecution: true,
+		ConfirmExecution: true,
 	}
+}
+
+// ownTask opens a task in a new worktree of its own from service's checkout,
+// as the API does, and returns the worktree's service and the task.
+func ownTask(t *testing.T, service *Service, request ChangeCreateRequest) (*Service, *ChangeOpened) {
+	t.Helper()
+	opened, err := service.OpenChangeInWorktree(context.Background(), ChangeOpenRequest{ChangeCreateRequest: request, ConfirmExecution: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	child, _, err := service.WorktreeService(context.Background(), opened.WorktreePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return child, opened
 }
 
 func TestTaskInItsOwnWorktreeStartsFromHEADWithTrustAndLinkedIssues(t *testing.T) {

@@ -228,7 +228,6 @@ func newProjectHTTPMux(application *app.Service, projectManager *project.Manager
 	mux.HandleFunc("POST /api/projects/current/git/discard-worktree", gitHandler.DiscardWorktree)
 	mux.HandleFunc("GET /api/projects/current/changes", changeHandler.List)
 	mux.HandleFunc("POST /api/projects/current/changes", changeHandler.Open)
-	mux.HandleFunc("GET /api/projects/current/changes/recovery", changeHandler.Recovery)
 	mux.HandleFunc("GET /api/projects/current/usage", changeHandler.Usage)
 	mux.HandleFunc("GET /api/projects/current/quarantine", changeHandler.Quarantine)
 	mux.HandleFunc("POST /api/projects/current/quarantine/delete", changeHandler.DeleteQuarantined)
@@ -248,7 +247,6 @@ func newProjectHTTPMux(application *app.Service, projectManager *project.Manager
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/delete", changeHandler.Delete)
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/reanalyze", changeHandler.Reanalyze)
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/retake", changeHandler.Retake)
-	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/undo", changeHandler.Undo)
 
 	modelHandler := handlers.NewModelHandler(application)
 	mux.HandleFunc("GET /api/models/current", modelHandler.Current)

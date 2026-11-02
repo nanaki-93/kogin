@@ -1,14 +1,14 @@
 // The core job: review every changed file, approve this exact version and
-// apply it, with the review gate tracking each step.
+// accept it as a commit on the task's branch, with the review gate tracking each step.
 
 import { expect, test } from './support/daemon';
 import { agentSettings, pausedTask, rejectedTask, reviewTask } from './support/fixtures';
 
-test('reviews, approves and applies a task through the gate', async ({ page, daemon }) => {
+test('reviews, approves and accepts a task through the gate', async ({ page, daemon }) => {
   await page.goto('/#/tasks/chg-1');
   const gate = page.getByRole('complementary', { name: 'Review gate' });
   await expect(gate.getByText('0 of 3')).toBeVisible();
-  await expect(gate.getByRole('button', { name: /apply changes/i })).toBeDisabled();
+  await expect(gate.getByRole('button', { name: 'Accept & commit' })).toBeDisabled();
   // An optional check failure is a warning, not a blocker.
   await expect(gate.getByText('1 optional failed')).toBeVisible();
 
@@ -28,23 +28,21 @@ test('reviews, approves and applies a task through the gate', async ({ page, dae
   await gate.getByRole('button', { name: 'Approve this version' }).click();
   await expect(page.getByText('Approved this exact version')).toBeVisible();
 
-  await gate.getByRole('button', { name: 'Apply & commit' }).click();
+  await gate.getByRole('button', { name: 'Accept & commit' }).click();
   const dialog = page.getByRole('alertdialog');
-  await expect(dialog).toContainText('commits it on main');
-  // The running task in another package keeps going.
-  await expect(dialog).not.toContainText('running task');
-  await dialog.getByRole('button', { name: 'Apply & commit' }).click();
-  await expect(page.getByText('Applied and committed.')).toBeVisible();
+  await expect(dialog).toContainText('on orca/reject-nested-a1b2c3');
+  await dialog.getByRole('button', { name: 'Accept & commit' }).click();
+  await expect(page.getByText('Accepted and committed on orca/reject-nested-a1b2c3.')).toBeVisible();
 
   const [apply] = daemon.mutations('/apply');
-  expect(apply.body).toMatchObject({ project_id: 'p1', project_revision: 'r42', revision: 3, hash: 'sha256:9f2c1a7be4', confirm: true, branch: 'main' });
+  expect(apply.body).toMatchObject({ project_id: 'p1', project_revision: 'r42', revision: 3, hash: 'sha256:9f2c1a7be4', confirm: true, commit_message: 'fix: Reject nested asset paths in the Web UI handler' });
 });
 
-test('cancelling the Apply confirmation writes nothing', async ({ page, daemon }) => {
+test('cancelling the Accept confirmation commits nothing', async ({ page, daemon }) => {
   const session = daemon.sessions.get('chg-1')!;
   daemon.sessions.set('chg-1', { ...session, reviewed_files: session.changes.map(change => change.path), reviewed_hash: session.hash });
   await page.goto('/#/tasks/chg-1');
-  await page.getByRole('complementary', { name: 'Review gate' }).getByRole('button', { name: /apply/i }).click();
+  await page.getByRole('complementary', { name: 'Review gate' }).getByRole('button', { name: 'Accept & commit' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByRole('alertdialog')).toBeHidden();
   expect(daemon.mutations('/apply')).toEqual([]);
@@ -88,7 +86,7 @@ test('overrides the reviewers with a reason, then approves with notes', async ({
   await expect(page.getByText('Approved this exact version')).toBeVisible();
   await expect(gate.getByText('Revisit the package split next sprint.')).toBeVisible();
   expect(daemon.mutations('/review')[0].body).toMatchObject({ hash: 'sha256:9f2c1a7be4', notes: 'Revisit the package split next sprint.' });
-  await expect(gate.getByRole('button', { name: 'Apply & commit' })).toBeEnabled();
+  await expect(gate.getByRole('button', { name: 'Accept & commit' })).toBeEnabled();
 });
 
 test('checks from an earlier project tree must run again before approval', async ({ page, daemon }) => {
@@ -181,13 +179,17 @@ test('a retaken task that is no longer valid is deleted, and its work discarded 
   expect(daemon.mutations('/discard-worktree')).toHaveLength(0);
 });
 
-test('Apply names the running tasks whose files it changes', async ({ page, daemon }) => {
+test('a task made in the main checkout can only be read and deleted', async ({ page, daemon }) => {
   const session = daemon.sessions.get('chg-1')!;
-  daemon.sessions.set('chg-1', { ...session, reviewed_files: session.changes.map(change => change.path), reviewed_hash: session.hash });
-  daemon.sessions.set('chg-9', { ...session, id: 'chg-9', title: 'Serve fonts with a content type', targets: [{ path: 'internal/api/handlers/fonts.go', hash: '', exists: false }], workflow: { ...session.workflow!, id: 'wf-9', status: 'running', input: undefined } });
+  daemon.sessions.set('chg-1', { ...session, worktree: undefined, reviewed_files: session.changes.map(change => change.path), reviewed_hash: session.hash, workflow: { ...session.workflow!, status: 'failed', reason: 'go test failed' } });
   await page.goto('/#/tasks/chg-1');
-  await page.getByRole('complementary', { name: 'Review gate' }).getByRole('button', { name: /apply/i }).click();
-  await expect(page.getByRole('alertdialog')).toContainText('It stops 1 running task whose files it changes: “Serve fonts with a content type”.');
+  const gate = page.getByRole('complementary', { name: 'Review gate' });
+  await expect(gate).toContainText('Made in the main checkout, before every task got its own worktree.');
+  await expect(gate).toContainText('Kasuri no longer changes tasks made in the main checkout.');
+  await expect(gate.getByRole('button', { name: /^(Accept|Approve)/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /agents/ })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Ask for a revision' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Delete task' })).toBeVisible();
 });
 
 test('line comments become the brief of the next revision', async ({ page, daemon }) => {
@@ -351,7 +353,8 @@ test('a task in its own worktree shows new, deleted and moved files and is accep
   await expect(dialog).toContainText('on orca/reject-nested-a1b2c3');
   await dialog.getByRole('button', { name: 'Accept & commit' }).click();
   await expect(page.getByText('Accepted and committed on orca/reject-nested-a1b2c3.')).toBeVisible();
-  expect(daemon.mutations('/apply')[0].body).toMatchObject({ confirm: true, head: '41030b7e', branch: 'orca/reject-nested-a1b2c3', revision: 3 });
+  expect(daemon.mutations('/apply')[0].body).toMatchObject({ confirm: true, revision: 3 });
+  expect(daemon.mutations('/apply')[0].body).not.toHaveProperty('head');
   await expect(gate).toContainText('Accepted');
   await expect(gate.getByRole('button', { name: 'Merge from Branches' })).toBeVisible();
 });

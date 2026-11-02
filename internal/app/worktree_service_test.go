@@ -29,30 +29,17 @@ func TestWorktreeImplementationsRunConcurrentlyAndApplyInIsolation(t *testing.T)
 	children := make([]*Service, 3)
 	sessions := make([]*ChangeSession, 3)
 	for i := range children {
-		request.TargetBranch = fmt.Sprintf("codex/fix-%d", i)
-		request.Path = filepath.Join(root, ".worktrees", fmt.Sprintf("fix-%d", i))
-		created, err := service.CreateGitWorktree(context.Background(), request)
-		if err != nil || created.State != "created" || created.Error != "" {
-			t.Fatalf("create: %+v, %v", created, err)
-		}
-		child, manager, err := service.WorktreeService(context.Background(), created.Path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if child == service || manager == service.manager {
+		child, opened := ownTask(t, service, ChangeCreateRequest{ProjectID: request.ProjectID, ProjectRevision: request.ProjectRevision, Kind: "feature", Title: fmt.Sprintf("Implement a bounded task %d", i), Paths: []string{"new.go", "new_test.go"}, AcceptanceCriteria: []string{"Preserve existing behavior."}})
+		if child == service || child.manager == service.manager {
 			t.Fatal("worktree reused the active project state")
 		}
-		again, _, err := service.WorktreeService(context.Background(), created.Path)
+		again, _, err := service.WorktreeService(context.Background(), opened.WorktreePath)
 		if err != nil || again != child {
 			t.Fatal("reopening lost the worker owner")
 		}
-		session := openChangeFixture(t, child, "new.go", "new_test.go")
-		trust, err := child.ExecutionTrust(context.Background(), session.ProjectRevision, "")
-		if err != nil || trust.Trusted {
-			t.Fatal("worktree inherited execution consent")
-		}
-		if _, err := child.TrustProjectExecution(context.Background(), session.ProjectRevision, true); err != nil {
-			t.Fatal(err)
+		session := opened.ChangeSession
+		if trust, err := child.ExecutionTrust(context.Background(), session.ProjectRevision, ""); err != nil || !trust.Trusted {
+			t.Fatalf("a task's worktree did not share the checkout's trust: %+v %v", trust, err)
 		}
 		sessions[i], err = child.StartChangeWorkflow(context.Background(), session.ID, workflowRequest(session))
 		if err != nil {
@@ -123,14 +110,17 @@ func TestWorktreeImplementationsRunConcurrentlyAndApplyInIsolation(t *testing.T)
 		t.Fatal(err)
 	}
 	receipt, err := child.ApplyChange(context.Background(), session.ID, ChangeApplyRequest{
-		ChangeIdentity: changeIdentity(session), GitIdentity: *session.Git, Confirm: true, CommitMessage: "Implement Helper",
+		ChangeIdentity: changeIdentity(session), Confirm: true, CommitMessage: "Implement Helper",
 	})
 	if err != nil || receipt.Commit == nil || receipt.Commit.State != "committed" {
 		t.Fatalf("apply: %+v, %v", receipt, err)
 	}
-	for _, untouched := range []string{root, children[1].manager.Root(), children[2].manager.Root()} {
-		if _, err := os.Stat(filepath.Join(untouched, "new.go")); !os.IsNotExist(err) {
-			t.Fatalf("Apply changed another checkout: %s", untouched)
+	if _, err := os.Stat(filepath.Join(root, "new.go")); !os.IsNotExist(err) {
+		t.Fatal("accepting a task changed the main checkout")
+	}
+	for i := 1; i < len(children); i++ {
+		if head := testGit(t, children[i].manager.Root(), "rev-parse", "HEAD"); head != sessions[i].Worktree.Base {
+			t.Fatalf("accepting a task committed in another task's worktree: %s", children[i].manager.Root())
 		}
 	}
 	if service.manager.Root() != root || testGit(t, root, "branch", "--show-current") != "main" || testGit(t, root, "rev-parse", "HEAD") != request.Head {

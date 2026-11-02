@@ -3,8 +3,8 @@
 A local-first coding assistant: a Go daemon on your machine that analyzes a
 repository, surfaces verified and model-suggested **Issues**, writes structured
 **Docs**, and prepares **AI changes** that agents write, test and review in an
-isolated checkout, which you review in the browser and apply with an explicit,
-guarded **Apply** and **Undo**.
+Git worktree of their own, which you review in the browser and accept as a
+commit on the task's branch.
 
 > **Kasuri was called Mini-Orca.** The name is 絣 (ka-SOO-ree), a Japanese
 > weave whose pattern appears only once the threads are woven together, as
@@ -42,10 +42,12 @@ guarded **Apply** and **Undo**.
   [Code rules](#code-rules)). A change that pushes a file past its budget is split
   into sibling files in the same task; a file already over may change without
   growing and gets one refactor issue.
-- **Work in its own worktree.** A new task gets its own branch and Git worktree
-  by default. The proposal is that worktree's diff against the commit the task
-  started from, so agents can add, rename and delete files; accepting it makes
-  one commit on the task branch, and Branches merges it.
+- **Work in its own worktree.** Every task gets its own branch and Git worktree
+  from the main checkout. The proposal is that worktree's diff against the
+  commit the task started from, so agents can add, rename and delete files;
+  accepting it makes one commit on the task branch (one per issue for a task
+  that fixes several), and Branches merges it. Kasuri never writes a proposal
+  into the main checkout.
 - **Test every language it touches.** Each subproject's tests and lint come from
   its `AGENTS.md`, then its just/Task/make targets, then the ecosystem's defaults
   (Go, npm/pnpm/yarn/bun, Cargo, Maven/Gradle wrappers, pytest, .NET). Only the
@@ -54,14 +56,14 @@ guarded **Apply** and **Undo**.
   unrelated fix. After a merge the same checks run on the merged result.
 - **Stay in control.** Nothing reaches your files until you have viewed every
   changed file, required checks pass, the workflow waits for you and you approve
-  that exact version. Apply verifies the files first; Undo restores them only if
-  they are unchanged. Remote model use, check execution and merges each ask first.
+  that exact version, and only a merge from Branches brings it into your main
+  checkout. Remote model use, check execution and merges each ask first.
 
 ## The Web UI
 
 Start the daemon and open `http://127.0.0.1:9090/ui` (`just ui` opens it). The
 browser workspace is built for three jobs: **start a task and watch the agents**,
-**review and apply**, and **understand the project**.
+**review and accept**, and **understand the project**.
 
 | Page | Shortcut | What it is for |
 | --- | --- | --- |
@@ -82,17 +84,17 @@ top bar switches between the main checkout and agent worktrees; every page then
 shows that checkout. Pages update live from the daemon's event stream. Light,
 dark and system themes are available.
 
-The task composer asks for a title, an optional description, the kind (fix,
-feature, performance, security), the files agents may change (up to eight; a
-companion test is suggested for Go, Python and JavaScript/TypeScript files) and
-“done when” criteria. **Work in its own worktree** (on by default) gives the
-task a branch and worktree; there agents may also create, move and delete
-files, and **Accept & commit** commits the reviewed diff on that branch.
+The task composer asks for a title, an optional description, the files agents
+may change (up to eight; a companion test is suggested for Go, Python and
+JavaScript/TypeScript files) and “done when” criteria. Every task gets a branch
+and worktree of its own; there agents may also create, move and delete files,
+repair failing checks up to twice, and **Accept & commit** commits the reviewed
+diff on that branch.
 **Start agents** runs the native ADK workflow (create → tests → specialist
 reviews) after a confirmation that lists every remote model destination.
-Apply is enabled only when every changed file is viewed at the current version,
+Accept is enabled only when every changed file is viewed at the current version,
 required checks pass, the workflow is waiting for human review and you approved
-this exact version. Apply, Undo, trust, merge and remote model requests always
+this exact version. Accept, trust, merge and remote model requests always
 ask for confirmation; navigation, previews and filters never start model work,
 checks or writes.
 
@@ -216,7 +218,7 @@ bundle is embedded in the binary.
 
 ### Project data (`.kasuri/`)
 
-Project-local `.kasuri/` stores `index.json`, `project-analysis.json`, `module-summaries.json`, `file-analysis/`, `findings.json`, `performance/files/`, and unified progress in `analysis/run.json`. Private `changes/` files retain conversations, captured source and proposals, and the latest grouped recovery journal. Restore uses local persisted analysis without triggering model requests. See the [API guide](docs/api-contract.md) and [workflow migration](docs/api-contract.md#retired-workflows) for current contracts and boundaries.
+Project-local `.kasuri/` stores `index.json`, `project-analysis.json`, `module-summaries.json`, `file-analysis/`, `findings.json`, `performance/files/`, and unified progress in `analysis/run.json`. Private `changes/` files retain conversations, captured source and proposals. Restore uses local persisted analysis without triggering model requests. See the [API guide](docs/api-contract.md) and [workflow migration](docs/api-contract.md#retired-workflows) for current contracts and boundaries.
 
 ## Web UI development
 

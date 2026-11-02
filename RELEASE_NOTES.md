@@ -47,6 +47,22 @@ are listed here as they land.
   issues of a file (was ten), since tasks fixing ten at once often failed or
   came back with blocking review findings. A file with more open issues offers
   **Fix 5 of N together**; the rest can be grouped once those are in progress.
+- **Every task in its own worktree:** the composer no longer offers to keep a
+  task in the main checkout: every task gets its own branch and worktree from
+  the main checkout's HEAD, even while a worktree is selected, and the composer
+  says what is missing (Git, a commit, trust) when one cannot be made. The
+  daemon creates no other kind (`POST /api/projects/current/changes` has no
+  `worktree` field and refuses a request scoped to a worktree).
+- **Removed: Apply and Undo in the main checkout.** Accepting a task commits it
+  on its branch; Kasuri never writes a proposal into the main checkout, so the
+  Undo button, `POST .../changes/{id}/undo`, `GET .../changes/recovery` and the
+  recovery journal (`.kasuri/changes/last-mutation.json`, which can be deleted)
+  are gone, and Accept takes no `head`/`branch`. Tasks made in the main checkout
+  before this open read only and can be deleted.
+- **Simpler composer:** no task kind picker (a new task is a feature; one
+  drafted from an issue keeps its issue's kind) and no repair checkbox (repairs
+  are always on, up to two). One-shot proposals in a worktree are gofmt-formatted
+  like the agents' edits.
 - **Issues fixed one at a time:** a **Fix N together** task in its own
   worktree no longer fixes all its issues in one run. Each issue gets a fresh
   coding run with only that issue (fix plus regression test), then the checks,

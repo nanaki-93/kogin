@@ -170,26 +170,6 @@ export function reviewItemPlace(item: ReviewItem): string {
   return item.line ? `${name}:${item.line}` : name;
 }
 
-const BUILD_MANIFESTS = new Set(['go.mod', 'go.sum', 'go.work', 'go.work.sum', 'package.json', 'package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'tsconfig.json', 'Cargo.toml', 'Cargo.lock', 'pyproject.toml', 'setup.py', 'setup.cfg', 'requirements.txt', 'Pipfile', 'Pipfile.lock', 'Makefile', 'justfile']);
-
-const directoryOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
-
-/**
- * Whether writing `changed` likely makes a task with `paths` stale: a shared
- * file or package directory, or a build manifest above one of its files. The
- * daemon decides exactly from each task's recorded scope.
- */
-export function changeOverlaps(changed: string[], paths: string[]): boolean {
-  return changed.some(file => {
-    const dir = directoryOf(file);
-    const name = file.slice(dir ? dir.length + 1 : 0);
-    return paths.some(path => {
-      const own = directoryOf(path);
-      return path === file || own === dir || (BUILD_MANIFESTS.has(name) && (dir === '' || own === dir || own.startsWith(dir + '/')));
-    });
-  });
-}
-
 export const DEFAULT_ROLES = { creation: 'bug', testing: 'code', review: 'analyze' } as const;
 
 export interface Destination {
@@ -367,23 +347,20 @@ export function taskFixingIssue<T extends { state: string; worktreePath: string;
  * Explains why the composer cannot start agents on a new task, or '': the same
  * rules the daemon applies when the run starts.
  */
-export function composerStartBlocker(paths: string[], ownWorktree: boolean, trusted: boolean, isTestPath: (path: string) => boolean): string {
+export function composerStartBlocker(paths: string[], trusted: boolean): string {
   if (!paths.length) return 'Choose at least one file the agents may change.';
-  // In its own worktree, a testing agent on a CLI creates the test files it needs.
-  if (!ownWorktree && !paths.some(isTestPath)) return 'Add a test file to the scope so the testing agent can write tests.';
   if (!trusted) return 'Allow this project to run checks (Settings → Trust) so agents can verify their work.';
   return '';
 }
 
 /** Explains why the agent workflow cannot start for this task, or ''. */
-export function workflowBlocker(session: { state: string; freshness: string; kind: string; workflow?: ChangeWorkflow; targets?: { path: string; test?: boolean }[]; worktree?: unknown } | null, trusted: boolean, isTestPath: (path: string) => boolean): string {
+export function workflowBlocker(session: { state: string; freshness: string; kind: string; workflow?: ChangeWorkflow; worktree?: unknown } | null, trusted: boolean): string {
   if (!session) return 'Select a task first.';
-  if (session.state === 'applied') return 'This task is already applied.';
+  if (session.state === 'applied') return 'This task is already accepted.';
   if (session.freshness && session.freshness !== 'current') return 'Its files changed since this task was captured. Re-analyze it first.';
   if (session.kind === 'instructions') return 'Instruction edits use the manual proposal flow.';
   if (session.workflow && ['running', 'canceling'].includes(session.workflow.status)) return 'Agents are already working on this task.';
-  // In its own worktree, a testing agent on a CLI creates the test files it needs.
-  if (!session.worktree && !(session.targets ?? []).some(target => target.test || isTestPath(target.path))) return 'Add a test file to the scope so the testing agent can write tests.';
+  if (!session.worktree) return 'This task was made in the main checkout; Kasuri no longer runs agents on it.';
   if (!trusted) return 'Allow this project to run checks (Settings → Trust) so agents can verify their work.';
   return '';
 }

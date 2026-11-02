@@ -4,10 +4,9 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { api, query, withWorktree } from './client';
 import type {
-  AgentSettings, AnalysisFileSelection, AvailableModels, ProjectSetup, ChangeHistoryEntry, ChangeMutationResult, ChangeRules, ChangeSession, DaemonStatus, DocsComponentFiles, ExecutionTrust, FileInfo, FileSummary,
+  AgentSettings, AnalysisFileSelection, AvailableModels, ProjectSetup, ChangeHistoryEntry, ChangeRules, ChangeSession, DaemonStatus, DocsComponentFiles, ExecutionTrust, FileInfo, FileSummary,
   FindingsResponse, GitWorkspace, LoadedSession, ModelsCurrent, Overview, Project, ProjectIndex, ProjectRules, QuarantineReport, TaskEntry, UsageReport,
 } from './types';
-import { undoFromRecovery } from '@/lib/readiness';
 import { useCheckout } from '@/app/checkout';
 
 export const keys = {
@@ -155,6 +154,16 @@ export function useTrust() {
   });
 }
 
+/** Execution trust of the main checkout, where every task's worktree starts. */
+export function useMainTrust() {
+  const main = useMainProject().data;
+  return useQuery({
+    queryKey: [...keys.trust(''), main?.project_revision],
+    queryFn: () => api.get<ExecutionTrust>('/api/projects/current/execution-trust' + query({ project_revision: main!.project_revision })),
+    enabled: Boolean(main?.project_id),
+  });
+}
+
 export function useGitWorkspace() {
   const main = useMainProject().data;
   return useQuery({
@@ -209,16 +218,7 @@ async function checkoutIdentity(worktreePath: string) {
 export async function fetchSession(id: string, worktreePath: string): Promise<LoadedSession> {
   const checkout = await checkoutIdentity(worktreePath);
   const session = await api.get<ChangeSession>(withWorktree('/api/projects/current/changes/' + encodeURIComponent(id) + query({ project_id: checkout.project_id, project_revision: checkout.project_revision }), worktreePath));
-  const loaded: LoadedSession = { ...session, checkout };
-  if (session.state === 'applied') {
-    try {
-      const recovery = await api.get<ChangeMutationResult>(withWorktree('/api/projects/current/changes/recovery', worktreePath));
-      loaded.undo = undoFromRecovery(session, recovery);
-    } catch (err) {
-      loaded.undo = { available: false, reason: 'The undo journal could not be read: ' + (err instanceof Error ? err.message : String(err)) };
-    }
-  }
-  return loaded;
+  return { ...session, checkout };
 }
 
 export function useSession(id: string | undefined, worktreePath: string, live: boolean) {

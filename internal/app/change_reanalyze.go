@@ -261,7 +261,7 @@ func (s *Service) refreshReanalyzedChangeLocked(p *preparedReanalysis, reason st
 // removeReanalyzedChangeLocked deletes the task, then dismisses its linked
 // issues that this checkout owns; issues of another checkout keep their state.
 func (s *Service) removeReanalyzedChangeLocked(p *preparedReanalysis, reason string) (*ChangeReanalysis, error) {
-	if err := requireDeletableChange(p.root, p.session); err != nil {
+	if err := requireDeletableChange(p.session); err != nil {
 		return nil, err
 	}
 	if err := s.removeChangeLocked(p.root, p.session); err != nil {

@@ -70,7 +70,9 @@ export function reviewTask(): ChangeSession {
       { name: 'go test', required: true, state: 'passed', command: ['go', 'test', './...'], duration_ms: 18_350 },
       { name: 'staticcheck', required: false, state: 'failed', command: ['staticcheck', './...'], output: 'mime.go:5:6: should not use init', exit_code: 1 },
     ],
-    git: { head: '41030b7e', branch: 'main' },
+    git: { head: '41030b7e', branch: 'orca/reject-nested-a1b2c3' },
+    // Every task has its own worktree.
+    worktree: { base: '41030b7e', branch: 'orca/reject-nested-a1b2c3' },
     workflow: {
       id: 'wf-1',
       status: 'awaiting_human_review',

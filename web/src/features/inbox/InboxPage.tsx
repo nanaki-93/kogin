@@ -71,7 +71,7 @@ export function InboxPage() {
             <div className="welcome-card">
               <Sparkles size={22} className="tone-accent" aria-hidden />
               <h2>Describe a change. Agents do the rest; you stay in control.</h2>
-              <p className="muted">Agents write the change and its tests in an isolated copy, run the checks and review it. You read the diff, approve the exact version and apply it — with Undo.</p>
+              <p className="muted">Agents write the change and its tests in an isolated copy, run the checks and review it. You read the diff, approve the exact version and accept it as a commit on the task's own branch.</p>
               <div className="row">
                 <Button variant="primary" icon={Plus} onClick={() => openNewTask()}>
                   New task

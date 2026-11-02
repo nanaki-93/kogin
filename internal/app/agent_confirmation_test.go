@@ -111,8 +111,9 @@ func TestWorkflowInputApprovalAndDuplicateRetainExplicitApplyBoundary(t *testing
 	if _, err := os.Stat(filepath.Join(root, "new.go")); !os.IsNotExist(err) {
 		t.Fatal("approval applied source")
 	}
-	if _, err := s.ApplyChange(t.Context(), ready.ID, ChangeApplyRequest{ChangeIdentity: identityForChange(ready), Confirm: true}); err != nil {
-		t.Fatal(err)
+	// Approved, the task passes the gate; one made in the main checkout is then refused.
+	if _, err := s.ApplyChange(t.Context(), ready.ID, ChangeApplyRequest{ChangeIdentity: identityForChange(ready), Confirm: true}); !errors.Is(err, ErrCheckoutTask) {
+		t.Fatalf("approved checkout task: %v", err)
 	}
 }
 

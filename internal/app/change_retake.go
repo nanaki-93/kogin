@@ -163,7 +163,7 @@ func (s *Service) prepareRetake(ctx context.Context, id string, request ChangeRe
 	if err != nil {
 		return nil, ChangeOpenRequest{}, err
 	}
-	open := ChangeOpenRequest{ChangeCreateRequest: retakeRequest(mainRoot, session, index), Worktree: true, ConfirmExecution: true}
+	open := ChangeOpenRequest{ChangeCreateRequest: retakeRequest(mainRoot, session, index), ConfirmExecution: true}
 	if err := main.requireProjectExecutionTrust(ctx, index.ProjectRevision); err != nil {
 		return nil, ChangeOpenRequest{}, err
 	}
@@ -269,7 +269,7 @@ func (s *Service) removeRetakenChange(p *preparedReanalysis) error {
 	if stored.Revision != p.session.Revision || stored.Hash != p.session.Hash {
 		return project.ErrRevisionConflict
 	}
-	if err := requireDeletableChange(p.root, stored); err != nil {
+	if err := requireDeletableChange(stored); err != nil {
 		return err
 	}
 	return s.removeChangeLocked(p.root, stored)

@@ -1,8 +1,8 @@
 // Review authority rules mirrored from the daemon. The daemon remains the
 // authority: these helpers only decide which controls are offered, so a stale
-// or incomplete proposal never presents Apply as available.
+// or incomplete proposal never presents Accept as available.
 
-import type { ChangeComment, ChangeHistoryEntry, ChangeMutationResult, ChangeSession, Check, FileChange, LoadedSession, UndoAvailability } from '@/api/types';
+import type { ChangeComment, ChangeHistoryEntry, ChangeSession, Check, FileChange, LoadedSession } from '@/api/types';
 import type { Tone } from './util';
 
 /** waiting: nothing runs until someone acts (your review, or a plan's reset). */
@@ -81,7 +81,10 @@ export function workflowActive(session: { workflow?: { status: string } } | null
   return status === 'running' || status === 'canceling';
 }
 
-export type ReviewStep = 'none' | 'generate' | 'agents' | 'review' | 'checks' | 'approve' | 'apply' | 'applied' | 'stale' | 'recovery';
+/** Where a task made before every task got its own worktree lives. */
+export const CHECKOUT_TASK = 'Made in the main checkout, before every task got its own worktree.';
+
+export type ReviewStep = 'none' | 'generate' | 'agents' | 'review' | 'checks' | 'approve' | 'apply' | 'applied' | 'stale' | 'checkout';
 
 export interface Readiness {
   editable: boolean;
@@ -89,28 +92,25 @@ export interface Readiness {
   checksPassed: boolean;
   canApprove: boolean;
   canApply: boolean;
-  canUndo: boolean;
   step: ReviewStep;
   message: string;
 }
 
 /**
- * Apply needs every changed file reviewed at the current hash, all required
+ * Accept needs every changed file reviewed at the current hash, all required
  * checks passed, a workflow (if any) waiting for human review, and an explicit
- * approval recorded for this exact hash.
+ * approval recorded for this exact hash. A task made in the main checkout,
+ * before every task got its own worktree, can only be read and deleted.
  */
-export function proposalReadiness(session: (ChangeSession & { undo?: UndoAvailability }) | null | undefined): Readiness {
-  const result: Readiness = { editable: false, filesReviewed: false, checksPassed: false, canApprove: false, canApply: false, canUndo: false, step: 'none', message: 'Select a task.' };
+export function proposalReadiness(session: ChangeSession | null | undefined): Readiness {
+  const result: Readiness = { editable: false, filesReviewed: false, checksPassed: false, canApprove: false, canApply: false, step: 'none', message: 'Select a task.' };
   if (!session) return result;
-  if (session.state === 'applied' && session.worktree) {
-    return { ...result, step: 'applied', message: `Accepted as a commit on ${session.worktree.branch}. Merge it from Branches, or remove the worktree to drop it.` };
-  }
   if (session.state === 'applied') {
-    const undo = session.undo ?? { available: true, reason: '' };
-    return { ...result, canUndo: undo.available, step: 'applied', message: undo.available ? 'Applied. Undo verifies the files are unchanged before restoring them.' : `Applied. ${undo.reason || 'Undo is not available for this task.'}` };
+    const message = session.worktree ? `Accepted as a commit on ${session.worktree.branch}. Merge it from Branches, or remove the worktree to drop it.` : 'Applied in the main checkout, before every task got its own worktree.';
+    return { ...result, step: 'applied', message };
   }
+  if (!session.worktree) return { ...result, step: 'checkout', message: CHECKOUT_TASK };
   if (session.freshness !== 'current') return { ...result, step: 'stale', message: `${session.stale_reason ? `Out of date: ${session.stale_reason}.` : 'The project changed since this proposal was made.'} Re-analyze it against the current files, or delete it.` };
-  if (['undone', 'reverted', 'recovery_required'].includes(session.state)) return { ...result, step: 'recovery', message: `This task is ${session.state.replace('_', ' ')}.` };
   result.editable = true;
   const edits = session.changes ?? [];
   result.filesReviewed = edits.length > 0 && edits.every(edit => isFileReviewed(session, edit.path));
@@ -137,10 +137,10 @@ export function proposalReadiness(session: (ChangeSession & { undo?: UndoAvailab
     result.message = session.workflow?.reason || (rejectedByModel ? 'The reviewers requested changes. Run the agents again, or override the reviewers with a reason.' : 'The agent workflow has not reached human review.');
   } else if (!result.canApply) {
     result.step = 'approve';
-    result.message = session.worktree ? 'Approve this exact version to enable Accept.' : 'Approve this exact version to enable Apply.';
+    result.message = 'Approve this exact version to enable Accept.';
   } else {
     result.step = 'apply';
-    result.message = session.worktree ? `Approved. Accept commits this version on ${session.worktree.branch}.` : 'Approved. Apply writes these files to the checkout.';
+    result.message = `Approved. Accept commits this version on ${session.worktree.branch}.`;
   }
   return result;
 }
@@ -180,14 +180,6 @@ export function changeIdentity(session: LoadedSession) {
     revision: session.revision,
     hash: session.hash,
   };
-}
-
-/** Undo restores only the latest grouped Apply in a checkout. */
-export function undoFromRecovery(session: Pick<ChangeSession, 'id'>, recovery: ChangeMutationResult | null | undefined): UndoAvailability {
-  if (!recovery?.session_id) return { available: false, reason: 'No undo record exists for this checkout. Revert the change with Git.' };
-  if (recovery.session_id !== session.id) return { available: false, reason: 'Undo covers only the latest Apply in this checkout. Revert this change with Git.' };
-  if (!recovery.undo_available || recovery.state === 'undone') return { available: false, reason: 'This Apply was already undone.' };
-  return { available: true, reason: '' };
 }
 
 export type TaskStatus = 'draft' | 'running' | 'needs_you' | 'ready' | 'applied' | 'failed' | 'stale' | 'canceled' | 'done';
