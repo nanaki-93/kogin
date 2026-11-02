@@ -221,6 +221,9 @@ func (run *taskToolRun) writable(file string) (string, string, error) {
 	if run.role == toolTester && !run.resolver.IsTestFile(clean) {
 		return "", "", fmt.Errorf("%s is not a test file; the testing agent writes tests only, and the implementation is fixed", clean)
 	}
+	if err := issueFixScope(run.session).check(clean, run.resolver.IsTestFile); err != nil {
+		return "", "", err
+	}
 	run.mu.Lock()
 	defer run.mu.Unlock()
 	if !run.written[clean] && len(run.written) >= run.limits.changedFiles {

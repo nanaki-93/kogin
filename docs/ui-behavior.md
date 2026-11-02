@@ -145,6 +145,8 @@ every guard when the action arrives.
   change”).
 - **Reviewer findings.** Specialists separate blocking findings from advisory
   notes; only findings request changes, and notes are shown apart from them.
+  A finding is a defect the change introduces or a criterion it leaves unmet;
+  problems the code already had, or improvements beyond the task, are notes.
   Each reads as a few words with its place (`master.go:42`); the reason waits
   behind **Why**. The place opens the task's diff of that file with the line
   marked and scrolled to, or the file in Code when the proposal does not change

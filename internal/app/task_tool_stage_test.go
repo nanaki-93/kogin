@@ -196,6 +196,24 @@ func TestAWorktreeTaskOnPiIsWrittenAndTestedByToolUsingAgents(t *testing.T) {
 	}
 }
 
+func TestATesterWithNothingToAddPassesTheCodersTests(t *testing.T) {
+	coder := []fakePiStep{
+		{Tool: "edit_file", Arguments: map[string]any{"path": "calc.go", "old_text": "func Add(a, b int) int { return a + b }\n", "new_text": "func Add(a, b int) int { return a + b }\n\n// Sub subtracts.\nfunc Sub(a, b int) int { return a - b }\n"}},
+		{Tool: "create_file", Arguments: map[string]any{"path": "calc_sub_test.go", "content": toolSubTest}},
+		{Tool: "finish", Arguments: map[string]any{"summary": "Added Sub and its test."}},
+		{Text: "Done."},
+	}
+	tester := []fakePiStep{
+		{Tool: "read_file", Arguments: map[string]any{"path": "calc_sub_test.go"}},
+		{Tool: "finish", Arguments: map[string]any{"summary": "TestSub already covers both criteria; nothing to add."}},
+		{Text: "Done."},
+	}
+	finished, _, _, _ := toolWorkflow(t, coder, tester)
+	if finished.Workflow.Status != "awaiting_human_review" || editByPath(finished.Changes, "calc_sub_test.go") == nil {
+		t.Fatalf("workflow = %s (%s), changes %+v", finished.Workflow.Status, finished.Workflow.Reason, finished.Changes)
+	}
+}
+
 func TestAFailedAgentRunLeavesTheWorktreeAsTheProposalWas(t *testing.T) {
 	coder := []fakePiStep{
 		{Tool: "edit_file", Arguments: map[string]any{"path": "calc.go", "old_text": "a + b", "new_text": "a + b + 0"}},

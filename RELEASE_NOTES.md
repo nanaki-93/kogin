@@ -47,6 +47,18 @@ are listed here as they land.
   issues of a file (was ten), since tasks fixing ten at once often failed or
   came back with blocking review findings. A file with more open issues offers
   **Fix 5 of N together**; the rest can be grouped once those are in progress.
+- **Fixes stay focused:** three changes for tasks that fix issues, which often
+  failed or ran long without a result.
+  - A fix changes code only in the folders of its issues' files and of the
+    files the task names (test files anywhere). A write elsewhere is refused
+    and the agent is told to stop and say the issue needs a task of its own;
+    its words show in the failure reason.
+  - The testing step no longer fails with "the testing agent wrote no tests"
+    when the coder already wrote them: the testing agent checks them, adds
+    only what they miss, and the checks run them as before.
+  - Reviewers block only on defects the change introduces or criteria it
+    leaves unmet; problems the code had before, and improvements beyond the
+    task, become notes.
 - **Delete set-aside files:** Settings → Project now has **Delete** on each
   file Kasuri set aside because it could not read it (an agent journal, task
   file or saved analysis progress): after a confirmation it deletes the file

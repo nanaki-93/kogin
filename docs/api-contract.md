@@ -966,7 +966,10 @@ call limits. `workflow.specialists` retains each role's state, model provenance,
 evidence label and completed report. Legacy records may omit this field.
 Reports join in canonical role order, deduplicating findings and notes. Findings
 are blocking: a report approves exactly when it has none. Optional `notes` are
-advisory suggestions that never change a verdict. Each report has at most 16
+advisory suggestions that never change a verdict. Specialists are told to judge
+the change, not the code around it: a finding is a defect the change introduces
+or an acceptance criterion it leaves unmet, while problems the code had before
+and improvements beyond the task are notes, however serious. Each report has at most 16
 findings and 8 notes; the aggregate has at most 80 and 40. Each finding and note
 is a `ReviewItem`: `title` (a few words, at most 100 characters), and when the
 reviewer named them `path` and `line` (the file of the task and the line in its
@@ -978,7 +981,10 @@ canceled reviewer prevents aggregate approval. Parallel cancellation caused by a
 reviewer remains a failed run rather than appearing as a user cancellation.
 
 The testing agent may change only captured test
-paths; its edits merge with the implementation. Checks use the isolated workspace
+paths; its edits merge with the implementation. A tool-using testing agent
+that adds no tests passes when the change already adds or changes a test file
+(the coder wrote them, and the checks that follow run them); when the change
+has no tests at all, the stage fails. Checks use the isolated workspace
 and existing regression baseline rules. Tests and review never apply source.
 
 For a task in its own worktree whose create or test model is a pi, Claude Code or
@@ -990,7 +996,12 @@ other tool stops the run, and its model can call only `read_file`, `list_files`,
 `outline`, `find_definitions`, `find_references`, `edit_file`, `create_file`,
 `delete_file`, `rename_file`, `run_checks` and `finish`. Reads follow the context
 policy, writes the task's diff policy; the testing agent writes test files only
-(and so needs no test path in the task's scope). A run has budgets for tool
+(and so needs no test path in the task's scope). A task that fixes linked issues
+(`finding_targets` with a file) changes code only in the folders of those files
+and of the files it names; test files may change anywhere. A write elsewhere,
+by a tool or in a one-shot proposal, is refused and tells the agent to leave the
+file, finish and say the issue needs a task of its own; a coder that then
+changes nothing fails with its own `finish` summary in the reason. A run has budgets for tool
 calls (150 for the coder, 80 for the tester), changed files and check runs, and a
 turn limit; its time limit is four model timeouts plus two focused check timeouts.
 The worktree's diff becomes the next proposal version, the agent's `finish`

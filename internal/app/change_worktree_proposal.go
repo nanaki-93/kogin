@@ -65,7 +65,8 @@ func worktreeWritable(policy *project.ContextPolicy, session *ChangeSession, fil
 
 // buildWorktreeEdits validates a model's file changes against the diff
 // policy. Unlike the target list of a task in the main checkout, it admits
-// new, deleted and renamed files anywhere the policy allows.
+// new, deleted and renamed files anywhere the policy allows, and for a task
+// that fixes issues, anywhere in its scope.
 func buildWorktreeEdits(root string, session *ChangeSession, inputs []ChangeEditInput) ([]ChangeEdit, error) {
 	if len(inputs) == 0 || len(inputs) > maxStoredTaskPaths {
 		return nil, fmt.Errorf("provide one to sixty-four file changes")
@@ -74,6 +75,7 @@ func buildWorktreeEdits(root string, session *ChangeSession, inputs []ChangeEdit
 	if err != nil {
 		return nil, err
 	}
+	scope, resolver := issueFixScope(session), rules.NewResolver(root)
 	seen := map[string]bool{}
 	edits := make([]ChangeEdit, 0, len(inputs))
 	for _, input := range inputs {
@@ -86,6 +88,11 @@ func buildWorktreeEdits(root string, session *ChangeSession, inputs []ChangeEdit
 				return nil, fmt.Errorf("proposal repeated %s", file)
 			}
 			seen[file] = file != ""
+			if file != "" {
+				if err := scope.check(file, resolver.IsTestFile); err != nil {
+					return nil, err
+				}
+			}
 		}
 		edits = append(edits, edit)
 	}
