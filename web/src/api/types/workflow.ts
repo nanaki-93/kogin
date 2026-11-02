@@ -86,11 +86,21 @@ export interface ChangeWorkflow {
   input?: WorkflowInput;
   /** Set while the run is paused because a stage's subscription plan reached its usage limit. */
   pause?: WorkflowPause;
+  /** Set while the run waits for another task changing the same code. */
+  waiting?: WorkflowWait;
   started_at?: string;
   updated_at?: string;
 }
 
 /** Where a run stopped at a plan's usage limit, and how to continue it. */
+/** The task a run waits for and the code they share; it continues on its own once that task is merged or deleted. */
+export interface WorkflowWait {
+  task_id: string;
+  title: string;
+  worktree_path: string;
+  files: string[];
+}
+
 export interface WorkflowPause {
   /** The stage that reached the limit: create, test or review. */
   stage: string;

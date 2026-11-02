@@ -121,6 +121,9 @@ func (s *Service) TrustProjectExecution(ctx context.Context, revision string, co
 	s.executionTrust.workspaceHash = trust.WorkspaceHash
 	s.executionTrust.restorePending = false
 	trust.Trusted = confirm
+	if confirm && s.owner == nil {
+		s.scheduleResume() // Tasks waiting for the checks to be allowed continue.
+	}
 	return trust, nil
 }
 

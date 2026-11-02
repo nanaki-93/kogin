@@ -179,7 +179,7 @@ func (s *Service) runWorkflowModelStage(ctx context.Context, job *changeWorkflow
 	case tools && stage == 0:
 		session, err = s.runToolStage(timed, job.root, session, runtime, toolCoder, message)
 	case tools:
-		session, err = s.runToolStage(timed, job.root, session, runtime, toolTester, strings.Replace(workflowTestStageMessage(message), workflowTestPrompt, toolTestPrompt, 1))
+		session, err = s.runToolStage(timed, job.root, session, runtime, toolTester, withTestDispute(session, strings.Replace(workflowTestStageMessage(message), workflowTestPrompt, toolTestPrompt, 1)))
 	case stage == 0:
 		isRepair := session.Workflow.AutoRepairAttempts > 0 || strings.Contains(message, "Previous check failures to resolve:")
 		session, err = s.generateChangeWithRuntime(timed, job.root, session, ChangeMessageRequest{ChangeIdentity: identityForChange(session), Message: message, Repair: isRepair}, runtime)

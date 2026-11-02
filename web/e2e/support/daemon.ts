@@ -202,6 +202,17 @@ export class FakeDaemon {
     return { deleted: task.id };
   }
 
+  /** Closes a task whose agents found nothing to fix: its issues that do not hold are dismissed. */
+  private closeTask(id: string, body: Record<string, unknown>) {
+    const session = this.sessions.get(decodeURIComponent(id));
+    if (!session) throw new Error('This task no longer exists; refresh the task list.');
+    if (session.workflow?.status !== 'nothing_to_fix') throw new Error('only a task whose agents found nothing to fix can be closed; delete it instead');
+    if (body.revision !== session.revision || body.hash !== session.hash) throw new Error('The task changed since it was loaded.');
+    const dismissed = (session.issues ?? []).filter(issue => issue.status === 'does_not_hold').length;
+    this.deleteTask(id, body);
+    return { deleted: session.id, dismissed_issues: dismissed };
+  }
+
   /** Marks a task's files as changed on the main branch since it started, as merging another task does. */
   overtake(id: string, paths: string[]): void {
     this.sessions.set(id, { ...this.sessions.get(id)!, main_changed: { branch: 'main', head: MERGED_HEAD, paths } });
@@ -278,6 +289,7 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/changes\/([^/]+)\/workflow$/, (body, m) => this.update(m[1], body, s => startRun(s, body))],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/apply$/, (body, m) => this.apply(m[1], body)],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/delete$/, (body, m) => this.deleteTask(m[1], body)],
+    [/^\/api\/projects\/current\/changes\/([^/]+)\/close$/, (body, m) => this.closeTask(m[1], body)],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/reanalyze$/, (body, m) => this.reanalyze(m[1], body)],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/retake$/, (body, m) => this.retake(m[1], body)],
     [/^\/api\/projects\/current\/quarantine\/delete$/, body => this.deleteSetAside(body)],

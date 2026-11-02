@@ -422,5 +422,51 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
     return done?.deleted ?? 0;
   }
 
-  return { createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, deleteTasks };
+  /**
+   * Closes a task whose agents found nothing to fix: the issues that do not
+   * hold are dismissed with their reasons, the task is deleted and its
+   * worktree, holding no work, is removed.
+   */
+  async function closeTask(session: LoadedSession, leave?: () => void): Promise<boolean> {
+    const dismissed = (session.issues ?? []).filter(issue => issue.status === 'does_not_hold');
+    const ok = await confirm({
+      title: 'Close this task?',
+      body: (
+        <div className="stack">
+          <p>
+            {dismissed.length
+              ? `${plural(dismissed.length, 'issue')} that ${dismissed.length === 1 ? 'does' : 'do'} not hold ${dismissed.length === 1 ? 'is' : 'are'} dismissed, with the reasons shown under Creation; you can reopen them in Issues.`
+              : 'No issue is dismissed.'}{' '}
+            The task is deleted; it changed no files.
+          </p>
+          {dismissed.length ? (
+            <ul className="small">
+              {dismissed.slice(0, 5).map(issue => (
+                <li key={issue.finding_id}>{issue.title}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ),
+      confirmLabel: 'Close task',
+    });
+    if (!ok) return false;
+    const closed = await guarded('Closing task…', async () => {
+      try {
+        return await api.post<{ deleted: string; dismissed_issues: number }>(changePath(session, '/close'), changeIdentity(session));
+      } catch (err) {
+        fail('Could not close the task', err);
+        return null;
+      }
+    });
+    if (!closed) return false;
+    leave?.();
+    void client.invalidateQueries({ queryKey: ['changes'] });
+    void client.invalidateQueries({ queryKey: ['findings'] });
+    const removed = session.checkout.worktreePath ? await removeEmptyWorktrees([session.checkout.worktreePath]) : [];
+    toast(`Task closed${closed.dismissed_issues ? `; ${plural(closed.dismissed_issues, 'issue')} dismissed` : ''}.${removed.length ? ' Its worktree was removed too.' : ''}`, 'success');
+    return true;
+  }
+
+  return { createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, deleteTasks, closeTask };
 }

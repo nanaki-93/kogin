@@ -77,6 +77,22 @@ are listed here as they land.
   Stop), that issue's step is rolled back, so the next run starts it over from
   the last fixed issue instead of finding its edits already made and marking
   it **Not fixed** with "the coding agent changed nothing".
+- **Tasks that touch the same code take turns:** a run that would change code
+  another open task is changing waits for it ("Waiting for …", with a link),
+  at its start or when a fix asks for such a file. When that task is merged or
+  deleted, the waiting one continues by itself on the updated code: Kasuri
+  opens it again in a new worktree, carries over its fixed issues commit by
+  commit while they still apply (the agents redo the rest) and starts its
+  agents with the same request. After a merge it first waits for checks to be
+  allowed again.
+- **The testing and coding agents no longer undo each other:** the tests the
+  testing agent writes are its own; a coding repair may not change them. A
+  coder sure that one is wrong disputes it once, with its reason, and the next
+  testing run decides; that decision stands. Behavior the change cannot reach
+  becomes a suggested follow-up (with **New task**) instead of a failing test.
+- **Nothing to fix:** a run in which no issue was fixed and some do not hold
+  ends **Nothing to fix**, not failed. **Close task** dismisses those issues
+  with their reasons and removes the task and its worktree.
 - **A fix can reach the code it calls:** a task that fixes issues no longer
   stops when the fix belongs in code its files import (a fix in
   `cmd/master.go` that needs `internal/utils`). Its coding agent asks for those

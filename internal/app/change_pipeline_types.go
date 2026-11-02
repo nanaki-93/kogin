@@ -124,9 +124,13 @@ type ChangeWorkflow struct {
 	Specialists        []ChangeSpecialistReview `json:"specialists,omitempty"`
 	// Pause is set while the run waits for a subscription plan's usage limit
 	// to reset (status paused).
-	Pause     *ChangeWorkflowPause `json:"pause,omitempty"`
-	StartedAt time.Time            `json:"started_at"`
-	UpdatedAt time.Time            `json:"updated_at"`
+	Pause *ChangeWorkflowPause `json:"pause,omitempty"`
+	// Waiting names the task a waiting run waits for (status waiting), and
+	// Pending what it starts with again once that task is merged or deleted.
+	Waiting   *ChangeWorkflowWait    `json:"waiting,omitempty"`
+	Pending   *ChangeWorkflowPending `json:"pending,omitempty"`
+	StartedAt time.Time              `json:"started_at"`
+	UpdatedAt time.Time              `json:"updated_at"`
 }
 
 // ChangeWorkflowPause says where a run stopped at a plan's usage limit and
@@ -151,11 +155,13 @@ type changeWorkflowJob struct {
 	start               workflowStart
 	specialists         []string
 	autoRepair          bool
-	cancel              context.CancelFunc
-	interrupt           context.CancelCauseFunc
-	done                chan struct{}
-	finished            bool
-	failure             string
+	// request is what started the run, kept for a run that ends waiting.
+	request   ChangeWorkflowRequest
+	cancel    context.CancelFunc
+	interrupt context.CancelCauseFunc
+	done      chan struct{}
+	finished  bool
+	failure   string
 	// spent is the run's budget usage already charged to its stages.
 	spent agentstate.BudgetUsage
 }
@@ -265,11 +271,14 @@ func validateStoredWorkflow(w *ChangeWorkflow) error {
 		return err
 	}
 	switch w.Status {
-	case "running", "canceling", "failed", "canceled", "stale", "interrupted", "outdated", "changes_requested", "awaiting_human_review", "paused":
+	case "running", "canceling", "failed", "canceled", "stale", "interrupted", "outdated", "changes_requested", "awaiting_human_review", "paused", "nothing_to_fix", "waiting":
 	default:
 		return fmt.Errorf("corrupt workflow status")
 	}
 	if err := validateWorkflowPause(w); err != nil {
+		return err
+	}
+	if err := validateWorkflowWait(w); err != nil {
 		return err
 	}
 	if err := validateWorkflowStages(w); err != nil {

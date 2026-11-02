@@ -72,6 +72,9 @@ func validateStoredChange(session ChangeSession) error {
 	if err := validateSettledIssues(&session); err != nil {
 		return err
 	}
+	if err := validateTestRecords(&session); err != nil {
+		return err
+	}
 	seen, err := validateStoredTargets(session.Targets)
 	if err != nil {
 		return err
@@ -156,6 +159,7 @@ func boundedChangeFile(file *os.File) error {
 func storeChangeSession(root string, session *ChangeSession) error {
 	refreshChangeReviewDiff(session)
 	settleWorkflowPause(session.Workflow)
+	settleWorkflowWait(session.Workflow)
 	if err := validateStoredChange(*session); err != nil {
 		return err
 	}

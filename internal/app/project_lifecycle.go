@@ -50,6 +50,7 @@ func (s *Service) replaceActiveProject(activate func() error) error {
 	}
 	s.loadProjectConfiguration(s.manager.Root())
 	s.resetExecutionTrust(true)
+	s.scheduleResume() // Tasks whose blocker was merged or deleted meanwhile continue.
 	return nil
 }
 

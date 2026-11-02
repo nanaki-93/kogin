@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -229,6 +231,47 @@ func TestAStepSaysHowItEndedWhenItChangesNothing(t *testing.T) {
 	}
 	if first := fakePiLog(t, flow.dir, "coder"); !strings.Contains(first.Prompt, "finish with outcome already_fixed") {
 		t.Fatalf("the step's prompt does not ask how it ended:\n%s", first.Prompt)
+	}
+}
+
+func TestARunWithNothingToFixEndsSoAndClosingDismissesTheIssues(t *testing.T) {
+	coder := []fakePiStep{
+		{Tool: "finish", Arguments: map[string]any{"summary": "Add already rounds correctly.", "outcome": "does_not_hold"}},
+		{Text: "Nothing to change.", Next: true},
+		{Tool: "edit_file", Arguments: map[string]any{"path": "calc.go", "old_text": "return a + b", "new_text": "return a - b"}},
+		{Tool: "finish", Arguments: map[string]any{"summary": "Changed Add."}},
+		{Text: "Done.", Next: true},
+		{Tool: "edit_file", Arguments: map[string]any{"path": "calc.go", "old_text": "return a - b", "new_text": "return b - a"}},
+		{Tool: "finish", Arguments: map[string]any{"summary": "Changed Add again."}},
+		{Text: "Done."},
+	}
+	flow := startToolFlowWith(t, coder, nil, nil, stepIssues("Add rounds wrong", "Add is slow"))
+	finished := flow.finished(t)
+	if finished.Workflow.Status != "nothing_to_fix" || !strings.HasPrefix(finished.Workflow.Reason, "Nothing to fix: 1 of the 2 issues do not hold, and 1 could not be fixed") {
+		t.Fatalf("workflow = %s (%s)", finished.Workflow.Status, finished.Workflow.Reason)
+	}
+	if finished.Issues[0].Status != IssueDoesNotHold || finished.Issues[1].Status != IssueNotFixed || len(finished.Changes) != 0 {
+		t.Fatalf("issues %+v, changes %+v", finished.Issues, finished.Changes)
+	}
+	if _, err := flow.service.CloseChange(context.Background(), finished.ID, ChangeIdentity{ProjectID: finished.ProjectID, ProjectRevision: finished.ProjectRevision, Revision: finished.Revision + 1, Hash: finished.Hash}); err == nil {
+		t.Fatal("closed an older version of the task")
+	}
+	closed, err := flow.service.CloseChange(context.Background(), finished.ID, changeIdentity(finished))
+	if err != nil || closed.Deleted != finished.ID || closed.DismissedIssues != 1 {
+		t.Fatalf("close = %+v, %v", closed, err)
+	}
+	if _, err := loadChangeSession(flow.worktree, finished.ID); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the task was kept: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(flow.service.owner.manager.Root(), ".kasuri", "findings.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document struct {
+		Dismissed []project.FindingTarget `json:"dismissed"`
+	}
+	if err := json.Unmarshal(data, &document); err != nil || len(document.Dismissed) != 1 || document.Dismissed[0].ID != "finding:a" {
+		t.Fatalf("dismissed = %+v, %v", document.Dismissed, err)
 	}
 }
 

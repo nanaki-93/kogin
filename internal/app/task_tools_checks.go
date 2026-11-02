@@ -25,8 +25,8 @@ func (run *taskToolRun) checkTools() []toolSpec {
 			description: "Run the task's checks on the change as it stands: formatting and parsing, architecture and code budgets from AGENTS.md, and the lint and tests of every subproject the change touches. Failures that also happened before the change are marked as such. Run it before finish when you changed code.",
 			schema:      `{"type":"object","properties":{},"additionalProperties":false}`},
 		{name: "finish", call: run.finishRun,
-			description: "End the run with a summary of what you changed and, for each acceptance criterion, how the change meets it. When you fix one issue, also say how it ended: fixed (you changed code for it), already_fixed (an earlier step of this task already fixed it; change nothing), does_not_hold (the code does not have the problem; change nothing and say why), or needs_own_task (the fix needs code this task may not change). Call it once, last.",
-			schema:      `{"type":"object","properties":{"summary":{"type":"string","minLength":1,"maxLength":4000},"criteria":{"type":"array","maxItems":16,"items":{"type":"object","properties":{"criterion":{"type":"integer","minimum":1},"how":{"type":"string","minLength":1,"maxLength":1000}},"required":["criterion","how"],"additionalProperties":false}},"outcome":{"type":"string","enum":["fixed","already_fixed","does_not_hold","needs_own_task"]}},"required":["summary"],"additionalProperties":false}`},
+			description: "End the run with a summary of what you changed and, for each acceptance criterion, how the change meets it. When you fix one issue, also say how it ended: fixed (you changed code for it), already_fixed (an earlier step of this task already fixed it; change nothing), does_not_hold (the code does not have the problem; change nothing and say why), or needs_own_task (the fix needs code this task may not change). A coding agent sure that a test the testing agent wrote is wrong uses outcome test_disputed, names it in disputed_tests and says why in the summary. A testing agent lists in follow_ups the gaps this change cannot cover (behavior in code the task does not change) instead of writing failing tests for them. Call it once, last.",
+			schema:      `{"type":"object","properties":{"summary":{"type":"string","minLength":1,"maxLength":4000},"criteria":{"type":"array","maxItems":16,"items":{"type":"object","properties":{"criterion":{"type":"integer","minimum":1},"how":{"type":"string","minLength":1,"maxLength":1000}},"required":["criterion","how"],"additionalProperties":false}},"outcome":{"type":"string","enum":["fixed","already_fixed","does_not_hold","needs_own_task","test_disputed"]},"disputed_tests":{"type":"array","maxItems":8,"items":{"type":"string","minLength":1}},"follow_ups":{"type":"array","maxItems":5,"items":{"type":"object","properties":{"title":{"type":"string","minLength":1,"maxLength":120},"detail":{"type":"string","minLength":1,"maxLength":1000},"path":{"type":"string"}},"required":["title","detail"],"additionalProperties":false}}},"required":["summary"],"additionalProperties":false}`},
 	}
 }
 
@@ -142,11 +142,28 @@ func (run *taskToolRun) finishRun(_ context.Context, arguments json.RawMessage) 
 			return "", fmt.Errorf("criteria must number the task's %d acceptance criteria, each with how it is met", len(run.session.AcceptanceCriteria))
 		}
 	}
-	if !slices.Contains([]string{"", outcomeFixed, outcomeAlreadyFixed, outcomeDoesNotHold, outcomeNeedsOwnTask}, input.Outcome) {
-		return "", errors.New("outcome is fixed, already_fixed, does_not_hold or needs_own_task")
+	if err := run.validateFinish(&input); err != nil {
+		return "", err
 	}
 	run.mu.Lock()
 	defer run.mu.Unlock()
 	run.finish = &input
 	return "Recorded. End your turn now; do not call more tools.", nil
+}
+
+// validateFinish checks what the finish call says beyond its summary: an
+// outcome, a coder's dispute and a tester's follow-ups.
+func (run *taskToolRun) validateFinish(input *toolFinish) error {
+	switch {
+	case !slices.Contains([]string{"", outcomeFixed, outcomeAlreadyFixed, outcomeDoesNotHold, outcomeNeedsOwnTask, outcomeTestDisputed}, input.Outcome):
+		return errors.New("outcome is fixed, already_fixed, does_not_hold, needs_own_task or test_disputed")
+	case run.role == toolTester && (input.Outcome == outcomeTestDisputed || len(input.DisputedTests) > 0):
+		return errors.New("only the coding agent disputes tests")
+	case run.role == toolCoder && len(input.FollowUps) > 0:
+		return errors.New("follow_ups are the testing agent's; say what the change leaves out in the summary")
+	}
+	if err := validateDispute(run.session, input); err != nil {
+		return err
+	}
+	return validateFollowUps(input.FollowUps)
 }

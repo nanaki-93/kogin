@@ -62,6 +62,23 @@ every guard when the action arrives.
   revise it. Starts that keep the proposal need the creation model of the last
   run and say so otherwise. Open line comments go with a start that writes
   code and stay open with "Check and review".
+- **Waiting for another task.** A run that would change code another open
+  task is changing (it holds a proposal or an accepted commit not merged yet)
+  waits instead: the Agent run card reads "Waiting for “…”" with why and
+  **Open that task**, and the task list shows **Waiting**. When that task is
+  merged or deleted, the waiting task continues by itself on the updated code:
+  it is opened again in a new worktree, its fixed issues carried over while
+  their commits still apply, and its agents start. If checks must be allowed
+  again first (after a merge), the card says so.
+- **Nothing to fix.** When no issue step fixed anything and some issues do not
+  hold, the run ends **Nothing to fix** instead of failing, with **Close task**:
+  it lists the issues it dismisses (their reasons stay under Creation), deletes
+  the task and removes its worktree.
+- **Testing decisions.** The testing agent's tests are its own: a coding repair
+  may not change them, and a coder sure one is wrong disputes it once; the
+  next testing run decides. Under Write and run tests, the task lists the
+  disputed tests the testing agent decided on and its **follow-ups** (gaps the
+  change cannot cover), each with **New task**.
 - **Paused at a plan limit.** When a stage's subscription plan (Claude, Google
   AI or the one pi signs in with) reaches its usage limit, the run pauses
   instead of failing: the Agent run card reads "Paused until the … plan's limit

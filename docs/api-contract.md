@@ -129,6 +129,7 @@ untrusted networks.
 | POST | `/api/projects/current/changes/{sessionID}/review-override` | Override the model reviewers' rejection of the current checked hash with a reason; approves nothing. |
 | POST | `/api/projects/current/changes/{sessionID}/apply` | Accept the current reviewed proposal as a commit on the task's branch (after the commits of the issues it fixed one at a time). A task made in the main checkout, before every task got its own worktree, is refused with 400. |
 | POST | `/api/projects/current/changes/{sessionID}/delete` | Delete a task that is not running; stale tasks included. Publishes a `workflow` event with status `deleted`. |
+| POST | `/api/projects/current/changes/{sessionID}/close` | Close a task whose agents found nothing to fix: dismiss the issues that do not hold and delete it. |
 | POST | `/api/projects/current/changes/{sessionID}/reanalyze` | Re-check an out-of-date task's issue against the current files: still valid captures it again, not valid deletes it and dismisses its linked issues. |
 | POST | `/api/projects/current/changes/{sessionID}/retake` | Re-check the issue of a task in its own worktree whose files the main branch changed against the main branch: still valid opens it again in a new worktree from there, not valid dismisses its linked issues; the old task is deleted either way. |
 
@@ -980,7 +981,11 @@ that cannot pass for any fix (failures from before the change, or checks that
 did not complete) stop the run; so does a model, provider or identity error.
 The unfinished step is then rolled back and its issue is `pending` again, so
 the next run starts it over from the last fixed issue; the checks that stopped
-the run stay as its evidence. When no issue could be fixed, the run fails. Otherwise testing, checks
+the run stay as its evidence. When no issue could be fixed, the run fails; when
+none was fixed but some do not hold, it ends `nothing_to_fix` instead, and
+`POST .../changes/{sessionID}/close` (with the task's `ChangeIdentity`)
+dismisses those issues and deletes the task, which holds no change; it answers
+`{deleted, dismissed_issues}` and refuses any other task. Otherwise testing, checks
 and review cover the whole proposal, as for any task, and a repair after them is
 one coding run that reads only the review or check feedback and the issues'
 outcomes. The run's time budget grows by two coding runs and two check passes
@@ -1042,7 +1047,31 @@ that asked, whose rollback takes them away) and shown on the task. A write
 elsewhere, by a tool or in a one-shot proposal, is refused and tells the agent
 to ask with `widen_scope` or, when that is refused, to leave the file and finish
 with outcome `needs_own_task`; a coder that then changes nothing fails with its
-own `finish` summary in the reason. A run has budgets for tool
+own `finish` summary in the reason. The test files the testing agent writes are
+recorded in `tester_tests`, and a coding run may not change them; a coder sure
+that one is wrong finishes with outcome `test_disputed` and names it in
+`disputed_tests`. The next testing run reads the coder's reason, and its
+decision stands: the disputed tests move to `decided_tests` and cannot be
+disputed again. A testing agent lists in its `finish` `follow_ups` (title,
+detail, path) the gaps the change cannot cover instead of writing failing tests
+for them; the latest testing run's are stored in `follow_ups`.
+
+Two tasks never change the same code at once. When a run starts, and when an
+issue step's `widen_scope` asks for a file, Kasuri checks the main checkout's
+other worktrees for an open task (a draft that is not waiting, or an accepted
+task whose commit the main branch does not hold) that is ahead (running, holding
+a proposal or accepted) and names one of the same code files. The run then ends,
+or does not start, with status `waiting`, `waiting` naming that task and the
+shared files, and `pending` keeping its request; an issue step that asked is
+rolled back first. A waiting task never holds up another. When the task it
+waits for is merged, deleted or discarded (and when checks are allowed again,
+or the project is opened), Kasuri opens the waiting task again in a new
+worktree from the main checkout, cherry-picks its fixed issues' commits in order
+until one does not apply, makes their changes the proposal and the picked
+commits its issue commits, notes it in the conversation, removes the waiting
+task and its worktree, and starts the agents with `pending`. While the main
+checkout's checks are not allowed, the waiting task says so and continues once
+they are. A run has budgets for tool
 calls (150 for the coder, 80 for the tester), changed files and check runs, and a
 turn limit; its time limit is four model timeouts plus two focused check timeouts.
 The worktree's diff becomes the next proposal version, the agent's `finish`

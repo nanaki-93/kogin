@@ -36,7 +36,11 @@ func (s *Service) DeleteChange(ctx context.Context, id string, request ChangeIde
 	if err := requireDeletableChange(session); err != nil {
 		return err
 	}
-	return s.removeChangeLocked(root, session)
+	if err := s.removeChangeLocked(root, session); err != nil {
+		return err
+	}
+	s.scheduleResume() // A task waiting for this one continues.
+	return nil
 }
 
 // requireDeletableChange refuses a task with running agents.

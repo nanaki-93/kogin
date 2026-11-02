@@ -12,6 +12,7 @@ import (
 	"github.com/nanaki-93/kasuri/v2/internal/config"
 	"github.com/nanaki-93/kasuri/v2/internal/llm"
 	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
 )
 
 func workflowStageScope(stage int) config.ModelScope {
@@ -57,9 +58,9 @@ func (s *Service) StartChangeWorkflow(ctx context.Context, id string, request Ch
 		return nil, err
 	}
 	cleanedMessages := stripWorkflowTestMessages(session.Messages)
-	start, err := s.admitWorkflowSession(ctx, session, request, len(cleanedMessages))
-	if err != nil {
-		return nil, err
+	start, queued, err := s.admitOrQueue(ctx, root, session, request, cleanedMessages)
+	if err != nil || queued != nil {
+		return queued, err
 	}
 	message, sent, err := workflowRequestMessage(session, request)
 	if err != nil {
@@ -85,6 +86,35 @@ func (s *Service) StartChangeWorkflow(ctx context.Context, id string, request Ch
 		steps = pendingIssueSteps(session)
 	}
 	s.launchChangeWorkflow(agentCtx, release, root, id, w, request, start, retryMessage, steps)
+	return session, nil
+}
+
+// admitOrQueue admits the run and returns where it starts, or records it as
+// waiting when another task is changing its code and returns the task then.
+// Caller holds changesMu.
+func (s *Service) admitOrQueue(ctx context.Context, root string, session *ChangeSession, request ChangeWorkflowRequest, cleanedMessages []ChangeMessage) (workflowStart, *ChangeSession, error) {
+	start, err := s.admitWorkflowSession(ctx, session, request, len(cleanedMessages))
+	if err != nil {
+		return start, nil, err
+	}
+	wait, err := s.blockingTask(ctx, session.ID, codeFiles(session, rules.NewResolver(root)))
+	if err != nil || wait == nil {
+		return start, nil, err
+	}
+	queued, err := s.queueChangeWorkflow(root, session, request, start, cleanedMessages, wait)
+	return start, queued, err
+}
+
+// queueChangeWorkflow records a run that waits for another task before it
+// starts. Caller holds changesMu.
+func (s *Service) queueChangeWorkflow(root string, session *ChangeSession, request ChangeWorkflowRequest, start workflowStart, cleanedMessages []ChangeMessage, wait *ChangeWorkflowWait) (*ChangeSession, error) {
+	w := s.prepareWorkflowRun(session, request, start, cleanedMessages)
+	w.Status, w.Reason, w.Waiting, w.Pending = "waiting", waitReason(wait), wait, pendingRun(request)
+	stopChangeWorkflowStages(w)
+	if err := storeChangeSession(root, session); err != nil {
+		return nil, err
+	}
+	s.notifyWorkflow(context.Background(), session, "")
 	return session, nil
 }
 
@@ -128,7 +158,7 @@ func (s *Service) launchChangeWorkflow(agentCtx context.Context, release context
 	if request.StreamOutput {
 		workCtx = agentruntime.WithStreaming(workCtx)
 	}
-	job := &changeWorkflowJob{root: root, sessionID: sessionID, id: w.ID, models: request.Models, specialists: workflowSpecialistIDs(w), autoRepair: request.AutoRepair, start: start, cancel: cancel, interrupt: interrupt, done: make(chan struct{})}
+	job := &changeWorkflowJob{root: root, sessionID: sessionID, id: w.ID, models: request.Models, specialists: workflowSpecialistIDs(w), autoRepair: request.AutoRepair, request: request, start: start, cancel: cancel, interrupt: interrupt, done: make(chan struct{})}
 	s.changeWorkflow.mu.Lock()
 	s.changeWorkflow.setJob(job)
 	s.changeWorkflow.mu.Unlock()
@@ -294,6 +324,10 @@ func (s *Service) finishChangeWorkflow(ctx context.Context, job *changeWorkflowJ
 			w.Status, w.Reason = workflowFailure(runErr, session.Checks)
 			if errors.As(runErr, &limit) {
 				s.pauseChangeWorkflow(session, limit)
+			}
+			var wait *taskWaitError
+			if errors.As(runErr, &wait) {
+				w.Waiting, w.Pending = wait.wait, pendingRun(job.request)
 			}
 			stopChangeWorkflowStages(w)
 			if !errors.Is(runErr, errWorkflowChecksFailed) && !s.hasLivePassingChecks(session) {

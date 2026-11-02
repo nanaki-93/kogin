@@ -395,6 +395,66 @@ test('a finding is a few words with a link to its line in the diff', async ({ pa
   await expect(diff.locator('tr.is-focus')).toContainText('strings.Contains(name, "/")');
 });
 
+test('the testing agent\'s follow-ups become tasks and its dispute decisions are shown', async ({ page, daemon }) => {
+  daemon.sessions.set('chg-1', {
+    ...reviewTask(),
+    decided_tests: ['internal/api/handlers/webui_test.go'],
+    follow_ups: [{ title: 'Cache asset reads', detail: 'Assets are read from disk on every request; caching needs the embed package.', path: 'internal/api/assets.go' }],
+  });
+  await page.goto('/#/tasks/chg-1');
+  const decisions = page.getByRole('list', { name: 'Testing decisions' });
+  await expect(decisions).toContainText('the testing agent decided: internal/api/handlers/webui_test.go');
+  await expect(decisions).toContainText('Assets are read from disk on every request');
+  await decisions.getByRole('button', { name: 'New task' }).click();
+  const composer = page.getByRole('dialog', { name: 'New task' });
+  await expect(composer.getByLabel('Task title')).toHaveValue('Cache asset reads');
+  await expect(composer.getByLabel('Description')).toHaveValue('Assets are read from disk on every request; caching needs the embed package.');
+});
+
+test('a task waiting for another changing the same code says so and links to it', async ({ page, daemon }) => {
+  const task = reviewTask();
+  daemon.sessions.set('chg-1', {
+    ...task,
+    workflow: {
+      ...task.workflow!,
+      status: 'waiting',
+      reason: 'Waiting for “Rework the vault key”, which is changing internal/api/assets.go. This task continues by itself on the updated code once that task is merged or deleted.',
+      waiting: { task_id: 'chg-2', title: 'Rework the vault key', worktree_path: '/work/kasuri/.worktrees/vault', files: ['internal/api/assets.go'] },
+      review: undefined,
+    },
+  });
+  await page.goto('/#/tasks/chg-1');
+  const run = page.getByRole('region', { name: 'Agent run' });
+  await expect(run.getByText('Waiting for “Rework the vault key”', { exact: true })).toBeVisible();
+  await expect(run.getByText(/continues by itself on the updated code/)).toBeVisible();
+  await expect(page.locator('header.task-header').getByText('Waiting')).toBeVisible();
+  // The other task is in a worktree this fake daemon does not serve.
+  daemon.expectedConsole.push(/status of 404/);
+  await run.getByRole('button', { name: 'Open that task' }).click();
+  await expect(page).toHaveURL(/#\/tasks\/chg-2\?wt=/);
+});
+
+test('a task with nothing to fix is closed, dismissing the issues that do not hold', async ({ page, daemon }) => {
+  const task = reviewTask();
+  const issue = (id: string, title: string, step: Record<string, string>) => ({ finding_id: id, path: 'internal/api/handlers/webui.go', title, detail: title, ...step });
+  daemon.sessions.set('chg-1', {
+    ...task,
+    changes: [],
+    issues: [issue('f1', 'Nested asset paths are served', { status: 'does_not_hold', reason: 'ServeAsset rejects nested names.' }), issue('f2', 'Missing assets return 500', { status: 'not_fixed', reason: 'Checks still failed after one repair.' })],
+    workflow: { ...task.workflow!, status: 'nothing_to_fix', reason: 'Nothing to fix: 1 of the 2 issues do not hold, and 1 could not be fixed (open again in Issues).', review: undefined },
+  });
+  await page.goto('/#/tasks/chg-1');
+  const run = page.getByRole('region', { name: 'Agent run' });
+  await expect(run.getByText('Nothing to fix', { exact: true })).toBeVisible();
+  await run.getByRole('button', { name: 'Close task' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog.getByText('1 issue that does not hold is dismissed', { exact: false })).toBeVisible();
+  await expect(dialog.getByText('Nested asset paths are served')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Close task' }).click();
+  await expect(page).toHaveURL(/#\/tasks$/);
+  expect(daemon.mutations('/close')[0].body).toMatchObject({ revision: task.revision, hash: task.hash });
+});
+
 test('a task that fixes its issues one at a time shows each step', async ({ page, daemon }) => {
   const issue = (id: string, title: string, step: Record<string, string>) => ({ finding_id: id, path: 'internal/api/handlers/webui.go', title, detail: title, ...step });
   daemon.sessions.set('chg-1', {

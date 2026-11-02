@@ -255,6 +255,19 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+  /api/projects/current/changes/{sessionID}/close:
+    parameters:
+      - {$ref: '#/components/parameters/WorktreePath'}
+      - {in: path, name: sessionID, required: true, schema: {type: string}}
+    post:
+      tags: [Chat]
+      description: Close a task whose agents found nothing to fix (workflow status nothing_to_fix, no proposal) - dismiss its dismissed_targets in the checkout that holds the issues and delete the task. Any other task returns 400; another version 409. Publishes a `workflow` event with status `deleted`.
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeIdentity'}}}}
+      responses:
+        '200': {description: The closed task, content: {application/json: {schema: {type: object, required: [deleted, dismissed_issues], properties: {deleted: {type: string}, dismissed_issues: {type: integer, minimum: 0}}}}}}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/changes/{sessionID}/reanalyze:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -2530,7 +2543,7 @@ components:
         stream_output: {type: boolean, default: false}
         input: {$ref: '#/components/schemas/ChangeInput'}
         id: {type: string}
-        status: {type: string, enum: [running, canceling, failed, canceled, stale, interrupted, outdated, changes_requested, awaiting_human_review, paused], description: "paused: a stage's subscription plan reached its usage limit; see pause."}
+        status: {type: string, enum: [running, canceling, failed, canceled, stale, interrupted, outdated, changes_requested, awaiting_human_review, paused, nothing_to_fix, waiting], description: "paused: a stage's subscription plan reached its usage limit; see pause. nothing_to_fix: no issue step fixed anything and some issues do not hold; close the task. waiting: another task is changing its code; see waiting."}
         attempt: {type: integer, minimum: 1}
         resume_from: {type: string, enum: [create, test, checks, review]}
         reason: {type: string}
@@ -2580,6 +2593,23 @@ components:
             resume_from: {type: string, enum: [create, test, checks, review], description: The resume_from that continues the run}
             provider: {type: string, description: The CLI whose plan reached its limit (claude, agy or pi)}
             resumes_at: {type: string, format: date-time, description: When the plan's limit resets, when the CLI said so}
+        waiting:
+          type: object
+          description: Set while the run waits for another open task (in another worktree, not merged yet) that changes its code. When that task is merged or deleted, Kasuri opens this task again on the updated main checkout, carries over its fixed issues commit by commit until one no longer applies, removes the old task and its worktree and starts the agents with the waiting run's request.
+          required: [task_id, title, worktree_path, files]
+          properties:
+            task_id: {type: string}
+            title: {type: string}
+            worktree_path: {type: string}
+            files: {type: array, items: {type: string}, description: The code files both tasks change.}
+        pending:
+          type: object
+          description: The request a waiting run starts with again.
+          required: [message]
+          properties:
+            message: {type: string, maxLength: 8192}
+            confirmed_profiles: {type: array, maxItems: 3, items: {type: string}}
+            confirm_security: {type: boolean}
         specialists:
           type: array
           maxItems: 5
@@ -2610,6 +2640,27 @@ components:
         finding_targets: {type: array, maxItems: 16, items: {$ref: '#/components/schemas/FindingTarget'}}
         issues: {type: array, maxItems: 5, items: {$ref: '#/components/schemas/ChangeIssue'}, description: The issues it fixes one at a time, with each step's progress; one not fixed is no longer in finding_targets.}
         dismissed_targets: {type: array, maxItems: 5, items: {$ref: '#/components/schemas/FindingTarget'}, description: Linked issues a step found do not hold; they stay in progress and merging the task dismisses them.}
+        tester_tests: {type: array, maxItems: 64, items: {type: string}, description: Test files the testing agent wrote; a coding repair may not change them.}
+        decided_tests: {type: array, maxItems: 64, items: {type: string}, description: Tests the testing agent decided on after the coding agent disputed them; they cannot be disputed again.}
+        test_dispute:
+          type: object
+          description: A coding agent's objection to tests the testing agent wrote, which the next testing run decides.
+          required: [paths, reason]
+          properties:
+            paths: {type: array, minItems: 1, maxItems: 8, items: {type: string}}
+            reason: {type: string, maxLength: 1000}
+        follow_ups:
+          type: array
+          maxItems: 5
+          description: Gaps the testing agent found the change cannot cover (behavior in code the task does not change), suggested as tasks of their own.
+          items:
+            type: object
+            additionalProperties: false
+            required: [title, detail]
+            properties:
+              title: {type: string, maxLength: 120}
+              detail: {type: string, maxLength: 1000}
+              path: {type: string}
         scope_grants:
           type: array
           maxItems: 8

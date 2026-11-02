@@ -106,6 +106,7 @@ func (s *Service) DiscardGitWorktree(ctx context.Context, request GitMutationReq
 		result.Warnings = append(result.Warnings, fmt.Sprintf("Worktree discarded, but linked issues could not be reopened: %v. Refresh Issues and retry their status update.", err))
 	}
 	deleteDiscardedBranch(ctx, repository.Root, source.GitIdentity, request.DiscardWork, result)
+	s.scheduleResume()
 	return result, nil
 }
 

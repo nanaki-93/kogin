@@ -72,3 +72,10 @@ export interface ScopeGrant {
   /** The finding of the issue step that asked for it. */
   issue?: string;
 }
+
+/** Work the testing agent found the change cannot cover: a suggested task of its own. */
+export interface FollowUp {
+  title: string;
+  detail: string;
+  path?: string;
+}

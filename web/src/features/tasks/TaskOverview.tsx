@@ -2,7 +2,7 @@
 // stage, what reviewers said, and a box to ask for a revision.
 
 import { useEffect, useState } from 'react';
-import { Bot, CornerDownLeft, FileText, Gavel, Hourglass, ListChecks, MessageSquare, ShieldAlert, Square, User } from 'lucide-react';
+import { Archive, Bot, CircleCheck, CornerDownLeft, FileText, Gavel, Hourglass, ListChecks, MessageSquare, Plus, ShieldAlert, Square, User } from 'lucide-react';
 import type { ChangeWorkflow, LoadedSession } from '@/api/types';
 import { useActions, useBusy, usePendingRevision } from '@/app/actions';
 import { openComments, proposalReadiness, workflowActive } from '@/lib/readiness';
@@ -13,6 +13,8 @@ import { firstSentence } from '@/lib/docs';
 import { Badge, Button, Callout, PhaseIcon, Textarea, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
 import { navigate } from '@/lib/router';
+import { openWorkspace } from '@/app/checkout';
+import { openNewTask } from '@/app/store';
 import { CodeRules } from './CodeRules';
 import { ReanalyzeTask } from './ReanalyzeTask';
 import { MainChanged } from './RetakeTask';
@@ -84,7 +86,7 @@ function AgentRun({ session }: { session: LoadedSession }) {
   const stages = workflowStages(workflow);
   const specialists = workflowSpecialists(workflow);
   const active = workflowActive(session);
-  const ended = ['failed', 'canceled', 'stale', 'outdated', 'interrupted', 'paused'].includes(workflow.status);
+  const ended = ['failed', 'canceled', 'stale', 'outdated', 'interrupted', 'paused', 'nothing_to_fix', 'waiting'].includes(workflow.status);
   const override = activeOverride(workflow, session.hash);
   return (
     <section className="card" aria-label="Agent run">
@@ -97,7 +99,7 @@ function AgentRun({ session }: { session: LoadedSession }) {
       </div>
       {ended && workflow.reason ? (
         <div className="card-body">
-          <Callout {...endedCallout(workflow)} icon={workflow.status === 'paused' ? Hourglass : ShieldAlert} action={session.freshness !== 'current' ? <ReanalyzeTask session={session} variant="secondary" size="sm" /> : <RunAgents session={session} size="sm" />}>
+          <Callout {...endedCallout(workflow)} icon={workflow.status === 'paused' || workflow.status === 'waiting' ? Hourglass : workflow.status === 'nothing_to_fix' ? CircleCheck : ShieldAlert} action={endedAction(session)}>
             {workflow.reason}
           </Callout>
         </div>
@@ -118,10 +120,74 @@ function AgentRun({ session }: { session: LoadedSession }) {
   );
 }
 
+/**
+ * What the testing agent decided beyond its tests: disputed tests it ruled
+ * on, and gaps the change cannot cover, each a task you can start.
+ */
+function TestDecisions({ session }: { session: LoadedSession }) {
+  const followUps = session.follow_ups ?? [];
+  const decided = session.decided_tests ?? [];
+  if (!followUps.length && !decided.length) return null;
+  return (
+    <ul className="issue-steps" aria-label="Testing decisions">
+      {decided.length ? (
+        <li className="issue-step scope-grant">
+          <span className="xs muted">The coding agent disputed {decided.length === 1 ? 'a test' : `${decided.length} tests`}; the testing agent decided: </span>
+          <span className="small mono">{decided.join(', ')}</span>
+        </li>
+      ) : null}
+      {followUps.map(followUp => (
+        <li key={followUp.title} className="issue-step scope-grant">
+          <div className="issue-step-head">
+            <span className="xs muted">Follow-up</span>
+            <span className="small truncate" title={followUp.title}>
+              {followUp.title}
+            </span>
+            <span className="spacer" />
+            <Button size="sm" variant="ghost" icon={Plus} onClick={() => openNewTask({ title: followUp.title, description: followUp.detail, paths: followUp.path ? [followUp.path] : [] })}>
+              New task
+            </Button>
+          </div>
+          <p className="xs muted">{followUp.detail}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** What an ended run offers: close a task with nothing to fix, open the task one waits for, re-analyze a stale one, or run the agents again. */
+function endedAction(session: LoadedSession) {
+  const workflow = session.workflow!;
+  if (workflow.status === 'nothing_to_fix') return <CloseTask session={session} />;
+  if (workflow.status === 'waiting') {
+    const wait = workflow.waiting;
+    return wait ? (
+      <Button size="sm" variant="secondary" onClick={() => navigate(`/tasks/${wait.task_id}`, { wt: wait.worktree_path })}>
+        Open that task
+      </Button>
+    ) : null;
+  }
+  if (session.freshness !== 'current') return <ReanalyzeTask session={session} variant="secondary" size="sm" />;
+  return <RunAgents session={session} size="sm" />;
+}
+
+/** Closes a task whose agents found nothing to fix, then leaves its page. */
+function CloseTask({ session }: { session: LoadedSession }) {
+  const actions = useActions();
+  const busy = useBusy();
+  return (
+    <Button size="sm" variant="secondary" icon={Archive} onClick={() => void actions.closeTask(session, () => openWorkspace('/tasks'))} disabled={Boolean(busy)}>
+      Close task
+    </Button>
+  );
+}
+
 /** How an ended run reads: a revision after it is not a failure, nor a pause at a plan's limit. */
 function endedCallout(workflow: ChangeWorkflow): { tone: 'neutral' | 'info' | 'danger'; title: string } {
   const status = workflow.status;
   if (status === 'paused') return { tone: 'info', title: pauseTitle(workflow.pause) };
+  if (status === 'nothing_to_fix') return { tone: 'neutral', title: 'Nothing to fix' };
+  if (status === 'waiting') return { tone: 'info', title: workflow.waiting ? `Waiting for “${workflow.waiting.title}”` : 'Waiting for another task' };
   if (status === 'canceled') return { tone: 'neutral', title: 'Stopped' };
   if (status === 'stale') return { tone: 'info', title: 'Its files changed during this run' };
   if (status === 'outdated') return { tone: 'info', title: 'The proposal changed after this run' };
@@ -151,6 +217,7 @@ function Stage({ stage, specialists, session }: { stage: StageView; specialists:
         {stage.reason ? <p className="small muted">{stage.reason}</p> : null}
         {stage.name === 'create' ? <IssueSteps session={session} /> : null}
         {stage.name === 'create' ? <ScopeGrants session={session} /> : null}
+        {stage.name === 'test' ? <TestDecisions session={session} /> : null}
         {specialists.length ? (
           <div className="reviewers">
             {specialists.map(sp => (

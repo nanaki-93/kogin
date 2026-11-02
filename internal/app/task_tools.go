@@ -56,8 +56,11 @@ type toolFinish struct {
 	Summary  string          `json:"summary"`
 	Criteria []criterionNote `json:"criteria,omitempty"`
 	// Outcome is how an issue step ended: fixed (the default), already_fixed,
-	// does_not_hold or needs_own_task.
-	Outcome string `json:"outcome,omitempty"`
+	// does_not_hold or needs_own_task; a coder's test_disputed objects to
+	// DisputedTests.
+	Outcome       string     `json:"outcome,omitempty"`
+	DisputedTests []string   `json:"disputed_tests,omitempty"`
+	FollowUps     []FollowUp `json:"follow_ups,omitempty"`
 }
 
 // How an issue step's coding agent says it ended.
@@ -95,6 +98,9 @@ type taskToolRun struct {
 	finish  *toolFinish
 	// grants are the files widen_scope added to a fix's scope in this run.
 	grants []ScopeGrant
+	// wait is the task this run must wait for: widen_scope asked for a file
+	// it is changing.
+	wait *ChangeWorkflowWait
 }
 
 func (s *Service) newTaskToolRun(root string, session *ChangeSession, role toolRole) (*taskToolRun, error) {
@@ -231,6 +237,9 @@ func (run *taskToolRun) writable(file string) (string, string, error) {
 	}
 	if err := worktreeWritable(run.policy, run.session, clean); err != nil {
 		return "", "", errors.New(strings.Replace(err.Error(), "proposal wrote", "you may not write", 1))
+	}
+	if run.role == toolCoder && testerWrote(run.session, clean) {
+		return "", "", errTesterTest(clean)
 	}
 	if run.role == toolTester && !run.resolver.IsTestFile(clean) {
 		return "", "", fmt.Errorf("%s is not a test file; the testing agent writes tests only, and the implementation is fixed", clean)

@@ -198,4 +198,5 @@ func (s *Service) restoreChangeWorkflow(session *ChangeSession) {
 		stopChangeWorkflowStages(w)
 	}
 	settleWorkflowPause(w)
+	settleWorkflowWait(w)
 }

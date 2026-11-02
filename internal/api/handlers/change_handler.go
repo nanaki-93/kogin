@@ -181,6 +181,21 @@ func (h *ChangeHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	api.WriteJSON(w, http.StatusOK, map[string]string{"deleted": id})
 }
 
+// Close ends a task whose agents found nothing to fix, dismissing the issues
+// that do not hold.
+func (h *ChangeHandler) Close(w http.ResponseWriter, r *http.Request) {
+	var request app.ChangeIdentity
+	if !decodeWorkflowBody(w, r, &request) {
+		return
+	}
+	value, err := h.service.CloseChange(r.Context(), r.PathValue("sessionID"), request)
+	if err != nil {
+		writeWorkflowError(w, "closing the task failed", err)
+		return
+	}
+	api.WriteJSON(w, http.StatusOK, value)
+}
+
 // Reanalyze re-checks a stale task's issue against the current files: a task
 // still valid is captured again, one that is not is deleted.
 func (h *ChangeHandler) Reanalyze(w http.ResponseWriter, r *http.Request) {

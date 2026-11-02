@@ -38,6 +38,29 @@ func (e *issueStepsFailedError) Error() string {
 	return fmt.Sprintf("None of the %d issues could be fixed; each one's reason is listed under Creation, and they are open again in Issues.", e.count)
 }
 
+// nothingToFixError ends a run in which no issue needed a change it could
+// make, and some do not hold: the task has nothing to merge, and closing it
+// dismisses those.
+type nothingToFixError struct{ count, doNotHold int }
+
+func (e *nothingToFixError) Error() string {
+	reason := fmt.Sprintf("Nothing to fix: %d of the %d issues do not hold", e.doNotHold, e.count)
+	if other := e.count - e.doNotHold; other > 0 {
+		reason += fmt.Sprintf(", and %d could not be fixed (open again in Issues)", other)
+	}
+	return reason + ". Each reason is listed under Creation; Close task dismisses the issues that do not hold."
+}
+
+func countIssues(session *ChangeSession, status string) int {
+	count := 0
+	for _, issue := range session.Issues {
+		if issue.Status == status {
+			count++
+		}
+	}
+	return count
+}
+
 // runStageOrIssueSteps runs a model stage. For a task that fixes its issues
 // one at a time, creation runs the steps of the issues not yet tried; once
 // every issue had its step, it is one run that acts only on its feedback.
@@ -62,6 +85,9 @@ func (s *Service) runIssueSteps(ctx context.Context, job *changeWorkflowJob, ses
 		session = next
 	}
 	if !slices.ContainsFunc(session.Issues, func(issue ChangeIssue) bool { return issue.Status == IssueFixed }) {
+		if hold := countIssues(session, IssueDoesNotHold); hold > 0 {
+			return nil, &nothingToFixError{count: len(session.Issues), doNotHold: hold}
+		}
 		return nil, &issueStepsFailedError{count: len(session.Issues)}
 	}
 	return session, nil

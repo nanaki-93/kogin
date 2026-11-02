@@ -65,7 +65,9 @@ type Service struct {
 	configured                      atomic.Pointer[configuration]
 	worktreesMu                     sync.Mutex
 	worktrees                       map[string]*Service
-	owner                           *Service // The service that opened this worktree's; nil for the active project.
+	owner                           *Service       // The service that opened this worktree's; nil for the active project.
+	resumeMu                        sync.Mutex     // One pass over the waiting tasks at a time.
+	resumeWG                        sync.WaitGroup // The passes still running.
 	manager                         *project.Manager
 	projectMaps                     projectMapCache
 	docsRefreshMu                   sync.Mutex // One docs refresh at a time.

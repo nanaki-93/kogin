@@ -42,7 +42,7 @@ func (run *taskToolRun) scopeLocked() *fixScope {
 	return issueFixScope(&view)
 }
 
-func (run *taskToolRun) widenScope(_ context.Context, arguments json.RawMessage) (string, error) {
+func (run *taskToolRun) widenScope(ctx context.Context, arguments json.RawMessage) (string, error) {
 	var input struct {
 		Paths  []string `json:"paths"`
 		Reason string   `json:"reason"`
@@ -66,6 +66,14 @@ func (run *taskToolRun) widenScope(_ context.Context, arguments json.RawMessage)
 	}
 	if len(wanted) == 0 {
 		return "These files are already in this fix's scope: change them as the fix needs.", nil
+	}
+	wait, err := run.s.blockingTask(ctx, run.session.ID, wanted)
+	if err != nil {
+		return "", err
+	}
+	if wait != nil {
+		run.wait = wait
+		return "", fmt.Errorf("%s: another task, “%s”, is changing it and is not merged yet. Stop here and call finish; Kasuri continues this issue by itself on the updated code once that task is merged", strings.Join(wait.Files, ", "), wait.Title)
 	}
 	issue := run.fixingIssue()
 	for _, file := range wanted {
@@ -197,4 +205,11 @@ func (run *taskToolRun) grantsMade() []ScopeGrant {
 	run.mu.Lock()
 	defer run.mu.Unlock()
 	return slices.Clone(run.grants)
+}
+
+// waiting is the task this run found it must wait for, if any.
+func (run *taskToolRun) waiting() *ChangeWorkflowWait {
+	run.mu.Lock()
+	defer run.mu.Unlock()
+	return run.wait
 }

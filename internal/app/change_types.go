@@ -46,7 +46,16 @@ type ChangeSession struct {
 	// the task dismisses them.
 	DismissedTargets []project.FindingTarget `json:"dismissed_targets,omitempty"`
 	// ScopeGrants are files outside a fix's folders that its agents may change.
-	ScopeGrants         []ScopeGrant            `json:"scope_grants,omitempty"`
+	ScopeGrants []ScopeGrant `json:"scope_grants,omitempty"`
+	// TesterTests are the test files the testing agent wrote: a coder's
+	// repair may not change them. DecidedTests are those the testing agent
+	// already kept or changed after a dispute; TestDispute waits for that
+	// decision. FollowUps are gaps the testing agent found the change cannot
+	// cover.
+	TesterTests         []string                `json:"tester_tests,omitempty"`
+	DecidedTests        []string                `json:"decided_tests,omitempty"`
+	TestDispute         *TestDispute            `json:"test_dispute,omitempty"`
+	FollowUps           []FollowUp              `json:"follow_ups,omitempty"`
 	Targets             []ChangeTarget          `json:"targets"`
 	Instructions        map[string]string       `json:"instructions"`
 	PolicyFingerprint   string                  `json:"policy_fingerprint"`

@@ -196,11 +196,15 @@ export function taskStatus(entry: Pick<ChangeHistoryEntry, 'state' | 'freshness'
   if (entry.state === 'applied') return { status: 'applied', label: entry.commit?.state === 'committed' ? 'Committed' : 'Applied', tone: 'success' };
   if (entry.state === 'undone') return { status: 'done', label: 'Undone', tone: 'neutral' };
   if (wf === 'running' || wf === 'canceling' || wf === 'queued') return { status: 'running', label: wf === 'canceling' ? 'Canceling' : 'Agents working', tone: 'info' };
+  // Another task changes the same code: this one continues on its own after it.
+  if (wf === 'waiting') return { status: 'running', label: 'Waiting', tone: 'neutral' };
   if (entry.freshness && entry.freshness !== 'current') return { status: 'stale', label: 'Stale', tone: 'warning' };
   if (wf === 'awaiting_human_review') return { status: 'needs_you', label: 'Needs review', tone: 'accent' };
   if (wf === 'changes_requested') return { status: 'needs_you', label: 'Changes requested', tone: 'warning' };
   // A plan reached its usage limit: the run continues when you resume it.
   if (wf === 'paused') return { status: 'needs_you', label: 'Paused', tone: 'warning' };
+  // No issue needed a change the agents could make: close the task.
+  if (wf === 'nothing_to_fix') return { status: 'needs_you', label: 'Nothing to fix', tone: 'neutral' };
   // The proposal changed after the last run: the agents run again, not failed.
   if (wf === 'outdated') return { status: 'needs_you', label: 'Revised', tone: 'accent' };
   if (wf === 'failed' || wf === 'stale' || wf === 'interrupted') return { status: 'failed', label: wf === 'interrupted' ? 'Interrupted' : 'Failed', tone: 'danger' };

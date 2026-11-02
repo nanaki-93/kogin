@@ -1,6 +1,6 @@
 // Tasks: their proposals, diffs, checks, comments, plans and history.
 
-import type { FindingTarget, ScopeGrant, TaskIssue } from './issues';
+import type { FindingTarget, FollowUp, ScopeGrant, TaskIssue } from './issues';
 import type { GitIdentity, ProjectIdentity } from './project';
 import type { ChangeWorkflow } from './workflow';
 
@@ -136,6 +136,12 @@ export interface ChangeSession extends ProjectIdentity {
   dismissed_targets?: FindingTarget[];
   /** Files outside the fix's folders its agents may change, and why. */
   scope_grants?: ScopeGrant[];
+  /** Test files the testing agent wrote; a coding repair may not change them. */
+  tester_tests?: string[];
+  /** Tests the testing agent decided on after the coding agent disputed them. */
+  decided_tests?: string[];
+  /** Gaps the testing agent found the change cannot cover. */
+  follow_ups?: FollowUp[];
   git?: GitIdentity;
   commit?: ChangeCommit;
   worktree_path?: string;

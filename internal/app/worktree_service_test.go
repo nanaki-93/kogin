@@ -29,7 +29,8 @@ func TestWorktreeImplementationsRunConcurrentlyAndApplyInIsolation(t *testing.T)
 	children := make([]*Service, 3)
 	sessions := make([]*ChangeSession, 3)
 	for i := range children {
-		child, opened := ownTask(t, service, ChangeCreateRequest{ProjectID: request.ProjectID, ProjectRevision: request.ProjectRevision, Kind: "feature", Title: fmt.Sprintf("Implement a bounded task %d", i), Paths: []string{"new.go", "new_test.go"}, AcceptanceCriteria: []string{"Preserve existing behavior."}})
+		// Each names its own files: tasks that name the same code take turns.
+		child, opened := ownTask(t, service, ChangeCreateRequest{ProjectID: request.ProjectID, ProjectRevision: request.ProjectRevision, Kind: "feature", Title: fmt.Sprintf("Implement a bounded task %d", i), Paths: []string{fmt.Sprintf("new%d.go", i), fmt.Sprintf("new%d_test.go", i)}, AcceptanceCriteria: []string{"Preserve existing behavior."}})
 		if child == service || child.manager == service.manager {
 			t.Fatal("worktree reused the active project state")
 		}

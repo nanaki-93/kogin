@@ -55,6 +55,7 @@ func (s *Service) MergeGitWorktree(ctx context.Context, request GitMutationReque
 	if result.State == "merged" {
 		result.PreviousHead = repository.Head
 		s.completeMergedWorktree(ctx, repository.Root, source, settled, result, !request.KeepWorktree)
+		s.scheduleResume() // Tasks waiting for this one continue.
 	}
 	return result, nil
 }
@@ -84,6 +85,7 @@ func (s *Service) CleanupMergedWorktree(ctx context.Context, request GitMutation
 	s.invalidateWholeTreeJobs()
 	result := s.completeGitMutation(repository.Root, "merged", nil)
 	s.completeMergedWorktree(ctx, repository.Root, source, settled, result, true)
+	s.scheduleResume()
 	return result, nil
 }
 
