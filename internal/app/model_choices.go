@@ -135,7 +135,7 @@ func (s *Service) validateModelSelections(ctx context.Context, selections []stri
 		} else if _, ok := s.selectedRuntime(config.AnalyzeModelScope, selection); ok {
 			continue
 		}
-		return fmt.Errorf("%w: selected model is unavailable; refresh models and choose again", project.ErrRevisionConflict)
+		return fmt.Errorf("%w: the selected model %s is not available: its CLI or the configuration no longer offers it. Choose another model in Settings → Models & agents", project.ErrRevisionConflict, selection)
 	}
 	return nil
 }

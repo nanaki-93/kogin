@@ -77,6 +77,11 @@ are listed here as they land.
   Stop), that issue's step is rolled back, so the next run starts it over from
   the last fixed issue instead of finding its edits already made and marking
   it **Not fixed** with "the coding agent changed nothing".
+- **Why the agents could not start:** when a run is refused because something
+  changed, the message now says what: for example that the selected model
+  (`agy:gemini-4-argon-low`) is no longer offered by its CLI and another must be
+  chosen in Settings → Models & agents. It used to say only "project or file
+  changed; refresh the proposal", which no refresh could fix.
 - **Kasuri lints with the language's own linter:** the lint check is
   `go vet ./...` for Go, `cargo check --all-targets` for Rust and a
   package.json `lint` or `typecheck` script for Node, no longer a `lint`, `vet`

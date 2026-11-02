@@ -18,7 +18,7 @@ func writeWorkflowError(w http.ResponseWriter, operation string, err error) {
 		return
 	}
 	if errors.Is(err, project.ErrRevisionConflict) {
-		api.WriteError(w, http.StatusConflict, "project or file changed; refresh the proposal")
+		api.WriteError(w, http.StatusConflict, conflictReason(err))
 		return
 	}
 	if errors.Is(err, context.Canceled) {
@@ -38,4 +38,14 @@ func writeWorkflowError(w http.ResponseWriter, operation string, err error) {
 		return
 	}
 	api.WriteAppError(w, api.BadRequest(operation, "Review the request and try again.", err))
+}
+
+// conflictReason is the sentence a conflict carries after the generic error
+// ("selected model ... is not available"), or the generic one when it has
+// none, so the user learns what to change instead of refreshing in vain.
+func conflictReason(err error) string {
+	if reason, found := strings.CutPrefix(err.Error(), project.ErrRevisionConflict.Error()+": "); found && strings.TrimSpace(reason) != "" {
+		return reason
+	}
+	return "project or file changed; refresh the proposal"
 }
