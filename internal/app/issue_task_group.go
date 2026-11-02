@@ -13,13 +13,13 @@ import (
 
 const (
 	// maxIssuesPerTask bounds how many issues one task fixes together.
-	maxIssuesPerTask = 10
+	maxIssuesPerTask = 5
 	// maxGroupCriteria bounds the "done when" list of such a task.
 	maxGroupCriteria = 16
 )
 
 // ErrIssueSelection is returned for issues that cannot be fixed in one task.
-var ErrIssueSelection = errors.New("choose up to ten open issues of one file")
+var ErrIssueSelection = errors.New("choose up to five open issues of one file")
 
 // DraftIssuesTask drafts one task that fixes several issues of the same file:
 // the file and its conventional test, every issue in the description with its

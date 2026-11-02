@@ -43,6 +43,10 @@ are listed here as they land.
   file twice (as captured and as proposed) and the whole conversation. A
   changed file is now carried once, as proposed, and a stage gets at most
   48 KiB of the conversation: the task as first asked and the newest messages.
+- **Smaller grouped fixes:** **Fix N together** drafts one task for up to five
+  issues of a file (was ten), since tasks fixing ten at once often failed or
+  came back with blocking review findings. A file with more open issues offers
+  **Fix 5 of N together**; the rest can be grouped once those are in progress.
 - **Short review findings:** reviewers write each finding and note as a few
   words with the file and a quoted line; the daemon finds the line, and the
   task page shows `master.go:42` as a link to that line in the diff, with the

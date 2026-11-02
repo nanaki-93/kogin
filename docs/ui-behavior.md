@@ -304,7 +304,7 @@ every guard when the action arrives.
   Issues are grouped by file by default (files with the most severe issue
   first, a file's issues by severity and line; **By severity** lists them
   flat). A file with more than one open issue offers **Fix N together**: one
-  task drafted for up to ten of them, which links each, so merging it marks
+  task drafted for up to five of them, which links each, so merging it marks
   them all fixed.
   Once a task links an issue, the issue leaves **Open** for **In progress**
   (with its count), where **Open task** replaces Fix with agents; it is marked

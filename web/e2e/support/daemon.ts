@@ -356,7 +356,7 @@ export class FakeDaemon {
     const listed = (this.overrides.get('/api/projects/current/findings')?.() ?? { findings: data.findings }) as { findings: Finding[] };
     const chosen = ids.map(id => listed.findings.find(entry => entry.id === id));
     const file = chosen[0]?.location?.path ?? '';
-    if (chosen.some(finding => !finding || finding.status !== 'open' || finding.location?.path !== file) || !file) throw new Error('Choose up to ten open issues of one file to fix together.');
+    if (chosen.some(finding => !finding || finding.status !== 'open' || finding.location?.path !== file) || !file) throw new Error('Choose up to five open issues of one file to fix together.');
     const issues = (chosen as Finding[]).sort((a, b) => (a.location?.start_line ?? 0) - (b.location?.start_line ?? 0));
     return {
       kind: issues.every(f => f.category === 'security') ? 'security' : 'fix',

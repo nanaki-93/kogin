@@ -61,9 +61,12 @@ func TestIssuesFixedTogetherMustBeOpenAndInOneFile(t *testing.T) {
 		t.Fatalf("chosen = %+v, %v", chosen, err)
 	}
 	service, _ := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
-	for _, ids := range [][]string{nil, {" ", ""}, strings.Split("1 2 3 4 5 6 7 8 9 10 11", " ")} {
+	for _, ids := range [][]string{nil, {" ", ""}, strings.Split("1 2 3 4 5 6", " ")} {
 		if _, err := service.DraftIssuesTask(ids); !errors.Is(err, ErrIssueSelection) {
 			t.Fatalf("%v: error = %v", ids, err)
 		}
+	}
+	if _, err := service.DraftIssuesTask(strings.Split("1 2 3 4 5", " ")); errors.Is(err, ErrIssueSelection) {
+		t.Fatalf("five issues are refused: %v", err)
 	}
 }

@@ -26,6 +26,14 @@ test("issues group by file, and a file's open issues are fixed in one task", asy
   await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row', { name: /ignores cancellation/ })).toContainText('internal/llm/client.go:212');
 });
 
+test('a file with more than five open issues fixes five of them in one task', async ({ page, daemon }) => {
+  const more = [1, 2, 3, 4, 5].map(n => ({ ...data.findings[0], id: `g${n}`, severity: 'medium', source: 'ai', title: `Issue ${n}`, message: `Problem ${n}.`, location: { path: 'internal/api/handlers/change_handler.go', start_line: 100 + n }, evidence: undefined }));
+  daemon.serve('/api/projects/current/findings', () => ({ ...data.project, findings: [...data.findings, ...more] }));
+  await page.goto('/#/issues');
+  await page.getByRole('rowgroup', { name: 'internal/api/handlers/change_handler.go' }).getByRole('button', { name: 'Fix 5 of 6 together' }).click();
+  await expect(page.getByRole('dialog').getByPlaceholder('What should change?')).toHaveValue('Fix 5 issues in internal/api/handlers/change_handler.go');
+});
+
 test('issues label where each finding comes from', async ({ page }) => {
   await page.goto('/#/issues?view=list');
   const table = page.getByRole('table');

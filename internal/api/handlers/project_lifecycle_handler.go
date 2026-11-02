@@ -262,7 +262,7 @@ func writeProjectError(w http.ResponseWriter, action string, err error) {
 	case errors.Is(err, app.ErrNewerAnalysisRun):
 		api.WriteAppError(w, api.Conflict(action, "A newer Kasuri saved this project's analysis progress. Upgrade Kasuri to continue it, or move .kasuri/analysis/run.json away.", err))
 	case errors.Is(err, app.ErrIssueSelection):
-		api.WriteAppError(w, api.BadRequest(action, "Choose up to ten open issues of one file to fix together.", err))
+		api.WriteAppError(w, api.BadRequest(action, "Choose up to five open issues of one file to fix together.", err))
 	case errors.Is(err, app.ErrUnknownDocsComponent):
 		api.WriteAppError(w, api.NotFound(action, "The docs show no component at this path any more. Open Docs again.", err))
 	case errors.Is(err, app.ErrDocsRefreshBusy):

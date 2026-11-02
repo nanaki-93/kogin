@@ -4,7 +4,7 @@ import type { Finding } from '@/api/types';
 import { severityRank } from './util';
 
 /** The most issues one task fixes together; the daemon refuses more. */
-export const MAX_ISSUES_PER_TASK = 10;
+export const MAX_ISSUES_PER_TASK = 5;
 
 export interface FileIssues {
   /** The file, or '' for issues about the whole project. */
