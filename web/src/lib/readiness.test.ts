@@ -114,6 +114,8 @@ describe('taskStatus', () => {
     expect(taskStatus({ ...entry, workflow_status: 'running', freshness: 'stale' }).status).toBe('running');
     expect(taskStatus({ ...entry, freshness: 'stale' }).status).toBe('stale');
     expect(taskStatus({ ...entry, workflow_status: 'interrupted' }).label).toBe('Interrupted');
+    // A run stopped because its files changed, such as on the main branch, is out of date, not failed.
+    expect(taskStatus({ ...entry, revision: 2, hash: 'x', workflow_status: 'stale' })).toEqual({ status: 'stale', label: 'Out of date', tone: 'warning' });
     expect(taskStatus({ ...entry, revision: 2, hash: 'x', workflow_status: 'paused' })).toEqual({ status: 'needs_you', label: 'Paused', tone: 'warning' });
     // A revision after the run needs the agents again; it is not a failure.
     expect(taskStatus({ ...entry, revision: 4, hash: 'x', workflow_status: 'outdated' })).toEqual({ status: 'needs_you', label: 'Revised', tone: 'accent' });

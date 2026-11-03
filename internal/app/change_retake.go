@@ -87,6 +87,33 @@ func (s *Service) mainChange(ctx context.Context, root string, session *ChangeSe
 	return &main, nil
 }
 
+// mainChangedError stops a run on a task whose files the main branch changed
+// since it started: the run's work would be built on code that is gone, so
+// the task is retaken instead. It travels as a revision conflict, so a
+// refused start reads as its sentence.
+type mainChangedError struct{ change ChangeMainChange }
+
+func (e *mainChangedError) Error() string {
+	files, they := "that file", "it was"
+	if len(e.change.Paths) > 1 {
+		files, they = "those files", "they were"
+	}
+	return fmt.Sprintf("%s changed %s since this task started. This task's work is built on %s as %s: re-analyze it against %s and, if the issue is still there, start it again from %s.", e.change.Branch, strings.Join(e.change.Paths, ", "), files, they, e.change.Branch, e.change.Branch)
+}
+
+// requireMainUnchanged refuses to run, or go on running, the agents on a task
+// whose files the main branch changed since the task started.
+func (s *Service) requireMainUnchanged(ctx context.Context, root string, session *ChangeSession) error {
+	change, err := s.mainChange(ctx, root, session)
+	if err != nil {
+		return fmt.Errorf("read what the main branch changed: %w", err)
+	}
+	if change != nil {
+		return fmt.Errorf("%w: %w", project.ErrRevisionConflict, &mainChangedError{change: *change})
+	}
+	return nil
+}
+
 // RetakeChange re-checks the issue of a task in its own worktree against the
 // main branch's current files, once the main branch changed the task's files.
 // Nothing changes unless the model answers and the task and those files are

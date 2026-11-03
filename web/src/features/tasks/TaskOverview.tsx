@@ -86,7 +86,9 @@ function AgentRun({ session }: { session: LoadedSession }) {
   const stages = workflowStages(workflow);
   const specialists = workflowSpecialists(workflow);
   const active = workflowActive(session);
-  const ended = ['failed', 'canceled', 'stale', 'outdated', 'interrupted', 'paused', 'nothing_to_fix', 'waiting'].includes(workflow.status);
+  // A run the main branch's change stopped is told about above, with its retake.
+  const stoppedByMain = workflow.status === 'stale' && Boolean(session.main_changed);
+  const ended = ['failed', 'canceled', 'stale', 'outdated', 'interrupted', 'paused', 'nothing_to_fix', 'waiting'].includes(workflow.status) && !stoppedByMain;
   const override = activeOverride(workflow, session.hash);
   return (
     <section className="card" aria-label="Agent run">

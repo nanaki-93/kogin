@@ -61,7 +61,7 @@ label everywhere:
 | filled ring | Needs review / Run checks / Changes requested / Revised | Agents finished, or the proposal was revised after their run; the human decides (Revised: run the agents again). Needs review says how many files are viewed once some are. |
 | spinner | Fixing 2 of 5 / Writing code / Repairing / Testing / Running checks / Reviewing / Canceling | A run is active; the label names its stage, and the issue of a task that fixes its issues one at a time. |
 | red ring | Failed / Interrupted | The run stopped; the reason and recovery are on the task. |
-| dotted ring | Stale | A file the task depends on changed; re-analyze it (refreshed if still valid, otherwise deleted). |
+| dotted ring | Stale / Out of date | A file the task depends on changed; re-analyze it (refreshed if still valid, otherwise deleted). Out of date: its files changed during its run, in its worktree or on the main branch, and the run stopped; the page says what changed and offers the way on. |
 | dashed ring | Draft | No run yet. |
 | check | Applied / Committed | Written to the checkout. |
 | struck ring | Canceled / Undone | Ended without applying. |

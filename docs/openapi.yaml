@@ -140,7 +140,7 @@ paths:
       - {in: path, name: sessionID, required: true, schema: {type: string}}
     post:
       tags: [Chat]
-      description: Start creation, test writing/execution and model review using captured profiles. Requires execution trust, a test path and consent for every selected remote profile. One active workflow per conversation; no automatic source Apply.
+      description: Start creation, test writing/execution and model review using captured profiles. Requires execution trust, a test path and consent for every selected remote profile. One active workflow per conversation; no automatic source Apply. A task in its own worktree whose files the main branch changed since it started (its main_changed) is refused with 409 naming them; a run whose task the main branch changes meanwhile ends stale before its next stage or issue step.
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeWorkflowRequest'}}}}
       responses:
         '202': {description: Workflow admitted; poll the guarded session GET, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeSession'}}}}

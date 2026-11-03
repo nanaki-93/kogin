@@ -1,7 +1,7 @@
 // Agent workflow presentation and request shaping. Consent is captured per
 // request: every remote destination the run will use is listed and confirmed.
 
-import type { AgentSettings, BudgetUsage, ChangeHistoryEntry, ChangeSession, ChangeWorkflow, CostEstimate, GitWorkspace, GitWorktree, Model, ModelsCurrent, ProjectIdentity, ReviewItem, StageTools, WorkflowPause } from '@/api/types';
+import type { AgentSettings, BudgetUsage, ChangeHistoryEntry, ChangeSession, ChangeWorkflow, CostEstimate, GitWorkspace, GitWorktree, MainChange, Model, ModelsCurrent, ProjectIdentity, ReviewItem, StageTools, WorkflowPause } from '@/api/types';
 import { durationBetween, plural, type Tone } from './util';
 import { phaseTone, type PhaseTone } from './readiness';
 
@@ -411,6 +411,19 @@ export function workflowBlocker(session: { state: string; freshness: string; kin
   if (!session.worktree) return 'This task was made in the main checkout; Kasuri no longer runs agents on it.';
   if (!trusted) return 'Allow this project to run checks (Settings → Trust) so agents can verify their work.';
   return '';
+}
+
+/**
+ * What a task whose files the main branch changed since it started says,
+ * on its page and when its agents would run: its work is built on code
+ * that is gone, so it is re-analyzed against the main branch instead.
+ */
+export function mainChangedMessage(change: MainChange): { title: string; body: string } {
+  const one = change.paths.length === 1;
+  return {
+    title: `${change.branch} changed ${plural(change.paths.length, 'file')} of this task since it started`,
+    body: `${change.paths.join(', ')}. This task's work is built on ${one ? 'that file as it was' : 'those files as they were'}: re-analyze it against ${change.branch} and, if the issue is still there, start it again from ${change.branch}.`,
+  };
 }
 
 /** How an issue's step reads on the task page. */

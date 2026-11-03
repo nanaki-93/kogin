@@ -757,6 +757,15 @@ it. A task the main branch did not change returns 400, as does a missing
 `confirm_execution`; running agents and a task or main-branch file that
 changed before the answer return 409.
 
+No run builds on files the main branch has since changed. `POST …/workflow`
+on such a task returns 409 with the sentence "<branch> changed <paths> since
+this task started. This task's work is built on that file as it was:
+re-analyze it against <branch> and, if the issue is still there, start it
+again from <branch>." and starts nothing. A running workflow checks before
+each stage and each issue step; when the main branch changed the task's files
+meanwhile, it ends `stale` with that sentence as its `reason`, the stages it
+finished kept and the rest `skipped`.
+
 The whole-tree fingerprint still guards checks. Every check copy must equal the
 tree it was copied from and hold the captured sources and scope, and the
 session records `checks_workspace_hash`, the tree its checks describe. When the

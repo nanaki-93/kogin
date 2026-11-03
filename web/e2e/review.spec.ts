@@ -209,6 +209,42 @@ test('a task whose files a merge changed is re-analyzed and retaken from main', 
   await expect(page.getByText('main changed 1 file')).toHaveCount(0);
 });
 
+test('pressing Run agents on a task whose files main changed says so before any stage runs', async ({ page, daemon }) => {
+  await draftInItsOwnWorktree(page);
+  // The page was loaded before main moved: it learns when the agents are asked to start.
+  daemon.overtake('chg-100', ['internal/api/handlers/webui.go']);
+  await page.locator('header.task-header').getByRole('button', { name: 'Start agents' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('main changed 1 file of this task since it started');
+  await expect(dialog).toContainText("internal/api/handlers/webui.go. This task's work is built on that file as it was: re-analyze it against main and, if the issue is still there, start it again from main. The agents don't run on it as it is.");
+  await dialog.getByRole('button', { name: 'Not now' }).click();
+  expect(daemon.mutations('/workflow')).toHaveLength(0);
+  await expect(page.getByText('main changed 1 file of this task since it started')).toBeVisible();
+
+  await page.locator('header.task-header').getByRole('button', { name: 'Start agents' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Re-analyze & retake' }).click();
+  await expect(page.getByText('Still valid: “Reject nested asset paths” starts again from main on orca/reject-nested-asset-d4e5f6. Run the agents when ready.')).toBeVisible();
+  expect(daemon.mutations('/workflow')).toHaveLength(0);
+  expect(daemon.mutations('/retake')).toHaveLength(1);
+});
+
+test('a run that main overtook stops before its next stage and reads out of date', async ({ page, daemon }) => {
+  const session = daemon.sessions.get('chg-1')!;
+  const reason = "main changed internal/api/handlers/webui.go since this task started. This task's work is built on that file as it was: re-analyze it against main and, if the issue is still there, start it again from main.";
+  const stages = session.workflow!.stages.map(stage => (stage.name === 'create' ? stage : { name: stage.name, status: stage.name === 'human_review' ? 'blocked' : 'skipped' }));
+  daemon.sessions.set('chg-1', { ...session, workflow: { ...session.workflow!, status: 'stale', reason, input: undefined, stages } });
+  daemon.overtake('chg-1', ['internal/api/handlers/webui.go']);
+  await page.goto('/#/tasks');
+  const row = page.getByRole('listitem').filter({ hasText: 'Reject nested asset paths' });
+  await expect(row).toContainText('Out of date');
+  await expect(row).toContainText('main changed internal/api/handlers/webui.go since this task started.');
+  await row.click();
+  // Told once, at the top, with the way on.
+  await expect(page.getByText('main changed 1 file of this task since it started')).toHaveCount(1);
+  await expect(page.getByText('Its files changed during this run')).toHaveCount(0);
+  await expect(page.locator('.callout').getByRole('button', { name: 'Re-analyze & retake' })).toBeVisible();
+});
+
 test('a retaken task that is no longer valid is deleted, and its work discarded only if asked', async ({ page, daemon }) => {
   await draftInItsOwnWorktree(page);
   daemon.overtake('chg-100', ['internal/api/handlers/webui.go']);

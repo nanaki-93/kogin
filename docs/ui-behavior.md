@@ -142,7 +142,14 @@ every guard when the action arrives.
   main branch with its title, plan, criteria, scope and linked issues, and its
   page opens. Not valid: it is deleted and its linked issues dismissed. Either
   way the old task is deleted, and its worktree is removed or, when it holds
-  work, offered for discarding.
+  work, offered for discarding. The agents never run on such a task: pressing
+  Start, Run or Resume agents reads the task again first and, when the main
+  branch changed its files, says so in the retake confirmation (**Not now**
+  leaves the task as it is), so no stage runs on code that is gone. A run
+  checks again before each stage and each issue step; when the main branch
+  changed its files meanwhile, it stops there (the stages before it kept,
+  the rest skipped), reads **Out of date** in the task lists with the reason,
+  and its page offers the retake.
 - **Live progress.** A task's stages and the end of its run update the page and
   the task lists as they happen. A running task's status names its stage:
   Fixing 2 of 5 (the issue a task that fixes its issues one at a time is on),

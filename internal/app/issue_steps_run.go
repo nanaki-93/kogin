@@ -78,6 +78,10 @@ func (s *Service) runStageOrIssueSteps(ctx context.Context, job *changeWorkflowJ
 // a time: every issue not yet tried gets its step, in order.
 func (s *Service) runIssueSteps(ctx context.Context, job *changeWorkflowJob, session *ChangeSession, runtime modelRuntime) (*ChangeSession, error) {
 	for index := nextIssue(session); index >= 0; index = nextIssue(session) {
+		// A step would fix the issue in code the main branch has since replaced.
+		if err := s.requireMainUnchanged(ctx, job.root, session); err != nil {
+			return nil, err
+		}
 		next, err := s.runIssueStep(ctx, job, session, runtime, index)
 		if err != nil {
 			return nil, err

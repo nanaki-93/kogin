@@ -198,6 +198,7 @@ export function historyEntry(session: ChangeSession, extra: Partial<ChangeHistor
     updated_at: session.updated_at,
     paths: session.targets.map(target => target.path),
     workflow_status: session.workflow?.status,
+    workflow_reason: session.workflow?.reason,
     workflow_phase: workflowPhase(session),
     review: reviewProgress(session),
     finding_targets: session.finding_targets,

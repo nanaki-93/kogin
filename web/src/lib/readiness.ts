@@ -232,7 +232,9 @@ export function taskStatus(entry: TaskStatusEntry): TaskStatusInfo {
   if (wf === 'nothing_to_fix') return { status: 'needs_you', label: 'Nothing to fix', tone: 'neutral' };
   // The proposal changed after the last run: the agents run again, not failed.
   if (wf === 'outdated') return { status: 'needs_you', label: 'Revised', tone: 'accent' };
-  if (wf === 'failed' || wf === 'stale' || wf === 'interrupted') return { status: 'failed', label: wf === 'interrupted' ? 'Interrupted' : 'Failed', tone: 'danger' };
+  // Its files changed during the run, on its worktree or on the main branch: the run stopped.
+  if (wf === 'stale') return { status: 'stale', label: 'Out of date', tone: 'warning' };
+  if (wf === 'failed' || wf === 'interrupted') return { status: 'failed', label: wf === 'interrupted' ? 'Interrupted' : 'Failed', tone: 'danger' };
   if (wf === 'canceled') return { status: 'canceled', label: 'Canceled', tone: 'neutral' };
   if (entry.revision > 0 && entry.hash) return reviewStatus(entry.review);
   return { status: 'draft', label: 'Draft', tone: 'neutral' };

@@ -5,13 +5,13 @@ import { api, errorMessage, query, withWorktree } from '@/api/client';
 import type { AgentSettings, AvailableModels, ChangeOpened, ChangeReanalysis, ChangeRetake, ChangeSession, FindingTarget, LoadedSession, Model, ModelsCurrent, Project, TaskIssue } from '@/api/types';
 import { issueSteps } from '@/lib/issues';
 import { changeIdentity, openComments, workflowActive } from '@/lib/readiness';
-import { chooseRunModels, runStartOptions, workflowDestinations, workflowRequest, type DestinationChoice, type ModelStage } from '@/lib/workflow';
+import { chooseRunModels, mainChangedMessage, runStartOptions, workflowDestinations, workflowRequest, type DestinationChoice, type ModelStage } from '@/lib/workflow';
 import { roleModelOptions, selectedModel, type ModelOptionGroup } from '@/lib/agentSettings';
 import { navigate } from '@/lib/router';
 import { openWorkspace } from '@/app/checkout';
 import { commentsBrief, isTestPath, plural } from '@/lib/util';
 import { ResumeChoice, RunStartChoice } from '@/components/domain';
-import { keys } from '@/api/hooks';
+import { fetchSession, keys } from '@/api/hooks';
 import { pendingRevision, setPendingRevision } from './busy';
 import { changePath, type ActionContext } from './context';
 
@@ -95,7 +95,14 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
     return created.id;
   }
 
-  async function startAgents(session: LoadedSession, options: { message?: string } = {}): Promise<boolean> {
+  async function startAgents(loaded: LoadedSession, options: { message?: string } = {}): Promise<boolean> {
+    // The main branch may have changed the task's files since the page
+    // loaded: a run would build on code that is gone, so it is retaken.
+    const session = (await reload(loaded)) ?? loaded;
+    if (session.main_changed) {
+      await retake(session, { fromRun: true });
+      return false;
+    }
     const comments = openComments(session).length;
     const message = (options.message ?? session.title).trim();
     if (!message) {
@@ -171,10 +178,23 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
           return true;
         } catch (err) {
           fail('The agents could not start', err);
+          // A refusal may come from what the page did not know, such as the main branch moving.
+          void client.invalidateQueries({ queryKey: keys.session(session.id) });
           return false;
         }
       }),
     );
+  }
+
+  /** The task as the daemon has it now, or null when it cannot be read. */
+  async function reload(session: LoadedSession): Promise<LoadedSession | null> {
+    try {
+      const fresh = await fetchSession(session.id, session.checkout.worktreePath);
+      client.setQueryData(keys.session(session.id), fresh);
+      return fresh;
+    } catch {
+      return null; // The daemon still refuses a run it must not start.
+    }
   }
 
   /**
@@ -263,21 +283,29 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
    * in the main branch's files. Still valid, it starts again in a new
    * worktree from there; not valid, it is deleted and its linked issues
    * dismissed. Either way the old task is deleted, and its worktree is
-   * removed, or discarded with its work if the user says so.
+   * removed, or discarded with its work if the user says so. From a run, the
+   * dialog says first why the agents do not run.
    */
-  async function retake(session: LoadedSession): Promise<boolean> {
+  async function retake(session: LoadedSession, options: { fromRun?: boolean } = {}): Promise<boolean> {
     const change = session.main_changed;
     if (!change) return false;
     const model = client.getQueryData<ModelsCurrent>(keys.models)?.scopes?.bug;
     const remote = Boolean(model?.remote_provider);
     const linked = session.finding_targets?.length ?? 0;
+    const message = mainChangedMessage(change);
     const ok = await confirm({
-      title: 'Re-analyze and retake this task?',
+      title: options.fromRun ? message.title : 'Re-analyze and retake this task?',
       body: (
         <div className="stack">
-          <p>
-            {change.branch} changed {change.paths.join(', ')} since this task started. A model checks whether the issue is still present in {change.branch}'s files.
-          </p>
+          {options.fromRun ? (
+            <p>
+              {message.body} The agents don't run on it as it is. A model checks whether the issue is still present in {change.branch}'s files.
+            </p>
+          ) : (
+            <p>
+              {change.branch} changed {change.paths.join(', ')} since this task started. A model checks whether the issue is still present in {change.branch}'s files.
+            </p>
+          )}
           <p className="small">
             <strong>Still valid:</strong> the task starts again in a new worktree from {change.branch}, with its title, plan, criteria, scope and linked issues; this one is deleted.
             <br />
@@ -290,6 +318,7 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
         </div>
       ),
       confirmLabel: 'Re-analyze & retake',
+      cancelLabel: options.fromRun ? 'Not now' : undefined,
     });
     if (!ok) return false;
     const result = await guarded('Retaking…', async () => {

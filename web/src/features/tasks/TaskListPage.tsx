@@ -150,10 +150,10 @@ export function TaskRow({ task, positions = [], active, onHover, compact }: { ta
   );
 }
 
-/** Why a run ended (failed, canceled, paused), else the status's own line, such as files viewed. */
+/** Why a run ended (failed, canceled, out of date, paused), else the status's own line, such as files viewed. */
 function RowDetail({ task, detail }: { task: TaskEntry; detail?: string }) {
   const status = taskStatus(task).status;
-  const reason = task.workflow_reason && (status === 'failed' || status === 'canceled' || task.workflow_status === 'paused') ? task.workflow_reason : '';
+  const reason = task.workflow_reason && (status === 'failed' || status === 'canceled' || task.workflow_status === 'stale' || task.workflow_status === 'paused') ? task.workflow_reason : '';
   const text = reason || detail;
   return text ? <span className="list-reason truncate" title={text}>{text}</span> : null;
 }

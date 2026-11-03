@@ -97,6 +97,9 @@ func (s *Service) admitOrQueue(ctx context.Context, root string, session *Change
 	if err != nil {
 		return start, nil, err
 	}
+	if err := s.requireMainUnchanged(ctx, root, session); err != nil {
+		return start, nil, err
+	}
 	wait, err := s.blockingTask(ctx, session.ID, codeFiles(session, rules.NewResolver(root)))
 	if err != nil || wait == nil {
 		return start, nil, err
@@ -291,6 +294,14 @@ func (s *Service) beginChangeWorkflowStage(ctx context.Context, job *changeWorkf
 	chargeWorkflowStage(ctx, job, session.Workflow)
 	if stage > 0 {
 		completeWorkflowStage(&session.Workflow.Stages[stage-1], time.Now().UTC())
+	}
+	// The stage would build on what the main branch has since replaced: the
+	// run stops before it, the stage before it complete.
+	if err := s.requireMainUnchanged(ctx, job.root, session); err != nil {
+		if storeErr := storeChangeSession(job.root, session); storeErr != nil {
+			return nil, storeErr
+		}
+		return nil, err
 	}
 	session.Workflow.Stages[stage].StartedAt = time.Now().UTC()
 	session.Workflow.Stages[stage].Status = "running"

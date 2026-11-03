@@ -7,7 +7,7 @@ import { GitMerge, RefreshCcw } from 'lucide-react';
 import type { LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { workflowActive } from '@/lib/readiness';
-import { plural } from '@/lib/util';
+import { mainChangedMessage } from '@/lib/workflow';
 import { Button, Callout } from '@/components/ui';
 
 export function MainChanged({ session }: { session: LoadedSession }) {
@@ -16,19 +16,20 @@ export function MainChanged({ session }: { session: LoadedSession }) {
   const change = session.main_changed;
   if (!change) return null;
   const running = workflowActive(session);
+  const message = mainChangedMessage(change);
   return (
     <Callout
       tone="warning"
       icon={GitMerge}
-      title={`${change.branch} changed ${plural(change.paths.length, 'file')} of this task since it started`}
+      title={message.title}
       action={
         <Button size="sm" variant="secondary" icon={RefreshCcw} onClick={() => void actions.retake(session)} disabled={running || Boolean(busy)} loading={busy === 'Retaking…'}>
           Re-analyze &amp; retake
         </Button>
       }
     >
-      {change.paths.join(', ')}. This task's work is built on {change.paths.length === 1 ? 'that file' : 'those files'} as {change.paths.length === 1 ? 'it was' : 'they were'}: re-analyze it against {change.branch} and, if the issue is still there, start it again from {change.branch}.
-      {running ? ' Stop its agents first.' : ''}
+      {message.body}
+      {running ? ' Its agents stop before their next stage.' : ''}
     </Callout>
   );
 }

@@ -26,9 +26,12 @@ func workflowFailure(err error, checks []CheckResult) (string, string) {
 	var steps *issueStepsFailedError
 	var nothing *nothingToFixError
 	var wait *taskWaitError
+	var mainChanged *mainChangedError
 	switch {
 	case errors.As(err, &wait):
 		return "waiting", wait.Error()
+	case errors.As(err, &mainChanged):
+		return "stale", mainChanged.Error()
 	case errors.As(err, &nothing):
 		return "nothing_to_fix", nothing.Error()
 	case errors.As(err, &steps):

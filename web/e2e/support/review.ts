@@ -40,6 +40,9 @@ export function reviseSession(s: ChangeSession, body: Record<string, unknown>): 
  */
 export function startRun(s: ChangeSession, body: Record<string, unknown>): ChangeSession {
   if (s.workflow && ['running', 'canceling'].includes(s.workflow.status)) throw new Error('a change workflow is already active');
+  // Like the daemon: no run builds on files the main branch has since changed.
+  const main = s.main_changed;
+  if (main) throw new Error(`${main.branch} changed ${main.paths.join(', ')} since this task started. This task's work is built on ${main.paths.length === 1 ? 'that file as it was' : 'those files as they were'}: re-analyze it against ${main.branch} and, if the issue is still there, start it again from ${main.branch}.`);
   const start = String(body.resume_from ?? 'create');
   const kept = { create: 0, test: 1, checks: 1, review: 2 }[start];
   if (kept === undefined) throw new Error('resume_from must be create, test, checks or review');
