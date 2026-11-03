@@ -93,6 +93,21 @@ are listed here as they land.
 - **Nothing to fix:** a run in which no issue was fixed and some do not hold
   ends **Nothing to fix**, not failed. **Close task** dismisses those issues
   with their reasons and removes the task and its worktree.
+- **Issue steps say why they changed nothing:** a step that changes nothing
+  must end saying the issue is already fixed, does not hold or needs a task of
+  its own; a finish without that is refused, so the agent says it in the same
+  run instead of the issue ending Not fixed and going back to Issues. Already
+  fixed counts as fixed by the earlier step's commit; what a step that says so
+  edited anyway is rolled back.
+- **After the steps, a task is what it fixed:** testing, review and repairs
+  read only the fixed issues' acceptance criteria and are told which issues
+  were left out, so they no longer write tests for, review against or repair
+  toward an issue that does not hold or was not fixed.
+- **Repairs read what failed:** the check failures a repair gets leave out
+  optional checks (such as a regression baseline the old code cannot build)
+  and lead with the lines that say what failed, before the end of the output;
+  when a Go test binary exits before any test reports a failure, the repair is
+  told so. The agents' own `run_checks` output reads the same way.
 - **A fix can reach the code it calls:** a task that fixes issues no longer
   stops when the fix belongs in code its files import (a fix in
   `cmd/master.go` that needs `internal/utils`). Its coding agent asks for those

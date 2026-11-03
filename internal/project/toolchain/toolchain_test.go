@@ -126,6 +126,18 @@ func TestFailuresAreReadFromCommonTestRunners(t *testing.T) {
 	}
 }
 
+func TestGoTestsThatExitBeforeReportingAreNamed(t *testing.T) {
+	output := "--- FAIL: TestA (0.00s)\nFAIL\nFAIL\texample.test/m/a\t0.01s\n" +
+		"Enter your password:\nsave vault: write file: refusing\nFAIL\nFAIL\texample.test/m/cmd\t50.4s\n" +
+		"FAIL\texample.test/m/c [build failed]\nok  \texample.test/m/b\t0.02s\nFAIL\n"
+	if got := GoUnreportedFailures(output); !reflect.DeepEqual(got, []string{"example.test/m/cmd"}) {
+		t.Fatalf("GoUnreportedFailures = %q", got)
+	}
+	if got := GoUnreportedFailures("ok  \texample.test/m\t0.1s\n"); got != nil {
+		t.Fatalf("passing run = %q", got)
+	}
+}
+
 func TestLintDiagnosticsIgnoreLineNumbers(t *testing.T) {
 	before := Diagnostics("# example.test/m\n./a.go:10:2: unreachable code\nb.ts(3,1): not this format\n")
 	after := Diagnostics("# example.test/m\n./a.go:14:2: unreachable code\nsrc/b.go:3: x declared and not used\n")

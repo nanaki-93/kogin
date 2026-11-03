@@ -183,20 +183,34 @@ func (s *Service) runIssueAgent(ctx context.Context, job *changeWorkflowJob, ses
 		return nil, &issueStepError{reason: "The coding agent made no usable change: " + clip(refused.Error(), maxIssueReasonBytes-64)}
 	case err != nil:
 		return nil, err
+	case declinesFix(run):
+		// What it edited anyway is rolled back with the step.
+		return nil, unchangedIssueStep(run, finishReport(run))
 	case next.Hash == session.Hash:
 		return nil, unchangedIssueStep(run, agentReport(next))
 	}
 	return s.fitChangeToBudgets(ctx, job.root, next, runtime, false)
 }
 
-// unchangedIssueStep is a step whose agent changed nothing, as it said it
+// declinesFix reports whether the agent ended its step saying it made no fix:
+// the issue is already fixed, does not hold or needs a task of its own.
+func declinesFix(run *ChangeStageTools) bool {
+	return run != nil && run.finish != nil && slices.Contains([]string{outcomeAlreadyFixed, outcomeDoesNotHold, outcomeNeedsOwnTask}, run.finish.Outcome)
+}
+
+// unchangedIssueStep is a step that made no fix, as its agent said it
 // ended: an issue already fixed or that does not hold is settled that way,
 // any other is not fixed.
 func unchangedIssueStep(run *ChangeStageTools, report string) error {
+	outcome := ""
 	if run != nil && run.finish != nil {
-		if outcome := run.finish.Outcome; outcome == outcomeAlreadyFixed || outcome == outcomeDoesNotHold {
-			return &issueStepError{reason: report, outcome: outcome}
-		}
+		outcome = run.finish.Outcome
+	}
+	switch outcome {
+	case outcomeAlreadyFixed, outcomeDoesNotHold:
+		return &issueStepError{reason: report, outcome: outcome}
+	case outcomeNeedsOwnTask:
+		return &issueStepError{reason: "The fix needs code this task may not change: " + report}
 	}
 	return &issueStepError{reason: "The coding agent changed nothing: " + report}
 }
@@ -240,7 +254,7 @@ func issueStepMessage(session *ChangeSession, index int) string {
 	var message strings.Builder
 	fmt.Fprintf(&message, "Fix issue %d of %d in %s: %s\n%s\n\n", index+1, len(session.Issues), issue.Path, issue.Title, strings.TrimSpace(issue.Detail))
 	message.WriteString("Fix only this issue; the task's other issues get steps of their own, and earlier ones are already in the worktree. ")
-	message.WriteString("Check it against the code first. If it does not hold, change nothing and finish with outcome does_not_hold, saying why. If an earlier step of this task already fixed it, change nothing and finish with outcome already_fixed. ")
+	message.WriteString("Check it against the code first. If it does not hold, change nothing and finish with outcome does_not_hold, saying why. If an earlier step of this task, or the code as it is, already fixes it, change nothing and finish with outcome already_fixed. A finish that changed nothing without one of these is refused. ")
 	message.WriteString("Otherwise make the smallest change that fixes it, add a regression test that fails without the fix, run the checks and finish with outcome fixed. ")
 	message.WriteString("When the fix needs code outside this task's folders that its code imports, ask for those files with widen_scope and fix it there; when that is refused, change nothing and finish with outcome needs_own_task.")
 	if len(issue.Criteria) > 0 {

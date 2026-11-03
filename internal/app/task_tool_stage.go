@@ -155,6 +155,7 @@ func toolTaskPrompt(root string, session *ChangeSession, role toolRole, message,
 			fmt.Fprintf(&prompt, "%d. %s\n", index+1, criterion)
 		}
 	}
+	prompt.WriteString(leftOutBrief(session))
 	if session.Plan != nil {
 		if plan := strings.TrimSpace(session.Plan.Approach); plan != "" {
 			prompt.WriteString("\nApproved approach: " + plan + "\n")

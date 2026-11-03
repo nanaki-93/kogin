@@ -9,8 +9,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-
-	"github.com/nanaki-93/kasuri/v2/internal/textutil"
 )
 
 const (
@@ -25,7 +23,7 @@ func (run *taskToolRun) checkTools() []toolSpec {
 			description: "Run the task's checks on the change as it stands: formatting and parsing, architecture and code budgets from AGENTS.md, and the lint and tests of every subproject the change touches. Failures that also happened before the change are marked as such. Run it before finish when you changed code.",
 			schema:      `{"type":"object","properties":{},"additionalProperties":false}`},
 		{name: "finish", call: run.finishRun,
-			description: "End the run with a summary of what you changed and, for each acceptance criterion, how the change meets it. When you fix one issue, also say how it ended: fixed (you changed code for it), already_fixed (an earlier step of this task already fixed it; change nothing), does_not_hold (the code does not have the problem; change nothing and say why), or needs_own_task (the fix needs code this task may not change). A coding agent sure that a test the testing agent wrote is wrong uses outcome test_disputed, names it in disputed_tests and says why in the summary. A testing agent lists in follow_ups the gaps this change cannot cover (behavior in code the task does not change) instead of writing failing tests for them. Call it once, last.",
+			description: "End the run with a summary of what you changed and, for each acceptance criterion, how the change meets it. When you fix one issue, also say how it ended: fixed (you changed code for it), already_fixed (an earlier step of this task already fixed it; change nothing), does_not_hold (the code does not have the problem; change nothing and say why), or needs_own_task (the fix needs code this task may not change). A step that changes nothing must give one of the last three, and what a step with one of them edited is dropped. A coding agent sure that a test the testing agent wrote is wrong uses outcome test_disputed, names it in disputed_tests and says why in the summary. A testing agent lists in follow_ups the gaps this change cannot cover (behavior in code the task does not change) instead of writing failing tests for them. Call it once, last.",
 			schema:      `{"type":"object","properties":{"summary":{"type":"string","minLength":1,"maxLength":4000},"criteria":{"type":"array","maxItems":16,"items":{"type":"object","properties":{"criterion":{"type":"integer","minimum":1},"how":{"type":"string","minLength":1,"maxLength":1000}},"required":["criterion","how"],"additionalProperties":false}},"outcome":{"type":"string","enum":["fixed","already_fixed","does_not_hold","needs_own_task","test_disputed"]},"disputed_tests":{"type":"array","maxItems":8,"items":{"type":"string","minLength":1}},"follow_ups":{"type":"array","maxItems":5,"items":{"type":"object","properties":{"title":{"type":"string","minLength":1,"maxLength":120},"detail":{"type":"string","minLength":1,"maxLength":1000},"path":{"type":"string"}},"required":["title","detail"],"additionalProperties":false}}},"required":["summary"],"additionalProperties":false}`},
 	}
 }
@@ -123,13 +121,13 @@ func describeToolChecks(files int, checks []CheckResult) string {
 		}
 		fmt.Fprintf(&out, "- %s: %s\n", check.Name, label)
 		if check.State != CheckPassed && check.State != CheckSkipped && strings.TrimSpace(check.Output) != "" && out.Len() < maxChecksReport {
-			out.WriteString(textutil.TruncateTail(strings.TrimSpace(check.Output), maxCheckOutputCut) + "\n")
+			out.WriteString(checkFailureExcerpt(check.Output, maxCheckOutputCut) + "\n")
 		}
 	}
 	return out.String()
 }
 
-func (run *taskToolRun) finishRun(_ context.Context, arguments json.RawMessage) (string, error) {
+func (run *taskToolRun) finishRun(ctx context.Context, arguments json.RawMessage) (string, error) {
 	var input toolFinish
 	if err := decodeToolArguments(arguments, &input); err != nil {
 		return "", err
@@ -143,6 +141,9 @@ func (run *taskToolRun) finishRun(_ context.Context, arguments json.RawMessage) 
 		}
 	}
 	if err := run.validateFinish(&input); err != nil {
+		return "", err
+	}
+	if err := run.checkStepOutcome(ctx, input.Outcome); err != nil {
 		return "", err
 	}
 	run.mu.Lock()
@@ -166,4 +167,28 @@ func (run *taskToolRun) validateFinish(input *toolFinish) error {
 		return err
 	}
 	return validateFollowUps(input.FollowUps)
+}
+
+// errStepUnchanged refuses a step's finish that changed nothing without
+// saying why, so the agent says it in the same run instead of the issue
+// ending not fixed.
+var errStepUnchanged = errors.New("you changed nothing, so say how this issue ended with outcome: already_fixed when an earlier step of this task (or the code as it is) already fixes it, does_not_hold when the code does not have the problem, or needs_own_task when the fix needs code this task may not change")
+
+// checkStepOutcome checks how a coding agent says one issue's step ended
+// against the worktree: a step with no change must say which kind of no-fix
+// it is. A fix that leaves out the outcome is taken as fixed.
+func (run *taskToolRun) checkStepOutcome(ctx context.Context, outcome string) error {
+	if run.role != toolCoder || stepIssue(run.session) < 0 || (outcome != "" && outcome != outcomeFixed) {
+		return nil
+	}
+	run.writeMu.Lock()
+	defer run.writeMu.Unlock()
+	snapshot, err := run.proposal(ctx)
+	if err != nil {
+		return err
+	}
+	if len(snapshot.Changes) == len(run.session.Changes) && len(changedEditPaths(run.session.Changes, snapshot.Changes)) == 0 {
+		return errStepUnchanged
+	}
+	return nil
 }

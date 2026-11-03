@@ -144,7 +144,7 @@ func (s *Service) reviewWorkflowProposal(ctx context.Context, job *changeWorkflo
 	if err != nil {
 		return err
 	}
-	request := "Review the complete checked proposal against the task, captured source and acceptance criteria:\n" + changeCheckEvidence(session.Checks) +
+	request := "Review the complete checked proposal against the task, captured source and acceptance criteria:\n" + changeCheckEvidence(session.Checks) + leftOutBrief(session) +
 		"\n\nThe proposal as a diff against the files before the task:\n" + proposalDiffText(session.Changes, maxReviewDiffBytes)
 	messages, err := changeMessages(session, request, text)
 	if err != nil {

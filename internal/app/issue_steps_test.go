@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -42,8 +43,7 @@ func TestIssuesAreFixedOneAtATimeWithACommitEach(t *testing.T) {
 		{Tool: "finish", Arguments: map[string]any{"summary": "Added Sub and its test."}},
 		{Text: "Done.", Next: true},
 		{Tool: "read_file", Arguments: map[string]any{"path": "calc.go"}},
-		{Tool: "finish", Arguments: map[string]any{"summary": "Add cannot overflow for int inputs here; the issue does not hold."}},
-		{Text: "Nothing to change.", Next: true},
+		{Text: "Add cannot overflow for int inputs here; nothing to change.", Next: true},
 		{Tool: "edit_file", Arguments: map[string]any{"path": "calc.go", "old_text": stepSubSource, "new_text": stepMulSource}},
 		{Tool: "create_file", Arguments: map[string]any{"path": "calc_mul_test.go", "content": stepMulTest}},
 		{Tool: "finish", Arguments: map[string]any{"summary": "Added Mul and its test."}},
@@ -63,7 +63,7 @@ func TestIssuesAreFixedOneAtATimeWithACommitEach(t *testing.T) {
 	if len(issues) != 3 || issues[0].Status != IssueFixed || issues[1].Status != IssueNotFixed || issues[2].Status != IssueFixed {
 		t.Fatalf("issues = %+v", issues)
 	}
-	if !strings.Contains(issues[1].Reason, "The coding agent changed nothing: Add cannot overflow") || issues[1].Commit != "" {
+	if !strings.HasPrefix(issues[1].Reason, "The coding agent changed nothing: The agent stopped without calling finish") || !strings.Contains(issues[1].Reason, "Add cannot overflow") || issues[1].Commit != "" {
 		t.Fatalf("not fixed issue = %+v", issues[1])
 	}
 	if len(finished.FindingTargets) != 2 || finished.FindingTargets[0].ID != "finding:a" || finished.FindingTargets[1].ID != "finding:c" {
@@ -78,6 +78,11 @@ func TestIssuesAreFixedOneAtATimeWithACommitEach(t *testing.T) {
 	}
 	if head := testGit(t, flow.worktree, "rev-parse", "HEAD"); head != base {
 		t.Fatalf("the worktree moved off its base while the task ran: %s", head)
+	}
+	// Testing reads only what the steps fixed, and which issue was left out.
+	tested := fakePiLog(t, flow.dir, "tester").Prompt
+	if !strings.Contains(tested, "Acceptance criteria:\n1. Fix: Sub is missing is resolved.\n2. Mul is missing is resolved.\n\nIssues this task left out.") || strings.Contains(tested, "Add ignores overflow is resolved.") || !strings.Contains(tested, "- Add ignores overflow (calc.go): not fixed here; it is open again in Issues") {
+		t.Fatalf("the testing agent's prompt:\n%s", tested)
 	}
 	last := fakePiLog(t, flow.dir, "coder")
 	if !strings.Contains(last.Prompt, "Task (fix): Mul is missing") || !strings.Contains(last.Prompt, "Fix issue 3 of 3 in calc.go: Mul is missing") || strings.Contains(last.Prompt, "Sub is missing") || !strings.Contains(last.Prompt, "1. Mul is missing is resolved.") {
@@ -111,7 +116,7 @@ func TestAnIssueWhoseChecksStillFailIsRolledBack(t *testing.T) {
 		{Tool: "edit_file", Arguments: map[string]any{"path": "calc.go", "old_text": "return a - b", "new_text": "return b - a"}},
 		{Tool: "finish", Arguments: map[string]any{"summary": "Changed Add again."}},
 		{Text: "Done.", Next: true},
-		{Tool: "finish", Arguments: map[string]any{"summary": "This needs a change in another package; it needs a task of its own."}},
+		{Tool: "finish", Arguments: map[string]any{"summary": "This needs a change in another package; it needs a task of its own.", "outcome": "needs_own_task"}},
 		{Text: "Nothing to change."},
 	}
 	flow := startToolFlowWith(t, coder, nil, nil, stepIssues("Add rounds wrong", "Add is slow"))
@@ -122,7 +127,7 @@ func TestAnIssueWhoseChecksStillFailIsRolledBack(t *testing.T) {
 	if issue := finished.Issues[0]; issue.Status != IssueNotFixed || !strings.Contains(issue.Reason, "Checks still failed after one repair") {
 		t.Fatalf("first issue = %+v", issue)
 	}
-	if issue := finished.Issues[1]; issue.Status != IssueNotFixed || !strings.Contains(issue.Reason, "needs a task of its own") {
+	if issue := finished.Issues[1]; issue.Status != IssueNotFixed || !strings.HasPrefix(issue.Reason, "The fix needs code this task may not change: This needs a change in another package") {
 		t.Fatalf("second issue = %+v", issue)
 	}
 	if len(finished.Changes) != 0 || len(finished.FindingTargets) != 0 {
@@ -189,22 +194,28 @@ func TestAStepThatStopsTheRunIsRolledBackAndStartsAgain(t *testing.T) {
 }
 
 func TestAStepSaysHowItEndedWhenItChangesNothing(t *testing.T) {
+	extraTest := "package main\n\nimport \"testing\"\n\nfunc TestSubAgain(t *testing.T) {\n\tif Sub(1, 1) != 0 {\n\t\tt.Fatal(\"Sub\")\n\t}\n}\n"
 	coder := []fakePiStep{
 		{Tool: "edit_file", Arguments: map[string]any{"path": "calc.go", "old_text": stepAddSource, "new_text": stepSubSource}},
 		{Tool: "create_file", Arguments: map[string]any{"path": "calc_sub_test.go", "content": toolSubTest}},
 		{Tool: "finish", Arguments: map[string]any{"summary": "Added Sub and its test.", "outcome": "fixed"}},
 		{Text: "Done.", Next: true},
-		{Tool: "read_file", Arguments: map[string]any{"path": "calc.go"}},
-		{Tool: "finish", Arguments: map[string]any{"summary": "Add cannot overflow for int inputs here.", "outcome": "does_not_hold"}},
-		{Text: "Nothing to change.", Next: true},
+		// Already fixed: what the step wrote anyway is dropped with it.
+		{Tool: "create_file", Arguments: map[string]any{"path": "calc_again_test.go", "content": extraTest}},
 		{Tool: "finish", Arguments: map[string]any{"summary": "The first step added Sub with its test.", "outcome": "already_fixed"}},
+		{Text: "Nothing to change.", Next: true},
+		// A finish that changed nothing must say why; the agent says it.
+		{Tool: "read_file", Arguments: map[string]any{"path": "calc.go"}},
+		{Tool: "finish", Arguments: map[string]any{"summary": "Checked Add."}},
+		{Tool: "finish", Arguments: map[string]any{"summary": "Checked Add.", "outcome": "fixed"}},
+		{Tool: "finish", Arguments: map[string]any{"summary": "Add cannot overflow for int inputs here.", "outcome": "does_not_hold"}},
 		{Text: "Nothing to change."},
 	}
 	tester := []fakePiStep{
 		{Tool: "finish", Arguments: map[string]any{"summary": "The fixes' tests cover the criteria."}},
 		{Text: "Done."},
 	}
-	flow := startToolFlowWith(t, coder, tester, nil, stepIssues("Sub is missing", "Add ignores overflow", "Sub has no test"))
+	flow := startToolFlowWith(t, coder, tester, nil, stepIssues("Sub is missing", "Sub has no test", "Add ignores overflow"))
 	finished := flow.finished(t)
 	if finished.Workflow.Status != "awaiting_human_review" {
 		t.Fatalf("workflow = %s (%s)", finished.Workflow.Status, finished.Workflow.Reason)
@@ -213,24 +224,36 @@ func TestAStepSaysHowItEndedWhenItChangesNothing(t *testing.T) {
 	if issues[0].Status != IssueFixed || issues[0].Commit == "" {
 		t.Fatalf("first issue = %+v", issues[0])
 	}
-	if issue := issues[1]; issue.Status != IssueDoesNotHold || issue.Commit != "" || !strings.Contains(issue.Reason, "Add cannot overflow") {
-		t.Fatalf("an issue that does not hold = %+v", issue)
-	}
-	if issue := issues[2]; issue.Status != IssueFixed || issue.Commit != issues[0].Commit || !strings.HasPrefix(issue.Reason, "Already fixed by an earlier step: The first step added Sub") {
+	if issue := issues[1]; issue.Status != IssueFixed || issue.Commit != issues[0].Commit || !strings.HasPrefix(issue.Reason, "Already fixed by an earlier step: The first step added Sub") {
 		t.Fatalf("an issue already fixed = %+v", issue)
 	}
+	if issue := issues[2]; issue.Status != IssueDoesNotHold || issue.Commit != "" || issue.Reason != "Add cannot overflow for int inputs here." {
+		t.Fatalf("an issue that does not hold = %+v", issue)
+	}
+	for _, edit := range finished.Changes {
+		if edit.Path == "calc_again_test.go" {
+			t.Fatal("the already fixed step's test was kept")
+		}
+	}
+	if _, err := os.Stat(filepath.Join(flow.worktree, "calc_again_test.go")); !os.IsNotExist(err) {
+		t.Fatalf("the already fixed step's test is still in the worktree: %v", err)
+	}
 	// Merging closes the fixed ones and dismisses the one that does not hold.
-	if len(finished.FindingTargets) != 2 || finished.FindingTargets[0].ID != "finding:a" || finished.FindingTargets[1].ID != "finding:c" {
+	if len(finished.FindingTargets) != 2 || finished.FindingTargets[0].ID != "finding:a" || finished.FindingTargets[1].ID != "finding:b" {
 		t.Fatalf("linked issues: %+v", finished.FindingTargets)
 	}
-	if len(finished.DismissedTargets) != 1 || finished.DismissedTargets[0].ID != "finding:b" {
+	if len(finished.DismissedTargets) != 1 || finished.DismissedTargets[0].ID != "finding:c" {
 		t.Fatalf("dismissed issues: %+v", finished.DismissedTargets)
 	}
 	if log := testGit(t, flow.worktree, "log", "--format=%s", finished.Worktree.Base+".."+issueStepsRef(finished)); log != "fix: sub is missing" {
 		t.Fatalf("issue commits:\n%s", log)
 	}
-	if first := fakePiLog(t, flow.dir, "coder"); !strings.Contains(first.Prompt, "finish with outcome already_fixed") {
-		t.Fatalf("the step's prompt does not ask how it ended:\n%s", first.Prompt)
+	last := fakePiLog(t, flow.dir, "coder")
+	if !strings.Contains(last.Prompt, "finish with outcome already_fixed") {
+		t.Fatalf("the step's prompt does not ask how it ended:\n%s", last.Prompt)
+	}
+	if len(last.Results) != 4 || !strings.Contains(last.Results[1], "you changed nothing, so say how this issue ended") || last.Results[2] != last.Results[1] || !strings.HasPrefix(last.Results[3], "Recorded.") {
+		t.Fatalf("the finishes that changed nothing were not refused: %q", last.Results)
 	}
 }
 
@@ -330,5 +353,36 @@ func TestAfterTheStepsARepairActsOnlyOnItsFeedback(t *testing.T) {
 	kept := issuesForRequest([]ChangeIssue{{FindingID: "a", Status: IssueFixed, Commit: "x"}, {FindingID: "b", Status: IssueNotFixed, Reason: "r"}, {FindingID: "c"}}, []project.FindingTarget{{ID: "a"}, {ID: "c"}})
 	if len(kept) != 2 || kept[0].FindingID != "a" || kept[0].Status != "" || kept[0].Commit != "" || kept[1].FindingID != "c" {
 		t.Fatalf("recaptured issues = %+v", kept)
+	}
+}
+
+func TestTheStagesAfterTheStepsReadOnlyTheFixedIssues(t *testing.T) {
+	session := &ChangeSession{Worktree: &ChangeWorktree{Base: "base", Branch: "task"}, AcceptanceCriteria: []string{"A is resolved.", "B is resolved.", "Add a test.", "C is resolved."},
+		Issues: []ChangeIssue{
+			{Title: "A", Path: "a.go", Status: IssueFixed, Criteria: []string{"A is resolved.", "Add a test."}},
+			{Title: "B", Path: "a.go", Status: IssueDoesNotHold, Criteria: []string{"B is resolved.", "Add a test."}},
+			{Title: "C", Path: "c.go", Status: IssueNotFixed, Criteria: []string{"C is resolved."}},
+		}}
+	view := fixedIssuesView(session)
+	if view == session || !slices.Equal(view.AcceptanceCriteria, []string{"A is resolved.", "Add a test."}) || len(session.AcceptanceCriteria) != 4 {
+		t.Fatalf("view criteria %q, task criteria %q", view.AcceptanceCriteria, session.AcceptanceCriteria)
+	}
+	if brief := leftOutBrief(session); brief != "\nIssues this task left out. They are not part of this change: do not write tests for them, fix them, or ask for them in review.\n- B (a.go): it does not hold\n- C (c.go): not fixed here; it is open again in Issues for a task of its own\n" {
+		t.Fatalf("brief:\n%s", brief)
+	}
+	// While a step is still to run, or when every issue was fixed, the task
+	// is read as it is.
+	session.Issues[2].Status = IssuePending
+	if fixedIssuesView(session) != session || leftOutBrief(session) != "" {
+		t.Fatal("a task with a step to run was narrowed")
+	}
+	session.Issues[1].Status, session.Issues[2].Status = IssueFixed, IssueFixed
+	if fixedIssuesView(session) != session || leftOutBrief(session) != "" {
+		t.Fatal("a task that fixed every issue was narrowed")
+	}
+	// Fixed issues without criteria of their own keep the task's.
+	session.Issues[0].Criteria, session.Issues[1].Criteria, session.Issues[2] = nil, nil, ChangeIssue{Title: "C", Path: "c.go", Status: IssueNotFixed}
+	if view := fixedIssuesView(session); view != session || leftOutBrief(session) == "" {
+		t.Fatal("a task whose fixed issues have no criteria lost its criteria")
 	}
 }

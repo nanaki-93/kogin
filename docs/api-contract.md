@@ -960,15 +960,20 @@ a fresh coding run that reads only that issue (its title, detail and criteria,
 without the brief that lists them all) and is asked for the fix and a
 regression test, and to end its `finish` with an `outcome`: `fixed`,
 `already_fixed` (an earlier step fixed it), `does_not_hold` or
-`needs_own_task`; the checks then run on the proposal. A step that changed
-nothing settles as its outcome says: `already_fixed` makes the issue `fixed`
+`needs_own_task`; the checks then run on the proposal. A `finish` that changed
+nothing must give `already_fixed`, `does_not_hold` or `needs_own_task`: one
+without an outcome, or with `fixed`, is refused, so the agent says it in the
+same run (a fix that leaves out the outcome is taken as `fixed`). A step whose
+agent gives one of those three settles as it says, and what it edited anyway is
+rolled back with it: `already_fixed` makes the issue `fixed`
 with the latest fixed issue's `commit` and a `reason` saying so (with no
 earlier fixed issue it does not hold: the code before the task had it fixed);
 `does_not_hold` makes it `does_not_hold` with the agent's `reason` and moves its
 target from `finding_targets` to `dismissed_targets`, which stay in progress
 and are dismissed when the task merges. When the checks fail, one more run gets
-the failures; when they still fail, or the agent changed nothing for any other
-outcome, or the run ran past one creation run's time limit, the step is rolled
+the failures; when they still fail, or the agent said `needs_own_task`, or stopped
+without a `finish` and changed nothing, or the run ran past one creation run's
+time limit, the step is rolled
 back: the proposal returns to what it was before the step, the issue becomes
 `not_fixed` with its `reason`, and its finding target is dropped, so the issue
 is open again. A fixed issue becomes a
@@ -988,7 +993,15 @@ dismisses those issues and deletes the task, which holds no change; it answers
 `{deleted, dismissed_issues}` and refuses any other task. Otherwise testing, checks
 and review cover the whole proposal, as for any task, and a repair after them is
 one coding run that reads only the review or check feedback and the issues'
-outcomes. The run's time budget grows by two coding runs and two check passes
+outcomes. These stages read the task as what its steps fixed: the acceptance
+criteria of the fixed issues only (the stored task keeps them all), and the
+issues left out (`does_not_hold`, `not_fixed`), named as not part of the change,
+so no tests, findings or repairs take them up again. A one-shot stage, which
+stores the task it reads, keeps all criteria and gets the same list of left-out
+issues in its request. The check failures a repair reads are those of required
+checks only, each with the lines that say what failed (failing tests, file:line
+messages, panics) before the end of its output, and a note when a Go test binary
+exited before any test reported a failure. The run's time budget grows by two coding runs and two check passes
 per issue. Accepting the task commits the reviewed proposal on top of the last
 fixed issue's commit (no extra commit when it adds nothing to it) and moves the
 branch there, so the branch holds one commit per fixed issue; the private ref is

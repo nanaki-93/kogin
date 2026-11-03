@@ -73,10 +73,10 @@ func harnessProbeRetryDirective(message string, workflow *ChangeWorkflow, checks
 func probeWorkflowFriction(workflow *ChangeWorkflow, checks []CheckResult) string {
 	var directives []string
 	for _, check := range checks {
-		if check.State == CheckPassed || check.State == CheckSkipped {
+		if !check.Required || check.State == CheckPassed || check.State == CheckSkipped {
 			continue
 		}
-		if directive := failedCheckDirective(check); directive != "" {
+		if directive := failedCheckDirective(check); directive != "" && !slices.Contains(directives, directive) {
 			directives = append(directives, directive)
 		}
 	}
@@ -129,10 +129,14 @@ func workflowFailureRetryFeedback(message string, workflow *ChangeWorkflow, chec
 	return ""
 }
 
+// failedWorkflowCheckEvidence is what a repair reads of the checks: the
+// required ones that did not pass, each with what says why. Optional checks,
+// such as the regression baseline of tests the old code cannot build, are
+// not the repair's to fix.
 func failedWorkflowCheckEvidence(checks []CheckResult) string {
 	var text strings.Builder
 	for _, check := range checks {
-		if check.State == CheckPassed || check.State == CheckSkipped {
+		if !check.Required || check.State == CheckPassed || check.State == CheckSkipped {
 			continue
 		}
 		if text.Len() >= 2400 {
@@ -142,8 +146,7 @@ func failedWorkflowCheckEvidence(checks []CheckResult) string {
 		if output == "" {
 			output = check.State
 		}
-		output = textutil.TruncateTail(output, 1500)
-		text.WriteString(check.Name + " (" + check.State + "):\n" + output + "\n")
+		text.WriteString(check.Name + " (" + check.State + "):\n" + checkFailureExcerpt(output, 1500) + "\n")
 	}
 	return strings.TrimSpace(text.String())
 }
@@ -174,19 +177,23 @@ func (s *Service) runWorkflowModelStage(ctx context.Context, job *changeWorkflow
 	}
 	timed, cancel := context.WithTimeoutCause(ctx, limit, &workflowTimeoutError{stage: []string{"Creation", "Testing", "Review"}[stage], limit: limit})
 	defer cancel()
+	// After a task's issue steps, the agents read only what it fixed. The
+	// one-shot stages store the task they are given, so they keep all its
+	// criteria and are told in the request which issues were left out.
+	view := fixedIssuesView(session)
 	var err error
 	switch {
 	case tools && stage == 0:
-		session, err = s.runToolStage(timed, job.root, session, runtime, toolCoder, message)
+		session, err = s.runToolStage(timed, job.root, view, runtime, toolCoder, message)
 	case tools:
-		session, err = s.runToolStage(timed, job.root, session, runtime, toolTester, withTestDispute(session, strings.Replace(workflowTestStageMessage(message), workflowTestPrompt, toolTestPrompt, 1)))
+		session, err = s.runToolStage(timed, job.root, view, runtime, toolTester, withTestDispute(session, strings.Replace(workflowTestStageMessage(message), workflowTestPrompt, toolTestPrompt, 1)))
 	case stage == 0:
 		isRepair := session.Workflow.AutoRepairAttempts > 0 || strings.Contains(message, "Previous check failures to resolve:")
-		session, err = s.generateChangeWithRuntime(timed, job.root, session, ChangeMessageRequest{ChangeIdentity: identityForChange(session), Message: message, Repair: isRepair}, runtime)
+		session, err = s.generateChangeWithRuntime(timed, job.root, session, ChangeMessageRequest{ChangeIdentity: identityForChange(session), Message: message + leftOutBrief(session), Repair: isRepair}, runtime)
 	case stage == 1:
-		session, err = s.generateWorkflowTests(timed, job.root, session, runtime, workflowTestStageMessage(message))
+		session, err = s.generateWorkflowTests(timed, job.root, session, runtime, workflowTestStageMessage(message)+leftOutBrief(session))
 	default:
-		err = s.reviewWorkflowProposal(timed, job, session, runtime)
+		err = s.reviewWorkflowProposal(timed, job, view, runtime)
 	}
 	if timed.Err() != nil {
 		return nil, context.Cause(timed)

@@ -67,6 +67,28 @@ func Failures(output string) []string {
 	return names
 }
 
+// GoUnreportedFailures names the Go packages whose tests failed without any
+// test reporting a failure: the test binary exited (os.Exit, log.Fatal) or
+// crashed while a test ran. A package that did not build is not one.
+func GoUnreportedFailures(output string) []string {
+	var names []string
+	reported := false
+	for _, raw := range strings.Split(ansiPattern.ReplaceAllString(output, ""), "\n") {
+		line := strings.TrimRight(raw, "\r")
+		if goTestFail.MatchString(line) {
+			reported = true
+			continue
+		}
+		if match := goPackageResult.FindStringSubmatch(line); match != nil && strings.Contains(line, "\t") {
+			if match[1] == "FAIL" && !reported && match[3] == "" {
+				names = append(names, match[2])
+			}
+			reported = false
+		}
+	}
+	return names
+}
+
 // NewFailures returns the failures of after that before does not have.
 func NewFailures(before, after []string) []string {
 	known := make(map[string]bool, len(before))

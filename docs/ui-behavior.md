@@ -337,7 +337,8 @@ every guard when the action arrives.
   step's commit), Does not hold (with the agent's reason; merging the task
   dismisses it, and you can reopen it in Issues) or Not fixed (with the
   reason; it is open again in Issues), and accepting the task keeps one commit
-  per fixed issue. Files outside the fix's folders that its agent was allowed
+  per fixed issue. Testing, review and repairs after the steps work only on
+  the fixed issues; the ones left out are not tested or asked for again. Files outside the fix's folders that its agent was allowed
   to change are listed under the stage as **Added to the fix**, each with why.
   Once a task links an issue, the issue leaves **Open** for **In progress**
   (with its count), where **Open task** replaces Fix with agents; it is marked

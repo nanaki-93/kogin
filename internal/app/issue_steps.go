@@ -57,6 +57,14 @@ func nextIssue(session *ChangeSession) int {
 	})
 }
 
+// stepIssue is the index of the issue whose step is running, or -1.
+func stepIssue(session *ChangeSession) int {
+	if !stepsEnabled(session) {
+		return -1
+	}
+	return slices.IndexFunc(session.Issues, func(issue ChangeIssue) bool { return issue.Status == IssueFixing })
+}
+
 // lastIssueCommit is the commit of the latest fixed issue, or "".
 func lastIssueCommit(session *ChangeSession) string {
 	for i := len(session.Issues) - 1; i >= 0; i-- {
