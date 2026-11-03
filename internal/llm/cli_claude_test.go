@@ -190,6 +190,8 @@ func TestAClaudeAgentRunStopsOutsideItsToolServerAndPlan(t *testing.T) {
 		"built-in tool":    {init, `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash"}]},"parent_tool_use_id":null}`},
 		"another server":   {init, `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__github__create_issue"}]},"parent_tool_use_id":null}`},
 		"unlisted tool":    {init, `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__kasuri__shell"}]},"parent_tool_use_id":null}`},
+		"bare unlisted":    {init, `{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"shell"}]},"parent_tool_use_id":null}`},
+		"bare without id":  {init, `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"read_file"}]},"parent_tool_use_id":null}`},
 		"subagent":         {init, `{"type":"assistant","message":{"content":[]},"parent_tool_use_id":"toolu_1"}`},
 		"server not ready": {strings.Replace(init, `"status":"connected"`, `"status":"failed"`, 1)},
 		"api key":          {strings.Replace(init, `"apiKeySource":"none"`, `"apiKeySource":"/login managed key"`, 1)},
@@ -214,6 +216,40 @@ func TestAClaudeAgentRunStopsOutsideItsToolServerAndPlan(t *testing.T) {
 	var limit *PlanLimitError
 	if err := stream.end(errors.New("killed"), ""); !errors.As(err, &limit) || !limit.ResetsAt.Equal(time.Unix(claudeResetEpoch, 0)) {
 		t.Fatalf("a run that stopped at the plan's limit = %v", err)
+	}
+}
+
+func TestAClaudeAgentRunGoesOnAfterCallingItsToolByItsBareName(t *testing.T) {
+	init := strings.Replace(claudeInit, "claude-fixture-model-1", "claude-sonnet-5", 1)
+	bare := func(id string) string {
+		return `{"type":"assistant","message":{"content":[{"type":"tool_use","id":"` + id + `","name":"read_file","input":{"path":"calc.go"}}]},"parent_tool_use_id":null}`
+	}
+	refused := func(id string) string {
+		return `{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"` + id + `","content":"<tool_use_error>Error: No such tool available: read_file</tool_use_error>","is_error":true}]},"parent_tool_use_id":null}`
+	}
+	stream, err := decodeClaudeAgent(t, []string{"read_file", "finish"}, init, bare("t1"), refused("t1"),
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t2","name":"mcp__kasuri__read_file","input":{"path":"calc.go"}}]},"parent_tool_use_id":null}`,
+		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t2","is_error":false}]},"parent_tool_use_id":null}`,
+		`{"type":"result","subtype":"success","is_error":false,"num_turns":3,"result":"Done."}`)
+	if err != nil || stream.end(nil, "") != nil || stream.run.ToolCalls != 2 || stream.run.ToolErrors != 1 || stream.run.Final != "Done." {
+		t.Fatalf("run = %+v, %v", stream.run, err)
+	}
+
+	// A bare name that Claude Code did not refuse ran a tool of its own.
+	_, err = decodeClaudeAgent(t, []string{"read_file"}, init, bare("t1"), `{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","is_error":false}]},"parent_tool_use_id":null}`)
+	if err == nil || !strings.Contains(err.Error(), "ran a tool outside") {
+		t.Fatalf("an unrefused bare call = %v", err)
+	}
+	// A model that keeps using bare names stops after a few refusals.
+	lines := []string{init}
+	for _, id := range []string{"t1", "t2", "t3"} {
+		lines = append(lines, bare(id), refused(id))
+	}
+	if _, err := decodeClaudeAgent(t, []string{"read_file"}, lines...); err != nil {
+		t.Fatalf("three refused bare calls = %v", err)
+	}
+	if _, err := decodeClaudeAgent(t, []string{"read_file"}, append(lines, bare("t4"))...); err == nil || !strings.Contains(err.Error(), "kept calling read_file") {
+		t.Fatalf("a fourth bare call = %v", err)
 	}
 }
 
@@ -248,7 +284,7 @@ func TestAClaudeAgentRunEndToEndThroughTheCLI(t *testing.T) {
 	}
 	var request cliCapture
 	readTestJSON(t, capture, &request)
-	if request.Input != "Add Sub." || request.System != "Be careful." {
+	if request.Input != "Add Sub." || !strings.HasPrefix(request.System, "Be careful.\n\n# Your tools\n") || !strings.Contains(request.System, "(mcp__kasuri__read_file, not read_file)") {
 		t.Fatalf("request = %+v", request)
 	}
 	profile, _ = cliFixture(t, config.ClaudeProvider, "plan-limit")

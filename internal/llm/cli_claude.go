@@ -41,7 +41,7 @@ func prepareClaude(directory string, profile config.ModelProfile, system string)
 }
 
 func prepareClaudeAgent(directory string, profile config.ModelProfile, run AgentRun) (agentLaunch, agentStream, error) {
-	if err := writeCLIFile(directory, "system.txt", run.System); err != nil {
+	if err := writeCLIFile(directory, "system.txt", run.System+claudeToolGuide(run.Tools)); err != nil {
 		return agentLaunch{}, nil, err
 	}
 	servers, err := json.Marshal(map[string]any{"mcpServers": map[string]any{toolServerName: map[string]any{
@@ -59,6 +59,22 @@ func prepareClaudeAgent(directory string, profile config.ModelProfile, run Agent
 	stream := &claudeStream{profile: profile, run: &AgentRunResult{Model: profile.Model}, agent: true, tools: toolSet(run.Tools)}
 	return agentLaunch{args: args, env: env, input: run.Prompt}, stream, nil
 }
+
+// claudeToolPrefix is how Claude Code names the tool server's tools.
+const claudeToolPrefix = "mcp__" + toolServerName + "__"
+
+// claudeToolGuide tells the model the names Claude Code lists its tools
+// under: Kasuri's prompts name them bare, as every CLI shares them.
+func claudeToolGuide(tools []AgentTool) string {
+	if len(tools) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\n\n# Your tools\nYour tools are those of the %q MCP server, listed to you as %s<tool>. Always call them by those full names (%s%s, not %s), also where these instructions name them without the prefix.\n", toolServerName, claudeToolPrefix, claudeToolPrefix, tools[0].Name, tools[0].Name)
+}
+
+// maxMisnamedClaudeCalls is how many calls a run may make to its own tools
+// by their bare names before it stops.
+const maxMisnamedClaudeCalls = 3
 
 // claudeEvent is one line of Claude Code's stream-json output; each type
 // fills its own fields.
@@ -103,8 +119,12 @@ type claudeStream struct {
 	run     *AgentRunResult
 	// agent is set for an agent run: the tool server must be connected, and
 	// the model may call its tools and no others.
-	agent             bool
-	tools             map[string]bool
+	agent bool
+	tools map[string]bool
+	// misnamed holds, by tool_use id, the calls to the run's tools by their
+	// bare names that await Claude Code's refusal; misnamedCalls counts them all.
+	misnamed          map[string]bool
+	misnamedCalls     int
 	started, finished bool
 	// limit is the plan limit Claude Code reported while running.
 	limit   *PlanLimitError
@@ -126,7 +146,7 @@ func (d *claudeStream) event(line []byte) error {
 	case "assistant":
 		return d.assistant(event)
 	case "user":
-		d.toolResults(event.Message)
+		return d.toolResults(event.Message)
 	case "rate_limit_event":
 		if info := event.RateLimit; info != nil && info.Status == "rejected" {
 			d.limit = &PlanLimitError{Provider: config.ClaudeProvider}
@@ -196,6 +216,7 @@ func (d *claudeStream) assistant(event claudeEvent) error {
 		Content []struct {
 			Type string `json:"type"`
 			Text string `json:"text"`
+			ID   string `json:"id"`
 			Name string `json:"name"`
 		} `json:"content"`
 	}
@@ -211,16 +232,38 @@ func (d *claudeStream) assistant(event claudeEvent) error {
 			if !d.agent {
 				return unusableCLIResponse("Claude Code attempted tool use")
 			}
-			if !strings.HasPrefix(block.Name, "mcp__"+toolServerName+"__") || !ownTool(block.Name, d.tools) {
-				return foreignTool("Claude Code", block.Name)
+			if err := d.toolUse(block.ID, block.Name); err != nil {
+				return err
 			}
-			d.run.ToolCalls++
 		}
 	}
 	if strings.TrimSpace(text.String()) != "" {
 		d.run.Final = text.String()
 	}
 	d.assistantError(event.Error, text.String())
+	return nil
+}
+
+// toolUse admits one tool call of an agent run: a call to one of the run's
+// tools by the name Claude Code lists it under, or by its bare name (read_file
+// for mcp__kasuri__read_file). Claude Code has no tool by a bare name, so it
+// answers that call with an error and the model calls the tool again by its
+// full name; toolResults checks that refusal. Any other tool ends the run.
+func (d *claudeStream) toolUse(id, name string) error {
+	if !strings.HasPrefix(name, claudeToolPrefix) || !ownTool(name, d.tools) {
+		if id == "" || !d.tools[name] {
+			return foreignTool("Claude Code", name)
+		}
+		if d.misnamedCalls == maxMisnamedClaudeCalls {
+			return unusableCLIResponse(fmt.Sprintf("Claude Code kept calling %s without its %s prefix", name, claudeToolPrefix))
+		}
+		if d.misnamed == nil {
+			d.misnamed = map[string]bool{}
+		}
+		d.misnamed[id] = true
+		d.misnamedCalls++
+	}
+	d.run.ToolCalls++
 	return nil
 }
 
@@ -239,24 +282,34 @@ func (d *claudeStream) assistantError(kind, text string) {
 	}
 }
 
-// toolResults counts the tool calls that failed. A prompt echo has string
-// content and no results.
-func (d *claudeStream) toolResults(data json.RawMessage) {
+// toolResults counts the tool calls that failed. A call by a bare name must
+// have failed: a result that is not an error means a tool outside the run's
+// ran, and that ends the run. A prompt echo has string content and no results.
+func (d *claudeStream) toolResults(data json.RawMessage) error {
 	var message struct {
 		Content json.RawMessage `json:"content"`
 	}
 	var blocks []struct {
-		Type    string `json:"type"`
-		IsError bool   `json:"is_error"`
+		Type      string `json:"type"`
+		ToolUseID string `json:"tool_use_id"`
+		IsError   bool   `json:"is_error"`
 	}
 	if json.Unmarshal(data, &message) != nil || json.Unmarshal(message.Content, &blocks) != nil {
-		return
+		return nil
 	}
 	for _, block := range blocks {
-		if block.Type == "tool_result" && block.IsError {
+		if block.Type != "tool_result" {
+			continue
+		}
+		if d.misnamed[block.ToolUseID] && !block.IsError {
+			return unusableCLIResponse("Claude Code ran a tool outside Kasuri's tool server")
+		}
+		delete(d.misnamed, block.ToolUseID)
+		if block.IsError {
 			d.run.ToolErrors++
 		}
 	}
+	return nil
 }
 
 func (d *claudeStream) finish(event claudeEvent) error {

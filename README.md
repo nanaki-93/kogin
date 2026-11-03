@@ -163,7 +163,10 @@ checks:
   with a report that maps its change to the acceptance criteria. Each CLI starts
   with its own tools, extensions, skills and context files off, and only
   Kasuri's tool server; a call to any other tool stops the run, and a run that
-  fails before finishing leaves the worktree as the stored proposal. The
+  fails before finishing leaves the worktree as the stored proposal. A Claude
+  model that calls one of Kasuri's tools by its bare name (`read_file` for
+  `mcp__kasuri__read_file`) gets Claude Code's refusal and calls it again by
+  its full name; the run stops at the fourth such call. The
   reviewers read the proposal as a diff.
 - **Subscriptions, not API keys.** Each stage can run on a different
   subscription: Claude Code on your Claude plan, agy on your Google AI plan, pi
