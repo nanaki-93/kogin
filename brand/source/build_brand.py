@@ -1,4 +1,4 @@
-"""Build the Kasuri brand kit: logo SVGs, app icon SVG, color tokens.
+"""Build the Kogin brand kit: logo SVGs, app icon SVG, color tokens.
 
 PNG/ICNS/ICO rendering happens in render_brand.py (needs a browser).
 """
@@ -114,13 +114,13 @@ def svg(view_box, inner, title, w=None, h=None):
 # ---- marks ---------------------------------------------------------------
 for name, pal, label in [("on-dark", DARK, "for dark backgrounds"), ("on-light", LIGHT, "for light backgrounds")]:
     defs, body = mark_defs_and_body(pal["emerald"], pal["violet"], "k")
-    write(f"logo/kasuri-mark-{name}.svg",
-          svg(f"{LO} {LO} {SPAN} {SPAN}", f"<defs>{defs}</defs>\n{body}", f"Kasuri mark, {label}", 256, 256))
+    write(f"logo/kogin-mark-{name}.svg",
+          svg(f"{LO} {LO} {SPAN} {SPAN}", f"<defs>{defs}</defs>\n{body}", f"Kogin mark, {label}", 256, 256))
 
 for name, color in [("white", "#FFFFFF"), ("black", "#160F2B")]:
     defs, body = mark_defs_and_body(color, color, "k")
-    write(f"logo/kasuri-mark-mono-{name}.svg",
-          svg(f"{LO} {LO} {SPAN} {SPAN}", f"<defs>{defs}</defs>\n{body}", f"Kasuri mark, one color ({name})", 256, 256))
+    write(f"logo/kogin-mark-mono-{name}.svg",
+          svg(f"{LO} {LO} {SPAN} {SPAN}", f"<defs>{defs}</defs>\n{body}", f"Kogin mark, one color ({name})", 256, 256))
 
 # ---- lockups and wordmarks ----------------------------------------------
 CAP_PX = 33          # wordmark cap height next to the 72-unit mark (about 0.46x)
@@ -128,19 +128,19 @@ GAP = 18             # space between mark and wordmark
 BASE = 50 + CAP_PX / 2
 for name, pal, label in [("on-dark", DARK, "for dark backgrounds"), ("on-light", LIGHT, "for light backgrounds")]:
     defs, body = mark_defs_and_body(pal["emerald"], pal["violet"], "k")
-    d, xmin, xmax = wordmark_paths("KASURI", CAP_PX, HI + GAP, BASE)
+    d, xmin, xmax = wordmark_paths("KOGIN", CAP_PX, HI + GAP, BASE)
     shift = (HI + GAP) - xmin  # align the K's ink to the gap
-    d, xmin, xmax = wordmark_paths("KASURI", CAP_PX, HI + GAP + shift, BASE)
+    d, xmin, xmax = wordmark_paths("KOGIN", CAP_PX, HI + GAP + shift, BASE)
     width = xmax - LO
-    write(f"logo/kasuri-lockup-{name}.svg",
+    write(f"logo/kogin-lockup-{name}.svg",
           svg(f"{LO} {LO} {width:.2f} {SPAN}",
               f'<defs>{defs}</defs>\n{body}\n<path d="{d}" fill="{pal["text"]}"/>',
-              f"Kasuri logo, {label}", round(width * 4), 256))
+              f"Kogin logo, {label}", round(width * 4), 256))
     # wordmark alone, tight box
-    d2, x0, x1 = wordmark_paths("KASURI", 100, 0, 100)
-    write(f"logo/kasuri-wordmark-{name}.svg",
+    d2, x0, x1 = wordmark_paths("KOGIN", 100, 0, 100)
+    write(f"logo/kogin-wordmark-{name}.svg",
           svg(f"{x0:.2f} 0 {x1 - x0:.2f} 100", f'<path d="{d2}" fill="{pal["text"]}"/>',
-              f"Kasuri wordmark, {label}", round((x1 - x0) * 2), 200))
+              f"Kogin wordmark, {label}", round((x1 - x0) * 2), 200))
 
 # ---- app icon & favicon ---------------------------------------------------
 def tile_icon(gap, mark_px, tile_color, border=True):
@@ -153,9 +153,9 @@ def tile_icon(gap, mark_px, tile_color, border=True):
             f'<rect x="100" y="100" width="824" height="824" rx="186" fill="{tile_color}"/>\n{border_el}\n'
             f'<g transform="translate({t:g} {t:g}) scale({k:g})">\n{body}\n</g>')
 
-write("icon/kasuri-app-icon.svg", svg("0 0 1024 1024", tile_icon(2.5, 520, DARK["tile"]), "Kasuri app icon", 1024, 1024))
+write("icon/kogin-app-icon.svg", svg("0 0 1024 1024", tile_icon(2.5, 520, DARK["tile"]), "Kogin app icon", 1024, 1024))
 # small sizes: thicker gaps so the weave still reads
-write("icon/kasuri-app-icon-small.svg", svg("0 0 1024 1024", tile_icon(4, 580, DARK["tile"]), "Kasuri app icon (small sizes)", 1024, 1024))
+write("icon/kogin-app-icon-small.svg", svg("0 0 1024 1024", tile_icon(4, 580, DARK["tile"]), "Kogin app icon (small sizes)", 1024, 1024))
 
 fk = 26 / SPAN
 defs, body = mark_defs_and_body(DARK["emerald"], DARK["violet"], "k", 4)
@@ -163,12 +163,12 @@ write("icon/favicon.svg",
       svg("0 0 32 32",
           f'<defs>{defs}</defs>\n<rect width="32" height="32" rx="7" fill="{DARK["tile"]}"/>\n'
           f'<g transform="translate({16 - 50 * fk:g} {16 - 50 * fk:g}) scale({fk:g})">\n{body}\n</g>',
-          "Kasuri", 32, 32))
+          "Kogin", 32, 32))
 
 # ---- tokens ----------------------------------------------------------------
 tokens = {
     "brand": {
-        "name": "Kasuri", "kanji": "絣",
+        "name": "Kogin", "kanji": "こぎん",
         "font": {"wordmark": "JetBrains Mono Bold, uppercase, letter-spacing 0.08em", "text": "Inter"},
     },
     "dark": {
@@ -190,27 +190,27 @@ tokens = {
         "violet": "navigation: active page, selection, focus ring, links",
     },
 }
-write("tokens/kasuri.json", json.dumps(tokens, indent=2, ensure_ascii=False))
+write("tokens/kogin.json", json.dumps(tokens, indent=2, ensure_ascii=False))
 
 D, L = tokens["dark"], tokens["light"]
 css = f"""
-/* Kasuri brand tokens — generated with the brand kit (brand/README.md).
-   1) Brand primitives (--kasuri-*), usable anywhere.
+/* Kogin brand tokens — generated with the brand kit (brand/README.md).
+   1) Brand primitives (--kogin-*), usable anywhere.
    2) A drop-in palette for web/src/styles/tokens.css, using the Web UI's own
-      token names: dark palette "kasuri" plus a matching light theme. */
+      token names: dark palette "kogin" plus a matching light theme. */
 
 :root {{
-  --kasuri-midnight: {D['background']};
-  --kasuri-emerald: {D['emerald']};
-  --kasuri-violet: {D['violet']};
-  --kasuri-emerald-deep: {L['emeraldThread']};
-  --kasuri-violet-deep: {L['violet']};
-  --kasuri-action-light: {L['emerald']};
-  --kasuri-paper: {L['sunken']};
+  --kogin-midnight: {D['background']};
+  --kogin-emerald: {D['emerald']};
+  --kogin-violet: {D['violet']};
+  --kogin-emerald-deep: {L['emeraldThread']};
+  --kogin-violet-deep: {L['violet']};
+  --kogin-action-light: {L['emerald']};
+  --kogin-paper: {L['sunken']};
 }}
 
-/* Dark: :root[data-theme='dark'][data-palette='kasuri'] */
-:root[data-theme='dark'][data-palette='kasuri'] {{
+/* Dark: :root[data-theme='dark'][data-palette='kogin'] */
+:root[data-theme='dark'][data-palette='kogin'] {{
   --chrome: {D['chrome']};
   --bg: {D['background']};
   --bg-sunken: {D['sunken']};
@@ -236,8 +236,8 @@ css = f"""
   --focus: 0 0 0 2px var(--bg), 0 0 0 4px rgba(155, 123, 255, 0.6);
 }}
 
-/* Light: :root[data-theme='light'] with the Kasuri brand */
-:root[data-theme='light'][data-brand='kasuri'] {{
+/* Light: :root[data-theme='light'] with the Kogin brand */
+:root[data-theme='light'][data-brand='kogin'] {{
   --chrome: {L['chrome']};
   --bg: {L['background']};
   --bg-sunken: {L['sunken']};
@@ -261,5 +261,5 @@ css = f"""
   --focus: 0 0 0 2px var(--bg), 0 0 0 4px rgba(75, 47, 184, 0.45);
 }}
 """
-write("tokens/kasuri.css", css)
+write("tokens/kogin.css", css)
 print("ok")

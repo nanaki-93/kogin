@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="14 14 72 72" width="256" height="256" role="img" aria-label="Kogin mark, one color (white)">
+<title>Kogin mark, one color (white)</title>
+<defs><mask id="k" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+<rect width="100" height="100" fill="#fff"/>
+<rect x="22" y="19.5" width="12" height="2.5" fill="#000"/>
+<rect x="22" y="34" width="12" height="2.5" fill="#000"/>
+<rect x="41.5" y="22" width="2.5" height="12" fill="#000"/>
+<rect x="56" y="22" width="2.5" height="12" fill="#000"/>
+<rect x="66" y="19.5" width="12" height="2.5" fill="#000"/>
+<rect x="66" y="34" width="12" height="2.5" fill="#000"/>
+<rect x="19.5" y="44" width="2.5" height="12" fill="#000"/>
+<rect x="34" y="44" width="2.5" height="12" fill="#000"/>
+<rect x="44" y="41.5" width="12" height="2.5" fill="#000"/>
+<rect x="44" y="56" width="12" height="2.5" fill="#000"/>
+<rect x="63.5" y="44" width="2.5" height="12" fill="#000"/>
+<rect x="78" y="44" width="2.5" height="12" fill="#000"/>
+<rect x="22" y="63.5" width="12" height="2.5" fill="#000"/>
+<rect x="22" y="78" width="12" height="2.5" fill="#000"/>
+<rect x="41.5" y="66" width="2.5" height="12" fill="#000"/>
+<rect x="56" y="66" width="2.5" height="12" fill="#000"/>
+<rect x="66" y="63.5" width="12" height="2.5" fill="#000"/>
+<rect x="66" y="78" width="12" height="2.5" fill="#000"/>
+</mask></defs>
+<g mask="url(#k)">
+<rect x="14" y="22" width="72" height="12" rx="2" fill="#FFFFFF"/>
+<rect x="14" y="44" width="72" height="12" rx="2" fill="#FFFFFF"/>
+<rect x="14" y="66" width="72" height="12" rx="2" fill="#FFFFFF"/>
+<rect x="22" y="14" width="12" height="72" rx="2" fill="#FFFFFF"/>
+<rect x="44" y="14" width="12" height="72" rx="2" fill="#FFFFFF"/>
+<rect x="66" y="14" width="12" height="72" rx="2" fill="#FFFFFF"/>
+<rect x="21.5" y="22" width="13" height="12" fill="#FFFFFF"/>
+<rect x="65.5" y="22" width="13" height="12" fill="#FFFFFF"/>
+<rect x="43.5" y="44" width="13" height="12" fill="#FFFFFF"/>
+<rect x="21.5" y="66" width="13" height="12" fill="#FFFFFF"/>
+<rect x="65.5" y="66" width="13" height="12" fill="#FFFFFF"/>
+</g>
+</svg>
