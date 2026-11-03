@@ -40,6 +40,10 @@ type CheckResult struct {
 type CheckOptions struct {
 	RunLint  bool `json:"run_lint,omitempty"`
 	RunTests bool `json:"run_tests,omitempty"`
+	// Focused runs only the tests of the packages the change touches, where
+	// the toolchain can (Go), as an issue step's quick check; such checks do
+	// not stand for the project's test suite.
+	Focused bool `json:"focused,omitempty"`
 }
 
 // ChangeTarget captures the pre-edit snapshot of a file in a change session.

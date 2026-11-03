@@ -138,7 +138,7 @@ func (s *Service) attemptIssueStep(ctx context.Context, job *changeWorkflowJob, 
 		if err != nil {
 			return nil, err
 		}
-		checked, err := s.CheckChange(ctx, job.sessionID, ChangeCheckRequest{ChangeIdentity: identityForChange(next), CheckOptions: CheckOptions{RunTests: true, RunLint: true}})
+		checked, err := s.CheckChange(ctx, job.sessionID, ChangeCheckRequest{ChangeIdentity: identityForChange(next), CheckOptions: CheckOptions{RunTests: true, RunLint: true, Focused: true}})
 		if err != nil {
 			return nil, err
 		}

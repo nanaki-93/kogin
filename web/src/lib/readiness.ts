@@ -118,7 +118,8 @@ export function proposalReadiness(session: ChangeSession | null | undefined): Re
   const edits = session.changes ?? [];
   result.filesReviewed = edits.length > 0 && edits.every(edit => isFileReviewed(session, edit.path));
   const checks = session.checks ?? [];
-  result.checksPassed = checks.length > 0 && !session.checks_outdated && checks.every(check => !check.required || check.state === 'passed');
+  // A quick check of the changed packages (an issue step's) does not stand for the project's tests.
+  result.checksPassed = checks.length > 0 && !session.checks_outdated && checks.every(check => (!check.required || check.state === 'passed') && check.outcome !== 'changed_packages');
   const workflowReady = !session.workflow || session.workflow.status === 'awaiting_human_review';
   result.canAccept = result.filesReviewed && result.checksPassed && workflowReady;
   result.approved = Boolean(session.hash) && session.reviewed_hash === session.hash;

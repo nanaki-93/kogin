@@ -59,6 +59,7 @@ func (s *Service) publishChangeChecks(ctx context.Context, id string, request Ch
 	current.Checks, current.ChecksWorkspaceHash, current.UpdatedAt = checks, checked, time.Now().UTC()
 	revokeApproval(current)
 	current.CheckOptions = request.CheckOptions
+	current.CheckOptions.Focused = false // A choice of this check only.
 	if current.Workflow != nil {
 		reconcileWorkflowAfterChecks(current, checks, ctx.Value(changeWorkflowContextKey{}) != nil)
 	}
@@ -66,7 +67,12 @@ func (s *Service) publishChangeChecks(ctx context.Context, id string, request Ch
 	if err := storeChangeSession(root, current); err != nil {
 		return nil, err
 	}
-	s.changeAuthority[current.ProjectID+"/"+id] = "checks:" + current.Hash
+	if checksComplete(checks) {
+		s.changeAuthority[current.ProjectID+"/"+id] = "checks:" + current.Hash
+	} else {
+		// A quick check of the changed packages is no evidence for review.
+		delete(s.changeAuthority, current.ProjectID+"/"+id)
+	}
 	return current, nil
 }
 

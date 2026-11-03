@@ -899,7 +899,10 @@ using fixed argv. New test files are tested against the base and candidate, and 
 passing candidate tests stay pinned through repair. For new Go tests, the
 optional baseline observation reports `outcome: failed_before_change`,
 `already_passes`, or `could_not_execute`. A build failure is not evidence of bug
-reproduction. Existing baseline and candidate tests remain required; the new-test
+reproduction. In a Go module the observation runs `go test` on the packages that
+hold the new tests only, after `go test -run '^$'` shows they build on the old
+code; when they do not (they use what the change adds), it is `could_not_execute`
+and nothing else runs. Existing baseline and candidate tests remain required; the new-test
 observation does not replace them. A failing existing baseline predates the
 proposal, so the workflow stops without automatic repair and says so. The
 workflow's own verification runs tests and lint (`go vet` or the declared check
@@ -1010,7 +1013,14 @@ stores the task it reads, keeps all criteria and gets the same list of left-out
 issues in its request. The check failures a repair reads are those of required
 checks only, each with the lines that say what failed (failing tests, file:line
 messages, panics) before the end of its output, and a note when a Go test binary
-exited before any test reported a failure. The run's time budget grows by two coding runs and two check passes
+exited before any test reported a failure. While an issue step runs, its checks
+(the agent's `run_checks` and the step's own) run only the tests of the Go
+packages the change touches (`go test <packages>`, without the project's test
+command or its flags), where the subproject is a Go module and the change has Go
+code; that tests check passes with `outcome: changed_packages`, and when it does
+not pass the project's test command runs instead, so a failure is the suite's.
+Such checks never count as the task checked: Accept and review need the Checks
+stage, which runs the project's tests. The run's time budget grows by two coding runs and two check passes
 per issue. Accepting the task commits the reviewed proposal on top of the last
 fixed issue's commit (no extra commit when it adds nothing to it) and moves the
 branch there, so the branch holds one commit per fixed issue; the private ref is

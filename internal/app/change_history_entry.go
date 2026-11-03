@@ -64,7 +64,7 @@ func reviewProgress(session *ChangeSession) *gitops.ChangeReviewProgress {
 	switch {
 	case progress.Viewed < progress.Files:
 		progress.Step = gitops.ReviewViewFiles
-	case len(session.Checks) == 0 || !requiredChecksPassed(session.Checks):
+	case len(session.Checks) == 0 || !requiredChecksPassed(session.Checks) || !checksComplete(session.Checks):
 		progress.Step = gitops.ReviewRunChecks
 	default:
 		progress.Step = gitops.ReviewAccept

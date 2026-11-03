@@ -121,6 +121,14 @@ are listed here as they land.
   Low-severity issues in test files are listed under Test quality only, are
   not counted with the open issues, and are not offered in **Fix N together**,
   so fixes that add tests no longer feed a stream of test nitpicks.
+- **Issue steps check faster:** while a task fixes its issues one at a time,
+  each step (and its agent's `run_checks`) runs only the tests of the Go
+  packages the change touches, without the project's test command or flags
+  such as `-race`; the whole suite still runs once at the Checks stage, and
+  only that run lets the task be accepted. A quick check that fails falls back
+  to the project's tests. The before-the-change comparison of new tests runs
+  only their packages, and stops at once when they cannot build on the old
+  code.
 - **A fix can reach the code it calls:** a task that fixes issues no longer
   stops when the fix belongs in code its files import (a fix in
   `cmd/master.go` that needs `internal/utils`). Its coding agent asks for those

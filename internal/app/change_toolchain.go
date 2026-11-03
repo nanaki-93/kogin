@@ -203,38 +203,69 @@ func listNames(names []string) string {
 
 // regressionBaselines runs each affected subproject's tests on the tree
 // before the proposal with only the new test files added: a new test that
-// fails there reproduces what the task fixes or adds.
+// fails there reproduces what the task fixes or adds. In a Go module only
+// the packages that hold the new tests run, once they build: new tests
+// that use what the change adds cannot build on the old code, and then
+// nothing runs.
 func (run *checkRun) regressionBaselines(affected []toolchain.Profile, newTests []ChangeEdit) ([]CheckResult, error) {
-	var relevant []toolchain.Profile
+	dir, err := run.base()
+	if err != nil {
+		return nil, nil
+	}
+	var relevant []baselinePlan
 	known := map[string][]string{}
 	// Every baseline runs before the new tests are added to the base tree.
 	for _, profile := range affected {
 		if len(profile.Test) == 0 || !coversAny(profile, newTests) {
 			continue
 		}
-		relevant = append(relevant, profile)
-		if before, ok := run.baseline(profile, "tests", profile.Test); ok {
+		plan := baselinePlan{profile: profile, command: profile.Test}
+		if command, packages := toolchain.GoPackageTest(dir, profile.Dir, changedPaths(newTests)); command != nil {
+			plan.command, plan.packages = command, packages
+		}
+		relevant = append(relevant, plan)
+		if before, ok := run.baseline(profile, "tests", plan.command); ok {
 			known[profile.Dir] = toolchain.Failures(before.output)
 		}
 	}
 	if len(relevant) == 0 {
 		return nil, nil
 	}
-	dir, err := run.base()
-	if err != nil {
-		return nil, nil
-	}
 	if err := stageChangeEdits(dir, newTests); err != nil {
 		return nil, err
 	}
 	var checks []CheckResult
-	for _, profile := range relevant {
-		known := known[profile.Dir]
-		check, output := run.s.runCheckWithOutput(run.ctx, filepath.Join(dir, filepath.FromSlash(profile.Dir)), run.revision, profileCheckName("regression baseline", profile), false, profile.Test, false, true)
-		classifyRegressionBaseline(&check, func(CheckResult) bool { return newTestsReproduced(known, output) })
-		checks = append(checks, check)
+	for _, plan := range relevant {
+		checks = append(checks, run.regressionBaseline(dir, plan, known[plan.profile.Dir]))
 	}
 	return checks, nil
+}
+
+// baselinePlan is what a subproject's regression baseline runs: its test
+// command, or go test on the packages of the new tests.
+type baselinePlan struct {
+	profile  toolchain.Profile
+	command  []string
+	packages []string
+}
+
+// regressionBaseline runs one subproject's new tests on the old code.
+func (run *checkRun) regressionBaseline(dir string, plan baselinePlan, known []string) CheckResult {
+	workdir := filepath.Join(dir, filepath.FromSlash(plan.profile.Dir))
+	name := profileCheckName("regression baseline", plan.profile)
+	if len(plan.packages) > 0 {
+		build := append([]string{"go", "test", "-run", "^$"}, plan.packages...)
+		if built := run.s.runCheck(run.ctx, workdir, run.revision, name, false, build, false, true); built.State != CheckPassed {
+			if built.State != CheckCanceled {
+				built.State, built.Outcome = CheckUnavailable, "could_not_execute"
+				built.Output = "The new tests do not build on the code before the change (they use what it adds), so they cannot show the problem there.\n\n" + built.Output
+			}
+			return built
+		}
+	}
+	check, output := run.s.runCheckWithOutput(run.ctx, workdir, run.revision, name, false, plan.command, false, true)
+	classifyRegressionBaseline(&check, func(CheckResult) bool { return newTestsReproduced(known, output) })
+	return check
 }
 
 func coversAny(profile toolchain.Profile, edits []ChangeEdit) bool {
@@ -285,10 +316,44 @@ func (run *checkRun) commandChecks(workspace string, affected []toolchain.Profil
 			checks = append(checks, run.compared(workspace, profile, "lint", profile.Lint, toolchain.Diagnostics))
 		}
 		if options.RunTests && len(profile.Test) > 0 {
-			checks = append(checks, run.compared(workspace, profile, "tests", profile.Test, toolchain.Failures))
+			checks = append(checks, run.testCheck(workspace, profile, options.Focused))
 		}
 	}
 	return checks
+}
+
+// outcomeChangedPackages marks a tests check that ran only the packages the
+// change touches: it passed, and the project's test suite still has to run
+// before the change counts as checked.
+const outcomeChangedPackages = "changed_packages"
+
+// testCheck runs a subproject's tests. A focused check runs only the
+// packages the change touches; when that does not pass, the project's own
+// test command runs instead, so a failure is always the suite's.
+func (run *checkRun) testCheck(workspace string, profile toolchain.Profile, focused bool) CheckResult {
+	if focused {
+		if command, packages := toolchain.GoPackageTest(workspace, profile.Dir, changedPaths(run.session.Changes)); command != nil {
+			workdir := filepath.Join(workspace, filepath.FromSlash(profile.Dir))
+			check, _ := run.s.runCheckWithOutput(run.ctx, workdir, run.revision, profileCheckName("tests", profile), true, command, false, true)
+			if check.State == CheckPassed {
+				check.Outcome = outcomeChangedPackages
+				check.Output = fmt.Sprintf("Ran only the tests of the packages this change touches (%s), without the project's test command; the whole suite runs at the Checks stage.\n\n%s", strings.Join(packages, ", "), check.Output)
+				return check
+			}
+		}
+	}
+	return run.compared(workspace, profile, "tests", profile.Test, toolchain.Failures)
+}
+
+// checksComplete reports whether checks stand for the whole project: no
+// tests check ran only the changed packages.
+func checksComplete(checks []CheckResult) bool {
+	for _, check := range checks {
+		if check.Outcome == outcomeChangedPackages {
+			return false
+		}
+	}
+	return true
 }
 
 func anyTestCommand(profiles []toolchain.Profile) bool {

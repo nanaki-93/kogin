@@ -69,7 +69,9 @@ func (run *taskToolRun) runChecks(ctx context.Context, arguments json.RawMessage
 	if len(snapshot.Changes) == 0 {
 		return "Nothing has changed yet; there is nothing to check.", nil
 	}
-	checks, err := run.s.checkToolProposal(ctx, run.root, snapshot)
+	// An issue step checks only the packages it changes; the whole suite runs
+	// at the Checks stage.
+	checks, err := run.s.checkToolProposal(ctx, run.root, snapshot, stepIssue(run.session) >= 0)
 	if err != nil {
 		return "", err
 	}
@@ -79,7 +81,7 @@ func (run *taskToolRun) runChecks(ctx context.Context, arguments json.RawMessage
 // checkToolProposal runs the source checks and the affected subprojects'
 // lint and tests on a copy of the worktree; failures are compared with the
 // task's base commit.
-func (s *Service) checkToolProposal(ctx context.Context, root string, snapshot *ChangeSession) ([]CheckResult, error) {
+func (s *Service) checkToolProposal(ctx context.Context, root string, snapshot *ChangeSession, focused bool) ([]CheckResult, error) {
 	checks, _ := changeSourceChecks(root, snapshot.Targets, snapshot.Changes)
 	workspace, err := os.MkdirTemp("", "kogin-tool-check-")
 	if err != nil {
@@ -100,7 +102,7 @@ func (s *Service) checkToolProposal(ctx context.Context, root string, snapshot *
 	run := &checkRun{s: s, ctx: ctx, root: root, revision: revision, fingerprint: fingerprint, session: snapshot,
 		revert: func(dir string) error { return revertProposalInTree(dir, snapshot) }, baseKey: "worktree base " + snapshot.Worktree.Base}
 	defer run.cleanup()
-	commands, err := s.runProfileChecks(run, workspace, CheckOptions{RunTests: true, RunLint: true})
+	commands, err := s.runProfileChecks(run, workspace, CheckOptions{RunTests: true, RunLint: true, Focused: focused})
 	return append(checks, commands...), err
 }
 
@@ -109,6 +111,9 @@ func describeToolChecks(files int, checks []CheckResult) string {
 	verdict := "All required checks pass."
 	if !requiredChecksPassed(checks) {
 		verdict = "Some required checks fail; fix them before you finish."
+	}
+	if !checksComplete(checks) {
+		verdict += " They ran only the tests of the packages this change touches; the whole suite runs at the Checks stage."
 	}
 	fmt.Fprintf(&out, "Checks on the change as it stands (%d files changed). %s\n", files, verdict)
 	for _, check := range checks {

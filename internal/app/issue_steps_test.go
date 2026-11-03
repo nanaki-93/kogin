@@ -46,6 +46,7 @@ func TestIssuesAreFixedOneAtATimeWithACommitEach(t *testing.T) {
 		{Text: "Add cannot overflow for int inputs here; nothing to change.", Next: true},
 		{Tool: "edit_file", Arguments: map[string]any{"path": "calc.go", "old_text": stepSubSource, "new_text": stepMulSource}},
 		{Tool: "create_file", Arguments: map[string]any{"path": "calc_mul_test.go", "content": stepMulTest}},
+		{Tool: "run_checks", Arguments: map[string]any{}},
 		{Tool: "finish", Arguments: map[string]any{"summary": "Added Mul and its test."}},
 		{Text: "Done."},
 	}
@@ -85,6 +86,14 @@ func TestIssuesAreFixedOneAtATimeWithACommitEach(t *testing.T) {
 		t.Fatalf("the testing agent's prompt:\n%s", tested)
 	}
 	last := fakePiLog(t, flow.dir, "coder")
+	// A step checks only the packages it changes; the Checks stage runs the
+	// project's tests, and only those count.
+	if len(last.Results) < 3 || !strings.Contains(last.Results[2], "- tests: PASSED (changed packages)\n") || !strings.Contains(last.Results[2], "only the tests of the packages this change touches; the whole suite runs at the Checks stage") || !strings.Contains(last.Results[2], "The new tests do not build on the code before the change") {
+		t.Fatalf("the step's run_checks: %q", last.Results)
+	}
+	if !checksComplete(finished.Checks) || !requiredChecksPassed(finished.Checks) {
+		t.Fatalf("the task's checks: %+v", finished.Checks)
+	}
 	if !strings.Contains(last.Prompt, "Task (fix): Mul is missing") || !strings.Contains(last.Prompt, "Fix issue 3 of 3 in calc.go: Mul is missing") || strings.Contains(last.Prompt, "Sub is missing") || !strings.Contains(last.Prompt, "1. Mul is missing is resolved.") {
 		t.Fatalf("the last step's prompt:\n%s", last.Prompt)
 	}

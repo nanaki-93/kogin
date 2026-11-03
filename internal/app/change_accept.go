@@ -44,7 +44,7 @@ func (s *Service) ApplyChange(ctx context.Context, id string, request ChangeAppl
 }
 
 func (s *Service) changeApproved(session *ChangeSession) bool {
-	return (session.Plan == nil || allChangeFilesReviewed(session)) && canHumanReviewProposal(session) && s.changeAuthority[session.ProjectID+"/"+session.ID] == "review:"+session.Hash && session.ReviewedHash == session.Hash && len(session.Checks) > 0 && requiredChecksPassed(session.Checks)
+	return (session.Plan == nil || allChangeFilesReviewed(session)) && canHumanReviewProposal(session) && s.changeAuthority[session.ProjectID+"/"+session.ID] == "review:"+session.Hash && session.ReviewedHash == session.Hash && len(session.Checks) > 0 && requiredChecksPassed(session.Checks) && checksComplete(session.Checks)
 }
 
 // completeFindingTargets records the issues an accepted task fixed as
