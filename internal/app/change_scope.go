@@ -12,8 +12,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/changes"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app/changes"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // A proposal stays fresh while the files it depends on are unchanged; edits
@@ -22,7 +22,7 @@ import (
 // instructions), plus the files recorded here: the other Go files of each
 // target package and of the local packages the targets import (their
 // declarations reach the prompt), and the build manifests in the target
-// directories and their ancestors. Files that .gitignore or .kasuriignore
+// directories and their ancestors. Files that .gitignore or .koginignore
 // exclude are not part of the scope.
 //
 // The whole-tree fingerprint still validates every check copy and binds check

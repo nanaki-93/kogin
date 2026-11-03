@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 const (
-	claudeInit       = `{"type":"system","subtype":"init","apiKeySource":"none","model":"claude-fixture-model-1","tools":[],"mcp_servers":[{"name":"kasuri","status":"connected"}]}`
+	claudeInit       = `{"type":"system","subtype":"init","apiKeySource":"none","model":"claude-fixture-model-1","tools":[],"mcp_servers":[{"name":"kogin","status":"connected"}]}`
 	claudeResetEpoch = 1798761600
 )
 
@@ -43,9 +43,9 @@ func claudeFixtureOutput(mode, content string) string {
 		lines = append(lines, `{"type":"result","subtype":"success","is_error":true,"num_turns":1,"result":"Claude AI usage limit reached|1798761600"}`)
 	case "agent":
 		lines = append(lines,
-			`{"type":"assistant","message":{"content":[{"type":"text","text":"Reading."},{"type":"tool_use","name":"mcp__kasuri__read_file","input":{"path":"calc.go"}}]},"parent_tool_use_id":null}`,
+			`{"type":"assistant","message":{"content":[{"type":"text","text":"Reading."},{"type":"tool_use","name":"mcp__kogin__read_file","input":{"path":"calc.go"}}]},"parent_tool_use_id":null}`,
 			`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","is_error":false}]},"parent_tool_use_id":null}`,
-			`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__kasuri__finish","input":{}}]},"parent_tool_use_id":null}`,
+			`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__kogin__finish","input":{}}]},"parent_tool_use_id":null}`,
 			`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t2","is_error":true}]},"parent_tool_use_id":null}`,
 			`{"type":"assistant","message":{"content":[{"type":"text","text":"Done."}]},"parent_tool_use_id":null}`,
 			`{"type":"result","subtype":"success","is_error":false,"num_turns":3,"result":"Done.","usage":{"input_tokens":100,"cache_creation_input_tokens":1000,"cache_read_input_tokens":4000,"output_tokens":250}}`)
@@ -189,7 +189,7 @@ func TestAClaudeAgentRunStopsOutsideItsToolServerAndPlan(t *testing.T) {
 	for name, lines := range map[string][]string{
 		"built-in tool":    {init, `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash"}]},"parent_tool_use_id":null}`},
 		"another server":   {init, `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__github__create_issue"}]},"parent_tool_use_id":null}`},
-		"unlisted tool":    {init, `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__kasuri__shell"}]},"parent_tool_use_id":null}`},
+		"unlisted tool":    {init, `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__kogin__shell"}]},"parent_tool_use_id":null}`},
 		"bare unlisted":    {init, `{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"shell"}]},"parent_tool_use_id":null}`},
 		"bare without id":  {init, `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"read_file"}]},"parent_tool_use_id":null}`},
 		"subagent":         {init, `{"type":"assistant","message":{"content":[]},"parent_tool_use_id":"toolu_1"}`},
@@ -228,7 +228,7 @@ func TestAClaudeAgentRunGoesOnAfterCallingItsToolByItsBareName(t *testing.T) {
 		return `{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"` + id + `","content":"<tool_use_error>Error: No such tool available: read_file</tool_use_error>","is_error":true}]},"parent_tool_use_id":null}`
 	}
 	stream, err := decodeClaudeAgent(t, []string{"read_file", "finish"}, init, bare("t1"), refused("t1"),
-		`{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t2","name":"mcp__kasuri__read_file","input":{"path":"calc.go"}}]},"parent_tool_use_id":null}`,
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t2","name":"mcp__kogin__read_file","input":{"path":"calc.go"}}]},"parent_tool_use_id":null}`,
 		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t2","is_error":false}]},"parent_tool_use_id":null}`,
 		`{"type":"result","subtype":"success","is_error":false,"num_turns":3,"result":"Done."}`)
 	if err != nil || stream.end(nil, "") != nil || stream.run.ToolCalls != 2 || stream.run.ToolErrors != 1 || stream.run.Final != "Done." {
@@ -260,7 +260,7 @@ func TestClaudeAgentRunsGetOnlyTheRunsToolServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, pair := range [][2]string{{"--mcp-config", filepath.Join(directory, "mcp.json")}, {"--allowedTools", "mcp__kasuri"}, {"--tools", ""}, {"--max-turns", "40"}, {"--permission-mode", "dontAsk"}} {
+	for _, pair := range [][2]string{{"--mcp-config", filepath.Join(directory, "mcp.json")}, {"--allowedTools", "mcp__kogin"}, {"--tools", ""}, {"--max-turns", "40"}, {"--permission-mode", "dontAsk"}} {
 		if index := slices.Index(launch.args, pair[0]); index < 0 || launch.args[index+1] != pair[1] {
 			t.Fatalf("%s is not %q in %q", pair[0], pair[1], launch.args)
 		}
@@ -270,7 +270,7 @@ func TestClaudeAgentRunsGetOnlyTheRunsToolServer(t *testing.T) {
 	}
 	info, err := os.Stat(filepath.Join(directory, "mcp.json"))
 	data, _ := os.ReadFile(filepath.Join(directory, "mcp.json"))
-	if err != nil || info.Mode().Perm() != 0o600 || string(data) != `{"mcpServers":{"kasuri":{"headers":{"Authorization":"Bearer run-token"},"type":"http","url":"http://127.0.0.1:9/mcp"}}}` {
+	if err != nil || info.Mode().Perm() != 0o600 || string(data) != `{"mcpServers":{"kogin":{"headers":{"Authorization":"Bearer run-token"},"type":"http","url":"http://127.0.0.1:9/mcp"}}}` {
 		t.Fatalf("mcp.json = %s (%v)", data, err)
 	}
 }
@@ -284,7 +284,7 @@ func TestAClaudeAgentRunEndToEndThroughTheCLI(t *testing.T) {
 	}
 	var request cliCapture
 	readTestJSON(t, capture, &request)
-	if request.Input != "Add Sub." || !strings.HasPrefix(request.System, "Be careful.\n\n# Your tools\n") || !strings.Contains(request.System, "(mcp__kasuri__read_file, not read_file)") {
+	if request.Input != "Add Sub." || !strings.HasPrefix(request.System, "Be careful.\n\n# Your tools\n") || !strings.Contains(request.System, "(mcp__kogin__read_file, not read_file)") {
 		t.Fatalf("request = %+v", request)
 	}
 	profile, _ = cliFixture(t, config.ClaudeProvider, "plan-limit")
@@ -297,14 +297,14 @@ func TestAClaudeAgentRunEndToEndThroughTheCLI(t *testing.T) {
 func TestToolNamesAreMatchedWithEachCLIsServerPrefix(t *testing.T) {
 	tools := toolSet(testTools("read_file", "finish"))
 	for name, own := range map[string]bool{
-		"mcp__kasuri__read_file": true, "mcp__kasuri__finish": true, "kasuri/read_file": true, "read_file": true,
-		"mcp__kasuri__shell": false, "mcp__github__read_file_x": false, "Bash": false, "kasuri-evil/read_file": false, "": false,
+		"mcp__kogin__read_file": true, "mcp__kogin__finish": true, "kogin/read_file": true, "read_file": true,
+		"mcp__kogin__shell": false, "mcp__github__read_file_x": false, "Bash": false, "kogin-evil/read_file": false, "": false,
 	} {
 		if ownTool(name, tools) != own {
 			t.Fatalf("%q own = %v", name, !own)
 		}
 	}
-	if !ownTool("mcp__kasuri__anything", nil) || ownTool("mcp__github__anything", nil) {
+	if !ownTool("mcp__kogin__anything", nil) || ownTool("mcp__github__anything", nil) {
 		t.Fatal("without a tool list, only the server's prefix decides")
 	}
 }

@@ -72,7 +72,7 @@ test('creates a draft task with a scope and criteria', async ({ page, daemon }) 
   expect(create.body).toMatchObject({ project_id: 'p1', kind: 'feature', title: 'Return 404 for missing assets', acceptance_criteria: ['Missing assets return 404'], confirm_execution: true });
   expect(create.body).not.toHaveProperty('worktree');
   expect(create.body?.paths).toContain('internal/api/handlers/webui.go');
-  await expect(page).toHaveURL(/#\/tasks\/chg-100\?wt=%2Fwork%2Fkasuri%2F.worktrees%2Freturn-404-for-missing-a1b2c3$/);
+  await expect(page).toHaveURL(/#\/tasks\/chg-100\?wt=%2Fwork%2Fkogin%2F.worktrees%2Freturn-404-for-missing-a1b2c3$/);
   await expect(page.getByRole('complementary', { name: 'Review gate' }).getByText('return-404-for-missing-a1b2c3')).toBeVisible();
 });
 
@@ -101,7 +101,7 @@ test('a task in its own worktree does not switch the workspace pages', async ({ 
 
 test('every task gets its own worktree, made from the main checkout', async ({ page, daemon }) => {
   // Shown from a worktree, the composer still creates the task from the main checkout.
-  await page.goto('/#/tasks?wt=%2Fwork%2Fkasuri%2F.kasuri%2Fwt%2Fchg-2');
+  await page.goto('/#/tasks?wt=%2Fwork%2Fkogin%2F.kogin%2Fwt%2Fchg-2');
   await page.keyboard.press('c');
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('checkbox')).toHaveCount(0);
@@ -131,7 +131,7 @@ test('deleting a task removes the worktree created for it', async ({ page, daemo
   await expect(page.getByRole('alertdialog')).toContainText('A worktree left with nothing to merge is removed with its branch.');
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete task' }).click();
   await expect(page.getByText('Task deleted. Its worktree was removed too.')).toBeVisible();
-  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/kasuri/.worktrees/drop-the-unused-helper-a1b2c3', source_branch: 'orca/drop-the-unused-helper-a1b2c3', source_head: '41030b7e' });
+  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/kogin/.worktrees/drop-the-unused-helper-a1b2c3', source_branch: 'orca/drop-the-unused-helper-a1b2c3', source_head: '41030b7e' });
   await expect(page).toHaveURL(/#\/tasks$/);
 });
 
@@ -145,7 +145,7 @@ test('deleting a task offers to discard the worktree still holding its work', as
   await dialog.getByRole('button', { name: 'Save draft' }).click();
   await expect(page).toHaveURL(/wt=/);
   // Its work was committed and the merge into main aborted, and edits are left over.
-  const path = '/work/kasuri/.worktrees/drop-the-unused-helper-a1b2c3';
+  const path = '/work/kogin/.worktrees/drop-the-unused-helper-a1b2c3';
   daemon.patchWorktree(path, { head: 'cc33dd44', integration: 'up_to_date', dirty: true });
 
   await page.getByRole('button', { name: 'Delete task' }).click();
@@ -161,7 +161,7 @@ test('deleting a task offers to discard the worktree still holding its work', as
 });
 
 test('Branches discards a worktree left with no task but work of its own', async ({ page, daemon }) => {
-  daemon.addWorktree({ path: '/work/.kasuri/wt/old', head: 'dd44', branch: 'orca/old-fix', integration: 'up_to_date', mergeable: false, sessions: [] });
+  daemon.addWorktree({ path: '/work/.kogin/wt/old', head: 'dd44', branch: 'orca/old-fix', integration: 'up_to_date', mergeable: false, sessions: [] });
   await page.goto('/#/git');
   await page.getByRole('listitem').filter({ hasText: 'orca/old-fix' }).click();
   const detail = page.getByRole('complementary', { name: 'Worktree' });
@@ -173,11 +173,11 @@ test('Branches discards a worktree left with no task but work of its own', async
   await detail.getByRole('button', { name: 'Discard worktree' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Discard worktree' }).click();
   await expect(page.getByText('Discarded orca/old-fix.')).toBeVisible();
-  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/.kasuri/wt/old', discard_work: true });
+  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/.kogin/wt/old', discard_work: true });
 });
 
 test('Branches discards a mergeable worktree with no task left, as after its merge was aborted', async ({ page, daemon }) => {
-  daemon.addWorktree({ path: '/work/.kasuri/wt/aborted', head: 'ee55', branch: 'orca/fix-unverified-vault', integration: 'behind', mergeable: true, overlap_paths: ['cmd/add.go'], sessions: [] });
+  daemon.addWorktree({ path: '/work/.kogin/wt/aborted', head: 'ee55', branch: 'orca/fix-unverified-vault', integration: 'behind', mergeable: true, overlap_paths: ['cmd/add.go'], sessions: [] });
   await page.goto('/#/git');
   await page.getByRole('listitem').filter({ hasText: 'orca/fix-unverified-vault' }).click();
   const detail = page.getByRole('complementary', { name: 'Worktree' });
@@ -187,7 +187,7 @@ test('Branches discards a mergeable worktree with no task left, as after its mer
   await expect(page.getByRole('alertdialog')).toContainText('Its checkout and its branch are deleted, with the commits main does not have.');
   await page.getByRole('alertdialog').getByRole('button', { name: 'Discard worktree' }).click();
   await expect(page.getByText('Discarded orca/fix-unverified-vault.')).toBeVisible();
-  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/.kasuri/wt/aborted', source_head: 'ee55', source_branch: 'orca/fix-unverified-vault', discard_work: true });
+  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/.kogin/wt/aborted', source_head: 'ee55', source_branch: 'orca/fix-unverified-vault', discard_work: true });
   await expect(page.getByRole('listitem').filter({ hasText: 'orca/fix-unverified-vault' })).toHaveCount(0);
 });
 
@@ -236,20 +236,20 @@ test('a merge keeps or removes the worktree as Branches says, for every merge', 
   await expect(page.getByRole('alertdialog')).toContainText('keeps the worktree and its branch');
   await page.getByRole('alertdialog').getByRole('button', { name: 'Merge' }).click();
   await expect(page.getByText('Merged mo/chg-7.')).toBeVisible();
-  expect(daemon.mutations('/git/merge')[0].body).toMatchObject({ path: '/work/.kasuri/wt/chg-7', keep_worktree: true });
+  expect(daemon.mutations('/git/merge')[0].body).toMatchObject({ path: '/work/.kogin/wt/chg-7', keep_worktree: true });
 
   // The kept worktree has nothing left to merge and can be removed later.
   await page.getByRole('listitem').filter({ hasText: 'mo/chg-7' }).click();
   await detail.getByRole('button', { name: 'Remove worktree' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Remove worktree' }).click();
   await expect(page.getByText('Removed mo/chg-7.')).toBeVisible();
-  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/.kasuri/wt/chg-7', source_branch: 'mo/chg-7' });
+  expect(daemon.mutations('/discard-worktree')[0].body).toMatchObject({ path: '/work/.kogin/wt/chg-7', source_branch: 'mo/chg-7' });
   await expect(page.getByRole('listitem').filter({ hasText: 'mo/chg-7' })).toHaveCount(0);
 });
 
-test('a worktree merged outside Kasuri is cleaned up with its issues marked done', async ({ page, daemon }) => {
+test('a worktree merged outside Kogin is cleaned up with its issues marked done', async ({ page, daemon }) => {
   const applied = { id: 'chg-8', project_id: 'p1', project_revision: 'r1', kind: 'fix', title: 'Escape asset names', revision: 2, hash: 'h8', state: 'applied', freshness: 'current', updated_at: '2026-10-29T00:00:00Z', commit: { state: 'committed', oid: 'cc33' } };
-  daemon.addWorktree({ path: '/work/.kasuri/wt/chg-8', head: 'cc33', branch: 'mo/chg-8', integration: 'merged', mergeable: false, dirty: false, sessions: [applied], completed: [applied] });
+  daemon.addWorktree({ path: '/work/.kogin/wt/chg-8', head: 'cc33', branch: 'mo/chg-8', integration: 'merged', mergeable: false, dirty: false, sessions: [applied], completed: [applied] });
   await page.goto('/#/git');
   await page.getByRole('listitem').filter({ hasText: 'mo/chg-8' }).click();
   const detail = page.getByRole('complementary', { name: 'Worktree' });
@@ -258,7 +258,7 @@ test('a worktree merged outside Kasuri is cleaned up with its issues marked done
   await expect(page.getByRole('alertdialog')).toContainText('Its linked issues are marked done, and the history of its 1 applied task goes with it.');
   await page.getByRole('alertdialog').getByRole('button', { name: 'Remove worktree' }).click();
   await expect(page.getByText('Removed mo/chg-8.')).toBeVisible();
-  expect(daemon.mutations('/cleanup-merged')[0].body).toMatchObject({ path: '/work/.kasuri/wt/chg-8', source_head: 'cc33', source_branch: 'mo/chg-8' });
+  expect(daemon.mutations('/cleanup-merged')[0].body).toMatchObject({ path: '/work/.kogin/wt/chg-8', source_head: 'cc33', source_branch: 'mo/chg-8' });
   expect(daemon.mutations('/discard-worktree')).toHaveLength(0);
 });
 
@@ -298,7 +298,7 @@ test('a merge whose result fails its tests says so and keeps the merge', async (
 
 for (const theme of ['dark', 'light'] as const) {
   test(`every workspace renders in the ${theme} theme`, async ({ page }) => {
-    await page.addInitScript(value => localStorage.setItem('kasuri.prefs.v2', JSON.stringify({ theme: value })), theme);
+    await page.addInitScript(value => localStorage.setItem('kogin.prefs.v2', JSON.stringify({ theme: value })), theme);
     for (const [hash, heading] of [['/#/', 'Inbox'], ['/#/tasks', 'Tasks'], ['/#/issues', 'Issues'], ['/#/git', 'Branches'], ['/#/settings', 'Project']] as const) {
       await page.goto(hash);
       await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
@@ -329,24 +329,24 @@ test('a finished agent run is announced with its spend', async ({ page, daemon }
 
 test('set-aside files are announced, explained with their remedy and deleted', async ({ page, daemon }) => {
   daemon.serveQuarantine({
-    files: [{ kind: 'agent_journal', file: '.kasuri/agents/ab12/journal.json', quarantined_as: '.kasuri/agents/ab12/journal.quarantined-20261027T101500Z.json', reason: 'it is not valid JSON', remedy: 'Kasuri no longer reads the set-aside file. Inspect it if you need its history, then delete it.', at: '2026-10-27T10:15:00Z' }],
-    skipped: [{ kind: 'task', file: '.kasuri/changes/change-9f.json', reason: 'written by a newer Kasuri', remedy: 'Upgrade Kasuri to use it, or move it away.' }],
+    files: [{ kind: 'agent_journal', file: '.kogin/agents/ab12/journal.json', quarantined_as: '.kogin/agents/ab12/journal.quarantined-20261027T101500Z.json', reason: 'it is not valid JSON', remedy: 'Kogin no longer reads the set-aside file. Inspect it if you need its history, then delete it.', at: '2026-10-27T10:15:00Z' }],
+    skipped: [{ kind: 'task', file: '.kogin/changes/change-9f.json', reason: 'written by a newer Kogin', remedy: 'Upgrade Kogin to use it, or move it away.' }],
   });
   await page.goto('/#/');
   await page.getByRole('button', { name: 'Review' }).click();
   await expect(page).toHaveURL(/#\/settings\/project/);
   const list = page.getByRole('region', { name: 'Set-aside files' });
-  await expect(list).toContainText('.kasuri/agents/ab12/journal.json');
-  await expect(list).toContainText('It is not valid JSON. Its bytes are in .kasuri/agents/ab12/journal.quarantined-20261027T101500Z.json.');
-  await expect(list).toContainText('Upgrade Kasuri to use it, or move it away.');
+  await expect(list).toContainText('.kogin/agents/ab12/journal.json');
+  await expect(list).toContainText('It is not valid JSON. Its bytes are in .kogin/agents/ab12/journal.quarantined-20261027T101500Z.json.');
+  await expect(list).toContainText('Upgrade Kogin to use it, or move it away.');
   // Only the set-aside file can be deleted; the skipped newer task needs an upgrade.
   await expect(list.getByRole('button', { name: 'Delete' })).toHaveCount(1);
   await list.getByRole('button', { name: 'Delete' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete file' }).click();
   await expect(page.getByText('Set-aside file deleted.')).toBeVisible();
-  expect(daemon.mutations('/quarantine/delete')[0].body).toMatchObject({ quarantined_as: '.kasuri/agents/ab12/journal.quarantined-20261027T101500Z.json', project_id: expect.any(String), project_revision: expect.any(String) });
+  expect(daemon.mutations('/quarantine/delete')[0].body).toMatchObject({ quarantined_as: '.kogin/agents/ab12/journal.quarantined-20261027T101500Z.json', project_id: expect.any(String), project_revision: expect.any(String) });
   await expect(list).not.toContainText('journal.json');
-  await expect(list).toContainText('.kasuri/changes/change-9f.json');
+  await expect(list).toContainText('.kogin/changes/change-9f.json');
 });
 
 test('agent roles can run with any listed model and a project budget', async ({ page, daemon }) => {

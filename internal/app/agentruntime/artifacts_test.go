@@ -14,8 +14,8 @@ import (
 	"google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
 )
 
 func TestLocalArtifactServiceContract(t *testing.T) {
@@ -97,11 +97,11 @@ func TestCompletionArtifactPersistsEventReferenceAndPolicyMetadata(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	sessions, err := store.Sessions(t.Context(), "kasuri", "local")
+	sessions, err := store.Sessions(t.Context(), agentstate.StateApp, "local")
 	if err != nil || len(sessions) != 1 {
 		t.Fatalf("sessions=%d %v", len(sessions), err)
 	}
-	view, err := (&localSessionService{store: store}).Get(t.Context(), &session.GetRequest{AppName: "kasuri", UserID: "local", SessionID: sessions[0].Key.ID})
+	view, err := (&localSessionService{store: store}).Get(t.Context(), &session.GetRequest{AppName: agentstate.StateApp, UserID: "local", SessionID: sessions[0].Key.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestCompletionArtifactPersistsEventReferenceAndPolicyMetadata(t *testing.T)
 func TestCompletionArtifactWriteFailurePreventsPublication(t *testing.T) {
 	root := t.TempDir()
 	ctx, _, store := persistedContext(t, root)
-	paths, err := filepath.Glob(filepath.Join(root, ".kasuri", "agents", "*", "journal.json"))
+	paths, err := filepath.Glob(filepath.Join(root, ".kogin", "agents", "*", "journal.json"))
 	if err != nil || len(paths) != 1 {
 		t.Fatal("journal missing", err)
 	}
@@ -136,7 +136,7 @@ func TestCompletionArtifactWriteFailurePreventsPublication(t *testing.T) {
 	if result != (Result{}) || !errors.Is(err, agentstate.ErrPersistence) || !errors.Is(context.Cause(ctx), agentstate.ErrPersistence) {
 		t.Fatalf("result=%+v error=%v", result, err)
 	}
-	sessions, err := store.Sessions(t.Context(), "kasuri", "local")
+	sessions, err := store.Sessions(t.Context(), agentstate.StateApp, "local")
 	if err != nil || len(sessions) != 1 || len(sessions[0].Events) != 0 {
 		t.Fatalf("failed artifact became a final event: %+v %v", sessions, err)
 	}

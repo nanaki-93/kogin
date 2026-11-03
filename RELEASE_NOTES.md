@@ -1,37 +1,40 @@
-# Kasuri release notes
+# Kogin release notes
 
-Kasuri was called Mini-Orca until v6; the notes for earlier versions keep that name.
+Kogin was called Mini-Orca until v6 (and Kasuri for part of v6 development); the notes for earlier versions keep the old name.
 
 ## v6.0.0-dev — In development
 
 Version 6 starts from the stable v5.0.0 tag on the `v6` branch. Its changes
 are listed here as they land.
 
-- **Mini-Orca is now Kasuri** (絣, a Japanese weave whose pattern appears only
-  once the threads are woven together). New name, woven logo, app icon and a
-  default **Kasuri** palette (midnight violet; emerald for actions, violet for
+- **Mini-Orca is now Kogin** (こぎん刺し, *kogin-zashi*: geometric patterns
+  stitched on woven cloth by counting its threads one by one). During v6
+  development it was briefly called Kasuri. New name, woven logo, app icon and
+  a default **Kogin** palette (midnight violet; emerald for actions, violet for
   navigation; Midnight stays in Settings → Appearance), and the brand kit in
-  `brand/`. Commands are `kasuri` and `kasuri-daemon`, the app is Kasuri.app
-  (`io.github.nanaki-93.kasuri`, so macOS asks again to allow notifications).
-  What was made under the old name keeps working:
-  - a project's `.mini-orca/` folder moves to `.kasuri/` the first time Kasuri
-    opens the project, and `.mini-orcaignore` is still read next to
-    `.kasuriignore`;
-  - `~/.config/mini-orca/config.yaml` is still found (after
-    `~/.config/kasuri/config.yaml`), and the settings folder in the platform
-    configuration directory moves from `mini-orca` to `kasuri`;
-  - every `MINI_ORCA_*` environment variable still works when its `KASURI_*`
-    name is not set;
-  - Web UI preferences carry over, except the dark palette, which starts on
-    Kasuri.
-  The repository is now `github.com/nanaki-93/kasuri` (the old URL
-  redirects), and the Go module path is `github.com/nanaki-93/kasuri/v2`.
-- **Desktop app (macOS):** `just desktop` builds Kasuri.app into
+  `brand/`. Commands are `kogin` and `kogin-daemon`, the app is Kogin.app
+  (`io.github.nanaki-93.kogin`, so macOS asks again to allow notifications).
+  What was made under the old names keeps working:
+  - a project's `.kasuri/` or `.mini-orca/` folder moves to `.kogin/` the first
+    time Kogin opens the project, and `.kasuriignore` and `.mini-orcaignore` are
+    still read next to `.koginignore`;
+  - `~/.config/kasuri/config.yaml` and `~/.config/mini-orca/config.yaml` are
+    still found (after `~/.config/kogin/config.yaml`), and the settings folder
+    in the platform configuration directory moves from `kasuri` or `mini-orca`
+    to `kogin`;
+  - every `KASURI_*` and `MINI_ORCA_*` environment variable still works when its
+    `KOGIN_*` name is not set;
+  - Web UI preferences carry over; a dark palette saved as Kasuri becomes Kogin,
+    and preferences from Mini-Orca start on the Kogin palette;
+  - `make install-desktop` removes Kasuri.app and Mini-Orca.app.
+  The repository is now `github.com/nanaki-93/kogin` (the old URLs redirect),
+  and the Go module path is `github.com/nanaki-93/kogin/v2`.
+- **Desktop app (macOS):** `just desktop` builds Kogin.app into
   `/Applications`: the Web UI in a window of its own. It reopens the last
   project (or asks for one), starts the daemon beside it with your login
   shell's `PATH`, or uses one that is already running, and stops the daemon it
   started when it quits. File → Open Project… switches projects; the daemon's
-  log is in `~/Library/Logs/Kasuri`. Built with Wails v3 in `desktop/`, a Go
+  log is in `~/Library/Logs/Kogin`. Built with Wails v3 in `desktop/`, a Go
   module of its own. See [DESKTOP.md](DESKTOP.md).
 - **Desktop notifications:** while its window is not in front, the app tells
   you when agents finish a task (ready for review, changes requested, failed,
@@ -54,9 +57,9 @@ are listed here as they land.
   daemon creates no other kind (`POST /api/projects/current/changes` has no
   `worktree` field and refuses a request scoped to a worktree).
 - **Removed: Apply and Undo in the main checkout.** Accepting a task commits it
-  on its branch; Kasuri never writes a proposal into the main checkout, so the
+  on its branch; Kogin never writes a proposal into the main checkout, so the
   Undo button, `POST .../changes/{id}/undo`, `GET .../changes/recovery` and the
-  recovery journal (`.kasuri/changes/last-mutation.json`, which can be deleted)
+  recovery journal (`.kogin/changes/last-mutation.json`, which can be deleted)
   are gone, and Accept takes no `head`/`branch`. Tasks made in the main checkout
   before this open read only and can be deleted.
 - **Simpler composer:** no task kind picker (a new task is a feature; one
@@ -80,7 +83,7 @@ are listed here as they land.
 - **Tasks that touch the same code take turns:** a run that would change code
   another open task is changing waits for it ("Waiting for …", with a link),
   at its start or when a fix asks for such a file. When that task is merged or
-  deleted, the waiting one continues by itself on the updated code: Kasuri
+  deleted, the waiting one continues by itself on the updated code: Kogin
   opens it again in a new worktree, carries over its fixed issues commit by
   commit while they still apply (the agents redo the rest) and starts its
   agents with the same request. After a merge it first waits for checks to be
@@ -121,7 +124,7 @@ are listed here as they land.
 - **A fix can reach the code it calls:** a task that fixes issues no longer
   stops when the fix belongs in code its files import (a fix in
   `cmd/master.go` that needs `internal/utils`). Its coding agent asks for those
-  files, says why, and Kasuri allows them when the task's code imports them:
+  files, says why, and Kogin allows them when the task's code imports them:
   at most two more folders and eight code files in all, never files the
   project's context policy leaves out. The task page lists them as **Added to
   the fix**, with the reason, and the reviewers judge the wider change.
@@ -143,7 +146,7 @@ are listed here as they land.
   (`agy:gemini-4-argon-low`) is no longer offered by its CLI and another must be
   chosen in Settings → Models & agents. It used to say only "project or file
   changed; refresh the proposal", which no refresh could fix.
-- **Kasuri lints with the language's own linter:** the lint check is
+- **Kogin lints with the language's own linter:** the lint check is
   `go vet ./...` for Go, `cargo check --all-targets` for Rust and a
   package.json `lint` or `typecheck` script for Node, no longer a `lint`, `vet`
   or `check` target of the project's justfile, Taskfile or Makefile (nor a
@@ -164,17 +167,17 @@ are listed here as they land.
     leaves unmet; problems the code had before, and improvements beyond the
     task, become notes.
 - **Delete set-aside files:** Settings → Project now has **Delete** on each
-  file Kasuri set aside because it could not read it (an agent journal, task
+  file Kogin set aside because it could not read it (an agent journal, task
   file or saved analysis progress): after a confirmation it deletes the file
   and its record (`POST /api/projects/current/quarantine/delete`), so the Inbox
   notice goes away. Records made before the rename name their `.mini-orca/`
-  paths where the files are now, in `.kasuri/`, with Kasuri's remedy, and a
+  paths where the files are now, in `.kogin/`, with Kogin's remedy, and a
   record whose file was deleted by hand is no longer listed.
 - **Short review findings:** reviewers write each finding and note as a few
   words with the file and a quoted line; the daemon finds the line, and the
   task page shows `master.go:42` as a link to that line in the diff, with the
   reason behind **Why**. Reviews saved with text findings still read.
-- The `kasuri` launcher and the desktop app share `internal/launcher`.
+- The `kogin` launcher and the desktop app share `internal/launcher`.
 
 ## v5.0.0 — Web-first workspace
 

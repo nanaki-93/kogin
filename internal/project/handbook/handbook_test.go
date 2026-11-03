@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/projectmap"
-	"github.com/nanaki-93/kasuri/v2/internal/project/toolchain"
+	"github.com/nanaki-93/kogin/v2/internal/project/projectmap"
+	"github.com/nanaki-93/kogin/v2/internal/project/toolchain"
 )
 
 // mapped is a small project as the project map sees it: a command that

@@ -8,7 +8,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 func exactArtifact(catalog *artifactCatalog, key ArtifactKey, version int64, hash string) (*Artifact, error) {
@@ -38,7 +38,7 @@ func (s *Store) ExportArtifactFile(ctx context.Context, key ArtifactKey, version
 		if err != nil {
 			return err
 		}
-		path, err = storage.MetadataPath(s.root, ".kasuri", "exports", "artifacts", "artifact-"+rand.Text()+".bin")
+		path, err = storage.MetadataPath(s.root, ".kogin", "exports", "artifacts", "artifact-"+rand.Text()+".bin")
 		if err != nil {
 			return err
 		}

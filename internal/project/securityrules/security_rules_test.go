@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/symbols"
+	"github.com/nanaki-93/kogin/v2/internal/project/symbols"
 )
 
 func TestGoSecurityRulesMatchesOnlyExactSourcePatterns(t *testing.T) {

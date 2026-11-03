@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func assertKnowledgeHistory(t *testing.T, s *Service, root, kind, projectID, revision string) {
@@ -72,7 +72,7 @@ func TestKnowledgeImportRejectsChangedSourceAndPolicyBeforePublication(t *testin
 			server := changeProvider(t, func() string {
 				path, content := "main.go", "package main\nfunc Changed() {}\n"
 				if change == "policy" {
-					path, content = ".kasuriignore", "main.go\n"
+					path, content = ".koginignore", "main.go\n"
 				}
 				if err := os.WriteFile(filepath.Join(root, path), []byte(content), 0600); err != nil {
 					t.Error(err)
@@ -84,7 +84,7 @@ func TestKnowledgeImportRejectsChangedSourceAndPolicyBeforePublication(t *testin
 			if result != nil || !errors.Is(err, project.ErrRevisionConflict) {
 				t.Fatalf("stale import published: %+v %v", result, err)
 			}
-			if _, err := os.Stat(filepath.Join(root, ".kasuri", "project-analysis.json")); !os.IsNotExist(err) {
+			if _, err := os.Stat(filepath.Join(root, ".kogin", "project-analysis.json")); !os.IsNotExist(err) {
 				t.Fatalf("stale report persisted: %v", err)
 			}
 		})
@@ -99,7 +99,7 @@ func TestKnowledgeImportJournalFailurePreservesPriorReport(t *testing.T) {
 	var fail atomic.Bool
 	server := changeProvider(t, func() string {
 		if fail.Load() {
-			journal := filepath.Join(root, ".kasuri", "agents")
+			journal := filepath.Join(root, ".kogin", "agents")
 			if err := os.Rename(journal, filepath.Join(root, "journal-backup")); err != nil {
 				t.Error(err)
 			}
@@ -113,7 +113,7 @@ func TestKnowledgeImportJournalFailurePreservesPriorReport(t *testing.T) {
 	if _, err := s.ImportProject(t.Context(), root, true); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(root, ".kasuri", "project-analysis.json")
+	path := filepath.Join(root, ".kogin", "project-analysis.json")
 	before, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

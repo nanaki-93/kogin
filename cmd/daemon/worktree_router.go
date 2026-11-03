@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // Cache recent checkouts with a bounded cap. Registration and scope are still

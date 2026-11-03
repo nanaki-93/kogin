@@ -102,7 +102,7 @@ export class FakeDaemon {
     // dev server cannot, so the test writes it once the document is parsed.
     await page.addInitScript(token => {
       document.addEventListener('DOMContentLoaded', () => {
-        document.querySelector<HTMLMetaElement>('meta[name="kasuri-write-token"]')?.setAttribute('content', token);
+        document.querySelector<HTMLMetaElement>('meta[name="kogin-write-token"]')?.setAttribute('content', token);
       });
     }, WRITE_TOKEN);
   }
@@ -323,10 +323,10 @@ export class FakeDaemon {
       const frames = this.pending.map(event => `event: update\ndata: ${JSON.stringify(event)}\n\n`).join('');
       return route.fulfill({ status: 200, contentType: 'text/event-stream', body: ': connected\n\n' + frames });
     }
-    if (request.headers()['x-kasuri-web-ui'] !== '1') {
+    if (request.headers()['x-kogin-web-ui'] !== '1') {
       return json(route, 403, { user_message: 'Missing the Web UI request marker.' });
     }
-    if (method !== 'GET' && request.headers()['x-kasuri-token'] !== WRITE_TOKEN) {
+    if (method !== 'GET' && request.headers()['x-kogin-token'] !== WRITE_TOKEN) {
       return json(route, 401, { user_message: 'Reload the Web UI to get this daemon\'s write token.' });
     }
     try {
@@ -452,7 +452,7 @@ export class FakeDaemon {
     if ('head' in body || 'branch' in body) throw new Error('json: unknown field "head"');
     const updated = this.update(id, body, s => {
       if (s.reviewed_hash !== s.hash) throw new Error('Approve this version first.');
-      if (!s.worktree) throw new Error('This task was made in the main checkout, which Kasuri no longer changes.');
+      if (!s.worktree) throw new Error('This task was made in the main checkout, which Kogin no longer changes.');
       return { ...s, state: 'applied', commit: { state: 'committed', oid: 'c0ffee12', message: String(body.commit_message || s.title) } };
     });
     return { ...data.project, session_id: updated.id, state: 'applied', hash: updated.hash, warnings: [], commit: updated.commit };

@@ -1,3 +1,3 @@
-module example.com/kasuri-release-fixture
+module example.com/kogin-release-fixture
 
 go 1.22

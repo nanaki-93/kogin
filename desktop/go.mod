@@ -1,9 +1,9 @@
-module github.com/nanaki-93/kasuri/v2/desktop
+module github.com/nanaki-93/kogin/v2/desktop
 
 go 1.27.3
 
 require (
-	github.com/nanaki-93/kasuri/v2 v2.0.0-00010101000000-000000000000
+	github.com/nanaki-93/kogin/v2 v2.0.0-00010101000000-000000000000
 	github.com/wailsapp/wails/v3 v3.1.0
 )
 
@@ -18,4 +18,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/nanaki-93/kasuri/v2 => ../
+replace github.com/nanaki-93/kogin/v2 => ../

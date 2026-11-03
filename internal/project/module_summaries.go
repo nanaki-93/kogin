@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 // ModuleSummaryPromptVersion names the prompt that writes module summaries.
@@ -35,7 +35,7 @@ type ModuleSummaries struct {
 // unreadable file, or one from another project, reads as none.
 func LoadModuleSummaries(root, projectID string) (ModuleSummaries, error) {
 	empty := ModuleSummaries{SchemaVersion: moduleSummariesSchemaVersion, ProjectID: projectID, Entries: map[string]ModuleSummaryRecord{}}
-	path, err := storage.MetadataPath(root, ".kasuri", "module-summaries.json")
+	path, err := storage.MetadataPath(root, ".kogin", "module-summaries.json")
 	if err != nil {
 		return empty, fmt.Errorf("read module summaries: %w", err)
 	}
@@ -59,7 +59,7 @@ func LoadModuleSummaries(root, projectID string) (ModuleSummaries, error) {
 // StoreModuleSummaries atomically replaces the stored module summaries.
 func StoreModuleSummaries(root string, summaries ModuleSummaries) error {
 	summaries.SchemaVersion = moduleSummariesSchemaVersion
-	path, err := storage.MetadataPath(root, ".kasuri", "module-summaries.json")
+	path, err := storage.MetadataPath(root, ".kogin", "module-summaries.json")
 	if err != nil {
 		return fmt.Errorf("store module summaries: %w", err)
 	}

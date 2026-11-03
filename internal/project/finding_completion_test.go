@@ -130,7 +130,7 @@ func TestFindingCompletionFailurePreservesStoredData(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := os.MkdirAll(filepath.Join(root, ".kasuri"), 0700); err != nil {
+			if err := os.MkdirAll(filepath.Join(root, ".kogin"), 0700); err != nil {
 				t.Fatal(err)
 			}
 			file := filepath.Join(root, findingStorePath)

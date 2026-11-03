@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 const validSecurityReview = `{"findings":[{"rule":"go.input.validation","category":"input-validation","title":"Input reaches an operation","source_anchor":{"path":"main.go","start_line":5,"end_line":5},"severity":"medium","confidence":"low","evidence_kind":"model_suspicion","observed_condition":"The operation uses input without an observed validation boundary.","preconditions_or_unknowns":"Attacker control and reachability are unknown.","remediation":"Validate untrusted input at the boundary.","verification_idea":"Use a safe unit test with a representative invalid value."}]}`
@@ -50,7 +50,7 @@ func TestSecurityAIStagePinsPromptFocusAndReturnsSanitizedReport(t *testing.T) {
 	if !strings.Contains(prompt, "untrusted data") || !strings.Contains(prompt, "func Run") || strings.Contains(prompt, "helper secret") {
 		t.Fatalf("security prompt lost its fixed boundary: %s", prompt)
 	}
-	data, err := os.ReadFile(filepath.Join(root, ".kasuri", "security", "files", securityCacheEntry(t, root)))
+	data, err := os.ReadFile(filepath.Join(root, ".kogin", "security", "files", securityCacheEntry(t, root)))
 	if err != nil || strings.Contains(string(data), "provider-secret") || strings.Contains(string(data), "func Run") {
 		t.Fatalf("persisted report was not source-free/redacted: %v %s", err, data)
 	}
@@ -172,7 +172,7 @@ func TestSecurityAIStageRollsBackCanceledOrStalePublication(t *testing.T) {
 		{name: "canceled", change: func(_ *Service, _ string, cancel context.CancelFunc) { cancel() }, want: context.Canceled, status: AnalysisStageCanceled},
 		// The file left the analysis scope: the stage skips it without an error.
 		{name: "policy", change: func(_ *Service, root string, _ context.CancelFunc) {
-			_ = os.WriteFile(filepath.Join(root, ".kasuriignore"), []byte("main.go\n"), 0644)
+			_ = os.WriteFile(filepath.Join(root, ".koginignore"), []byte("main.go\n"), 0644)
 		}, want: nil, status: AnalysisStageSkipped},
 		{name: "provider", change: func(service *Service, _ string, _ context.CancelFunc) {
 			service.conf().runtimes.analyze.effective.ProviderOrigin = "https://changed.example"
@@ -264,7 +264,7 @@ func securityReviewRequestFor(t *testing.T, service *Service, _ string) Security
 
 func securityCacheEntry(t *testing.T, root string) string {
 	t.Helper()
-	entries, err := os.ReadDir(filepath.Join(root, ".kasuri", "security", "files"))
+	entries, err := os.ReadDir(filepath.Join(root, ".kogin", "security", "files"))
 	if err != nil || len(entries) != 1 {
 		t.Fatalf("security cache entries = %v, %v", entries, err)
 	}
@@ -273,7 +273,7 @@ func securityCacheEntry(t *testing.T, root string) string {
 
 func assertNoSecurityReport(t *testing.T, root string) {
 	t.Helper()
-	entries, err := os.ReadDir(filepath.Join(root, ".kasuri", "security", "files"))
+	entries, err := os.ReadDir(filepath.Join(root, ".kogin", "security", "files"))
 	if os.IsNotExist(err) {
 		return
 	}

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // acceptWorktreeChange accepts a task in its own worktree: the reviewed
@@ -65,7 +65,7 @@ func commitWorktreeProposal(ctx context.Context, root string, session *ChangeSes
 		}
 		oid = strings.TrimSpace(created)
 	}
-	if _, err := gitRead(ctx, root, "update-ref", "-m", "kasuri: "+strings.Split(message, "\n")[0], "refs/heads/"+session.Worktree.Branch, oid, base); err != nil {
+	if _, err := gitRead(ctx, root, "update-ref", "-m", "kogin: "+strings.Split(message, "\n")[0], "refs/heads/"+session.Worktree.Branch, oid, base); err != nil {
 		return "", "", fmt.Errorf("%w: the task branch moved while it was accepted: %v", project.ErrRevisionConflict, err)
 	}
 	dropIssueStepsRef(ctx, root, session)

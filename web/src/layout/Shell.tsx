@@ -78,7 +78,7 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
       <aside className="sidebar" aria-label="Primary">
         <div className="sidebar-brand">
           <BrandMark size={18} />
-          <span className="sidebar-brand-name sidebar-label">KASURI</span>
+          <span className="sidebar-brand-name sidebar-label">KOGIN</span>
         </div>
         <ProjectSwitcher collapsed={collapsed} />
         <button type="button" className="sidebar-new" onClick={() => openNewTask()} aria-label="New task">
@@ -121,7 +121,7 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
 
 function ProjectSwitcher({ collapsed }: { collapsed: boolean }) {
   const project = useMainProject().data;
-  const name = project?.name || (project?.path ? basename(project.path) : 'Kasuri');
+  const name = project?.name || (project?.path ? basename(project.path) : 'Kogin');
   return (
     <button type="button" className="project-switcher" onClick={() => navigate('/settings/project')} title={project?.path}>
       <span className="project-mark" aria-hidden>

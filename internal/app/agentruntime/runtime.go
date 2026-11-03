@@ -15,8 +15,8 @@ import (
 	"google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
 )
 
 // Request is an admitted completion. The caller owns retries and scope checks.
@@ -88,7 +88,7 @@ func completionProviderBinding(client CompletionClient) string {
 }
 
 func runCompletion(ctx context.Context, completion agent.Agent, request Request, client CompletionClient) (result Result, runErr error) {
-	const appName, userID = "kasuri", "local"
+	const appName, userID = agentstate.StateApp, "local"
 	invocation, err := createCompletionSession(ctx, request, completionProviderBinding(client))
 	if err != nil {
 		return Result{}, err

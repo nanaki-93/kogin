@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
 )
 
 const revisedChange = `{"explanation":"Return three.","changes":[{"path":"new.go","content":"package main\nfunc Helper() int { return 3 }\n"}]}`

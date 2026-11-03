@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/insight"
+	"github.com/nanaki-93/kogin/v2/internal/project/insight"
 )
 
 const (
-	findingStorePath   = ".kasuri/findings.json"
+	findingStorePath   = ".kogin/findings.json"
 	findingStoreSchema = "1"
 
 	FindingSourceAI     = "ai"

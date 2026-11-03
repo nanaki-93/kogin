@@ -18,9 +18,9 @@ import (
 	"google.golang.org/adk/v2/session/sessiontestsuite"
 	"google.golang.org/genai"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
 )
 
 func TestLocalSessionConformance(t *testing.T) {
@@ -142,14 +142,14 @@ func TestDurableCompletionAndBudgetSurviveReopen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	list, err := reopened.Sessions(t.Context(), "kasuri", "local")
+	list, err := reopened.Sessions(t.Context(), agentstate.StateApp, "local")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(list) != 1 || len(list[0].Events) != 1 || budget.Snapshot().ModelCalls != 1 {
 		t.Fatalf("sessions=%d usage=%+v", len(list), budget.Snapshot())
 	}
-	paths, err := filepath.Glob(filepath.Join(root, ".kasuri", "agents", "*", "journal.json"))
+	paths, err := filepath.Glob(filepath.Join(root, ".kogin", "agents", "*", "journal.json"))
 	if err != nil || len(paths) != 1 {
 		t.Fatal("missing durable budget journal", err)
 	}
@@ -189,10 +189,10 @@ func TestDurableCompletionAndBudgetSurviveReopen(t *testing.T) {
 func TestDurableReservationFailurePreventsProviderDispatch(t *testing.T) {
 	root := t.TempDir()
 	ctx, budget, _ := persistedContext(t, root)
-	if err := os.Rename(filepath.Join(root, ".kasuri", "agents"), filepath.Join(root, "saved-agents")); err != nil {
+	if err := os.Rename(filepath.Join(root, ".kogin", "agents"), filepath.Join(root, "saved-agents")); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".kasuri", "agents"), []byte("blocked"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".kogin", "agents"), []byte("blocked"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	var calls atomic.Int32
@@ -212,10 +212,10 @@ func TestDurableEventWriteFailureDoesNotPublishResult(t *testing.T) {
 	root := t.TempDir()
 	ctx, _, _ := persistedContext(t, root)
 	client := completionFixture(func(context.Context, []llm.ChatMessage, *llm.JSONSchema) (*llm.ChatResponse, error) {
-		if err := os.Rename(filepath.Join(root, ".kasuri", "agents"), filepath.Join(root, "saved-agents")); err != nil {
+		if err := os.Rename(filepath.Join(root, ".kogin", "agents"), filepath.Join(root, "saved-agents")); err != nil {
 			return nil, err
 		}
-		if err := os.WriteFile(filepath.Join(root, ".kasuri", "agents"), []byte("blocked"), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(root, ".kogin", "agents"), []byte("blocked"), 0600); err != nil {
 			return nil, err
 		}
 		return fixtureResponse("must not publish"), nil

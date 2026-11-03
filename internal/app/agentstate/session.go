@@ -210,3 +210,12 @@ func (s *Store) AppendEvent(ctx context.Context, key Key, event Event, delta Sta
 	})
 	return result, err
 }
+
+// StateApp is the app name agent sessions and runs are stored under. It is
+// "kasuri", from before the rename to Kogin, so sessions, paused runs and
+// journals saved then keep working; it is a storage key, never shown.
+const StateApp = "kasuri"
+
+// ChangesApp is the app name tasks' evidence artifacts are stored under,
+// kept from before the rename to Kogin for the same reason as StateApp.
+const ChangesApp = "kasuri-changes"

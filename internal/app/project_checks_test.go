@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // newTrustedService opens a project with files and lets checks run its code.
@@ -55,7 +55,7 @@ func writeFixtureFiles(t *testing.T, root string, files map[string]string) {
 
 var checkedProject = map[string]string{
 	"go.mod":    "module example.com/fixture\n\ngo 1.22\n",
-	"AGENTS.md": "```kasuri\nbudgets:\n  file_lines: 12\n```\n",
+	"AGENTS.md": "```kogin\nbudgets:\n  file_lines: 12\n```\n",
 	"store.go":  "package fixture\n\nimport \"fmt\"\n\nfunc Save(id int) string {\n\treturn fmt.Sprint(id + 1)\n\tpanic(\"unreachable\")\n}\n",
 	"store_test.go": "package fixture\n\nimport \"testing\"\n\nfunc TestSave(t *testing.T) {\n\tif Save(1) != \"1\" {\n" +
 		"\t\tt.Fatal(\"saved the wrong id\")\n\t}\n}\n",
@@ -221,7 +221,7 @@ func TestStoredChecksAreValidated(t *testing.T) {
 func TestAnalysisRunRunsTheChecksBeforeTheDocs(t *testing.T) {
 	server, _ := analysisResponseServer(t, emptyAnalysisReply)
 	s, root := newSemanticAnalysisService(t, server.URL, 0)
-	writeFixtureFiles(t, root, map[string]string{"AGENTS.md": "```kasuri\nbudgets:\n  file_lines: 3\n```\n"})
+	writeFixtureFiles(t, root, map[string]string{"AGENTS.md": "```kogin\nbudgets:\n  file_lines: 3\n```\n"})
 	if _, err := s.Reindex(); err != nil {
 		t.Fatal(err)
 	}

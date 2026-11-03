@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
 )
 
 func TestKnowledgeGraphPersistsStartAndTruthfulOutcome(t *testing.T) {
@@ -19,7 +19,7 @@ func TestKnowledgeGraphPersistsStartAndTruthfulOutcome(t *testing.T) {
 				calls := 0
 				result, err := RunKnowledgeGraph(ctx, kind, func(ctx context.Context) (string, error) {
 					calls++
-					sessions, err := store.Sessions(ctx, "kasuri", "local")
+					sessions, err := store.Sessions(ctx, agentstate.StateApp, "local")
 					if err != nil || len(sessions) != 1 || len(sessions[0].Events) != 1 {
 						return "", fmt.Errorf("host ran before its durable start: %v", err)
 					}
@@ -107,7 +107,7 @@ func TestKnowledgeGraphPersistenceFailureIsNotSuccess(t *testing.T) {
 	root := t.TempDir()
 	ctx, _, _ := persistedContext(t, root)
 	result, err := RunKnowledgeGraph(ctx, KnowledgeOverview, func(context.Context) (string, error) {
-		journal := filepath.Join(root, ".kasuri", "agents")
+		journal := filepath.Join(root, ".kogin", "agents")
 		if err := os.Rename(journal, filepath.Join(root, "saved")); err != nil {
 			return "", err
 		}

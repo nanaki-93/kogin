@@ -8,10 +8,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/archgate"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
-	"github.com/nanaki-93/kasuri/v2/internal/project/toolchain"
+	"github.com/nanaki-93/kogin/v2/internal/app/archgate"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project/rules"
+	"github.com/nanaki-93/kogin/v2/internal/project/toolchain"
 )
 
 // projectProfiles finds how each subproject under root is tested and linted.
@@ -80,7 +80,7 @@ func (run *checkRun) base() (string, error) {
 	if run.baseDir != "" || run.baseErr != nil {
 		return run.baseDir, run.baseErr
 	}
-	dir, err := os.MkdirTemp("", "kasuri-change-base-")
+	dir, err := os.MkdirTemp("", "kogin-change-base-")
 	if err != nil {
 		run.baseErr = err
 		return "", err
@@ -188,7 +188,7 @@ func (run *checkRun) compared(workspace string, profile toolchain.Profile, kind 
 		after.Output = fmt.Sprintf("New failures: %s. Already failing before this change: %s.\n\n%s", listNames(added), listNames(known), after.Output)
 	default:
 		after.Outcome = "also_failed_before"
-		after.Output = "This also failed before the change, and Kasuri could not tell which failures are new, so it still blocks. Fix or skip the failing checks, or declare a narrower command in AGENTS.md.\n\n" + after.Output
+		after.Output = "This also failed before the change, and Kogin could not tell which failures are new, so it still blocks. Fix or skip the failing checks, or declare a narrower command in AGENTS.md.\n\n" + after.Output
 	}
 	return after
 }

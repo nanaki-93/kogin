@@ -10,7 +10,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
 )
 
 func TestCheckedChangeGraphPersistsOnlyIdentityAndRequiresLiveHandoffEvidence(t *testing.T) {
@@ -31,7 +32,7 @@ func TestCheckedChangeGraphPersistsOnlyIdentityAndRequiresLiveHandoffEvidence(t 
 	if err != nil {
 		t.Fatal(err)
 	}
-	records, err := store.Sessions(t.Context(), "kasuri", "local")
+	records, err := store.Sessions(t.Context(), agentstate.StateApp, "local")
 	if err != nil {
 		t.Fatal(err)
 	}

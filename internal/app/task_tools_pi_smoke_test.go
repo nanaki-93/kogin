@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/toolserver"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/app/toolserver"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
 )
 
 // scriptedModel is an OpenAI-compatible endpoint that answers pi's requests
@@ -51,7 +51,7 @@ func (m *scriptedModel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.mu.Unlock()
 	delta := map[string]any{"role": "assistant", "content": "Done."}
 	finish := "stop"
-	if call := [][2]string{{"mcp__kasuri__read_file", `{"path":"notes.txt"}`}, {"mcp__kasuri__finish", `{"summary":"Read the notes."}`}}; turn < len(call) {
+	if call := [][2]string{{"mcp__kogin__read_file", `{"path":"notes.txt"}`}, {"mcp__kogin__finish", `{"summary":"Read the notes."}`}}; turn < len(call) {
 		delta = map[string]any{"role": "assistant", "tool_calls": []any{map[string]any{"index": 0, "id": fmt.Sprintf("call_%d", turn), "type": "function", "function": map[string]any{"name": call[turn][0], "arguments": call[turn][1]}}}}
 		finish = "tool_calls"
 	}
@@ -72,14 +72,14 @@ func (m *scriptedModel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "data: [DONE]\n\n")
 }
 
-// TestRealPiReachesOnlyKasurisTools runs the pi installed on this machine
+// TestRealPiReachesOnlyKoginsTools runs the pi installed on this machine
 // against a scripted local model, with its own empty configuration, so it
-// costs no plan usage. It needs pi and runs only with KASURI_PI_SMOKE=1:
+// costs no plan usage. It needs pi and runs only with KOGIN_PI_SMOKE=1:
 //
-//	KASURI_PI_SMOKE=1 go test ./internal/app -run TestRealPi -v
-func TestRealPiReachesOnlyKasurisTools(t *testing.T) {
-	if os.Getenv("KASURI_PI_SMOKE") != "1" {
-		t.Skip("set KASURI_PI_SMOKE=1 to run the installed pi against a scripted local model")
+//	KOGIN_PI_SMOKE=1 go test ./internal/app -run TestRealPi -v
+func TestRealPiReachesOnlyKoginsTools(t *testing.T) {
+	if os.Getenv("KOGIN_PI_SMOKE") != "1" {
+		t.Skip("set KOGIN_PI_SMOKE=1 to run the installed pi against a scripted local model")
 	}
 	model := &scriptedModel{}
 	endpoint := httptest.NewServer(model)
@@ -110,7 +110,7 @@ func TestRealPiReachesOnlyKasurisTools(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
-	cli := os.Getenv("KASURI_PI_SMOKE_CLI")
+	cli := os.Getenv("KOGIN_PI_SMOKE_CLI")
 	if cli == "" {
 		cli = "pi"
 	}
@@ -130,8 +130,8 @@ func TestRealPiReachesOnlyKasurisTools(t *testing.T) {
 	model.mu.Lock()
 	defer model.mu.Unlock()
 	for _, declared := range model.declared {
-		if !slices.Equal(declared, []string{"mcp__kasuri__finish", "mcp__kasuri__read_file"}) {
-			t.Fatalf("pi declared %v to the model; only Kasuri's tools may reach it", declared)
+		if !slices.Equal(declared, []string{"mcp__kogin__finish", "mcp__kogin__read_file"}) {
+			t.Fatalf("pi declared %v to the model; only Kogin's tools may reach it", declared)
 		}
 	}
 }

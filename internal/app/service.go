@@ -13,15 +13,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/app/changes"
-	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
-	"github.com/nanaki-93/kasuri/v2/internal/brand"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/app/changes"
+	"github.com/nanaki-93/kogin/v2/internal/app/gitops"
+	"github.com/nanaki-93/kogin/v2/internal/brand"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 // EffectiveModel is the non-secret metadata for one configured generation scope.
@@ -194,10 +194,10 @@ func (s *Service) ImportProject(ctx context.Context, root string, confirmRemote 
 	return analysis, project.StoreProjectAnalysisReport(analysis.Path, analysis.Report)
 }
 
-// migrateLegacyMetadata moves the project's data from .mini-orca, its folder
-// before the rename to Kasuri, to .kasuri. When it moves it, Git is told
-// locally to ignore .kasuri as it may have ignored .mini-orca; a project that
-// is not a Git repository is fine.
+// migrateLegacyMetadata moves the project's data from .kasuri or .mini-orca,
+// its folder before the rename to Kogin, to .kogin. When it moves it, Git is
+// told locally to ignore .kogin as it may have ignored the old folder; a
+// project that is not a Git repository is fine.
 func migrateLegacyMetadata(ctx context.Context, root string) error {
 	moved, err := storage.MigrateLegacyMetadata(root)
 	if err != nil || !moved {

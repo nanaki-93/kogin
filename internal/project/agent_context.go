@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/textutil"
+	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
 
 // AgentScope is an admitted source span, never a grant to edit a file.

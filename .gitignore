@@ -20,13 +20,16 @@ profile.cov
 # Dependency directories (remove the comment below to include it)
 # vendor/
 build/
+/kogin
+/kogin-daemon
+# The same binaries under Kogin's earlier names (Kasuri, Mini-Orca).
 /kasuri
 /kasuri-daemon
-# The same binaries from before the rename to Kasuri.
 /mini-orca
 /mini-orca-daemon
 # A plain go build in the desktop module.
 /desktop/desktop
+/desktop/kogin-desktop
 /desktop/kasuri-desktop
 /desktop/mini-orca-desktop
 
@@ -45,6 +48,7 @@ config.yaml
 # .vscode/
 
 # Local agent-dispatch runs, leases, schemas, worktrees, and Python cache.
+.kogin/autopilot/
 .kasuri/autopilot/
 .mini-orca/autopilot/
 __pycache__/

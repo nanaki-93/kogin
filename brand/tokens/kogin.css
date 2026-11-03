@@ -1,20 +1,20 @@
-/* Kasuri brand tokens — generated with the brand kit (brand/README.md).
-   1) Brand primitives (--kasuri-*), usable anywhere.
+/* Kogin brand tokens — generated with the brand kit (brand/README.md).
+   1) Brand primitives (--kogin-*), usable anywhere.
    2) A drop-in palette for web/src/styles/tokens.css, using the Web UI's own
-      token names: dark palette "kasuri" plus a matching light theme. */
+      token names: dark palette "kogin" plus a matching light theme. */
 
 :root {
-  --kasuri-midnight: #160F2B;
-  --kasuri-emerald: #34D399;
-  --kasuri-violet: #9B7BFF;
-  --kasuri-emerald-deep: #14955C;
-  --kasuri-violet-deep: #4B2FB8;
-  --kasuri-action-light: #0F7A4B;
-  --kasuri-paper: #F7F5FC;
+  --kogin-midnight: #160F2B;
+  --kogin-emerald: #34D399;
+  --kogin-violet: #9B7BFF;
+  --kogin-emerald-deep: #14955C;
+  --kogin-violet-deep: #4B2FB8;
+  --kogin-action-light: #0F7A4B;
+  --kogin-paper: #F7F5FC;
 }
 
-/* Dark: :root[data-theme='dark'][data-palette='kasuri'] */
-:root[data-theme='dark'][data-palette='kasuri'] {
+/* Dark: :root[data-theme='dark'][data-palette='kogin'] */
+:root[data-theme='dark'][data-palette='kogin'] {
   --chrome: #120C24;
   --bg: #160F2B;
   --bg-sunken: #130D26;
@@ -40,8 +40,8 @@
   --focus: 0 0 0 2px var(--bg), 0 0 0 4px rgba(155, 123, 255, 0.6);
 }
 
-/* Light: :root[data-theme='light'] with the Kasuri brand */
-:root[data-theme='light'][data-brand='kasuri'] {
+/* Light: :root[data-theme='light'] with the Kogin brand */
+:root[data-theme='light'][data-brand='kogin'] {
   --chrome: #EFECF6;
   --bg: #FFFFFF;
   --bg-sunken: #F7F5FC;

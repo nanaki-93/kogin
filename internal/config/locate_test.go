@@ -11,8 +11,8 @@ func TestFindSearchesTheUserThenTheInstallNotTheProject(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "xdg"))
 	t.Setenv(ConfigEnv, "")
-	link := filepath.Join(t.TempDir(), "kasuri-daemon")
-	binary := filepath.Join(install, "kasuri-daemon")
+	link := filepath.Join(t.TempDir(), "kogin-daemon")
+	binary := filepath.Join(install, "kogin-daemon")
 	write := func(path string) string {
 		t.Helper()
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
@@ -38,7 +38,7 @@ func TestFindSearchesTheUserThenTheInstallNotTheProject(t *testing.T) {
 	if got, want := Find(link), installed; !sameFile(t, got, want) {
 		t.Fatalf("installed config: %q", got)
 	}
-	user := write(filepath.Join(home, ".config", "kasuri", "config.yaml"))
+	user := write(filepath.Join(home, ".config", "kogin", "config.yaml"))
 	if got := Find(link); got != user {
 		t.Fatalf("user config: %q", got)
 	}
@@ -69,7 +69,7 @@ func TestLoadConfigRecordsItsSourceAndRefusesAMissingExplicitFile(t *testing.T) 
 	}
 	t.Setenv(ConfigEnv, filepath.Join(dir, "missing.yaml"))
 	if _, err := LoadConfig(); err == nil {
-		t.Fatal("a missing KASURI_CONFIG fell back to defaults")
+		t.Fatal("a missing KOGIN_CONFIG fell back to defaults")
 	}
 }
 
@@ -92,9 +92,13 @@ func TestFindReadsTheMiniOrcaConfigFromBeforeTheRename(t *testing.T) {
 	if got := Find(""); got != legacy {
 		t.Fatalf("legacy user config: %q", got)
 	}
-	current := write(filepath.Join(home, ".config", "kasuri", "config.yaml"))
+	kasuri := write(filepath.Join(home, ".config", "kasuri", "config.yaml"))
+	if got := Find(""); got != kasuri {
+		t.Fatalf("the Kasuri config comes before Mini-Orca's: %q", got)
+	}
+	current := write(filepath.Join(home, ".config", "kogin", "config.yaml"))
 	if got := Find(""); got != current {
-		t.Fatalf("the Kasuri config comes first: %q", got)
+		t.Fatalf("the Kogin config comes first: %q", got)
 	}
 	os.Unsetenv(ConfigEnv)
 	explicit := filepath.Join(home, "old-explicit.yaml")

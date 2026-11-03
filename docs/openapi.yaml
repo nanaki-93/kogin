@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Kasuri local daemon API
+  title: Kogin local daemon API
   version: 6.0.0-dev
   description: |
-    Local REST API used by the Kasuri Web UI. The daemon is the LLM
+    Local REST API used by the Kogin Web UI. The daemon is the LLM
     boundary. Shared conversations capture up to eight Go/Markdown paths, produce
     checked proposals and require diff review and explicit Apply. Legacy one-file
     declaration APIs remain compatible. Source and diff views are read-only.
@@ -547,7 +547,7 @@ paths:
         '409': {$ref: '#/components/responses/Error'}
     post:
       tags: [Projects]
-      description: Write the project's .kasuri/config.yaml (0600, kept out of Git) and apply it without a restart. Refused with 409 while work runs.
+      description: Write the project's .kogin/config.yaml (0600, kept out of Git) and apply it without a restart. Refused with 409 while work runs.
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProjectSetupRequest'}}}}
       responses:
         '200': {description: The saved setup, content: {application/json: {schema: {$ref: '#/components/schemas/ProjectSetup'}}}}
@@ -556,7 +556,7 @@ paths:
   /api/projects/current/setup/timeouts:
     post:
       tags: [Projects]
-      description: Write only the time limits to the project's .kasuri/config.yaml and apply them without a restart; agent overrides are kept. Refused with 409 while work runs.
+      description: Write only the time limits to the project's .kogin/config.yaml and apply them without a restart; agent overrides are kept. Refused with 409 while work runs.
       requestBody:
         required: true
         content:
@@ -676,7 +676,7 @@ paths:
     post:
       tags: [Projects]
       summary: Ask the codebase a question
-      description: 'The Review role''s model runs as an agent (Claude Code, Agy or Pi) with read-only tools over the checkout, starting from the docs, and ends with an answer and citations. Kasuri checks each citation: the file is readable under the context policy, the lines exist and contain the quote (white space aside). Synchronous, at most five minutes; nothing is written or kept. A CLI model is remote and needs confirm_remote_provider.'
+      description: 'The Review role''s model runs as an agent (Claude Code, Agy or Pi) with read-only tools over the checkout, starting from the docs, and ends with an answer and citations. Kogin checks each citation: the file is readable under the context policy, the lines exist and contain the quote (white space aside). Synchronous, at most five minutes; nothing is written or kept. A CLI model is remote and needs confirm_remote_provider.'
       requestBody:
         required: true
         content:
@@ -829,7 +829,7 @@ paths:
     post:
       tags: [Projects]
       summary: Delete a set-aside file and its record
-      description: Deletes a file listed in `files` of the quarantine report (a task file, analysis progress or agent journal Kasuri set aside), named by its `quarantined_as`, and drops its record. A file already gone only loses its record. Skipped records of a newer Kasuri and files that were not set aside are never deleted.
+      description: Deletes a file listed in `files` of the quarantine report (a task file, analysis progress or agent journal Kogin set aside), named by its `quarantined_as`, and drops its record. A file already gone only loses its record. Skipped records of a newer Kogin and files that were not set aside are never deleted.
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/QuarantineDeleteRequest'}}}}
       responses:
         '200': {description: The records left, content: {application/json: {schema: {$ref: '#/components/schemas/QuarantineReport'}}}}
@@ -1395,7 +1395,7 @@ components:
             properties:
               text: {type: string}
               path: {type: string, description: A file the project has.}
-              symbol: {type: string, description: "The function, method or type the step happens in, only when Kasuri found its declaration in the file."}
+              symbol: {type: string, description: "The function, method or type the step happens in, only when Kogin found its declaration in the file."}
               line: {type: integer, description: The line of that declaration.}
     DocsComponentFiles:
       type: object
@@ -1663,7 +1663,7 @@ components:
         severity: {type: string}
         title: {type: string, description: Short content-specific name; older reports may omit it.}
         summary: {type: string}
-        start_line: {type: integer, minimum: 1, description: 'Where the risk is: the line of the source the model copied as its anchor, found by Kasuri. Absent when it copied none that is in the file.'}
+        start_line: {type: integer, minimum: 1, description: 'Where the risk is: the line of the source the model copied as its anchor, found by Kogin. Absent when it copied none that is in the file.'}
         end_line: {type: integer, minimum: 1}
         task_spec: {$ref: '#/components/schemas/BugTaskSpec'}
         engineering_insight: {$ref: '#/components/schemas/EngineeringInsight'}
@@ -2091,7 +2091,7 @@ components:
         project_id: {type: string}
         project_revision: {type: string}
         question: {type: string}
-        answer: {type: string, maxLength: 12000, description: Model-written; the citations are what Kasuri checked.}
+        answer: {type: string, maxLength: 12000, description: Model-written; the citations are what Kogin checked.}
         citations: {type: array, minItems: 1, maxItems: 16, items: {$ref: '#/components/schemas/AskCitation'}}
         model: {type: string}
         turns: {type: integer, minimum: 0}
@@ -2192,7 +2192,7 @@ components:
       properties:
         kind: {type: string, enum: [agent_journal, task, analysis_run]}
         file: {type: string, description: The record, relative to the checkout.}
-        quarantined_as: {type: string, description: Where its bytes were moved; absent for skipped newer records. Records made before the rename to Kasuri name .kasuri, where their .mini-orca folder moved.}
+        quarantined_as: {type: string, description: Where its bytes were moved; absent for skipped newer records. Records made before the rename to Kogin name .kogin, where their .mini-orca folder moved.}
         reason: {type: string}
         remedy: {type: string}
         at: {type: string, format: date-time}
@@ -2615,7 +2615,7 @@ components:
             resumes_at: {type: string, format: date-time, description: When the plan's limit resets, when the CLI said so}
         waiting:
           type: object
-          description: Set while the run waits for another open task (in another worktree, not merged yet) that changes its code. When that task is merged or deleted, Kasuri opens this task again on the updated main checkout, carries over its fixed issues commit by commit until one no longer applies, removes the old task and its worktree and starts the agents with the waiting run's request.
+          description: Set while the run waits for another open task (in another worktree, not merged yet) that changes its code. When that task is merged or deleted, Kogin opens this task again on the updated main checkout, carries over its fixed issues commit by commit until one no longer applies, removes the old task and its worktree and starts the agents with the waiting run's request.
           required: [task_id, title, worktree_path, files]
           properties:
             task_id: {type: string}
@@ -2906,7 +2906,7 @@ components:
                       path: {type: string}
                       current: {type: boolean}
                       locked: {type: boolean}
-                      lock_reason: {type: string, description: "Kasuri locks a task's worktree while agents run there; a lock it left behind is released when this list is read."}
+                      lock_reason: {type: string, description: "Kogin locks a task's worktree while agents run there; a lock it left behind is released when this list is read."}
                       prunable: {type: boolean}
                       dirty: {type: boolean, description: Omitted when status cannot be read}
                       mergeable: {type: boolean, description: Clean local branches with shared history and incoming commits; excludes current or locked or prunable worktrees and in-progress Git operations. Does not predict conflicts.}

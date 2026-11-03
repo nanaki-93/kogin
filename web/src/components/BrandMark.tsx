@@ -1,4 +1,4 @@
-// The Kasuri mark: a 3×3 weave, emerald threads across and violet threads
+// The Kogin mark: a 3×3 weave, emerald threads across and violet threads
 // down, passing over and under each other like a checkerboard. The gaps are
 // cut out with a mask, so the mark sits on any surface. Source: brand/logo.
 
@@ -9,7 +9,7 @@ const LINES = [22, 44, 66];
 const CROSSINGS = LINES.flatMap((y, row) => LINES.map((x, column) => ({ x, y, across: (row + column) % 2 === 0 })));
 
 export function BrandMark({ size = 20, className }: { size?: number; className?: string }) {
-  const mask = `kasuri-mark-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const mask = `kogin-mark-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   // Below 32 px the gaps widen so the weave still reads.
   const gap = size < 32 ? 4 : 2.5;
   return (

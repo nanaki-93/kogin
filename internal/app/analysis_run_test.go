@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func TestAnalysisRunStagesShareAgentBudget(t *testing.T) {
@@ -32,10 +32,10 @@ func TestAnalysisJournalAdmissionFailureLeavesInterruptedRun(t *testing.T) {
 	server, calls := analysisResponseServer(t, emptyAnalysisReply)
 	s, root := newSemanticAnalysisService(t, server.URL, 0)
 	preview := analysisRunPreviewFor(t, s, AnalysisRunLimits{100, 30, 2}, nil)
-	if err := os.MkdirAll(filepath.Join(root, ".kasuri"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, ".kogin"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".kasuri", "agents"), []byte("unavailable journal directory"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".kogin", "agents"), []byte("unavailable journal directory"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	run, err := s.StartAnalysisRun(context.Background(), analysisStartFor(preview))
@@ -59,7 +59,7 @@ func TestAnalysisRunCapturesActualInventoryBeyond500AndRejectsChangedPreview(t *
 			t.Fatal(err)
 		}
 	}
-	for name, source := range map[string]string{"excluded.go": "package main", "large.go": strings.Repeat("x", maxSemanticAnalysisBytes+1), ".kasuriignore": "excluded.go\n"} {
+	for name, source := range map[string]string{"excluded.go": "package main", "large.go": strings.Repeat("x", maxSemanticAnalysisBytes+1), ".koginignore": "excluded.go\n"} {
 		if err := os.WriteFile(filepath.Join(root, name), []byte(source), 0600); err != nil {
 			t.Fatal(err)
 		}

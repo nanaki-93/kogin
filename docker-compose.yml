@@ -1,10 +1,10 @@
 services:
-  kasuri:
+  kogin:
     build:
       context: .
       dockerfile: Dockerfile
-    image: kasuri:latest
-    container_name: kasuri
+    image: kogin:latest
+    container_name: kogin
     restart: unless-stopped
     ports:
       - "127.0.0.1:9090:9090"
@@ -13,8 +13,8 @@ services:
       - ./projects:/app/projects:rw
       - ./logs:/app/logs:rw
     environment:
-      - KASURI_CONFIG=/app/config.yaml
-      - KASURI_BIND_ADDRESS=0.0.0.0:9090
+      - KOGIN_CONFIG=/app/config.yaml
+      - KOGIN_BIND_ADDRESS=0.0.0.0:9090
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/health"]
       interval: 30s
@@ -22,7 +22,7 @@ services:
       retries: 3
       start_period: 5s
     networks:
-      - kasuri-network
+      - kogin-network
     deploy:
       resources:
         limits:
@@ -41,7 +41,7 @@ services:
     volumes:
       - lm-studio-data:/root/.cache/lm-studio
     networks:
-      - kasuri-network
+      - kogin-network
     profiles:
       - with-llm
 
@@ -49,5 +49,5 @@ volumes:
   lm-studio-data:
 
 networks:
-  kasuri-network:
+  kogin-network:
     driver: bridge

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/api"
-	"github.com/nanaki-93/kasuri/v2/internal/app"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/api"
+	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 type ProjectHandler struct {
@@ -118,7 +118,7 @@ func (h *ProjectHandler) RefreshDocs(w http.ResponseWriter, r *http.Request) {
 }
 
 // Ask answers a question about the code with the Review role's agent and
-// lines Kasuri checked; nothing is written.
+// lines Kogin checked; nothing is written.
 func (h *ProjectHandler) Ask(w http.ResponseWriter, r *http.Request) {
 	var request app.AskRequest
 	if !decodeStrictJSON(w, r, &request, "invalid question", "Provide the current project identity and a question.") {
@@ -260,7 +260,7 @@ func writeProjectError(w http.ResponseWriter, action string, err error) {
 	case errors.Is(err, app.ErrAnalysisProgressUnavailable):
 		api.WriteAppError(w, api.Internal(action, "Analysis progress could not be saved. Read the retained overview, then resume or cancel explicitly.", err))
 	case errors.Is(err, app.ErrNewerAnalysisRun):
-		api.WriteAppError(w, api.Conflict(action, "A newer Kasuri saved this project's analysis progress. Upgrade Kasuri to continue it, or move .kasuri/analysis/run.json away.", err))
+		api.WriteAppError(w, api.Conflict(action, "A newer Kogin saved this project's analysis progress. Upgrade Kogin to continue it, or move .kogin/analysis/run.json away.", err))
 	case errors.Is(err, app.ErrIssueSelection):
 		api.WriteAppError(w, api.BadRequest(action, "Choose up to five open issues of one file to fix together.", err))
 	case errors.Is(err, app.ErrUnknownDocsComponent):

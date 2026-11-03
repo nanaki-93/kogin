@@ -15,7 +15,7 @@ import (
 	"google.golang.org/adk/v2/platform"
 	"google.golang.org/adk/v2/session"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
 )
 
 type localSessionService struct{ store *agentstate.Store }

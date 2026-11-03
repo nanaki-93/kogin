@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // AnalysisDocsPlan is a run's last step: the docs' component summaries,

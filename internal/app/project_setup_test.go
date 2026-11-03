@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func setupIdentityOf(t *testing.T, s *Service) (string, string) {
@@ -36,7 +36,7 @@ func TestProjectSetupIsOfferedThenSavedAndAppliedLive(t *testing.T) {
 	if err != nil || setup.State != SetupNeeded || setup.Models["bug"].Model != "analysis-model" || !setup.Models["analyze"].APIKeySet || setup.Models["analyze"].APIKey != "" {
 		t.Fatalf("first setup: %+v %v", setup, err)
 	}
-	if !strings.HasSuffix(setup.ConfigFile, filepath.Join(".kasuri", "config.yaml")) || setup.Roles.Creation != "bug" || setup.Limits.ModelCalls == 0 {
+	if !strings.HasSuffix(setup.ConfigFile, filepath.Join(".kogin", "config.yaml")) || setup.Roles.Creation != "bug" || setup.Limits.ModelCalls == 0 {
 		t.Fatalf("setup defaults: %+v", setup)
 	}
 
@@ -56,7 +56,7 @@ func TestProjectSetupIsOfferedThenSavedAndAppliedLive(t *testing.T) {
 	if s.CurrentModelCatalog().ConfigFile != saved.ConfigFile {
 		t.Fatalf("catalog source: %q", s.CurrentModelCatalog().ConfigFile)
 	}
-	data, err := os.ReadFile(filepath.Join(root, ".kasuri", "config.yaml"))
+	data, err := os.ReadFile(filepath.Join(root, ".kogin", "config.yaml"))
 	if err != nil || !strings.Contains(string(data), "api_key: daemon-key") {
 		t.Fatalf("the daemon's key must carry over when left empty: %s %v", data, err)
 	}
@@ -93,7 +93,7 @@ func TestProjectSetupCanBeSkippedAndReportsAnInvalidFile(t *testing.T) {
 	if err != nil || skipped.State != SetupSkipped {
 		t.Fatalf("skip: %+v %v", skipped, err)
 	}
-	path := filepath.Join(root, ".kasuri", "config.yaml")
+	path := filepath.Join(root, ".kogin", "config.yaml")
 	if err := os.WriteFile(path, []byte("logging:\n  level: debug\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +248,7 @@ func TestProjectTimeoutsAreSavedFromTheAppAndAppliedLive(t *testing.T) {
 	if s.conf().analysisTimeout != 15*time.Minute || s.conf().runtimes.bug.effective.Timeout != "15m0s" {
 		t.Fatalf("the time limit was not applied: %v %s", s.conf().analysisTimeout, s.conf().runtimes.bug.effective.Timeout)
 	}
-	data, err := os.ReadFile(filepath.Join(root, ".kasuri", "config.yaml"))
+	data, err := os.ReadFile(filepath.Join(root, ".kogin", "config.yaml"))
 	if err != nil || !strings.Contains(string(data), "analysis_seconds: 900") || strings.Contains(string(data), "model_scopes") {
 		t.Fatalf("only the time limits are written: %s %v", data, err)
 	}

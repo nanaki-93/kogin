@@ -3,10 +3,10 @@ package handbook
 import (
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/insight"
-	"github.com/nanaki-93/kasuri/v2/internal/project/projectmap"
-	"github.com/nanaki-93/kasuri/v2/internal/project/symbols"
-	"github.com/nanaki-93/kasuri/v2/internal/project/toolchain"
+	"github.com/nanaki-93/kogin/v2/internal/project/insight"
+	"github.com/nanaki-93/kogin/v2/internal/project/projectmap"
+	"github.com/nanaki-93/kogin/v2/internal/project/symbols"
+	"github.com/nanaki-93/kogin/v2/internal/project/toolchain"
 )
 
 const (
@@ -69,7 +69,7 @@ type Walkthrough struct {
 
 // WalkthroughStep is one step of a walkthrough. Symbol is the function,
 // method or type the step happens in, and Line its declaration, both only
-// when Kasuri found that declaration in the file.
+// when Kogin found that declaration in the file.
 type WalkthroughStep struct {
 	Text   string `json:"text"`
 	Path   string `json:"path"`

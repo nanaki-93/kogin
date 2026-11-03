@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 func TestCLIAgyStructuredRequestDoesNotDependOnFinishTool(t *testing.T) {
@@ -66,8 +66,8 @@ func TestCLIAgyRejectsIncorrectAgentsAndToolUse(t *testing.T) {
 	profile := config.ModelProfile{Provider: config.AgyProvider, Model: "fixture-model"}
 	valid := cliFixtureOutput(config.AgyProvider, "success")
 	for name, output := range map[string]string{
-		"missing agent": strings.Replace(valid, `"agent":"kasuri"`, `"agent":""`, 1),
-		"wrong agent":   strings.Replace(valid, `"agent":"kasuri"`, `"agent":"default"`, 1),
+		"missing agent": strings.Replace(valid, `"agent":"kogin"`, `"agent":""`, 1),
+		"wrong agent":   strings.Replace(valid, `"agent":"kogin"`, `"agent":"default"`, 1),
 		"tool":          cliFixtureOutput(config.AgyProvider, "tool"),
 		"subagent":      strings.Replace(cliFixtureOutput(config.AgyProvider, "tool"), `"step_type":"tool"`, `"step_type":"subagent"`, 1),
 	} {

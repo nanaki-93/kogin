@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
 )
 
 func analysisGraphFixture() AnalysisGraphInput {
@@ -28,7 +28,7 @@ func TestAnalysisGraphPersistsOrderedStagesAndTruthfulOutcomes(t *testing.T) {
 	statuses := []string{"completed_empty", "partial", "completed", "failed"}
 	var order []AnalysisWork
 	result, err := RunAnalysisGraph(ctx, input, func(ctx context.Context, work AnalysisWork) (AnalysisOutcome, error) {
-		records, err := store.Sessions(ctx, "kasuri", "local")
+		records, err := store.Sessions(ctx, agentstate.StateApp, "local")
 		if err != nil || len(records) != 1 || len(records[0].Events) != 2*len(order)+1 {
 			return AnalysisOutcome{}, fmt.Errorf("analysis dispatched without its durable start: %v", err)
 		}
@@ -179,7 +179,7 @@ func TestAnalysisGraphJournalFailureStopsBeforeNextStage(t *testing.T) {
 	calls := 0
 	_, err := RunAnalysisGraph(ctx, analysisGraphFixture(), func(context.Context, AnalysisWork) (AnalysisOutcome, error) {
 		calls++
-		journal := filepath.Join(root, ".kasuri", "agents")
+		journal := filepath.Join(root, ".kogin", "agents")
 		if err := os.Rename(journal, filepath.Join(root, "saved")); err != nil {
 			return AnalysisOutcome{}, err
 		}

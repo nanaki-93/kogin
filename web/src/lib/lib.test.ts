@@ -268,7 +268,7 @@ describe('client', () => {
       return new Response(JSON.stringify({ user_message: 'Review every file first.' }), { status: 409 });
     });
     await expect(api.post('/x', { a: 1 })).rejects.toMatchObject({ message: 'Review every file first.', status: 409 });
-    expect((calls[0].headers as Record<string, string>)['X-Kasuri-Web-UI']).toBe('1');
+    expect((calls[0].headers as Record<string, string>)['X-Kogin-Web-UI']).toBe('1');
     expect(calls[0].body).toBe('{"a":1}');
   });
 
@@ -321,15 +321,15 @@ describe('write token', () => {
     }, () => 'launch-token');
     await api.get('/api/projects/current');
     await api.post('/api/projects/current/changes', {});
-    expect(seen['GET /api/projects/current']['X-Kasuri-Token']).toBeUndefined();
-    expect(seen['POST /api/projects/current/changes']['X-Kasuri-Token']).toBe('launch-token');
+    expect(seen['GET /api/projects/current']['X-Kogin-Token']).toBeUndefined();
+    expect(seen['POST /api/projects/current/changes']['X-Kogin-Token']).toBe('launch-token');
   });
 
   it('reads the token the daemon wrote into the document', () => {
     const doc = document.implementation.createHTMLDocument('ui');
-    doc.head.innerHTML = '<meta name="kasuri-write-token" content="__KASURI_WRITE_TOKEN__">';
+    doc.head.innerHTML = '<meta name="kogin-write-token" content="__KOGIN_WRITE_TOKEN__">';
     expect(documentWriteToken(doc)).toBe('');
-    doc.head.innerHTML = '<meta name="kasuri-write-token" content="abc123">';
+    doc.head.innerHTML = '<meta name="kogin-write-token" content="abc123">';
     expect(documentWriteToken(doc)).toBe('abc123');
   });
 });

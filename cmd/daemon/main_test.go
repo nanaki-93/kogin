@@ -13,12 +13,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/api"
-	"github.com/nanaki-93/kasuri/v2/internal/api/handlers"
-	"github.com/nanaki-93/kasuri/v2/internal/app"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/version"
+	"github.com/nanaki-93/kogin/v2/internal/api"
+	"github.com/nanaki-93/kogin/v2/internal/api/handlers"
+	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/version"
 )
 
 func TestDaemonStatusReportsCanonicalVersion(t *testing.T) {
@@ -54,7 +54,7 @@ func TestDaemonStatusReportsCanonicalVersion(t *testing.T) {
 }
 
 func TestLocalAPIPolicyRejectsBrowserAndInvalidContentBeforeRoutes(t *testing.T) {
-	t.Setenv("KASURI_BIND_ADDRESS", "")
+	t.Setenv("KOGIN_BIND_ADDRESS", "")
 	mux := daemonTestMux(t)
 
 	tests := []struct {
@@ -86,7 +86,7 @@ func TestLocalAPIPolicyRejectsBrowserAndInvalidContentBeforeRoutes(t *testing.T)
 				request.Header.Set("Origin", test.origin)
 			}
 			if test.webUIHeader != "" {
-				request.Header.Set("X-Kasuri-Web-UI", test.webUIHeader)
+				request.Header.Set("X-Kogin-Web-UI", test.webUIHeader)
 			}
 			if test.contentType != "" {
 				request.Header.Set("Content-Type", test.contentType)
@@ -112,7 +112,7 @@ func TestLocalAPIPolicyAllowsSameOriginWebUIFetchWithCustomHeader(t *testing.T) 
 	req := httptest.NewRequest(http.MethodPost, "/api/projects/restore", strings.NewReader(`{"project_path":"ignored"}`))
 	req.Host = "127.0.0.1:9090"
 	req.Header.Set("Origin", "http://127.0.0.1:9090")
-	req.Header.Set("X-Kasuri-Web-UI", "1")
+	req.Header.Set("X-Kogin-Web-UI", "1")
 	req.Header.Set("Content-Type", "application/json")
 	res := httptest.NewRecorder()
 	api.LocalOnly(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -148,7 +148,7 @@ func TestLocalAPIPolicyAllowsSameOriginModuleAssetsOnly(t *testing.T) {
 			req.Host = "127.0.0.1:9090"
 			req.Header.Set("Origin", test.origin)
 			if test.webUIHeader != "" {
-				req.Header.Set("X-Kasuri-Web-UI", test.webUIHeader)
+				req.Header.Set("X-Kogin-Web-UI", test.webUIHeader)
 			}
 			res := httptest.NewRecorder()
 			mux.ServeHTTP(res, req)
@@ -174,7 +174,7 @@ func TestWebUIRouteAcceptsDeepLinkWorktreeQueryParameter(t *testing.T) {
 }
 
 func TestLocalAPIPolicyAllowsNativeDesktopCallsAndHealth(t *testing.T) {
-	t.Setenv("KASURI_BIND_ADDRESS", "")
+	t.Setenv("KOGIN_BIND_ADDRESS", "")
 	mux := daemonTestMux(t)
 	health := httptest.NewRecorder()
 	healthRequest := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -213,8 +213,8 @@ func TestLocalAPIPolicyAllowsNativeDesktopCallsAndHealth(t *testing.T) {
 func TestExplicitExternalBindAllowsAddressesAndListedHostNames(t *testing.T) {
 	for _, bindAddress := range []string{"0.0.0.0:9090", ":9090"} {
 		t.Run(bindAddress, func(t *testing.T) {
-			t.Setenv("KASURI_BIND_ADDRESS", bindAddress)
-			t.Setenv("KASURI_ALLOWED_HOSTS", "desktop.example, other.example")
+			t.Setenv("KOGIN_BIND_ADDRESS", bindAddress)
+			t.Setenv("KOGIN_ALLOWED_HOSTS", "desktop.example, other.example")
 			mux := daemonTestMux(t)
 			for host, want := range map[string]int{
 				"desktop.example:9090":      http.StatusOK,
@@ -264,7 +264,7 @@ func TestReleaseDocumentationUsesCanonicalVersion(t *testing.T) {
 		"docs/openapi.yaml":    "version: " + version.Version,
 		"docs/api-contract.md": "**Version:** " + version.Version,
 		"RELEASE_NOTES.md":     "## v" + version.Version + " —",
-		"DOCKER.md":            "kasuri:" + version.Version,
+		"DOCKER.md":            "kogin:" + version.Version,
 	} {
 		data, err := os.ReadFile(filepath.Join(root, path))
 		if err != nil {
@@ -376,11 +376,11 @@ func TestDaemonDoesNotRegisterBrowserUIRoutes(t *testing.T) {
 }
 
 func TestDaemonBindsToLoopbackUnlessExplicitlyOverridden(t *testing.T) {
-	t.Setenv("KASURI_BIND_ADDRESS", "")
+	t.Setenv("KOGIN_BIND_ADDRESS", "")
 	if got := daemonAddress(); got != "127.0.0.1:9090" {
 		t.Fatalf("default daemon address = %q", got)
 	}
-	t.Setenv("KASURI_BIND_ADDRESS", "0.0.0.0:9090")
+	t.Setenv("KOGIN_BIND_ADDRESS", "0.0.0.0:9090")
 	if got := daemonAddress(); got != "0.0.0.0:9090" {
 		t.Fatalf("override daemon address = %q", got)
 	}

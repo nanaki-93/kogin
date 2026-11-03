@@ -12,7 +12,7 @@ func TestWritePathContainmentAndNewFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"../outside.go", "/outside.go", "a/../b.go", "a//b.go", "./b.go", " a.go", "a\\b.go", ".git/config", ".kasuri/history.json", "a\nb.go"} {
+	for _, path := range []string{"../outside.go", "/outside.go", "a/../b.go", "a//b.go", "./b.go", " a.go", "a\\b.go", ".git/config", ".kogin/history.json", "a\nb.go"} {
 		if _, err := ResolveWritePath(root, path); err == nil {
 			t.Fatalf("accepted unsafe path %q", path)
 		}

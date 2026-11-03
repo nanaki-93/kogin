@@ -1,4 +1,4 @@
-# Kasuri standardized repository entrypoint
+# Kogin standardized repository entrypoint
 
 set shell := ["sh", "-cu"]
 
@@ -39,14 +39,14 @@ check:
     ./scripts/quality.sh --go-only
     make check
 
-# Build kasuri and kasuri-daemon and install them (see make install); then run kasuri in a project folder
+# Build kogin and kogin-daemon and install them (see make install); then run kogin in a project folder
 build:
     make install
 
-# Build kasuri and kasuri-daemon into ~/DEV/lab/kasuri and KASURI_HOME (or ~/DEV/programs/kasuri)
+# Build kogin and kogin-daemon into ~/DEV/lab/kogin and KOGIN_HOME (or ~/DEV/programs/kogin)
 install:
     make install
 
-# Build Kasuri.app (macOS) and copy it into /Applications (or ~/Applications)
+# Build Kogin.app (macOS) and copy it into /Applications (or ~/Applications)
 desktop:
     make install-desktop

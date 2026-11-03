@@ -59,7 +59,7 @@ export function gitActions(context: ActionContext) {
   /**
    * Removes a worktree whose commits the main branch already has, with its
    * branch. One with applied tasks goes through cleanup-merged, which also
-   * marks their linked issues done (as after a merge made outside Kasuri);
+   * marks their linked issues done (as after a merge made outside Kogin);
    * one without tasks is discarded.
    */
   async function removeWorktree(workspace: GitWorkspace, worktree: GitWorktree, main: Project) {

@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
-const agyAgentInit = `{"event":"init","init":{"agent":"kasuri","model":"fixture-model","tools":["run_command","write_to_file"],"permission_mode":"request-review"}}`
+const agyAgentInit = `{"event":"init","init":{"agent":"kogin","model":"fixture-model","tools":["run_command","write_to_file"],"permission_mode":"request-review"}}`
 
 // agyToolStep is a tool step as agy writes it. A name with a slash is an MCP
 // call (server/tool), which agy makes through call_mcp_tool.
@@ -42,8 +42,8 @@ func agyAgentFixture(mode string) string {
 	case "plan-limit":
 		lines = append(lines, `{"event":"result","result":{"status":"ERROR","error":"You have exhausted your capacity on this model. Your quota will reset after 1h30m0s.","num_turns":0}}`)
 	default:
-		lines = append(lines, agyResponseStep(1), `{"event":"step_update","step_update":{"step_index":2,"state":"DONE","step_type":"unknown"}}`, agyToolStep(3, "ACTIVE", "kasuri/read_file", ""), agyToolStep(3, "DONE", "kasuri/read_file", ""),
-			agyResponseStep(4), agyToolStep(5, "DONE", "kasuri/edit_file", "old_text was not found"), agyToolStep(6, "DONE", "kasuri/finish", ""), agyResponseStep(7),
+		lines = append(lines, agyResponseStep(1), `{"event":"step_update","step_update":{"step_index":2,"state":"DONE","step_type":"unknown"}}`, agyToolStep(3, "ACTIVE", "kogin/read_file", ""), agyToolStep(3, "DONE", "kogin/read_file", ""),
+			agyResponseStep(4), agyToolStep(5, "DONE", "kogin/edit_file", "old_text was not found"), agyToolStep(6, "DONE", "kogin/finish", ""), agyResponseStep(7),
 			// agy counts one conversation turn per prompt, whatever the model did.
 			`{"event":"result","result":{"status":"SUCCESS","response":"Done.","num_turns":1,"usage":{"input_tokens":9000,"output_tokens":300,"total_tokens":9300}}}`)
 	}
@@ -70,11 +70,11 @@ func TestAnAgyAgentRunStopsOutsideItsToolServerTurnsAndPermissions(t *testing.T)
 	for name, lines := range map[string][]string{
 		"built-in tool": {agyAgentInit, agyToolStep(1, "ACTIVE", "run_command", "")},
 		"other server":  {agyAgentInit, agyToolStep(1, "ACTIVE", "github/read_file", "")},
-		"unlisted tool": {agyAgentInit, agyToolStep(1, "ACTIVE", "kasuri/shell", "")},
+		"unlisted tool": {agyAgentInit, agyToolStep(1, "ACTIVE", "kogin/shell", "")},
 		"no parameters": {agyAgentInit, `{"event":"step_update","step_update":{"step_index":1,"state":"ACTIVE","step_type":"tool","tool_name":"call_mcp_tool"}}`},
 		"subagent":      {agyAgentInit, `{"event":"step_update","step_update":{"step_index":1,"state":"ACTIVE","step_type":"subagent"}}`},
-		"other agent":   {strings.Replace(agyAgentInit, `"agent":"kasuri"`, `"agent":"default"`, 1)},
-		"before init":   {agyToolStep(1, "DONE", "kasuri/read_file", "")},
+		"other agent":   {strings.Replace(agyAgentInit, `"agent":"kogin"`, `"agent":"default"`, 1)},
+		"before init":   {agyToolStep(1, "DONE", "kogin/read_file", "")},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := decodeAgyAgent(t, 0, lines...); !errors.Is(err, ErrUnusableResponse) {
@@ -82,11 +82,11 @@ func TestAnAgyAgentRunStopsOutsideItsToolServerTurnsAndPermissions(t *testing.T)
 			}
 		})
 	}
-	if _, err := decodeAgyAgent(t, 0, agyAgentInit, agyToolStep(1, "DONE", "kasuri/read_file", "Permission denied by policy")); !errors.Is(err, errAgyToolsDenied) {
+	if _, err := decodeAgyAgent(t, 0, agyAgentInit, agyToolStep(1, "DONE", "kogin/read_file", "Permission denied by policy")); !errors.Is(err, errAgyToolsDenied) {
 		t.Fatalf("a denied tool = %v", err)
 	}
 	stream, _ := decodeAgyAgent(t, 0, agyAgentInit, `{"event":"result","result":{"status":"SUCCESS","response":"I cannot use the tools."}}`)
-	if err := stream.end(nil, "Tool kasuri/read_file was soft-denied; allow it with permissions.allow"); !errors.Is(err, errAgyToolsDenied) || !strings.Contains(err.Error(), `mcp(kasuri/*)`) {
+	if err := stream.end(nil, "Tool kogin/read_file was soft-denied; allow it with permissions.allow"); !errors.Is(err, errAgyToolsDenied) || !strings.Contains(err.Error(), `mcp(kogin/*)`) {
 		t.Fatalf("a soft denial on stderr = %v", err)
 	}
 	stream, err := decodeAgyAgent(t, 2, agyAgentInit, agyResponseStep(1), agyResponseStep(2), agyResponseStep(3))
@@ -103,7 +103,7 @@ func TestAgyAgentRunsGetTheirToolServerAsTheWorkspacesOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, pair := range [][2]string{{"--agent", "kasuri"}, {"--model", "gemini-pro"}, {"--print-timeout", "31m"}, {"--effort", "high"}} {
+	for _, pair := range [][2]string{{"--agent", "kogin"}, {"--model", "gemini-pro"}, {"--print-timeout", "31m"}, {"--effort", "high"}} {
 		if index := slices.Index(launch.args, pair[0]); index < 0 || launch.args[index+1] != pair[1] {
 			t.Fatalf("%s is not %q in %q", pair[0], pair[1], launch.args)
 		}
@@ -112,11 +112,11 @@ func TestAgyAgentRunsGetTheirToolServerAsTheWorkspacesOnly(t *testing.T) {
 		t.Fatalf("launch = %q, input %q", launch.args, launch.input)
 	}
 	servers, _ := os.ReadFile(filepath.Join(directory, ".agents/mcp_config.json"))
-	if string(servers) != `{"mcpServers":{"kasuri":{"enabledTools":["read_file","finish"],"headers":{"Authorization":"Bearer run-token"},"serverUrl":"http://127.0.0.1:9/mcp","timeoutSeconds":240}}}` {
+	if string(servers) != `{"mcpServers":{"kogin":{"enabledTools":["read_file","finish"],"headers":{"Authorization":"Bearer run-token"},"serverUrl":"http://127.0.0.1:9/mcp","timeoutSeconds":240}}}` {
 		t.Fatalf("mcp_config.json = %s", servers)
 	}
-	agent, _ := os.ReadFile(filepath.Join(directory, ".agents/agents/kasuri/agent.md"))
-	for _, line := range []string{"tools: []", "subagent: false", "inheritMcp: true", "commandExecutionPolicy: off", "# System Prompt\nBe careful.\n\n# Your tools\nCall each tool with call_mcp_tool, ServerName \"kasuri\"",
+	agent, _ := os.ReadFile(filepath.Join(directory, ".agents/agents/kogin/agent.md"))
+	for _, line := range []string{"tools: []", "subagent: false", "inheritMcp: true", "commandExecutionPolicy: off", "# System Prompt\nBe careful.\n\n# Your tools\nCall each tool with call_mcp_tool, ServerName \"kogin\"",
 		"- read_file: The read_file tool.\n  Arguments schema: {\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"}}}\n", "- finish: The finish tool."} {
 		if !strings.Contains(string(agent), line) {
 			t.Fatalf("agent.md lacks %q:\n%s", line, agent)

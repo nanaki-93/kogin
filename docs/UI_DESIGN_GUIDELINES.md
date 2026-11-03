@@ -1,6 +1,6 @@
-# Kasuri UI guidelines
+# Kogin UI guidelines
 
-Kasuri's interface is the browser workspace (`web/`, served by the daemon at
+Kogin's interface is the browser workspace (`web/`, served by the daemon at
 `/ui`). It exists for three jobs, in this order:
 
 1. **Start a task and watch the agents** — describe a change, give it a scope

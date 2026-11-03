@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app/gitops"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 type GitMergePreview = gitops.GitMergePreview
@@ -60,7 +60,7 @@ func (s *Service) MergeGitWorktree(ctx context.Context, request GitMutationReque
 	return result, nil
 }
 
-// CleanupMergedWorktree reconciles a merge completed outside Kasuri. It never
+// CleanupMergedWorktree reconciles a merge completed outside Kogin. It never
 // attempts a merge; ancestry must prove integration before checkout/branch cleanup.
 func (s *Service) CleanupMergedWorktree(ctx context.Context, request GitMutationRequest) (*GitMutationResult, error) {
 	s.jobLifecycleMu.Lock()

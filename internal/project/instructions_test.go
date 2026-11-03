@@ -39,10 +39,10 @@ func TestInstructionsRespectPolicyAndRejectUnsafeInput(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("Private."), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Mkdir(filepath.Join(root, ".kasuri"), 0700); err != nil {
+	if err := os.Mkdir(filepath.Join(root, ".kogin"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".kasuri/context-policy.json"), []byte(`{"exclude":["AGENTS.md"]}`), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".kogin/context-policy.json"), []byte(`{"exclude":["AGENTS.md"]}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 	result, err := ResolveInstructions(root, "new.go")
@@ -52,7 +52,7 @@ func TestInstructionsRespectPolicyAndRejectUnsafeInput(t *testing.T) {
 	if _, err := ResolveInstructions(root, "../outside.go"); err == nil {
 		t.Fatal("accepted traversal")
 	}
-	if err := os.Remove(filepath.Join(root, ".kasuri/context-policy.json")); err != nil {
+	if err := os.Remove(filepath.Join(root, ".kogin/context-policy.json")); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(strings.Repeat("a", MaxInstructionBytes+1)), 0644); err != nil {

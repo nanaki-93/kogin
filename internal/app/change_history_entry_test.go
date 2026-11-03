@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
+	"github.com/nanaki-93/kogin/v2/internal/app/gitops"
 )
 
 func phaseWorkflow(status string, running int) *ChangeWorkflow {
@@ -19,7 +19,7 @@ func phaseWorkflow(status string, running int) *ChangeWorkflow {
 
 func TestChangeHistoryEntryNamesTheRunningPhase(t *testing.T) {
 	issues := []ChangeIssue{{FindingID: "a", Status: IssueFixed}, {FindingID: "b", Status: IssueFixing}, {FindingID: "c", Status: IssuePending}}
-	worktree := &ChangeWorktree{Branch: "kasuri/fix"}
+	worktree := &ChangeWorktree{Branch: "kogin/fix"}
 	for _, tc := range []struct {
 		name    string
 		session ChangeSession

@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/app/changes"
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/app/changes"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 var changeIDPattern = regexp.MustCompile(`^change-[a-f0-9]{32}$`)
@@ -211,7 +211,7 @@ func saveChangeArtifact(ctx context.Context, store *agentstate.Store, id, name s
 		return fmt.Errorf("encode change evidence: %w", err)
 	}
 	_, err = store.SaveArtifact(ctx, agentstate.ArtifactWrite{
-		Key:  agentstate.ArtifactKey{Session: agentstate.Key{App: "kasuri-changes", User: "local", ID: id}, Name: name},
+		Key:  agentstate.ArtifactKey{Session: agentstate.Key{App: agentstate.ChangesApp, User: "local", ID: id}, Name: name},
 		Kind: "inline", MIME: "application/json", Data: data, Provenance: provenance,
 		Protected: true, Deduplicate: true,
 	})

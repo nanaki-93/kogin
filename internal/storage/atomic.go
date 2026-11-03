@@ -14,7 +14,7 @@ import (
 // ErrSymlink reports that a metadata path or one of its directory components is a symlink.
 var ErrSymlink = errors.New("metadata path contains a symlink")
 
-// MetadataPath resolves a project-contained path under .kasuri and rejects
+// MetadataPath resolves a project-contained path under .kogin and rejects
 // symlink components before reads, writes, or removals.
 func MetadataPath(root string, parts ...string) (string, error) {
 	if strings.TrimSpace(root) == "" {
@@ -52,8 +52,8 @@ func normalizeMetadataSegments(parts []string) ([]string, error) {
 			segments = append(segments, segment)
 		}
 	}
-	if len(segments) == 0 || segments[0] != ".kasuri" {
-		return nil, fmt.Errorf("metadata path must stay under .kasuri")
+	if len(segments) == 0 || segments[0] != ".kogin" {
+		return nil, fmt.Errorf("metadata path must stay under .kogin")
 	}
 	return segments, nil
 }
@@ -84,7 +84,7 @@ func validateMetadataFileTarget(path string) error {
 		return fmt.Errorf("metadata path is required")
 	}
 	clean := filepath.Clean(path)
-	if root, segments, ok := splitKasuriPath(clean); ok {
+	if root, segments, ok := splitKoginPath(clean); ok {
 		if _, err := MetadataPath(root, segments...); err != nil {
 			return err
 		}
@@ -94,15 +94,15 @@ func validateMetadataFileTarget(path string) error {
 	return nil
 }
 
-func splitKasuriPath(clean string) (string, []string, bool) {
+func splitKoginPath(clean string) (string, []string, bool) {
 	var tail []string
 	current := clean
 	for {
 		base := filepath.Base(current)
 		parent := filepath.Dir(current)
-		if base == ".kasuri" && parent != current {
+		if base == ".kogin" && parent != current {
 			segments := make([]string, 0, len(tail)+1)
-			segments = append(segments, ".kasuri")
+			segments = append(segments, ".kogin")
 			for i := len(tail) - 1; i >= 0; i-- {
 				segments = append(segments, tail[i])
 			}

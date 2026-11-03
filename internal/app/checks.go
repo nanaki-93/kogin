@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/archgate"
-	"github.com/nanaki-93/kasuri/v2/internal/app/sandbox"
+	"github.com/nanaki-93/kogin/v2/internal/app/archgate"
+	"github.com/nanaki-93/kogin/v2/internal/app/sandbox"
 )
 
 const (

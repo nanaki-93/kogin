@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
 )
 
 func artifactChangeFixture(t *testing.T) (*Service, string, *ChangeSession) {
@@ -39,7 +39,7 @@ func TestChangeEvidenceArtifactsArePrivateBoundAndPassive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	key := agentstate.ArtifactKey{Session: agentstate.Key{App: "kasuri-changes", User: "local", ID: checked.ID}}
+	key := agentstate.ArtifactKey{Session: agentstate.Key{App: agentstate.ChangesApp, User: "local", ID: checked.ID}}
 	records, err := store.ArtifactVersions(t.Context(), key)
 	if err != nil || len(records) != 2 {
 		t.Fatalf("evidence=%+v %v", records, err)
@@ -67,7 +67,7 @@ func TestChangeEvidenceArtifactsArePrivateBoundAndPassive(t *testing.T) {
 	if versions, err := store.ArtifactVersions(t.Context(), key); err != nil || len(versions) != 1 {
 		t.Fatal("unchanged proposal consumed another version", err)
 	}
-	paths, err := filepath.Glob(filepath.Join(root, ".kasuri", "agents", "*", "artifacts.json"))
+	paths, err := filepath.Glob(filepath.Join(root, ".kogin", "agents", "*", "artifacts.json"))
 	if err != nil || len(paths) != 1 {
 		t.Fatal("missing private catalog", err)
 	}
@@ -90,7 +90,7 @@ func TestChangeEvidenceArtifactsArePrivateBoundAndPassive(t *testing.T) {
 
 func TestChangeArtifactFailureDoesNotPublishChecks(t *testing.T) {
 	s, root, proposal := artifactChangeFixture(t)
-	paths, err := filepath.Glob(filepath.Join(root, ".kasuri", "agents", "*", "artifacts.json"))
+	paths, err := filepath.Glob(filepath.Join(root, ".kogin", "agents", "*", "artifacts.json"))
 	if err != nil || len(paths) != 1 {
 		t.Fatal("missing private catalog", err)
 	}

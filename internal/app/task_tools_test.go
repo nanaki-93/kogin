@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-const toolFixtureAgents = "# Rules\n\n```kasuri\nbudgets:\n  file_lines: 12\n```\n"
+const toolFixtureAgents = "# Rules\n\n```kogin\nbudgets:\n  file_lines: 12\n```\n"
 
 // toolTask opens a task in its own worktree in a small Go module and returns
 // a tool run for it, with the worktree's service. The task fixes an issue of
@@ -30,7 +30,7 @@ func toolTaskWith(t *testing.T, role toolRole, edit func(*ChangeOpenRequest)) (*
 		"calc_test.go":  "package main\n\nimport \"testing\"\n\nfunc TestAdd(t *testing.T) {\n\tif Add(2, 2) != 4 {\n\t\tt.Fatal(\"Add\")\n\t}\n}\n",
 		"docs/notes.md": "Add is used by main.\n",
 		".env":          "SECRET=1\n",
-		".kasuriignore": ".env\n",
+		".koginignore":  ".env\n",
 	} {
 		full := filepath.Join(root, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
@@ -106,7 +106,7 @@ func TestTheToolsReadTheTaskWorktreeWithinItsContextPolicy(t *testing.T) {
 	mustTool(t, run, "read_file", map[string]any{"path": "calc.go"}, "calc.go (lines 1-4 of 4)", "     4  func Add(a, b int) int { return a - b }")
 	mustTool(t, run, "read_file", map[string]any{"path": "calc_test.go", "offset": 5, "limit": 2}, "lines 5-6 of 9", "more lines; read on with offset 7")
 	listed := mustTool(t, run, "list_files", map[string]any{"pattern": "*.go"}, "calc.go", "calc_test.go")
-	if strings.Contains(listed, ".env") || strings.Contains(listed, ".kasuri") {
+	if strings.Contains(listed, ".env") || strings.Contains(listed, ".kogin") {
 		t.Fatalf("listed = %s", listed)
 	}
 	mustTool(t, run, "search", map[string]any{"query": "Add", "pattern": "*.md"}, "docs/notes.md:1: Add is used by main.")
@@ -117,7 +117,7 @@ func TestTheToolsReadTheTaskWorktreeWithinItsContextPolicy(t *testing.T) {
 
 	refusedTool(t, run, "read_file", map[string]any{"path": ".env"}, "context policy")
 	refusedTool(t, run, "read_file", map[string]any{"path": "../outside.go"}, "outside the project")
-	refusedTool(t, run, "read_file", map[string]any{"path": ".git/config"}, "belongs to Git or Kasuri")
+	refusedTool(t, run, "read_file", map[string]any{"path": ".git/config"}, "belongs to Git or Kogin")
 	refusedTool(t, run, "read_file", map[string]any{"path": "calc.go", "lines": 3}, "invalid arguments")
 }
 
@@ -138,7 +138,7 @@ func TestTheToolsWriteThroughTheDiffPolicyAndReportTheGates(t *testing.T) {
 	mustTool(t, run, "delete_file", map[string]any{"path": "docs/usage.md"}, "Deleted docs/usage.md.")
 
 	refusedTool(t, run, "edit_file", map[string]any{"path": "AGENTS.md", "old_text": "12", "new_text": "999"}, "cannot change the rules it is checked against")
-	refusedTool(t, run, "create_file", map[string]any{"path": ".kasuri/x.json", "content": "{}"}, "belongs to Git or Kasuri")
+	refusedTool(t, run, "create_file", map[string]any{"path": ".kogin/x.json", "content": "{}"}, "belongs to Git or Kogin")
 	refusedTool(t, run, "create_file", map[string]any{"path": ".env.local", "content": "X=1\n"}, "")
 	for _, file := range []string{"calc.go", "util/double.go"} {
 		if _, err := os.Stat(filepath.Join(run.root, file)); err != nil {

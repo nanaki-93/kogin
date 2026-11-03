@@ -8,7 +8,7 @@ export type Theme = 'system' | 'dark' | 'light';
 
 /** The colors of the dark theme; styles/tokens.css defines each one. */
 export const DARK_PALETTES = [
-  { id: 'kasuri', label: 'Kasuri', chrome: '#120c24', surface: '#1b1433', accent: '#34d399' },
+  { id: 'kogin', label: 'Kogin', chrome: '#120c24', surface: '#1b1433', accent: '#34d399' },
   { id: 'midnight', label: 'Midnight', chrome: '#0a0b0d', surface: '#15161a', accent: '#7f86ff' },
   { id: 'graphite', label: 'Graphite', chrome: '#111111', surface: '#1c1c1c', accent: '#e0e0e0' },
   { id: 'ocean', label: 'Ocean', chrome: '#071018', surface: '#0f1d29', accent: '#3fc1e8' },
@@ -35,16 +35,23 @@ export interface UIState {
   removeWorktreeOnMerge: boolean;
 }
 
-const PREFS_KEY = 'kasuri.prefs.v2';
-// Kasuri was called Mini-Orca; its preferences carry over once, except the
-// dark palette, so the new Kasuri palette shows after the rename.
-const LEGACY_PREFS_KEY = 'mini-orca.prefs.v2';
+const PREFS_KEY = 'kogin.prefs.v2';
+// Kogin was called Kasuri and, before that, Mini-Orca. Kasuri's preferences
+// carry over once with its palette renamed; Mini-Orca's carry over without
+// the dark palette, so the Kogin palette shows after the rename.
+const KASURI_PREFS_KEY = 'kasuri.prefs.v2';
+const MINI_ORCA_PREFS_KEY = 'mini-orca.prefs.v2';
 
 function loadPrefs(): Partial<UIState> {
   try {
     const saved = localStorage.getItem(PREFS_KEY);
     if (saved !== null) return JSON.parse(saved) as Partial<UIState>;
-    const legacy = JSON.parse(localStorage.getItem(LEGACY_PREFS_KEY) ?? '{}') as Partial<UIState>;
+    const kasuri = localStorage.getItem(KASURI_PREFS_KEY);
+    if (kasuri !== null) {
+      const prefs = JSON.parse(kasuri) as Partial<Omit<UIState, 'darkPalette'>> & { darkPalette?: string };
+      return { ...prefs, darkPalette: prefs.darkPalette === 'kasuri' ? 'kogin' : prefs.darkPalette } as Partial<UIState>;
+    }
+    const legacy = JSON.parse(localStorage.getItem(MINI_ORCA_PREFS_KEY) ?? '{}') as Partial<UIState>;
     delete legacy.darkPalette;
     return legacy;
   } catch {
@@ -59,7 +66,7 @@ let state: UIState = {
   shortcutsOpen: false,
   sidebarCollapsed: false,
   theme: 'system',
-  darkPalette: 'kasuri',
+  darkPalette: 'kogin',
   diffLayout: 'unified',
   wrapLines: false,
   removeWorktreeOnMerge: true,

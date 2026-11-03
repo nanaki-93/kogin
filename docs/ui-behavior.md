@@ -208,7 +208,7 @@ every guard when the action arrives.
   message in the conversation.
 - **Task in its own worktree.** The proposal is the worktree's diff against the
   task's base commit; Files changed marks new, deleted and moved files. Edits
-  made in the worktree outside Kasuri become a new version of the proposal
+  made in the worktree outside Kogin become a new version of the proposal
   (its checks and approval reset, and the conversation says so); files outside
   the task's scope join it, and its plan stays approved. Edits that cannot
   become the proposal (more files than a task holds) leave the task stale with
@@ -220,7 +220,7 @@ every guard when the action arrives.
   (discard the worktree instead); re-analysis does not apply.
 - **Tasks from before worktrees.** A task made in the main checkout before every
   task got its own worktree opens read only: the gate says where it was made,
-  and there is no run, revision, approval or Accept, only Delete. Kasuri never
+  and there is no run, revision, approval or Accept, only Delete. Kogin never
   writes a proposal into the main checkout.
 - **Issues from the keyboard.** `j`/`k` select the next or previous issue and
   open its detail, `f` starts "Fix with agents", `x` dismisses or reopens it and
@@ -247,7 +247,7 @@ every guard when the action arrives.
 
 - **Open a project.** Restores saved data for a known path, otherwise imports
   and indexes it. No model request is made, and the project's own
-  `.kasuri/config.yaml` is applied when it has one.
+  `.kogin/config.yaml` is applied when it has one.
 - **Setup.** The first time a project without its own configuration opens, the
   Web UI opens Setup (once per window): Models (provider, model, address, key,
   reasoning effort, CLI path, with a connection test; "Same as Analyze" copies
@@ -267,11 +267,11 @@ every guard when the action arrives.
   applies them at once, keeping agent settings; it is refused while work runs.
   Failures that timed out point here.
 - **Set-aside files.** When the daemon set aside an unreadable agent journal,
-  task file or saved analysis progress, or skipped one a newer Kasuri wrote,
+  task file or saved analysis progress, or skipped one a newer Kogin wrote,
   the Inbox says so and Settings → Project lists each file with where its bytes
   went and the remedy. **Delete** on a set-aside file asks for confirmation,
   then deletes it and its record; skipped newer files have no Delete, since
-  they need that Kasuri. A record whose file is already gone is not listed.
+  they need that Kogin. A record whose file is already gone is not listed.
 - **Agent models.** Settings → Models & agents chooses the model each role runs
   with (writes the change, writes tests, reviews): a configured scope or a model
   Claude Code, the Agy CLI or the Pi CLI lists, each marked local or remote, so

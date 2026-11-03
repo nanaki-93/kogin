@@ -7,13 +7,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/symbols"
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/project/symbols"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 const (
 	indexSchemaVersion = "4"
-	indexRelativePath  = ".kasuri/index.json"
+	indexRelativePath  = ".kogin/index.json"
 )
 
 type ProjectIndex = symbols.ProjectIndex

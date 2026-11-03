@@ -16,9 +16,9 @@ import (
 
 	"google.golang.org/adk/v2/agent"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
 )
 
 func TestLocalTraceCorrelatesAttemptsAndNeverExportsAmbientData(t *testing.T) {
@@ -164,7 +164,7 @@ func TestLocalTraceCapturesGraphChecksAndRejectsFailedJournalWrites(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	paths, err := filepath.Glob(filepath.Join(root, ".kasuri", "agents", "*", "journal.json"))
+	paths, err := filepath.Glob(filepath.Join(root, ".kogin", "agents", "*", "journal.json"))
 	if err != nil || len(paths) != 1 {
 		t.Fatal("missing journal", err)
 	}

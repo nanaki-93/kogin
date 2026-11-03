@@ -144,7 +144,7 @@ func TestPerformanceCacheIsStaleWhenContextPolicyChanges(t *testing.T) {
 	if err := StorePerformanceFileReport(root, report); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".kasuriignore"), []byte("main.go\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".koginignore"), []byte("main.go\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	changedPolicy, err := NewContextPolicy(root)

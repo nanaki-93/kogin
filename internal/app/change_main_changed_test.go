@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 const mainChangedNewGo = "main changed new.go since this task started. This task's work is built on that file as it was: re-analyze it against main and, if the issue is still there, start it again from main."

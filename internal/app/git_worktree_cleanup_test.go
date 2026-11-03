@@ -45,7 +45,7 @@ func TestGitDiscardRemovesUnignoredMetadataAfterStoppingImplementation(t *testin
 	case <-time.After(10 * time.Second):
 		t.Fatal("implementation did not start")
 	}
-	if got := testGit(t, path, "status", "--porcelain"); got != "?? .kasuri/" {
+	if got := testGit(t, path, "status", "--porcelain"); got != "?? .kogin/" {
 		t.Fatalf("expected unignored private metadata: %s", got)
 	}
 	request.Path, request.SourceHead = path, testGit(t, path, "rev-parse", "HEAD")

@@ -10,8 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
 )
 
 func writeLookupCall(w io.Writer, id string) {
@@ -42,7 +43,7 @@ func TestInvestigationRoundTripPersistsToolEventsAndScope(t *testing.T) {
 	if err != nil || result.Content != "done" || calls != 2 || budget.Snapshot().ToolCalls != 1 || budget.Snapshot().ModelCalls != 2 {
 		t.Fatalf("result=%+v error=%v calls=%d budget=%+v", result, err, calls, budget.Snapshot())
 	}
-	list, err := store.Sessions(t.Context(), "kasuri", "local")
+	list, err := store.Sessions(t.Context(), agentstate.StateApp, "local")
 	if err != nil || len(list) != 1 || len(list[0].Events) != 4 {
 		t.Fatalf("history=%+v error=%v", list, err)
 	}

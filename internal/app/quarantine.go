@@ -12,21 +12,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/logging"
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/logging"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 // Unreadable records must not block a checkout. An unreadable agent journal,
 // task file or saved analysis progress is set aside: its bytes move next to it under a quarantined
 // name, the move is recorded, and work continues without it. Records written
-// by a newer Kasuri are never moved; they are skipped and reported with
+// by a newer Kogin are never moved; they are skipped and reported with
 // the remedy. The change recovery journal is never set aside, because it may
 // describe a half-finished Apply; its errors name the file and the remedy.
 
 const (
 	maxSetAsideRecords = 32
-	setAsideLogPath    = ".kasuri/quarantine.json"
+	setAsideLogPath    = ".kogin/quarantine.json"
 )
 
 // setAsideLogMu orders changes to a checkout's record of set-aside files.
@@ -49,8 +49,8 @@ type QuarantineReport struct {
 }
 
 const (
-	remedySetAside = "Kasuri no longer reads the set-aside file. Inspect it if you need its history, then delete it."
-	remedyUpgrade  = "Upgrade Kasuri to use it, or move it away."
+	remedySetAside = "Kogin no longer reads the set-aside file. Inspect it if you need its history, then delete it."
+	remedyUpgrade  = "Upgrade Kogin to use it, or move it away."
 )
 
 // changeFileError names an unreadable or newer task file.
@@ -62,7 +62,7 @@ type changeFileError struct {
 
 func (e *changeFileError) Error() string {
 	if e.newer {
-		return fmt.Sprintf("task file %s was written by a newer Kasuri; %s", e.path, strings.ToLower(remedyUpgrade[:1])+remedyUpgrade[1:])
+		return fmt.Sprintf("task file %s was written by a newer Kogin; %s", e.path, strings.ToLower(remedyUpgrade[:1])+remedyUpgrade[1:])
 	}
 	return fmt.Sprintf("task file %s is unreadable: %v", e.path, e.cause)
 }
@@ -77,7 +77,7 @@ func relativeMetadata(root, path string) string {
 }
 
 // openAgentJournal opens the checkout's agent journal, setting an unreadable
-// one aside first. A journal from a newer Kasuri stays an error.
+// one aside first. A journal from a newer Kogin stays an error.
 func openAgentJournal(root string) (*agentstate.Store, error) {
 	store, err := agentstate.Open(root)
 	if err == nil || !errors.Is(err, agentstate.ErrCorrupt) || errors.Is(err, agentstate.ErrNewerJournal) {
@@ -112,7 +112,7 @@ func quarantineAnalysisRun(root string) error {
 		return err
 	}
 	return setAside(root, "analysis_run", analysisRunRelativePath, from, func(stamp string) (string, error) {
-		return storage.MetadataPath(root, ".kasuri", "analysis", "run.quarantined-"+stamp+".json")
+		return storage.MetadataPath(root, ".kogin", "analysis", "run.quarantined-"+stamp+".json")
 	}, errAnalysisRunCorrupt.Error())
 }
 
@@ -180,7 +180,7 @@ func (s *Service) Quarantine(ctx context.Context) (*QuarantineReport, error) {
 	root := s.manager.Root()
 	report := &QuarantineReport{Files: []QuarantinedFile{}, Skipped: []QuarantinedFile{}}
 	if _, err := listChangeSessionsWith(root, sessionListing{lenient: true, skipped: func(problem *changeFileError) {
-		report.Skipped = append(report.Skipped, QuarantinedFile{Kind: "task", File: problem.path, Reason: "written by a newer Kasuri", Remedy: remedyUpgrade})
+		report.Skipped = append(report.Skipped, QuarantinedFile{Kind: "task", File: problem.path, Reason: "written by a newer Kogin", Remedy: remedyUpgrade})
 	}}); err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (s *Service) Quarantine(ctx context.Context) (*QuarantineReport, error) {
 	}
 	slices.SortFunc(report.Files, func(a, b QuarantinedFile) int { return b.At.Compare(a.At) })
 	if _, err := loadAnalysisRun(root); errors.Is(err, ErrNewerAnalysisRun) {
-		report.Skipped = append(report.Skipped, QuarantinedFile{Kind: "analysis_run", File: analysisRunRelativePath, Reason: "written by a newer Kasuri", Remedy: remedyUpgrade})
+		report.Skipped = append(report.Skipped, QuarantinedFile{Kind: "analysis_run", File: analysisRunRelativePath, Reason: "written by a newer Kogin", Remedy: remedyUpgrade})
 	}
 	if _, err := agentstate.Open(root); errors.Is(err, agentstate.ErrNewerJournal) {
 		var problem *agentstate.JournalError
@@ -211,7 +211,7 @@ func (s *Service) Quarantine(ctx context.Context) (*QuarantineReport, error) {
 }
 
 // appendSetAside adds a set-aside record as it reads now: paths recorded
-// under .mini-orca name their place in .kasuri, the remedy is this
+// under .kasuri or .mini-orca name their place in .kogin, the remedy is this
 // version's, and a record whose file was deleted is left out.
 func appendSetAside(files []QuarantinedFile, root string, record QuarantinedFile) []QuarantinedFile {
 	record.File = storage.CurrentMetadataPath(record.File)

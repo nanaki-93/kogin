@@ -13,8 +13,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/nanaki-93/kasuri/v2/internal/agenteval"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/agenteval"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 func main() {
@@ -159,14 +159,14 @@ func runCoderSuite(ctx context.Context, options commandOptions, output, diagnost
 		fmt.Fprintln(diagnostics, "inspect this disclosure and add --confirm-live to dispatch")
 		return 2
 	}
-	trust, err := os.MkdirTemp("", "kasuri-coder-eval-trust-")
+	trust, err := os.MkdirTemp("", "kogin-coder-eval-trust-")
 	if err != nil {
 		fmt.Fprintln(diagnostics, err)
 		return 2
 	}
 	defer os.RemoveAll(trust)
 	// The scratch projects' execution trust never reaches the user's own store.
-	if err := os.Setenv("KASURI_TRUST_DIR", trust); err != nil {
+	if err := os.Setenv("KOGIN_TRUST_DIR", trust); err != nil {
 		fmt.Fprintln(diagnostics, err)
 		return 2
 	}

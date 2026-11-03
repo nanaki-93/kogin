@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/syntax"
+	"github.com/nanaki-93/kogin/v2/internal/project/syntax"
 )
 
 var grammarSamples = map[string]string{"python": "a.py", "javascript": "a.js", "typescript": "a.ts", "tsx": "a.tsx", "java": "A.java",

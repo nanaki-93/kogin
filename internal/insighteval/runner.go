@@ -7,16 +7,16 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
 )
 
 const (
 	EngineeringInsightCollectRunMode         = "collect"
 	EngineeringInsightDevelopmentRunMode     = "development"
 	EngineeringInsightQualificationRunMode   = "qualification"
-	runnerRelativeDirectory                  = ".kasuri/autopilot/engineering-insight-evaluation"
+	runnerRelativeDirectory                  = ".kogin/autopilot/engineering-insight-evaluation"
 	defaultDevelopmentRequestCap             = 6
 	extendedDevelopmentRequestCap            = 12
 	recoveryDevelopmentRequestCap            = 18

@@ -6,7 +6,7 @@ staticcheck_version=v0.8.2
 tools_version=v0.51.0
 gocyclo_version=v0.6.0
 jscpd_version=4.0.5
-forced_failure=${KASURI_QUALITY_FAIL_STAGE:-}
+forced_failure=${KOGIN_QUALITY_FAIL_STAGE:-}
 failed_stages=""
 
 run_stage() {
@@ -85,7 +85,7 @@ case "${1:-all}" in
     ;;
   --help|-h)
     printf '%s\n' "Usage: $0 [--go-only]"
-    printf '%s\n' "Set KASURI_QUALITY_FAIL_STAGE to a stage name to exercise aggregate failure reporting."
+    printf '%s\n' "Set KOGIN_QUALITY_FAIL_STAGE to a stage name to exercise aggregate failure reporting."
     exit 0
     ;;
   *)

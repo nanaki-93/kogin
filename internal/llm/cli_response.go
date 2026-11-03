@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 // ErrPiAuthenticationExpired identifies a provider-reported expiry without
@@ -84,7 +84,7 @@ func (d *cliResponseDecoder) agyEvent(data []byte) error {
 	switch event.Event {
 	case "init":
 		// init.tools is the CLI's catalog, not the custom agent's allowed tools.
-		if d.started || event.Init.Tools == nil || event.Init.Agent != "kasuri" || event.Init.Model != d.profile.Model {
+		if d.started || event.Init.Tools == nil || event.Init.Agent != "kogin" || event.Init.Model != d.profile.Model {
 			return unusableCLIResponse("agy did not select the configured model and agent")
 		}
 		d.started = true

@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 // Claude Code runs on the Claude plan its user signed in to with /login.
-// Kasuri starts it with its own tools off, no settings but those of a
+// Kogin starts it with its own tools off, no settings but those of a
 // private, empty directory, and none of the user's MCP servers, skills or
 // hooks. Its environment carries no API key (see cliEnvironment), and a run
 // that would still bill one is stopped before the model is called.
@@ -64,7 +64,7 @@ func prepareClaudeAgent(directory string, profile config.ModelProfile, run Agent
 const claudeToolPrefix = "mcp__" + toolServerName + "__"
 
 // claudeToolGuide tells the model the names Claude Code lists its tools
-// under: Kasuri's prompts name them bare, as every CLI shares them.
+// under: Kogin's prompts name them bare, as every CLI shares them.
 func claudeToolGuide(tools []AgentTool) string {
 	if len(tools) == 0 {
 		return ""
@@ -171,13 +171,13 @@ func (d *claudeStream) init(event claudeEvent) error {
 		if source == "" {
 			source = "unreported"
 		}
-		return fmt.Errorf("llm client: %w: Claude Code would use an API key (source: %s); Kasuri runs Claude only on your Claude plan: remove the key and sign in with /login", ErrRequestRejected, source)
+		return fmt.Errorf("llm client: %w: Claude Code would use an API key (source: %s); Kogin runs Claude only on your Claude plan: remove the key and sign in with /login", ErrRequestRejected, source)
 	}
 	if !matchesClaudeModel(d.profile.Model, event.Model) {
 		return unusableCLIResponse("Claude Code selected a different model than configured")
 	}
 	if d.agent && !claudeServerConnected(event) {
-		return fmt.Errorf("llm client: %w: Claude Code could not connect to Kasuri's tool server", ErrUnusableResponse)
+		return fmt.Errorf("llm client: %w: Claude Code could not connect to Kogin's tool server", ErrUnusableResponse)
 	}
 	d.started, d.run.Model = true, event.Model
 	return nil
@@ -246,7 +246,7 @@ func (d *claudeStream) assistant(event claudeEvent) error {
 
 // toolUse admits one tool call of an agent run: a call to one of the run's
 // tools by the name Claude Code lists it under, or by its bare name (read_file
-// for mcp__kasuri__read_file). Claude Code has no tool by a bare name, so it
+// for mcp__kogin__read_file). Claude Code has no tool by a bare name, so it
 // answers that call with an error and the model calls the tool again by its
 // full name; toolResults checks that refusal. Any other tool ends the run.
 func (d *claudeStream) toolUse(id, name string) error {
@@ -302,7 +302,7 @@ func (d *claudeStream) toolResults(data json.RawMessage) error {
 			continue
 		}
 		if d.misnamed[block.ToolUseID] && !block.IsError {
-			return unusableCLIResponse("Claude Code ran a tool outside Kasuri's tool server")
+			return unusableCLIResponse("Claude Code ran a tool outside Kogin's tool server")
 		}
 		delete(d.misnamed, block.ToolUseID)
 		if block.IsError {

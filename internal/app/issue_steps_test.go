@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // stepIssues makes the tool flow's task fix these issues of calc.go one at a time.
@@ -286,7 +286,7 @@ func TestARunWithNothingToFixEndsSoAndClosingDismissesTheIssues(t *testing.T) {
 	if _, err := loadChangeSession(flow.worktree, finished.ID); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("the task was kept: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(flow.service.owner.manager.Root(), ".kasuri", "findings.json"))
+	data, err := os.ReadFile(filepath.Join(flow.service.owner.manager.Root(), ".kogin", "findings.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

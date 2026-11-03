@@ -5,17 +5,17 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/changes"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app/changes"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // Every task has its own worktree, and accepting it commits the reviewed
-// proposal on the task's branch. Kasuri no longer writes a proposal into the
+// proposal on the task's branch. Kogin no longer writes a proposal into the
 // main checkout, so a task made there before (without a worktree) can be read
 // and deleted, not accepted.
 
 // ErrCheckoutTask refuses to accept a task made in the main checkout.
-var ErrCheckoutTask = errors.New("this task was made in the main checkout, which Kasuri no longer changes; delete it and create it again: every task now gets its own worktree")
+var ErrCheckoutTask = errors.New("this task was made in the main checkout, which Kogin no longer changes; delete it and create it again: every task now gets its own worktree")
 
 // ApplyChange accepts the reviewed, checked proposal of a task in its own
 // worktree as a commit on its branch.

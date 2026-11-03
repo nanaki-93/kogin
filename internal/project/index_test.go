@@ -130,7 +130,7 @@ func TestManagerPersistsFileAnalysisStatus(t *testing.T) {
 func TestBuildIndexRebuildsCorruptCacheAtomically(t *testing.T) {
 	root := t.TempDir()
 	writeIndexFixture(t, root, "main.go", "package main\n")
-	if err := os.MkdirAll(filepath.Join(root, ".kasuri"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, ".kogin"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(root, indexRelativePath), []byte("not-json"), 0600); err != nil {
@@ -151,7 +151,7 @@ func TestBuildIndexRebuildsCorruptCacheAtomically(t *testing.T) {
 	if err := json.Unmarshal(data, &persisted); err != nil {
 		t.Fatalf("rebuilt index is invalid JSON: %v", err)
 	}
-	temps, err := filepath.Glob(filepath.Join(root, ".kasuri", ".index-*.tmp"))
+	temps, err := filepath.Glob(filepath.Join(root, ".kogin", ".index-*.tmp"))
 	if err != nil || len(temps) != 0 {
 		t.Fatalf("index temp files = %v, %v", temps, err)
 	}
@@ -226,11 +226,11 @@ func TestBuildIndexRejectsSymlinkedMetadataWithoutOverwritingOutsideFiles(t *tes
 				t.Fatal(err)
 			}
 			if mode == "directory" {
-				if err := os.Symlink(outside, filepath.Join(root, ".kasuri")); err != nil {
+				if err := os.Symlink(outside, filepath.Join(root, ".kogin")); err != nil {
 					t.Fatal(err)
 				}
 			} else {
-				if err := os.MkdirAll(filepath.Join(root, ".kasuri"), 0700); err != nil {
+				if err := os.MkdirAll(filepath.Join(root, ".kogin"), 0700); err != nil {
 					t.Fatal(err)
 				}
 				if err := os.Symlink(outsideIndex, filepath.Join(root, indexRelativePath)); err != nil {

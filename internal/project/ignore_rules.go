@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/brand"
+	"github.com/nanaki-93/kogin/v2/internal/brand"
 )
 
 type ignoreRule struct {
@@ -47,7 +47,7 @@ func projectIgnoreRules(root string) ([]ignoreRule, error) {
 		if base == "." {
 			base = ""
 		}
-		for _, name := range []string{".gitignore", brand.IgnoreFile, brand.LegacyIgnoreFile} {
+		for _, name := range append([]string{".gitignore"}, brand.IgnoreFiles()...) {
 			local, err := readIgnoreRules(filepath.Join(directory, name), base)
 			if err != nil {
 				return err

@@ -1,4 +1,4 @@
-// Package version provides the current version of the Kasuri application.
+// Package version provides the current version of the Kogin application.
 package version
 
 // Version is the current semantic version of the application.

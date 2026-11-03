@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/api"
-	"github.com/nanaki-93/kasuri/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/api"
+	"github.com/nanaki-93/kogin/v2/internal/app"
 )
 
 // AnalysisHandler exposes one project run and read-only categorized evidence.

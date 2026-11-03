@@ -3,7 +3,7 @@ package archgate
 import (
 	"path/filepath"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/syntax"
+	"github.com/nanaki-93/kogin/v2/internal/project/syntax"
 )
 
 // SyntaxCheck parses a proposed non-Go file. It advises rather than blocks:
@@ -25,7 +25,7 @@ func SyntaxCheck(targets []ChangeTarget, edit ChangeEdit) CheckResult {
 			return check
 		}
 		check.State = CheckFailed
-		check.Output = proposed.SyntaxError + ". Fix the syntax; if the code is valid, Kasuri's " + proposed.Grammar + " parser may not know this syntax yet."
+		check.Output = proposed.SyntaxError + ". Fix the syntax; if the code is valid, Kogin's " + proposed.Grammar + " parser may not know this syntax yet."
 	}
 	return check
 }

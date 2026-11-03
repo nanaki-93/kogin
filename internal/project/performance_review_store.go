@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/insight"
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/project/insight"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 const (
@@ -249,7 +249,7 @@ func ClearPerformanceFileReports(root string) error {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	directory, err := storage.MetadataPath(canonical, ".kasuri", "performance", "files")
+	directory, err := storage.MetadataPath(canonical, ".kogin", "performance", "files")
 	if err != nil {
 		return fmt.Errorf("clear performance cache: %w", err)
 	}
@@ -304,7 +304,7 @@ func LoadPerformanceFileReport(root, path, contentHash string, policy *ContextPo
 
 func resolvePerformanceCachePath(root, path string) (string, error) {
 	key := sha256.Sum256([]byte(path))
-	return storage.MetadataPath(root, ".kasuri", "performance", "files", hex.EncodeToString(key[:])+".json")
+	return storage.MetadataPath(root, ".kogin", "performance", "files", hex.EncodeToString(key[:])+".json")
 }
 
 func parsePerformanceFileReport(data []byte, path string) (PerformanceFileReport, bool) {

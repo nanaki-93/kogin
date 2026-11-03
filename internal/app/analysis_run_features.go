@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // Feature discovery was retired. Saved runs that included it stay readable:
@@ -62,8 +62,8 @@ func validAnalysisFeaturePlan(plan *AnalysisFeaturePlan) bool {
 }
 
 // errAnalysisFeaturesRetired refuses to resume a saved run that included
-// feature discovery, which Kasuri no longer has.
-var errAnalysisFeaturesRetired = fmt.Errorf("%w: this analysis included feature discovery, which Kasuri no longer has; cancel it and start a new analysis", project.ErrRevisionConflict)
+// feature discovery, which Kogin no longer has.
+var errAnalysisFeaturesRetired = fmt.Errorf("%w: this analysis included feature discovery, which Kogin no longer has; cancel it and start a new analysis", project.ErrRevisionConflict)
 
 // featureSuggestionsPromptVersion is in the provider fingerprint of saved
 // runs that included feature discovery, so their freshness reads as before.

@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func TestAnalysisRestartPreservesSavedResults(t *testing.T) {
@@ -16,7 +16,7 @@ func TestAnalysisRestartPreservesSavedResults(t *testing.T) {
 		t.Run(artifacts, func(t *testing.T) {
 			server, calls := analysisResponseServer(t, analysisReply)
 			base, root := newAnalysisFreshnessService(t, server.URL, false)
-			if err := os.WriteFile(filepath.Join(root, ".kasuriignore"), []byte("*.log\n.kasuriignore\n"), 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(root, ".koginignore"), []byte("*.log\n.koginignore\n"), 0600); err != nil {
 				t.Fatal(err)
 			}
 			log := filepath.Join(root, "runtime.log")
@@ -146,7 +146,7 @@ func TestSavedAnalysisDetectsLiveChangesOutsideSelectedFiles(t *testing.T) {
 			case "deleted source":
 				err = os.Remove(filepath.Join(root, "helper.go"))
 			case "policy":
-				err = os.WriteFile(filepath.Join(root, ".kasuri", "context-policy.json"), []byte(`{"exclude":["helper.go"]}`), 0600)
+				err = os.WriteFile(filepath.Join(root, ".kogin", "context-policy.json"), []byte(`{"exclude":["helper.go"]}`), 0600)
 			case "provider":
 				s.conf().runtimes.analyze.effective.Model = "replacement"
 			}

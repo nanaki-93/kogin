@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 func (s *Service) AvailableModels(ctx context.Context) (AvailableModels, error) {

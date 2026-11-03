@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/project/projectmap"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project/projectmap"
 )
 
 // maxDocsBriefBytes bounds the project map a coding agent starts with.
@@ -74,7 +74,7 @@ func writeDocsBrief(components []projectmap.Component, edges []projectmap.Edge, 
 	if brief.Len() == 0 {
 		return ""
 	}
-	return "\nWhere these files sit (Kasuri's docs; summaries are model-written from earlier file summaries and may be out of date, the code decides):\n" + brief.String()
+	return "\nWhere these files sit (Kogin's docs; summaries are model-written from earlier file summaries and may be out of date, the code decides):\n" + brief.String()
 }
 
 // componentLinks are the imports between components, both ways.

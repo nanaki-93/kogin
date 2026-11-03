@@ -12,7 +12,7 @@ import (
 	"google.golang.org/adk/v2/session"
 	"google.golang.org/adk/v2/workflow"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
 )
 
 // Graph inputs and outputs contain identity/progress only. Host-owned proposal
@@ -43,7 +43,7 @@ func runGraph[T any](ctx context.Context, name, version string, input, schema an
 	if err != nil {
 		return result, err
 	}
-	runtime, err := runner.New(runner.Config{AppName: "kasuri", Agent: worker, SessionService: invocation.service, PluginConfig: runner.PluginConfig{Plugins: []*plugin.Plugin{policy}}})
+	runtime, err := runner.New(runner.Config{AppName: agentstate.StateApp, Agent: worker, SessionService: invocation.service, PluginConfig: runner.PluginConfig{Plugins: []*plugin.Plugin{policy}}})
 	if err != nil {
 		return result, fmt.Errorf("create %s runner: %w", name, err)
 	}

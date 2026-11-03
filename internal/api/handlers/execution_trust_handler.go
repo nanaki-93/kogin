@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/nanaki-93/kasuri/v2/internal/api"
+	"github.com/nanaki-93/kogin/v2/internal/api"
 )
 
 type executionTrustRequest struct {

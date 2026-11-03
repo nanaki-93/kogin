@@ -1,26 +1,28 @@
-# Kasuri brand kit
+# Kogin brand kit
 
-**Kasuri** (絣, ka-SOO-ree) is a Japanese weaving technique: the threads are dyed
-before weaving, and the pattern only appears once they are woven together. That
-is how the app works: each agent prepares its own thread in its own worktree, and
-the result only comes together when you review and merge it.
+**Kogin** (こぎん, KOH-gin) comes from こぎん刺し, *kogin-zashi*: a stitching
+technique from Tsugaru in northern Japan. Its geometric patterns are built on
+woven cloth by counting the threads one by one, and the design only shows once
+the stitches are in place. That is how the app works: agents fix one issue at a
+time, each in its own worktree, and the result comes together when you review
+and merge it. The mark is the same 3×3 weave the patterns are counted on.
 
-![Preview](kasuri-brand-preview.png)
+![Preview](kogin-brand-preview.png)
 
 ## Files
 
 | Folder | File | Use |
 | --- | --- | --- |
-| `logo/` | `kasuri-lockup-on-dark.svg`, `kasuri-lockup-on-light.svg` | Mark + wordmark, side by side. The default logo. |
-| `logo/` | `kasuri-mark-on-dark.svg`, `kasuri-mark-on-light.svg` | The woven mark alone. |
-| `logo/` | `kasuri-wordmark-on-dark.svg`, `kasuri-wordmark-on-light.svg` | `KASURI` alone, as outlines (no font needed). |
-| `logo/` | `kasuri-mark-mono-white.svg`, `kasuri-mark-mono-black.svg` | One-color mark for places that allow one color. |
-| `icon/` | `kasuri-app-icon.svg`, `kasuri-app-icon-{1024,512,256,128}.png` | App icon (macOS tile). |
-| `icon/` | `kasuri-app-icon-small.svg`, `kasuri-app-icon-{64,32,16}.png` | App icon for small sizes: wider gaps so the weave still reads. |
-| `icon/` | `kasuri.icns` | macOS icon for the `.app` bundle (replaces `desktop/macos/icon.icns`). |
+| `logo/` | `kogin-lockup-on-dark.svg`, `kogin-lockup-on-light.svg` | Mark + wordmark, side by side. The default logo. |
+| `logo/` | `kogin-mark-on-dark.svg`, `kogin-mark-on-light.svg` | The woven mark alone. |
+| `logo/` | `kogin-wordmark-on-dark.svg`, `kogin-wordmark-on-light.svg` | `KOGIN` alone, as outlines (no font needed). |
+| `logo/` | `kogin-mark-mono-white.svg`, `kogin-mark-mono-black.svg` | One-color mark for places that allow one color. |
+| `icon/` | `kogin-app-icon.svg`, `kogin-app-icon-{1024,512,256,128}.png` | App icon (macOS tile). |
+| `icon/` | `kogin-app-icon-small.svg`, `kogin-app-icon-{64,32,16}.png` | App icon for small sizes: wider gaps so the weave still reads. |
+| `icon/` | `kogin.icns` | macOS icon for the `.app` bundle (replaces `desktop/macos/icon.icns`). |
 | `icon/` | `favicon.svg`, `favicon.ico` | Browser tab icon for the Web UI. |
-| `tokens/` | `kasuri.css` | Brand colors as CSS variables, plus a drop-in `kasuri` palette for `web/src/styles/tokens.css`. |
-| `tokens/` | `kasuri.json` | The same colors as data. |
+| `tokens/` | `kogin.css` | Brand colors as CSS variables, plus a drop-in `kogin` palette for `web/src/styles/tokens.css`. |
+| `tokens/` | `kogin.json` | The same colors as data. |
 | `source/` | `build_brand.py`, `render_brand.py` | Scripts that generate everything above. |
 
 "On dark" files use the bright thread colors; "on light" files use the deep ones.
@@ -75,14 +77,14 @@ Emerald is for **actions** (primary buttons, "needs you", success). Violet is fo
 - **Wordmark:** JetBrains Mono Bold, uppercase, letter-spacing 0.08em. The SVGs
   already contain it as outlines.
 - **Interface text:** Inter. **Code:** JetBrains Mono. (Both are already the Web UI's fonts.)
-- **Kanji:** 絣 in Zen Kaku Gothic New, when it appears next to the name.
+- **Japanese:** こぎん in Zen Kaku Gothic New, when it appears next to the name.
 
 ## Regenerating
 
 ```sh
 pip install fonttools pillow playwright
 python3 source/build_brand.py path/to/JetBrainsMono-Bold.ttf brand
-python3 source/render_brand.py brand brand/kasuri-brand-preview.png
+python3 source/render_brand.py brand brand/kogin-brand-preview.png
 ```
 
 JetBrains Mono comes from https://github.com/JetBrains/JetBrainsMono (OFL).

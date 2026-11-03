@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
+	"github.com/nanaki-93/kogin/v2/internal/project/rules"
 )
 
 func gateCheck(t *testing.T, checks []CheckResult) CheckResult {
@@ -70,7 +70,7 @@ func TestTargetProjectsGetOnlyTheirOwnImportRules(t *testing.T) {
 	checks, _ := ChangeArchitectureAndComplexityChecks(root, nil, edits)
 	for _, check := range checks {
 		if check.Name == "architecture boundaries" && check.State != CheckPassed {
-			t.Fatalf("a project without import rules got Kasuri's own: %+v", check)
+			t.Fatalf("a project without import rules got Kogin's own: %+v", check)
 		}
 	}
 	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("- `internal/api` must never import `internal/storage`.\n"), 0644); err != nil {
@@ -107,7 +107,7 @@ func TestNonGoFunctionsAreMeasuredOneByOne(t *testing.T) {
 
 func TestBudgetsRatchetOnWhatTheFileWasBeforeTheTask(t *testing.T) {
 	root := t.TempDir()
-	writeAgents(t, root, "```kasuri\nbudgets:\n  file_lines: 4\n  function_complexity: 3\n```\n")
+	writeAgents(t, root, "```kogin\nbudgets:\n  file_lines: 4\n  function_complexity: 3\n```\n")
 	legacy := "def old(x):\n    if x and x > 1 or x < 0:\n        return 1\n    return 2\n\ndef small():\n    return 0\n"
 	target := ChangeTarget{Path: "app/legacy.py", Exists: true, Content: legacy}
 
@@ -173,7 +173,7 @@ func TestRepositoryArchitectureBoundaries(t *testing.T) {
 	}
 	resolver := rules.NewResolver(repoRoot)
 	if own := resolver.For("internal/app/service.go"); len(own.Imports) < 15 || len(resolver.Problems()) > 0 {
-		t.Fatalf("Kasuri's AGENTS.md rules = %+v, problems %+v", own, resolver.Problems())
+		t.Fatalf("Kogin's AGENTS.md rules = %+v, problems %+v", own, resolver.Problems())
 	}
 	checks, _ := ChangeArchitectureAndComplexityChecks(repoRoot, nil, prodEdits)
 	for _, check := range checks {
@@ -190,11 +190,11 @@ func TestRepositoryArchitectureBoundaries(t *testing.T) {
 	violationChecks, _ := ChangeArchitectureAndComplexityChecks(repoRoot, nil, []ChangeEdit{
 		{
 			Path:    "internal/project/diff/bad.go",
-			Content: "package diff\nimport _ \"github.com/nanaki-93/kasuri/v2/internal/project/symbols\"\n",
+			Content: "package diff\nimport _ \"github.com/nanaki-93/kogin/v2/internal/project/symbols\"\n",
 		},
 		{
 			Path:    "internal/app/gitops/bad.go",
-			Content: "package gitops\nimport _ \"github.com/nanaki-93/kasuri/v2/internal/app/archgate\"\n",
+			Content: "package gitops\nimport _ \"github.com/nanaki-93/kogin/v2/internal/app/archgate\"\n",
 		},
 	})
 	if len(violationChecks) == 0 || violationChecks[0].State != CheckFailed {
@@ -210,7 +210,7 @@ func TestRepositoryArchitectureBoundaries(t *testing.T) {
 	}
 }
 
-// adkBoundaryViolations checks Kasuri's own runtime boundary, which no
+// adkBoundaryViolations checks Kogin's own runtime boundary, which no
 // target project shares: SDK types stay in internal/app/agentruntime, and that
 // leaf never imports its parent internal/app (the independent agentstate store
 // is allowed).
@@ -242,13 +242,13 @@ func TestAgentRuntimeImportBoundary(t *testing.T) {
 	}{
 		{"internal/app/agentruntime/model.go", "google.golang.org/adk/v2/model", true},
 		{"internal/app/agentruntime/model.go", "google.golang.org/genai", true},
-		{"internal/app/agentruntime/session.go", "github.com/nanaki-93/kasuri/v2/internal/app/agentstate", true},
-		{"internal/app/agentstate/store.go", "github.com/nanaki-93/kasuri/v2/internal/storage", true},
-		{"internal/app/agentstate/store.go", "github.com/nanaki-93/kasuri/v2/internal/app/agentruntime", false},
+		{"internal/app/agentruntime/session.go", "github.com/nanaki-93/kogin/v2/internal/app/agentstate", true},
+		{"internal/app/agentstate/store.go", "github.com/nanaki-93/kogin/v2/internal/storage", true},
+		{"internal/app/agentstate/store.go", "github.com/nanaki-93/kogin/v2/internal/app/agentruntime", false},
 		{"internal/app/agentstate/store.go", "google.golang.org/adk/v2/session", false},
-		{"internal/app/agentruntime/model.go", "github.com/nanaki-93/kasuri/v2/internal/app", false},
-		{"internal/app/agentruntime/model.go", "github.com/nanaki-93/kasuri/v2/internal/project", false},
-		{"internal/app/agentruntime/model.go", "github.com/nanaki-93/kasuri/v2/internal/storage", false},
+		{"internal/app/agentruntime/model.go", "github.com/nanaki-93/kogin/v2/internal/app", false},
+		{"internal/app/agentruntime/model.go", "github.com/nanaki-93/kogin/v2/internal/project", false},
+		{"internal/app/agentruntime/model.go", "github.com/nanaki-93/kogin/v2/internal/storage", false},
 		{"internal/app/service.go", "google.golang.org/adk/v2/runner", false},
 		{"internal/project/project_overview.go", "google.golang.org/adk/v2/model", false},
 		{"internal/storage/file.go", "google.golang.org/adk/v2/session", false},

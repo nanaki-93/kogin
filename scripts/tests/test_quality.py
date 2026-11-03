@@ -64,7 +64,7 @@ class QualityTests(unittest.TestCase):
                 "DEADCODE_STDOUT": stdout,
                 "DEADCODE_STDERR": stderr,
                 "DEADCODE_STATUS": str(status),
-                "KASURI_QUALITY_FAIL_STAGE": forced_failure,
+                "KOGIN_QUALITY_FAIL_STAGE": forced_failure,
             },
             capture_output=True,
             text=True,
@@ -155,7 +155,7 @@ class ValidationTests(unittest.TestCase):
                             **os.environ,
                             "PATH": str(bin_dir),
                             "VALIDATION_CALLS": str(calls),
-                            "KASURI_VALIDATE_FAIL_STAGE": failure,
+                            "KOGIN_VALIDATE_FAIL_STAGE": failure,
                         },
                         capture_output=True, text=True, timeout=10,
                     )

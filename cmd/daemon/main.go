@@ -11,14 +11,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/api"
-	"github.com/nanaki-93/kasuri/v2/internal/api/handlers"
-	"github.com/nanaki-93/kasuri/v2/internal/app"
-	"github.com/nanaki-93/kasuri/v2/internal/brand"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/logging"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/version"
+	"github.com/nanaki-93/kogin/v2/internal/api"
+	"github.com/nanaki-93/kogin/v2/internal/api/handlers"
+	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/brand"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/logging"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/version"
 )
 
 func main() {
@@ -56,7 +56,7 @@ func main() {
 	}
 
 	// Log successful startup
-	logging.Info("Kasuri daemon started successfully")
+	logging.Info("Kogin daemon started successfully")
 	for _, model := range application.EffectiveModels() {
 		logging.Info("Model scope initialized", "scope", model.Scope, "model", model.Model, "reasoning_effort", model.ReasoningEffort, "provider_origin", model.ProviderOrigin, "remote_provider", model.RemoteProvider)
 	}
@@ -129,7 +129,7 @@ func startHTTPServer(
 // daemonAddress is loopback-only unless a local deployment explicitly opts in
 // to another bind address (for example, a container port mapping).
 func daemonAddress() string {
-	if address := brand.Getenv("KASURI_BIND_ADDRESS"); address != "" {
+	if address := brand.Getenv("KOGIN_BIND_ADDRESS"); address != "" {
 		return address
 	}
 	return "127.0.0.1:9090"
@@ -285,10 +285,10 @@ func newProjectHTTPMux(application *app.Service, projectManager *project.Manager
 }
 
 // daemonHostPolicy accepts other hosts only for an explicit non-loopback bind;
-// host names must additionally be listed in KASURI_ALLOWED_HOSTS.
+// host names must additionally be listed in KOGIN_ALLOWED_HOSTS.
 func daemonHostPolicy() api.HostPolicy {
 	policy := api.HostPolicy{External: daemonAllowsExternalHosts()}
-	for _, name := range strings.Split(brand.Getenv("KASURI_ALLOWED_HOSTS"), ",") {
+	for _, name := range strings.Split(brand.Getenv("KOGIN_ALLOWED_HOSTS"), ",") {
 		if name = strings.TrimSpace(name); name != "" {
 			policy.Names = append(policy.Names, name)
 		}
@@ -297,7 +297,7 @@ func daemonHostPolicy() api.HostPolicy {
 }
 
 func daemonAllowsExternalHosts() bool {
-	address := brand.Getenv("KASURI_BIND_ADDRESS")
+	address := brand.Getenv("KOGIN_BIND_ADDRESS")
 	if address == "" {
 		return false
 	}

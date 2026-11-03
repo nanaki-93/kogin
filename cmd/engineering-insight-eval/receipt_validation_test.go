@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/insighteval"
+	"github.com/nanaki-93/kogin/v2/internal/insighteval"
 )
 
 func TestQualificationScheduleBuildsFrozenTwoRepetitionPlan(t *testing.T) {

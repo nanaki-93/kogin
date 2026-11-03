@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 var (
@@ -90,7 +90,7 @@ func newStore(root string) (*Store, error) {
 }
 
 func (s *Store) path(name string) (string, error) {
-	return storage.MetadataPath(s.root, ".kasuri", "agents", s.workspace, name)
+	return storage.MetadataPath(s.root, ".kogin", "agents", s.workspace, name)
 }
 
 func (s *Store) empty() *database {

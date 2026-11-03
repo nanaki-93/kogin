@@ -5,13 +5,13 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleName</key>
-    <string>Kasuri</string>
+    <string>Kogin</string>
     <key>CFBundleDisplayName</key>
-    <string>Kasuri</string>
+    <string>Kogin</string>
     <key>CFBundleExecutable</key>
-    <string>kasuri-desktop</string>
+    <string>kogin-desktop</string>
     <key>CFBundleIdentifier</key>
-    <string>io.github.nanaki-93.kasuri</string>
+    <string>io.github.nanaki-93.kogin</string>
     <key>CFBundleShortVersionString</key>
     <string>__SHORT_VERSION__</string>
     <key>CFBundleVersion</key>

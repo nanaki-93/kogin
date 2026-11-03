@@ -267,7 +267,7 @@ function ApplyBox({ session }: { session: LoadedSession }) {
     return (
       <section className="rail-section">
         <Callout tone="neutral" icon={Archive} title="Read only">
-          Kasuri no longer changes tasks made in the main checkout. Delete it, and create it again if it is still needed: it gets its own worktree.
+          Kogin no longer changes tasks made in the main checkout. Delete it, and create it again if it is still needed: it gets its own worktree.
         </Callout>
       </section>
     );

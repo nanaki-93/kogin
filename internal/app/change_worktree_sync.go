@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // verifyWorktreeBase checks that a task's worktree is still on the task's
@@ -38,7 +38,7 @@ func verifyWorktreeProposal(ctx context.Context, root string, session *ChangeSes
 		return fmt.Errorf("%w: %v", project.ErrRevisionConflict, err)
 	}
 	if !sameProposal(read, session.Changes) {
-		return fmt.Errorf("%w: files in the task's worktree changed outside Kasuri", project.ErrRevisionConflict)
+		return fmt.Errorf("%w: files in the task's worktree changed outside Kogin", project.ErrRevisionConflict)
 	}
 	return nil
 }
@@ -98,7 +98,7 @@ func (s *Service) adoptWorktreeEdits(ctx context.Context, root string, session *
 	delete(s.changeAuthority, current.ProjectID+"/"+current.ID)
 	now := time.Now().UTC()
 	if len(current.Messages) < maxChangeMessages {
-		current.Messages = append(current.Messages, ChangeMessage{Role: "assistant", Content: "Kasuri picked up edits made directly in this task's worktree; they are now part of the proposal.", CreatedAt: now})
+		current.Messages = append(current.Messages, ChangeMessage{Role: "assistant", Content: "Kogin picked up edits made directly in this task's worktree; they are now part of the proposal.", CreatedAt: now})
 	}
 	current.UpdatedAt = now
 	if err := storeChangeSession(root, current); err != nil {
