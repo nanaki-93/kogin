@@ -1,10 +1,10 @@
 // One task, laid out like a pull request: header with the next action, tabs
 // for the conversation, files changed and checks, and a review-gate rail.
 
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import {
-  ArrowLeft, Archive, CheckCircle2, Circle, ExternalLink, FileDiff, FlaskConical, GitBranch, GitCommitHorizontal, MessageSquare, ShieldCheck, Square, ThumbsDown, ThumbsUp, Trash2,
+  ArrowLeft, Archive, CheckCircle2, Circle, FileDiff, FlaskConical, GitBranch, GitMerge, MessageSquare, ShieldCheck, Square, ThumbsDown, Trash2,
 } from 'lucide-react';
 import { useSession, useTrust, useUsage } from '@/api/hooks';
 import { costCaveat, costLabel, usageLabel } from '@/lib/usage';
@@ -12,17 +12,18 @@ import type { LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { navigate, useRoute } from '@/lib/router';
 import { openWorkspace } from '@/app/checkout';
-import { canOverrideReview, checkSummary, effectiveEdits, proposalReadiness, reviewProgress, workflowActive } from '@/lib/readiness';
+import { canOverrideReview, checkSummary, effectiveEdits, proposalReadiness, reviewProgress, sessionStatusEntry, workflowActive } from '@/lib/readiness';
 import { activeOverride, agentRunLabel, agentsFinished, reviewVerdict } from '@/lib/workflow';
 import { basename, plural, shortHash, timeAgo } from '@/lib/util';
-import { Badge, Button, Callout, EmptyState, IconButton, Input, Skeleton, cx } from '@/components/ui';
+import { Badge, Button, Callout, EmptyState, IconButton, Skeleton, cx } from '@/components/ui';
 import { KindTag, TaskStatusBadge } from '@/components/domain';
 import { FilesChanged } from '@/features/review/FilesChanged';
 import { ChecksPanel } from '@/features/review/ChecksPanel';
 import { ReanalyzeTask } from './ReanalyzeTask';
 import { RunAgents } from './RunAgents';
 import { TaskOverview } from './TaskOverview';
-import { ApprovalNotes, ApproveWithNotes, OverrideReview } from './ReviewDecision';
+import { AcceptTask } from './AcceptTask';
+import { ApprovalNotes, OverrideReview } from './ReviewDecision';
 
 export function TaskPage({ id, tab }: { id: string; tab: string }) {
   const route = useRoute();
@@ -82,7 +83,7 @@ function TaskHeader({ session }: { session: LoadedSession }) {
       <div className="grow">
         <h1 className="task-title">{session.title || session.id}</h1>
         <div className="row-wrap task-meta">
-          <TaskStatusBadge entry={{ ...session, workflow_status: session.workflow?.status }} />
+          <TaskStatusBadge entry={sessionStatusEntry(session)} />
           <KindTag kind={session.kind} />
           {branch ? (
             <span className="chip" title={session.checkout.worktreePath || 'main checkout'}>
@@ -128,7 +129,7 @@ function offersRunBesidePrimary(session: LoadedSession): boolean {
   return !workflowActive(session) && !['applied', 'generate', 'agents', 'stale', 'checkout'].includes(step);
 }
 
-/** The single most useful next step, as a button. */
+/** The single most useful next step, as a button, on every tab. */
 function PrimaryAction({ session }: { session: LoadedSession }) {
   const actions = useActions();
   const busy = useBusy();
@@ -159,12 +160,10 @@ function PrimaryAction({ session }: { session: LoadedSession }) {
           Run checks
         </Button>
       );
-    case 'approve':
-      return (
-        <Button variant="primary" icon={ThumbsUp} onClick={() => void actions.approve(session)} disabled={Boolean(busy)}>
-          Approve
-        </Button>
-      );
+    case 'accept':
+      return <AcceptTask session={session} />;
+    case 'applied':
+      return session.worktree ? <MergeFromBranches primary /> : null;
     default:
       return null;
   }
@@ -183,7 +182,6 @@ function ReviewRail({ session }: { session: LoadedSession }) {
     { label: 'Reviewers', done: verdict === 'approve' || overridden, active: false, detail: reviewers },
     { label: 'Files viewed', done: ready.filesReviewed, active: ready.step === 'review', detail: `${progress.reviewed} of ${progress.total}`, onClick: () => navigate(`/tasks/${session.id}/files`) },
     { label: 'Checks', done: ready.checksPassed, active: ready.step === 'checks', detail: checks.label, onClick: () => navigate(`/tasks/${session.id}/checks`) },
-    { label: 'Your approval', done: Boolean(session.reviewed_hash) && session.reviewed_hash === session.hash, active: ready.step === 'approve', detail: session.reviewed_hash === session.hash && session.hash ? 'This exact version' : 'Not yet' },
   ];
   return (
     <aside className="rail" aria-label="Review gate">
@@ -240,11 +238,19 @@ function TaskSpend({ id }: { id: string }) {
   );
 }
 
+/** After Accept, the branch is merged from the Branches page: the header's next step, a link beside it in the rail. */
+function MergeFromBranches({ primary }: { primary?: boolean }) {
+  return (
+    <Button variant={primary ? 'primary' : 'secondary'} icon={GitMerge} onClick={() => navigate('/git')}>
+      Merge from Branches
+    </Button>
+  );
+}
+
 function ApplyBox({ session }: { session: LoadedSession }) {
   const actions = useActions();
   const busy = useBusy();
   const ready = proposalReadiness(session);
-  const [message, setMessage] = useState(`${session.kind === 'fix' ? 'fix' : 'feat'}: ${session.title}`.slice(0, 120));
   const input = session.workflow?.input;
 
   if (session.state === 'applied') {
@@ -253,11 +259,7 @@ function ApplyBox({ session }: { session: LoadedSession }) {
         <Callout tone="success" icon={ShieldCheck} title={session.worktree ? 'Accepted' : 'Applied'}>
           {ready.message}
         </Callout>
-        {session.worktree ? (
-          <Button icon={ExternalLink} onClick={() => navigate('/git')}>
-            Merge from Branches
-          </Button>
-        ) : null}
+        {session.worktree ? <MergeFromBranches /> : null}
       </section>
     );
   }
@@ -273,20 +275,7 @@ function ApplyBox({ session }: { session: LoadedSession }) {
   if (!ready.editable) return null;
   return (
     <section className="rail-section">
-      {ready.canApply ? (
-        <>
-          <Input value={message} onChange={e => setMessage(e.target.value)} aria-label="Commit message" maxLength={200} />
-          <Button variant="primary" icon={GitCommitHorizontal} onClick={() => void actions.apply(session, message)} disabled={Boolean(busy)} loading={busy === 'Accepting…'}>
-            Accept & commit
-          </Button>
-        </>
-      ) : ready.canApprove ? (
-        <ApproveWithNotes session={session} />
-      ) : (
-        <Button variant="primary" icon={GitCommitHorizontal} disabled>
-          Accept & commit
-        </Button>
-      )}
+      <AcceptTask session={session} />
       {input?.status === 'waiting' ? (
         <Button variant="ghost" icon={ThumbsDown} onClick={() => void actions.reject(session)} disabled={Boolean(busy)}>
           Reject proposal

@@ -177,8 +177,31 @@ export interface ChangeHistoryEntry extends ProjectIdentity {
   paths?: string[];
   workflow_status?: string;
   workflow_reason?: string;
+  /** What a running workflow does now; absent when none runs. */
+  workflow_phase?: WorkflowPhase;
+  /** Where your review of the current version stands, when it waits for you. */
+  review?: ReviewProgress;
   worktree_path?: string;
   finding_targets?: FindingTarget[];
+}
+
+/** The stage a running workflow is in (gitops.ChangeWorkflowPhase). */
+export interface WorkflowPhase {
+  stage: 'create' | 'test' | 'review';
+  /** The issue being fixed (1-based) of `issues`, while a task fixes its issues one at a time. */
+  issue?: number;
+  issues?: number;
+  /** The automatic repair the run is on; absent on its first pass. */
+  repair?: number;
+  /** A run started at the checks: its test stage only runs them. */
+  checks_only?: boolean;
+}
+
+/** What your review of a version that waits for you needs next (gitops.ChangeReviewProgress). */
+export interface ReviewProgress {
+  step: 'view_files' | 'run_checks' | 'accept';
+  files: number;
+  viewed: number;
 }
 
 /** A task row in lists: the history entry plus the checkout that owns it. */

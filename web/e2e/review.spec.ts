@@ -1,18 +1,20 @@
-// The core job: review every changed file, approve this exact version and
-// accept it as a commit on the task's branch, with the review gate tracking each step.
+// The core job: review every changed file, then accept this exact version as
+// a commit on the task's branch in one step, with the review gate tracking each step.
 
 import { expect, test } from './support/daemon';
 import { agentSettings, pausedTask, rejectedTask, reviewTask, stageModel } from './support/fixtures';
 
-test('reviews, approves and accepts a task through the gate', async ({ page, daemon }) => {
+test('reviews the files, then accepts and commits in one step', async ({ page, daemon }) => {
   await page.goto('/#/tasks/chg-1');
   const gate = page.getByRole('complementary', { name: 'Review gate' });
+  const header = page.locator('header.task-header');
   await expect(gate.getByText('0 of 3')).toBeVisible();
   await expect(gate.getByRole('button', { name: 'Accept & commit' })).toBeDisabled();
+  await expect(header.getByText('Needs review')).toBeVisible();
   // An optional check failure is a warning, not a blocker.
   await expect(gate.getByText('1 optional failed')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Review files' }).click();
+  await header.getByRole('button', { name: 'Review files' }).click();
   await expect(page).toHaveURL(/#\/tasks\/chg-1\/files/);
   for (let viewed = 1; viewed <= 3; viewed++) {
     await page.keyboard.press('v');
@@ -24,28 +26,71 @@ test('reviews, approves and accepts a task through the gate', async ({ page, dae
     'internal/api/handlers/mime.go',
   ]);
 
-  await page.getByRole('tab', { name: /conversation/i }).click();
-  await gate.getByRole('button', { name: 'Approve this version' }).click();
-  await expect(page.getByText('Approved this exact version')).toBeVisible();
-
-  await gate.getByRole('button', { name: 'Accept & commit' }).click();
-  const dialog = page.getByRole('alertdialog');
+  // The next step is in the header of every tab: no detour to approve first.
+  await expect(header.getByText('Ready to accept')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Approve/ })).toHaveCount(0);
+  await header.getByRole('button', { name: 'Accept & commit' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Accept and commit?' });
   await expect(dialog).toContainText('on orca/reject-nested-a1b2c3');
+  await expect(dialog).toContainText('records your approval of this version');
+  await expect(dialog.getByLabel('Commit message')).toHaveValue('fix: Reject nested asset paths in the Web UI handler');
   await dialog.getByRole('button', { name: 'Accept & commit' }).click();
   await expect(page.getByText('Accepted and committed on orca/reject-nested-a1b2c3.')).toBeVisible();
 
+  const [review] = daemon.mutations('/review');
+  expect(review.body).toEqual({ project_id: 'p1', project_revision: 'r42', revision: 3, hash: 'sha256:9f2c1a7be4' });
   const [apply] = daemon.mutations('/apply');
   expect(apply.body).toMatchObject({ project_id: 'p1', project_revision: 'r42', revision: 3, hash: 'sha256:9f2c1a7be4', confirm: true, commit_message: 'fix: Reject nested asset paths in the Web UI handler' });
+  await expect(header.getByText('Committed')).toBeVisible();
+  await header.getByRole('button', { name: 'Merge from Branches' }).click();
+  await expect(page).toHaveURL(/#\/git/);
 });
 
-test('cancelling the Accept confirmation commits nothing', async ({ page, daemon }) => {
+test('cancelling the Accept confirmation approves and commits nothing', async ({ page, daemon }) => {
+  const session = daemon.sessions.get('chg-1')!;
+  daemon.sessions.set('chg-1', { ...session, reviewed_files: session.changes.map(change => change.path) });
+  await page.goto('/#/tasks/chg-1');
+  await page.getByRole('complementary', { name: 'Review gate' }).getByRole('button', { name: 'Accept & commit' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Accept and commit?' });
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toBeHidden();
+  expect(daemon.mutations('/review')).toEqual([]);
+  expect(daemon.mutations('/apply')).toEqual([]);
+});
+
+test('a version approved before Accept became one step is only committed', async ({ page, daemon }) => {
   const session = daemon.sessions.get('chg-1')!;
   daemon.sessions.set('chg-1', { ...session, reviewed_files: session.changes.map(change => change.path), reviewed_hash: session.hash });
   await page.goto('/#/tasks/chg-1');
-  await page.getByRole('complementary', { name: 'Review gate' }).getByRole('button', { name: 'Accept & commit' }).click();
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click();
-  await expect(page.getByRole('alertdialog')).toBeHidden();
-  expect(daemon.mutations('/apply')).toEqual([]);
+  await page.locator('header.task-header').getByRole('button', { name: 'Accept & commit' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Accept and commit?' });
+  await expect(dialog.getByLabel('Approval notes')).toHaveCount(0);
+  await dialog.getByLabel('Commit message').fill('fix: reject nested asset names');
+  await dialog.getByRole('button', { name: 'Accept & commit' }).click();
+  await expect(page.getByText('Accepted and committed on orca/reject-nested-a1b2c3.')).toBeVisible();
+  expect(daemon.mutations('/review')).toEqual([]);
+  expect(daemon.mutations('/apply')[0].body).toMatchObject({ commit_message: 'fix: reject nested asset names' });
+});
+
+test('the task list names the running phase and keeps tasks ready to accept apart', async ({ page, daemon }) => {
+  await page.goto('/#/tasks');
+  const running = page.getByRole('listitem').filter({ hasText: 'Show per-task model cost' });
+  await expect(running).toContainText('Fixing 2 of 3');
+  const task = page.getByRole('listitem').filter({ hasText: 'Reject nested asset paths' });
+  await expect(task).toContainText('Needs review');
+
+  const session = daemon.sessions.get('chg-1')!;
+  daemon.sessions.set('chg-1', { ...session, reviewed_files: [session.changes[0].path] });
+  await page.reload();
+  await expect(task).toContainText('1 of 3 files viewed');
+
+  daemon.sessions.set('chg-1', { ...session, reviewed_files: session.changes.map(change => change.path) });
+  await page.reload();
+  const ready = page.getByRole('region', { name: 'Ready to accept' });
+  await expect(ready.getByRole('listitem')).toHaveCount(1);
+  await expect(ready.getByRole('listitem')).toContainText('Reject nested asset paths');
+  await expect(ready.getByRole('listitem')).toContainText('Ready to accept');
+  await expect(page.getByRole('region', { name: 'Needs you' })).toHaveCount(0);
 });
 
 test('compares the split and unified diff layouts', async ({ page }) => {
@@ -56,7 +101,7 @@ test('compares the split and unified diff layouts', async ({ page }) => {
   await expect(page.getByRole('button', { name: /unified view/i })).toBeVisible();
 });
 
-test('overrides the reviewers with a reason, then approves with notes', async ({ page, daemon }) => {
+test('overrides the reviewers with a reason, then accepts with notes', async ({ page, daemon }) => {
   daemon.sessions.set('chg-1', rejectedTask());
   await page.goto('/#/tasks/chg-1');
   const gate = page.getByRole('complementary', { name: 'Review gate' });
@@ -80,23 +125,24 @@ test('overrides the reviewers with a reason, then approves with notes', async ({
   await expect(page.getByText('The MIME table is private to this handler.')).toBeVisible();
   expect(daemon.mutations('/review-override')[0].body).toMatchObject({ revision: 3, hash: 'sha256:9f2c1a7be4', workflow_id: 'wf-1', reason: 'The MIME table is private to this handler.' });
 
-  await gate.getByRole('button', { name: 'Add notes' }).click();
-  await gate.getByLabel('Approval notes').fill('Revisit the package split next sprint.');
-  await gate.getByRole('button', { name: 'Approve with notes' }).click();
-  await expect(page.getByText('Approved this exact version')).toBeVisible();
+  await gate.getByRole('button', { name: 'Accept & commit' }).click();
+  const accept = page.getByRole('dialog', { name: 'Accept and commit?' });
+  await accept.getByLabel('Approval notes').fill('Revisit the package split next sprint.');
+  await accept.getByRole('button', { name: 'Accept & commit' }).click();
+  await expect(page.getByText('Accepted and committed on orca/reject-nested-a1b2c3.')).toBeVisible();
   await expect(gate.getByText('Revisit the package split next sprint.')).toBeVisible();
   expect(daemon.mutations('/review')[0].body).toMatchObject({ hash: 'sha256:9f2c1a7be4', notes: 'Revisit the package split next sprint.' });
-  await expect(gate.getByRole('button', { name: 'Accept & commit' })).toBeEnabled();
+  expect(daemon.mutations('/apply')).toHaveLength(1);
 });
 
-test('checks from an earlier project tree must run again before approval', async ({ page, daemon }) => {
+test('checks from an earlier project tree must run again before Accept', async ({ page, daemon }) => {
   const session = daemon.sessions.get('chg-1')!;
   daemon.sessions.set('chg-1', { ...session, reviewed_files: session.changes.map(change => change.path), checks_outdated: true });
   await page.goto('/#/tasks/chg-1');
   const gate = page.getByRole('complementary', { name: 'Review gate' });
   await expect(gate.getByText('Outdated')).toBeVisible();
-  await expect(gate.getByText('The project changed since checks ran. Run them again before approval.')).toBeVisible();
-  await expect(gate.getByRole('button', { name: /^Approve/ })).toHaveCount(0);
+  await expect(gate.getByText('The project changed since checks ran. Run them again before you accept.')).toBeVisible();
+  await expect(gate.getByRole('button', { name: 'Accept & commit' })).toBeDisabled();
   await page.getByRole('tab', { name: /checks/i }).click();
   await expect(page.getByText('These checks ran on an earlier version of the project')).toBeVisible();
 });
@@ -369,7 +415,7 @@ test('a task in its own worktree shows new, deleted and moved files and is accep
   await expect(gate).toContainText('Ready to accept?');
   await expect(gate.getByRole('button', { name: /apply/i })).toHaveCount(0);
   await gate.getByRole('button', { name: 'Accept & commit' }).click();
-  const dialog = page.getByRole('alertdialog');
+  const dialog = page.getByRole('dialog', { name: 'Accept and commit?' });
   await expect(dialog).toContainText('on orca/reject-nested-a1b2c3');
   await dialog.getByRole('button', { name: 'Accept & commit' }).click();
   await expect(page.getByText('Accepted and committed on orca/reject-nested-a1b2c3.')).toBeVisible();

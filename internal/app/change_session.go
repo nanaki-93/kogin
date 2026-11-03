@@ -219,7 +219,7 @@ func (s *Service) ChangeHistory(ctx context.Context) ([]ChangeHistoryEntry, erro
 		if entry.WorkflowStatus == "running" || entry.WorkflowStatus == "canceling" {
 			job := s.changeWorkflow.getJob(entry.ID)
 			if job == nil || job.finished || job.sessionID != entry.ID || job.root != s.manager.Root() {
-				entry.WorkflowStatus = "interrupted"
+				entry.WorkflowStatus, entry.WorkflowPhase = "interrupted", nil
 				entry.WorkflowReason = "The workflow stopped before completion. Restore the conversation to run again."
 			}
 		}

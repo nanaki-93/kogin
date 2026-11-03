@@ -2751,8 +2751,28 @@ components:
         freshness: {type: string}
         workflow_status: {type: string}
         workflow_reason: {type: string}
+        workflow_phase: {$ref: '#/components/schemas/ChangeWorkflowPhase'}
+        review: {$ref: '#/components/schemas/ChangeReviewProgress'}
         paths: {type: array, maxItems: 64, items: {type: string}, description: The task's write paths.}
         updated_at: {type: string, format: date-time}
+    ChangeWorkflowPhase:
+      type: object
+      description: The stage a running (or stopping) workflow is in. Absent when no workflow runs or before its first stage starts.
+      required: [stage]
+      properties:
+        stage: {type: string, enum: [create, test, review]}
+        issue: {type: integer, minimum: 1, description: The issue being fixed (1-based) while a task fixes its issues one at a time; with issues.}
+        issues: {type: integer, minimum: 2, description: How many issues the task fixes one at a time.}
+        repair: {type: integer, minimum: 1, description: The automatic repair the run is on; absent on its first pass.}
+        checks_only: {type: boolean, description: A run started at the checks; its test stage only runs them.}
+    ChangeReviewProgress:
+      type: object
+      description: Where your review of a draft's current version stands, when it waits for you (no run, or a run at awaiting_human_review). Accept still rechecks every condition.
+      required: [step, files, viewed]
+      properties:
+        step: {type: string, enum: [view_files, run_checks, accept], description: What the review needs next. accept also covers a version you approved but have not committed.}
+        files: {type: integer, minimum: 1, description: Files the version changes.}
+        viewed: {type: integer, minimum: 0, description: Of those, files marked viewed at the current hash.}
     GitIdentity:
       type: object
       required: [head, branch]

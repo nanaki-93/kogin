@@ -262,19 +262,9 @@ func listChangeSessionsWith(root string, listing sessionListing) ([]ChangeHistor
 			}
 			continue
 		}
-		entry := ChangeHistoryEntry{ID: session.ID, ProjectID: session.ProjectID, ProjectRevision: session.ProjectRevision, Kind: session.Kind, Title: session.Title, Revision: session.Revision, Hash: session.Hash, State: session.State, Freshness: session.Freshness, UpdatedAt: session.UpdatedAt}
+		entry := changeHistoryEntry(session)
 		if listing.freshness != nil && session.State == "draft" {
 			entry.Freshness = listing.freshness(session)
-		}
-		entry.Commit = session.Commit
-		for _, target := range session.Targets {
-			entry.Paths = append(entry.Paths, target.Path)
-		}
-		entry.FindingTargets = session.FindingTargets
-		entry.DismissedTargets = session.DismissedTargets
-		if session.Workflow != nil {
-			entry.WorkflowStatus = session.Workflow.Status
-			entry.WorkflowReason = session.Workflow.Reason
 		}
 		result = append(result, entry)
 		if len(result) > 200 {

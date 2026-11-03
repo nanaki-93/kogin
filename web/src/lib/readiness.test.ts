@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ChangeSession, Check, FileChange } from '@/api/types';
-import { canOverrideReview, checkSummary, effectiveEdits, nextUnreviewedPath, phaseTone, proposalReadiness, reviewProgress, taskStatus } from './readiness';
+import { canOverrideReview, checkSummary, effectiveEdits, nextUnreviewedPath, phaseTone, proposalReadiness, reviewProgress, sessionStatusEntry, taskStatus } from './readiness';
 
 function edit(path: string): FileChange {
   return { path, content: '', hash: 'h-' + path, diff: { lines: [] } } as unknown as FileChange;
@@ -21,26 +21,25 @@ function session(overrides: Partial<ChangeSession> = {}): ChangeSession {
 const reviewed = { file_review_hash: 'sha-2', reviewed_files: ['a.go', 'a_test.go'] };
 
 describe('proposalReadiness', () => {
-  it('walks review → checks → approve → apply', () => {
+  it('walks review → checks → accept, approving in the same step', () => {
     expect(proposalReadiness(session()).step).toBe('review');
     expect(proposalReadiness(session({ ...reviewed })).step).toBe('checks');
     const checked = session({ ...reviewed, checks: [check('lint', 'passed'), check('tests', 'passed'), check('optional', 'failed', false)] });
-    const approve = proposalReadiness(checked);
-    expect(approve).toMatchObject({ step: 'approve', canApprove: true, canApply: false });
-    expect(proposalReadiness({ ...checked, reviewed_hash: 'sha-2' })).toMatchObject({ step: 'apply', canApply: true });
+    expect(proposalReadiness(checked)).toMatchObject({ step: 'accept', canAccept: true, approved: false, message: 'Ready. Accept & commit approves this exact version and commits it on orca/fix-a1.' });
+    // A version approved before Accept became one step only needs the commit.
+    expect(proposalReadiness({ ...checked, reviewed_hash: 'sha-2' })).toMatchObject({ step: 'accept', canAccept: true, approved: true, message: 'Approved. Accept commits this version on orca/fix-a1.' });
   });
 
   it('does not count reviews recorded for an older hash', () => {
     const r = proposalReadiness(session({ file_review_hash: 'sha-1', reviewed_files: ['a.go', 'a_test.go'], checks: [check('tests', 'passed')], reviewed_hash: 'sha-1' }));
-    expect(r.filesReviewed).toBe(false);
-    expect(r.canApply).toBe(false);
+    expect(r).toMatchObject({ filesReviewed: false, canAccept: false, approved: false });
   });
 
   it('waits for a workflow to reach human review', () => {
     const base = session({ ...reviewed, checks: [check('tests', 'passed')], reviewed_hash: 'sha-2' });
     expect(proposalReadiness({ ...base, workflow: { status: 'running' } as ChangeSession['workflow'] }).step).toBe('agents');
-    expect(proposalReadiness({ ...base, workflow: { status: 'changes_requested', reason: 'Reviewer asked for tests' } as ChangeSession['workflow'] })).toMatchObject({ step: 'agents', canApply: false, message: 'Reviewer asked for tests' });
-    expect(proposalReadiness({ ...base, workflow: { status: 'awaiting_human_review' } as ChangeSession['workflow'] }).canApply).toBe(true);
+    expect(proposalReadiness({ ...base, workflow: { status: 'changes_requested', reason: 'Reviewer asked for tests' } as ChangeSession['workflow'] })).toMatchObject({ step: 'agents', canAccept: false, message: 'Reviewer asked for tests' });
+    expect(proposalReadiness({ ...base, workflow: { status: 'awaiting_human_review' } as ChangeSession['workflow'] }).canAccept).toBe(true);
   });
 
   it('offers an override only for the reviewers\' rejection of this exact version', () => {
@@ -58,7 +57,7 @@ describe('proposalReadiness', () => {
   it('names the changed file of a stale proposal and outdates checks from an earlier tree', () => {
     expect(proposalReadiness(session({ freshness: 'stale', stale_reason: 'go.mod changed since this proposal was made' })).message).toBe('Out of date: go.mod changed since this proposal was made. Re-analyze it against the current files, or delete it.');
     const outdated = session({ ...reviewed, checks: [check('tests', 'passed')], checks_outdated: true });
-    expect(proposalReadiness(outdated)).toMatchObject({ step: 'checks', checksPassed: false, canApprove: false });
+    expect(proposalReadiness(outdated)).toMatchObject({ step: 'checks', checksPassed: false, canAccept: false });
     expect(proposalReadiness(outdated).message).toMatch(/changed since checks ran/);
     expect(checkSummary(outdated.checks, true)).toMatchObject({ label: 'Outdated', tone: 'warning' });
   });
@@ -71,7 +70,7 @@ describe('proposalReadiness', () => {
 
   it('keeps a task made in the main checkout to reading and deleting', () => {
     const checkout = session({ ...reviewed, worktree: undefined, checks: [check('tests', 'passed')], reviewed_hash: 'sha-2' });
-    expect(proposalReadiness(checkout)).toMatchObject({ step: 'checkout', editable: false, canApprove: false, canApply: false });
+    expect(proposalReadiness(checkout)).toMatchObject({ step: 'checkout', editable: false, canAccept: false });
     expect(proposalReadiness({ ...checkout, state: 'applied' })).toMatchObject({ step: 'applied', message: 'Applied in the main checkout, before every task got its own worktree.' });
   });
 });
@@ -119,5 +118,46 @@ describe('taskStatus', () => {
     // A revision after the run needs the agents again; it is not a failure.
     expect(taskStatus({ ...entry, revision: 4, hash: 'x', workflow_status: 'outdated' })).toEqual({ status: 'needs_you', label: 'Revised', tone: 'accent' });
     expect(taskStatus({ ...entry, state: 'applied', commit: { state: 'committed' } as never }).label).toBe('Committed');
+  });
+
+  it('names what running agents do', () => {
+    const running = { ...entry, workflow_status: 'running' };
+    expect(taskStatus(running).label).toBe('Agents working');
+    expect(taskStatus({ ...running, workflow_phase: { stage: 'create', issue: 2, issues: 5 } })).toEqual({ status: 'running', label: 'Fixing 2 of 5', tone: 'info' });
+    expect(taskStatus({ ...running, workflow_phase: { stage: 'create' } }).label).toBe('Writing code');
+    expect(taskStatus({ ...running, workflow_phase: { stage: 'create', repair: 1 } }).label).toBe('Repairing');
+    expect(taskStatus({ ...running, workflow_phase: { stage: 'test' } }).label).toBe('Testing');
+    expect(taskStatus({ ...running, workflow_phase: { stage: 'test', checks_only: true } }).label).toBe('Running checks');
+    expect(taskStatus({ ...running, workflow_phase: { stage: 'review' } }).label).toBe('Reviewing');
+    expect(taskStatus({ ...entry, workflow_status: 'queued' }).label).toBe('Queued');
+    expect(taskStatus({ ...entry, workflow_status: 'canceling', workflow_phase: { stage: 'review' } }).label).toBe('Canceling');
+  });
+
+  it('tells a version still to review from one ready to accept', () => {
+    const waiting = { ...entry, revision: 3, hash: 'x', workflow_status: 'awaiting_human_review' };
+    expect(taskStatus({ ...waiting, review: { step: 'view_files', files: 5, viewed: 0 } })).toEqual({ status: 'needs_you', label: 'Needs review', tone: 'accent', detail: undefined });
+    expect(taskStatus({ ...waiting, review: { step: 'view_files', files: 5, viewed: 2 } }).detail).toBe('2 of 5 files viewed');
+    expect(taskStatus({ ...waiting, review: { step: 'run_checks', files: 5, viewed: 5 } }).label).toBe('Run checks');
+    expect(taskStatus({ ...waiting, review: { step: 'accept', files: 5, viewed: 5 } })).toEqual({ status: 'ready', label: 'Ready to accept', tone: 'success' });
+    // A manual proposal waits for you the same way.
+    expect(taskStatus({ ...entry, revision: 1, hash: 'x', review: { step: 'accept', files: 1, viewed: 1 } }).status).toBe('ready');
+    // An entry from a daemon that reports no review progress still needs review.
+    expect(taskStatus(waiting).label).toBe('Needs review');
+  });
+});
+
+describe('sessionStatusEntry', () => {
+  const stages = (running: string) => ['create', 'test', 'review', 'human_review'].map(name => ({ name, status: name === running ? 'running' : 'pending' }));
+
+  it('reads a loaded task the way its list entry does', () => {
+    const issues = [{ finding_id: 'a', status: 'fixed' }, { finding_id: 'b', status: 'fixing' }, { finding_id: 'c', status: 'pending' }].map(issue => ({ ...issue, path: 'a.go', title: issue.finding_id, detail: '' }));
+    const fixing = session({ changes: [], issues, workflow: { id: 'w', status: 'running', stages: stages('create') } });
+    expect(taskStatus(sessionStatusEntry(fixing)).label).toBe('Fixing 2 of 3');
+    expect(taskStatus(sessionStatusEntry({ ...fixing, workflow: { id: 'w', status: 'running', resume_from: 'checks', stages: stages('test') } })).label).toBe('Running checks');
+
+    const ready = { id: 'w', status: 'awaiting_human_review', stages: stages('') };
+    expect(taskStatus(sessionStatusEntry(session({ workflow: ready, checks: [check('tests', 'passed')], file_review_hash: 'sha-2', reviewed_files: ['a.go'] }))).detail).toBe('1 of 2 files viewed');
+    expect(taskStatus(sessionStatusEntry(session({ ...reviewed, workflow: ready, checks: [check('tests', 'passed')] }))).label).toBe('Ready to accept');
+    expect(sessionStatusEntry(session({ ...reviewed, workflow: { ...ready, status: 'changes_requested' }, checks: [check('tests', 'passed')] })).review).toBeUndefined();
   });
 });

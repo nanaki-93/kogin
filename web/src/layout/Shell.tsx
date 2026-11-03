@@ -52,7 +52,7 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
     return () => media?.removeEventListener('change', apply);
   }, [theme, palette]);
 
-  const needsYou = tasks.filter(task => taskStatus(task).status === 'needs_you').length;
+  const needsYou = tasks.filter(task => ['needs_you', 'ready'].includes(taskStatus(task).status)).length;
   const running = tasks.filter(task => taskStatus(task).status === 'running').length;
   const openIssues = findings.filter(isOpenFinding).length;
   const toMerge = (git?.worktrees ?? []).filter(tree => !tree.current && tree.mergeable).length;

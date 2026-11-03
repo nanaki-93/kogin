@@ -144,7 +144,10 @@ every guard when the action arrives.
   way the old task is deleted, and its worktree is removed or, when it holds
   work, offered for discarding.
 - **Live progress.** A task's stages and the end of its run update the page and
-  the task lists as they happen.
+  the task lists as they happen. A running task's status names its stage:
+  Fixing 2 of 5 (the issue a task that fixes its issues one at a time is on),
+  Writing code, Repairing, Testing (Running checks for a run started at the
+  checks) or Reviewing.
 
 ## Review and accept
 
@@ -179,11 +182,18 @@ every guard when the action arrives.
   bytes). The verdict stays on record, the override is shown on the run and
   binds this exact hash, and the task then waits for the human's own review.
   Nothing is approved; a human rejection cannot be overridden.
-- **Approve.** Offered when every file is viewed, required checks pass and the
-  workflow waits for the human. Approval binds this exact hash and answers a
-  waiting workflow input; it writes nothing. Optional notes (up to 2048 bytes)
-  stay with the approval and are cleared with it. **Reject proposal** ends a
-  waiting workflow after confirmation.
+- **Accept & commit.** Offered, as the task header's primary action on every
+  tab, when every file is viewed, required checks pass and the workflow waits
+  for the human. One confirmation, with the commit message and optional notes
+  (up to 2048 bytes), records the approval of this exact hash (answering a
+  waiting workflow input; the notes stay with it and are cleared with it) and
+  commits it on the task branch. A version approved but not committed (the
+  commit failed, or it was approved before Accept became one step) is only
+  committed. After Accept the header offers **Merge from Branches**. The task
+  lists show such a version as **Ready to accept**, in its own group, apart
+  from **Needs review** (files still to view, with how many are viewed) and
+  **Run checks**. **Reject proposal** ends a waiting workflow after
+  confirmation.
 - **Agents with tools.** When a stage ran as a tool-using agent (a task in its
   own worktree on a pi, Claude Code or agy model), its timeline line says "Worked with tools: N calls
   in M turns (read_file 12, …)", and "stopped before finishing" when the agent
@@ -198,7 +208,7 @@ every guard when the action arrives.
   the reason, never unopenable. A commit on
   the task branch by someone else makes the task stale. While agents run, the
   worktree is locked against removal. The gate reads **Ready to accept?**, and
-  **Accept & commit** commits the approved diff on the task branch with the
+  **Accept & commit** commits the reviewed diff on the task branch with the
   shown message; nothing is written to files, so there is nothing to undo
   (discard the worktree instead); re-analysis does not apply.
 - **Tasks from before worktrees.** A task made in the main checkout before every

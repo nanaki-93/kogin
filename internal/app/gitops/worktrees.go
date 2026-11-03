@@ -20,24 +20,65 @@ type ChangeCommit struct {
 
 // ChangeHistoryEntry is a summary of a change session for listing and worktree inspection.
 type ChangeHistoryEntry struct {
-	ID              string                  `json:"id"`
-	ProjectID       string                  `json:"project_id"`
-	ProjectRevision string                  `json:"project_revision"`
-	Kind            string                  `json:"kind"`
-	Title           string                  `json:"title"`
-	Revision        int64                   `json:"revision"`
-	Hash            string                  `json:"hash"`
-	State           string                  `json:"state"`
-	Freshness       string                  `json:"freshness"`
-	WorkflowStatus  string                  `json:"workflow_status,omitempty"`
-	WorkflowReason  string                  `json:"workflow_reason,omitempty"`
-	Commit          *ChangeCommit           `json:"commit,omitempty"`
-	FindingTargets  []project.FindingTarget `json:"finding_targets,omitempty"`
+	ID              string `json:"id"`
+	ProjectID       string `json:"project_id"`
+	ProjectRevision string `json:"project_revision"`
+	Kind            string `json:"kind"`
+	Title           string `json:"title"`
+	Revision        int64  `json:"revision"`
+	Hash            string `json:"hash"`
+	State           string `json:"state"`
+	Freshness       string `json:"freshness"`
+	WorkflowStatus  string `json:"workflow_status,omitempty"`
+	WorkflowReason  string `json:"workflow_reason,omitempty"`
+	// WorkflowPhase is what a running workflow does now; nil when none runs
+	// or before its first stage starts.
+	WorkflowPhase *ChangeWorkflowPhase `json:"workflow_phase,omitempty"`
+	// Review is where your review of the current version stands; nil unless
+	// the version waits for it.
+	Review         *ChangeReviewProgress   `json:"review,omitempty"`
+	Commit         *ChangeCommit           `json:"commit,omitempty"`
+	FindingTargets []project.FindingTarget `json:"finding_targets,omitempty"`
 	// DismissedTargets are issues the task found do not hold: merging it
 	// dismisses them.
 	DismissedTargets []project.FindingTarget `json:"dismissed_targets,omitempty"`
 	Paths            []string                `json:"paths,omitempty"`
 	UpdatedAt        time.Time               `json:"updated_at"`
+}
+
+// ChangeWorkflowPhase is the stage a running workflow is in, for task lists.
+type ChangeWorkflowPhase struct {
+	// Stage is the running stage: create, test or review.
+	Stage string `json:"stage"`
+	// Issue is the 1-based issue being fixed, of Issues, while a task fixes
+	// its issues one at a time.
+	Issue  int `json:"issue,omitempty"`
+	Issues int `json:"issues,omitempty"`
+	// Repair is the automatic repair the run is on; 0 on its first pass.
+	Repair int `json:"repair,omitempty"`
+	// ChecksOnly marks a run started at the checks: its test stage runs
+	// only the checks.
+	ChecksOnly bool `json:"checks_only,omitempty"`
+}
+
+// Review steps of a version that waits for you: view its files, run its
+// checks, then accept it.
+const (
+	ReviewViewFiles = "view_files"
+	ReviewRunChecks = "run_checks"
+	ReviewAccept    = "accept"
+)
+
+// ChangeReviewProgress is where your review of a task's current version
+// stands.
+type ChangeReviewProgress struct {
+	// Step is what the review needs next: ReviewViewFiles, ReviewRunChecks
+	// or ReviewAccept.
+	Step string `json:"step"`
+	// Files is how many files the version changes, Viewed how many of them
+	// you marked viewed.
+	Files  int `json:"files"`
+	Viewed int `json:"viewed"`
 }
 
 // Integrated reports whether the task was applied and committed on its

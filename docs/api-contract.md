@@ -1253,7 +1253,13 @@ taxes. No model name, prompt, diagnostic or tool payload is exposed by the cost
 projection. Rates are configured locally; see `CONFIG.md`.
 
 Workflow progress and advisory review are private source-bearing conversation
-history. List entries add `workflow_status` without review contents. Schema-1
+history. List entries add `workflow_status` without review contents, and
+`workflow_phase` while a run is active: the running stage (`create`, `test`,
+`review`), the issue being fixed of a task that fixes its issues one at a time
+(`issue` of `issues`), the automatic `repair` it is on, and `checks_only` for a
+run started at the checks. A draft whose current version waits for your review
+(no run, or `awaiting_human_review`) adds `review`: `files`, `viewed` and the
+next `step` (`view_files`, `run_checks`, `accept`). Schema-1
 history without the optional `workflow` field remains readable. After a daemon
 restart, unfinished workers read as interrupted and do not automatically dispatch.
 Waiting input stays visible without resuming its graph. An unchanged approval checkpoint

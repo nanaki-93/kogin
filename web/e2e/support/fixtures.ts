@@ -3,7 +3,7 @@
 // finding sources), so the UI is exercised with what it really receives.
 
 import type {
-  AgentSettings, AnalysisFileSelection, AnalysisRunFile, ProjectSetup, AnalysisRunSummary, AnalysisStageProgress, AvailableModels, BudgetUsage, ChangeHistoryEntry, ChangeSession, CostEstimate, FileChange, Finding, GitWorkspace, Model, ModelsCurrent, Overview, Project, UsageReport,
+  AgentSettings, AnalysisFileSelection, AnalysisRunFile, ProjectSetup, AnalysisRunSummary, AnalysisStageProgress, AvailableModels, BudgetUsage, ChangeHistoryEntry, ChangeSession, CostEstimate, FileChange, Finding, GitWorkspace, Model, ModelsCurrent, Overview, Project, ReviewProgress, UsageReport, WorkflowPhase,
 } from '../../src/api/types';
 
 const now = Date.parse('2026-10-27T10:00:00Z');
@@ -47,7 +47,7 @@ export function reviewTask(): ChangeSession {
     title: 'Reject nested asset paths in the Web UI handler',
     revision: 3,
     hash: 'sha256:9f2c1a7be4',
-    state: 'checked',
+    state: 'draft',
     freshness: 'current',
     updated_at: ago(6),
     acceptance_criteria: ['Nested asset paths return 404', 'Missing assets return 404 instead of 500'],
@@ -160,6 +160,30 @@ export function usage(task: ChangeSession): UsageReport {
   };
 }
 
+/** The running stage, and the issue of a task that fixes its issues one at a time, like gitops.ChangeWorkflowPhase. */
+function workflowPhase(session: ChangeSession): WorkflowPhase | undefined {
+  const workflow = session.workflow;
+  const stage = workflow?.stages.find(s => s.status === 'running')?.name;
+  if (!workflow || !['running', 'canceling'].includes(workflow.status) || (stage !== 'create' && stage !== 'test' && stage !== 'review')) return undefined;
+  const issues = session.issues ?? [];
+  const fixing = session.worktree && issues.length > 1 ? issues.findIndex(issue => issue.status === 'fixing') : -1;
+  const phase: WorkflowPhase = { stage };
+  if (workflow.auto_repair_attempts) phase.repair = workflow.auto_repair_attempts;
+  if (workflow.resume_from === 'checks' && !workflow.auto_repair_attempts) phase.checks_only = true;
+  if (stage === 'create' && fixing >= 0) Object.assign(phase, { issue: fixing + 1, issues: issues.length });
+  return phase;
+}
+
+/** Where your review of a version that waits for you stands, like gitops.ChangeReviewProgress. */
+function reviewProgress(session: ChangeSession): ReviewProgress | undefined {
+  const waits = !session.workflow || session.workflow.status === 'awaiting_human_review';
+  if (session.state !== 'draft' || !session.changes.length || !session.hash || !waits) return undefined;
+  const viewed = session.file_review_hash === session.hash ? session.changes.filter(change => (session.reviewed_files ?? []).includes(change.path)).length : 0;
+  const passed = session.checks.length > 0 && session.checks.every(check => !check.required || check.state === 'passed');
+  const step = viewed < session.changes.length ? 'view_files' : passed ? 'accept' : 'run_checks';
+  return { step, files: session.changes.length, viewed };
+}
+
 export function historyEntry(session: ChangeSession, extra: Partial<ChangeHistoryEntry> = {}): ChangeHistoryEntry {
   return {
     ...identity,
@@ -174,13 +198,15 @@ export function historyEntry(session: ChangeSession, extra: Partial<ChangeHistor
     updated_at: session.updated_at,
     paths: session.targets.map(target => target.path),
     workflow_status: session.workflow?.status,
+    workflow_phase: workflowPhase(session),
+    review: reviewProgress(session),
     finding_targets: session.finding_targets,
     ...extra,
   };
 }
 
 export const otherTasks: ChangeHistoryEntry[] = [
-  { ...identity, id: 'chg-2', kind: 'feature', title: 'Show per-task model cost', revision: 0, hash: '', state: 'draft', freshness: 'current', updated_at: ago(2), workflow_status: 'running', paths: ['internal/app/agent_usage.go'] },
+  { ...identity, id: 'chg-2', kind: 'feature', title: 'Show per-task model cost', revision: 0, hash: '', state: 'draft', freshness: 'current', updated_at: ago(2), workflow_status: 'running', workflow_phase: { stage: 'create', issue: 2, issues: 3 }, paths: ['internal/app/agent_usage.go'] },
   { ...identity, id: 'chg-3', kind: 'performance', title: 'Cache the parsed index', revision: 2, hash: 'x', state: 'checked', freshness: 'current', updated_at: ago(55), workflow_status: 'failed', workflow_reason: 'go test timed out after 120s', paths: ['internal/project/index.go'] },
   { ...identity, id: 'chg-6', kind: 'fix', title: 'Report the stop reason', revision: 4, hash: 'z', state: 'applied', freshness: 'current', updated_at: ago(3000), commit: { state: 'committed', oid: 'f29fad51' }, paths: ['internal/app/change_pipeline.go'] },
 ];

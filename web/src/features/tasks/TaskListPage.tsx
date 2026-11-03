@@ -15,7 +15,8 @@ import { Button, EmptyState, Highlight, Input, ListGroup, Segmented, Skeleton, c
 import { KindTag, StatusGlyph } from '@/components/domain';
 
 const GROUPS: { id: string; label: string; statuses: TaskStatus[] }[] = [
-  { id: 'needs', label: 'Needs you', statuses: ['needs_you', 'ready'] },
+  { id: 'ready', label: 'Ready to accept', statuses: ['ready'] },
+  { id: 'needs', label: 'Needs you', statuses: ['needs_you'] },
   { id: 'running', label: 'Agents working', statuses: ['running'] },
   { id: 'attention', label: 'Failed or stale', statuses: ['failed', 'stale'] },
   { id: 'draft', label: 'Drafts', statuses: ['draft', 'canceled'] },
@@ -133,7 +134,7 @@ export function TaskRow({ task, positions = [], active, onHover, compact }: { ta
       <span className="list-title truncate">
         <Highlight text={task.title || task.id} positions={positions.filter(p => p < (task.title || '').length)} />
       </span>
-      {!compact && task.workflow_reason && (status.status === 'failed' || status.status === 'canceled' || task.workflow_status === 'paused') ? <span className="list-reason truncate" title={task.workflow_reason}>{task.workflow_reason}</span> : null}
+      {!compact ? <RowDetail task={task} detail={status.detail} /> : null}
       <span className="spacer" />
       {task.worktreePath ? (
         <span className="chip" title={task.worktreePath}>
@@ -147,6 +148,14 @@ export function TaskRow({ task, positions = [], active, onHover, compact }: { ta
       <span className="col col-time xs faint">{timeAgo(task.updated_at)}</span>
     </a>
   );
+}
+
+/** Why a run ended (failed, canceled, paused), else the status's own line, such as files viewed. */
+function RowDetail({ task, detail }: { task: TaskEntry; detail?: string }) {
+  const status = taskStatus(task).status;
+  const reason = task.workflow_reason && (status === 'failed' || status === 'canceled' || task.workflow_status === 'paused') ? task.workflow_reason : '';
+  const text = reason || detail;
+  return text ? <span className="list-reason truncate" title={text}>{text}</span> : null;
 }
 
 /** Whether a task shows under a filter. */

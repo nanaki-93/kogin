@@ -2,7 +2,7 @@
 // authority: these helpers only decide which controls are offered, so a stale
 // or incomplete proposal never presents Accept as available.
 
-import type { ChangeComment, ChangeHistoryEntry, ChangeSession, Check, FileChange, LoadedSession } from '@/api/types';
+import type { ChangeComment, ChangeHistoryEntry, ChangeSession, Check, FileChange, LoadedSession, ReviewProgress, WorkflowPhase } from '@/api/types';
 import type { Tone } from './util';
 
 /** waiting: nothing runs until someone acts (your review, or a plan's reset). */
@@ -84,26 +84,29 @@ export function workflowActive(session: { workflow?: { status: string } } | null
 /** Where a task made before every task got its own worktree lives. */
 export const CHECKOUT_TASK = 'Made in the main checkout, before every task got its own worktree.';
 
-export type ReviewStep = 'none' | 'generate' | 'agents' | 'review' | 'checks' | 'approve' | 'apply' | 'applied' | 'stale' | 'checkout';
+export type ReviewStep = 'none' | 'generate' | 'agents' | 'review' | 'checks' | 'accept' | 'applied' | 'stale' | 'checkout';
 
 export interface Readiness {
   editable: boolean;
   filesReviewed: boolean;
   checksPassed: boolean;
-  canApprove: boolean;
-  canApply: boolean;
+  /** Accept & commit is on offer: it approves this exact version, unless already approved, and commits it. */
+  canAccept: boolean;
+  /** Your approval is recorded for this exact version. */
+  approved: boolean;
   step: ReviewStep;
   message: string;
 }
 
 /**
  * Accept needs every changed file reviewed at the current hash, all required
- * checks passed, a workflow (if any) waiting for human review, and an explicit
- * approval recorded for this exact hash. A task made in the main checkout,
- * before every task got its own worktree, can only be read and deleted.
+ * checks passed and a workflow (if any) waiting for human review. Accepting
+ * records the approval of this exact hash, then commits it. A task made in
+ * the main checkout, before every task got its own worktree, can only be read
+ * and deleted.
  */
 export function proposalReadiness(session: ChangeSession | null | undefined): Readiness {
-  const result: Readiness = { editable: false, filesReviewed: false, checksPassed: false, canApprove: false, canApply: false, step: 'none', message: 'Select a task.' };
+  const result: Readiness = { editable: false, filesReviewed: false, checksPassed: false, canAccept: false, approved: false, step: 'none', message: 'Select a task.' };
   if (!session) return result;
   if (session.state === 'applied') {
     const message = session.worktree ? `Accepted as a commit on ${session.worktree.branch}. Merge it from Branches, or remove the worktree to drop it.` : 'Applied in the main checkout, before every task got its own worktree.';
@@ -117,8 +120,8 @@ export function proposalReadiness(session: ChangeSession | null | undefined): Re
   const checks = session.checks ?? [];
   result.checksPassed = checks.length > 0 && !session.checks_outdated && checks.every(check => !check.required || check.state === 'passed');
   const workflowReady = !session.workflow || session.workflow.status === 'awaiting_human_review';
-  result.canApprove = result.filesReviewed && result.checksPassed && workflowReady;
-  result.canApply = result.canApprove && Boolean(session.hash) && session.reviewed_hash === session.hash;
+  result.canAccept = result.filesReviewed && result.checksPassed && workflowReady;
+  result.approved = Boolean(session.hash) && session.reviewed_hash === session.hash;
   if (!edits.length) {
     result.step = workflowActive(session) ? 'agents' : 'generate';
     result.message = workflowActive(session) ? 'Agents are writing the change.' : 'No changes yet. Start the agents to generate them.';
@@ -130,17 +133,14 @@ export function proposalReadiness(session: ChangeSession | null | undefined): Re
     result.message = 'Review each changed file and mark it viewed.';
   } else if (!result.checksPassed) {
     result.step = 'checks';
-    result.message = session.checks_outdated ? 'The project changed since checks ran. Run them again before approval.' : 'Run checks; required checks must pass before approval.';
+    result.message = session.checks_outdated ? 'The project changed since checks ran. Run them again before you accept.' : 'Run checks; required checks must pass before you accept.';
   } else if (!workflowReady) {
     result.step = 'agents';
     const rejectedByModel = session.workflow?.status === 'changes_requested' && !session.workflow.input;
     result.message = session.workflow?.reason || (rejectedByModel ? 'The reviewers requested changes. Run the agents again, or override the reviewers with a reason.' : 'The agent workflow has not reached human review.');
-  } else if (!result.canApply) {
-    result.step = 'approve';
-    result.message = 'Approve this exact version to enable Accept.';
   } else {
-    result.step = 'apply';
-    result.message = `Approved. Accept commits this version on ${session.worktree.branch}.`;
+    result.step = 'accept';
+    result.message = result.approved ? `Approved. Accept commits this version on ${session.worktree.branch}.` : `Ready. Accept & commit approves this exact version and commits it on ${session.worktree.branch}.`;
   }
   return result;
 }
@@ -188,18 +188,43 @@ export interface TaskStatusInfo {
   status: TaskStatus;
   label: string;
   tone: Tone;
+  /** A short line beside the status, such as how many files you viewed. */
+  detail?: string;
+}
+
+/** The fields of a history entry a task's list status is read from. */
+export type TaskStatusEntry = Pick<ChangeHistoryEntry, 'state' | 'freshness' | 'workflow_status' | 'workflow_phase' | 'review' | 'commit' | 'revision' | 'hash'>;
+
+/** What the agents are doing, worded for a status column. */
+export function phaseLabel(phase: WorkflowPhase | undefined): string {
+  if (phase?.stage === 'create') {
+    if (phase.issue && phase.issues) return `Fixing ${phase.issue} of ${phase.issues}`;
+    return phase.repair ? 'Repairing' : 'Writing code';
+  }
+  if (phase?.stage === 'test') return phase.checks_only ? 'Running checks' : 'Testing';
+  if (phase?.stage === 'review') return 'Reviewing';
+  return 'Agents working';
+}
+
+/** A version that waits for you: still to review, or ready to accept. */
+function reviewStatus(review: ReviewProgress | undefined): TaskStatusInfo {
+  if (review?.step === 'accept') return { status: 'ready', label: 'Ready to accept', tone: 'success' };
+  if (review?.step === 'run_checks') return { status: 'needs_you', label: 'Run checks', tone: 'accent' };
+  const detail = review?.viewed ? `${review.viewed} of ${review.files} files viewed` : undefined;
+  return { status: 'needs_you', label: 'Needs review', tone: 'accent', detail };
 }
 
 /** A task's status for lists, from its history entry alone. */
-export function taskStatus(entry: Pick<ChangeHistoryEntry, 'state' | 'freshness' | 'workflow_status' | 'commit' | 'revision' | 'hash'>): TaskStatusInfo {
+export function taskStatus(entry: TaskStatusEntry): TaskStatusInfo {
   const wf = entry.workflow_status ?? '';
   if (entry.state === 'applied') return { status: 'applied', label: entry.commit?.state === 'committed' ? 'Committed' : 'Applied', tone: 'success' };
   if (entry.state === 'undone') return { status: 'done', label: 'Undone', tone: 'neutral' };
-  if (wf === 'running' || wf === 'canceling' || wf === 'queued') return { status: 'running', label: wf === 'canceling' ? 'Canceling' : 'Agents working', tone: 'info' };
+  if (wf === 'running' || wf === 'queued') return { status: 'running', label: wf === 'queued' ? 'Queued' : phaseLabel(entry.workflow_phase), tone: 'info' };
+  if (wf === 'canceling') return { status: 'running', label: 'Canceling', tone: 'info' };
   // Another task changes the same code: this one continues on its own after it.
   if (wf === 'waiting') return { status: 'running', label: 'Waiting', tone: 'neutral' };
   if (entry.freshness && entry.freshness !== 'current') return { status: 'stale', label: 'Stale', tone: 'warning' };
-  if (wf === 'awaiting_human_review') return { status: 'needs_you', label: 'Needs review', tone: 'accent' };
+  if (wf === 'awaiting_human_review') return reviewStatus(entry.review);
   if (wf === 'changes_requested') return { status: 'needs_you', label: 'Changes requested', tone: 'warning' };
   // A plan reached its usage limit: the run continues when you resume it.
   if (wf === 'paused') return { status: 'needs_you', label: 'Paused', tone: 'warning' };
@@ -209,6 +234,29 @@ export function taskStatus(entry: Pick<ChangeHistoryEntry, 'state' | 'freshness'
   if (wf === 'outdated') return { status: 'needs_you', label: 'Revised', tone: 'accent' };
   if (wf === 'failed' || wf === 'stale' || wf === 'interrupted') return { status: 'failed', label: wf === 'interrupted' ? 'Interrupted' : 'Failed', tone: 'danger' };
   if (wf === 'canceled') return { status: 'canceled', label: 'Canceled', tone: 'neutral' };
-  if (entry.revision > 0 && entry.hash) return { status: 'needs_you', label: 'Needs review', tone: 'accent' };
+  if (entry.revision > 0 && entry.hash) return reviewStatus(entry.review);
   return { status: 'draft', label: 'Draft', tone: 'neutral' };
+}
+
+/**
+ * A loaded task as its list entry reads, so its page shows the same status:
+ * the running stage (and issue) from its workflow, the review step from its
+ * readiness. The daemon reports the same for lists.
+ */
+export function sessionStatusEntry(session: ChangeSession): TaskStatusEntry {
+  const workflow = session.workflow;
+  const running = workflow?.stages.find(stage => stage.status === 'running')?.name;
+  let phase: WorkflowPhase | undefined;
+  if (workflowActive(session) && (running === 'create' || running === 'test' || running === 'review')) {
+    const issues = session.issues ?? [];
+    const fixing = session.worktree && issues.length > 1 ? issues.findIndex(issue => issue.status === 'fixing') : -1;
+    const repair = workflow!.auto_repair_attempts || undefined;
+    phase = { stage: running, repair, checks_only: workflow!.resume_from === 'checks' && !repair ? true : undefined };
+    if (running === 'create' && fixing >= 0) Object.assign(phase, { issue: fixing + 1, issues: issues.length });
+  }
+  const ready = proposalReadiness(session);
+  const waitsForYou = session.state === 'draft' && (session.changes ?? []).length > 0 && (!workflow || workflow.status === 'awaiting_human_review');
+  const step = ready.step === 'accept' ? 'accept' : ready.filesReviewed ? 'run_checks' : 'view_files';
+  const review: ReviewProgress | undefined = waitsForYou ? { step, files: (session.changes ?? []).length, viewed: reviewProgress(session).reviewed } : undefined;
+  return { ...session, workflow_status: workflow?.status, workflow_phase: phase, review };
 }

@@ -5,8 +5,8 @@ Kasuri's interface is the browser workspace (`web/`, served by the daemon at
 
 1. **Start a task and watch the agents** — describe a change, give it a scope
    and "done when" criteria, start the agents and follow every stage live.
-2. **Review and apply** — read every changed file, run checks, approve the exact
-   version and apply it, with Undo for the latest Apply.
+2. **Review and accept** — read every changed file, run checks, and accept the
+   exact version you reviewed as a commit on the task's branch in one step.
 3. **Understand the project** — browse code, read findings with their evidence
    and read the generated docs.
 
@@ -57,8 +57,9 @@ label everywhere:
 
 | Glyph | Label | Meaning |
 | --- | --- | --- |
-| filled ring | Needs review / Changes requested / Revised | Agents finished, or the proposal was revised after their run; the human decides (Revised: run the agents again). |
-| spinner | Agents working / Canceling | A run is active. |
+| green filled ring | Ready to accept | Every file viewed and the checks pass; Accept & commit is one step away. Listed in its own group. |
+| filled ring | Needs review / Run checks / Changes requested / Revised | Agents finished, or the proposal was revised after their run; the human decides (Revised: run the agents again). Needs review says how many files are viewed once some are. |
+| spinner | Fixing 2 of 5 / Writing code / Repairing / Testing / Running checks / Reviewing / Canceling | A run is active; the label names its stage, and the issue of a task that fixes its issues one at a time. |
 | red ring | Failed / Interrupted | The run stopped; the reason and recovery are on the task. |
 | dotted ring | Stale | A file the task depends on changed; re-analyze it (refreshed if still valid, otherwise deleted). |
 | dashed ring | Draft | No run yet. |
@@ -67,14 +68,16 @@ label everywhere:
 
 ### Review gate
 
-Apply is offered only when every condition holds, and the gate lists them in
-this order with their current state: **Agents finished** (a run of this
-version that reached a verdict; a revision after it does not count),
+Accept & commit is offered only when every condition holds, and the gate
+lists them in this order with their current state: **Agents finished** (a run
+of this version that reached a verdict; a revision after it does not count),
 **Reviewers** (the recorded verdict on this version, else the specialists'
 verdicts; "Overridden by you" after an override), **Files viewed** (every
-changed file viewed at the current proposal hash), **Checks** (every required
-check passed) and **Your approval** of this exact version. The gate is derived
-from daemon state; the daemon re-checks every condition when Apply is requested.
+changed file viewed at the current proposal hash) and **Checks** (every
+required check passed). Accept & commit is then the task header's primary
+action on every tab: one confirmation records your approval of this exact
+version, with optional notes, and commits it. The gate is derived from daemon
+state; the daemon re-checks every condition when Accept is requested.
 A failed check that is not required reads as a warning, never as a pass or a
 blocker.
 
@@ -112,8 +115,8 @@ accent stays readable.
   reviewer verdicts, messages, revise), Files changed (file tree with viewed
   marks, progress and comment counts, unified or split diff with line
   comments, "since last review"), Checks
-  (results with output), and the Ready to apply? rail with Apply, commit message
-  and Undo.
+  (results with output), and the Ready to accept? rail with Accept & commit
+  (after Accept: Merge from Branches).
 - **Code** — virtualized file tree, editor tabs per checkout, highlighted
   source with issue markers and line links, an inspector with Ask about it, "New
   task with this file", one sentence on what the file does (the rest of its

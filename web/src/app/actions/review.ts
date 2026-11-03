@@ -1,5 +1,6 @@
-// Review actions: line comments, viewed files, checks, approval, reviewer
-// override and rejection, then Accept: a commit on the task's own branch.
+// Review actions: line comments, viewed files, checks, reviewer override and
+// rejection, then Accept: your approval of the version and a commit on the
+// task's own branch, in one step.
 
 import { api } from '@/api/client';
 import type { ChangeMutationResult, ChangeSession, LoadedSession } from '@/api/types';
@@ -63,30 +64,13 @@ export function reviewActions(context: ActionContext) {
     });
   }
 
-  /** Approves this exact version; the daemon also answers a waiting workflow input. */
-  async function approve(session: LoadedSession, notes = ''): Promise<boolean> {
-    if (!proposalReadiness(session).canApprove) return false;
-    const result = await guarded('Approving…', async () => {
-      try {
-        const body = notes.trim() ? { ...changeIdentity(session), notes: notes.trim() } : changeIdentity(session);
-        setSession(await api.post<ChangeSession>(changePath(session, '/review'), body), session);
-        toast('Approved this exact version. You can accept it now.', 'success');
-        return true;
-      } catch (err) {
-        fail('Approval failed', err);
-        return false;
-      }
-    });
-    return Boolean(result);
-  }
-
   /** Overrides the reviewers' rejection of this version; it approves nothing. */
   async function overrideReview(session: LoadedSession, reason: string): Promise<boolean> {
     if (!canOverrideReview(session) || !reason.trim()) return false;
     const result = await guarded('Overriding…', async () => {
       try {
         setSession(await api.post<ChangeSession>(changePath(session, '/review-override'), { ...changeIdentity(session), workflow_id: session.workflow!.id, reason: reason.trim() }), session);
-        toast('Reviewers overridden. View the files and approve this version to accept it.', 'info');
+        toast('Reviewers overridden. View the files, then accept this version.', 'info');
         return true;
       } catch (err) {
         fail('Could not override the reviewers', err);
@@ -110,31 +94,43 @@ export function reviewActions(context: ActionContext) {
     });
   }
 
-  /** Accepts a task: its reviewed version is committed on the task branch, in its own worktree. */
-  async function apply(session: LoadedSession, message: string) {
-    if (!proposalReadiness(session).canApply || !session.worktree) return;
+  /**
+   * Accepts a task in one step: records the approval of this exact version
+   * (with optional notes; the daemon also answers a waiting workflow input),
+   * unless it is already approved, then commits it on the task branch in its
+   * own worktree. The caller confirms first.
+   */
+  async function accept(session: LoadedSession, message: string, notes = ''): Promise<boolean> {
+    const ready = proposalReadiness(session);
+    if (!ready.canAccept || !session.worktree) return false;
     const branch = session.worktree.branch;
-    if (!message.trim()) {
+    const commitMessage = message.trim();
+    if (!commitMessage) {
       toast('Enter a commit message.', 'warning');
-      return;
+      return false;
     }
-    const ok = await confirm({
-      title: 'Accept and commit?',
-      body: `Commits “${session.title || session.id}” on ${branch}, exactly as reviewed. Its files are already in the task's worktree; merge the branch from Branches when you are ready.`,
-      confirmLabel: 'Accept & commit',
-    });
-    if (!ok) return;
-    await guarded('Accepting…', async () => {
+    const result = await guarded('Accepting…', async () => {
+      let current = session;
       try {
-        const result = await api.post<ChangeMutationResult>(changePath(session, '/apply'), { ...changeIdentity(session), confirm: true, commit_message: message.trim() });
+        if (!ready.approved) {
+          const body = notes.trim() ? { ...changeIdentity(session), notes: notes.trim() } : changeIdentity(session);
+          const approved = await api.post<ChangeSession>(changePath(session, '/review'), body);
+          setSession(approved, session);
+          current = { ...approved, checkout: session.checkout };
+        }
+        const applied = await api.post<ChangeMutationResult>(changePath(current, '/apply'), { ...changeIdentity(current), confirm: true, commit_message: commitMessage });
         toast(`Accepted and committed on ${branch}.`, 'success');
-        for (const warning of result?.warnings ?? []) toast(warning, 'warning');
+        for (const warning of applied?.warnings ?? []) toast(warning, 'warning');
         await refreshAll();
+        return true;
       } catch (err) {
-        fail('Accept failed', err);
+        // An approval that went through stays: Accept then only commits.
+        fail(current === session ? 'Accept failed' : 'Approved, but the commit failed', err);
+        return false;
       }
     });
+    return Boolean(result);
   }
 
-  return { markViewed, runChecks, addComment, deleteComment, approve, overrideReview, reject, apply };
+  return { markViewed, runChecks, addComment, deleteComment, overrideReview, reject, accept };
 }
