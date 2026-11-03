@@ -5,8 +5,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/syntax"
-	"github.com/nanaki-93/kasuri/v2/internal/textutil"
+	"github.com/nanaki-93/kogin/v2/internal/project/syntax"
+	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
 
 // boundedWalkthroughs trims the model's walkthroughs to their limits and

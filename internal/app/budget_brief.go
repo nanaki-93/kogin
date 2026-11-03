@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/archgate"
-	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
+	"github.com/nanaki-93/kogin/v2/internal/app/archgate"
+	"github.com/nanaki-93/kogin/v2/internal/project/rules"
 )
 
 // budgetBrief tells the writing agents the budgets of the files in scope, with

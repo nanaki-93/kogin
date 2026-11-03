@@ -173,9 +173,9 @@ func TestMetadataPathEnforcesProjectContainmentAndRejectsSymlinks(t *testing.T) 
 	for _, invalid := range [][]string{
 		{"../outside.json"},
 		{"index.json"},
-		{".kasuri", "..", "outside.json"},
-		{".kasuri", "changes", "../index.json"},
-		{filepath.Join(root, ".kasuri", "index.json")},
+		{".kogin", "..", "outside.json"},
+		{".kogin", "changes", "../index.json"},
+		{filepath.Join(root, ".kogin", "index.json")},
 	} {
 		if got, err := MetadataPath(root, invalid...); err == nil {
 			t.Fatalf("MetadataPath(%v) = %q, want containment error", invalid, got)
@@ -187,11 +187,11 @@ func TestMetadataPathEnforcesProjectContainmentAndRejectsSymlinks(t *testing.T) 
 	if err := os.WriteFile(outsideFile, []byte("outside"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(outside, filepath.Join(root, ".kasuri")); err != nil {
+	if err := os.Symlink(outside, filepath.Join(root, ".kogin")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := MetadataPath(root, ".kasuri/index.json"); !errors.Is(err, ErrSymlink) {
-		t.Fatalf("symlinked .kasuri error = %v, want ErrSymlink", err)
+	if _, err := MetadataPath(root, ".kogin/index.json"); !errors.Is(err, ErrSymlink) {
+		t.Fatalf("symlinked .kogin error = %v, want ErrSymlink", err)
 	}
 }
 
@@ -202,15 +202,15 @@ func TestWriteFileAndRecoverCorruptRejectSymlinksWithoutModifyingTarget(t *testi
 	if err := os.WriteFile(outsideIndex, []byte("preserve-outside"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(outside, filepath.Join(root, ".kasuri")); err != nil {
+	if err := os.Symlink(outside, filepath.Join(root, ".kogin")); err != nil {
 		t.Fatal(err)
 	}
-	target := filepath.Join(root, ".kasuri", "index.json")
+	target := filepath.Join(root, ".kogin", "index.json")
 	if err := WriteFile(target, []byte("overwrite"), 0600); !errors.Is(err, ErrSymlink) {
-		t.Fatalf("WriteFile through symlinked .kasuri = %v, want ErrSymlink", err)
+		t.Fatalf("WriteFile through symlinked .kogin = %v, want ErrSymlink", err)
 	}
 	if err := RecoverCorrupt(target); !errors.Is(err, ErrSymlink) {
-		t.Fatalf("RecoverCorrupt through symlinked .kasuri = %v, want ErrSymlink", err)
+		t.Fatalf("RecoverCorrupt through symlinked .kogin = %v, want ErrSymlink", err)
 	}
 	data, err := os.ReadFile(outsideIndex)
 	if err != nil || string(data) != "preserve-outside" {

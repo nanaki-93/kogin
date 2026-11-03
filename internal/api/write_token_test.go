@@ -9,7 +9,7 @@ import (
 
 func TestWriteTokenGuardsEveryChangingRequest(t *testing.T) {
 	reached := 0
-	handler := RequireWriteToken(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { reached++; w.WriteHeader(http.StatusNoContent) }), "launch-token", "/home/me/.config/kasuri/daemon-token")
+	handler := RequireWriteToken(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { reached++; w.WriteHeader(http.StatusNoContent) }), "launch-token", "/home/me/.config/kogin/daemon-token")
 	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodOptions} {
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest(method, "/api/projects/current", nil))

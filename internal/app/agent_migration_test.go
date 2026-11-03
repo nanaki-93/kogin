@@ -12,14 +12,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
 )
 
 func rewriteMigrationJournal(t *testing.T, root string, edit func(map[string]json.RawMessage)) (string, []byte) {
 	t.Helper()
-	paths, err := filepath.Glob(filepath.Join(root, ".kasuri", "agents", "*", "journal.json"))
+	paths, err := filepath.Glob(filepath.Join(root, ".kogin", "agents", "*", "journal.json"))
 	if err != nil || len(paths) != 1 {
 		t.Fatal("expected one journal", paths, err)
 	}
@@ -48,7 +48,7 @@ func seedAgentRun(t *testing.T, s *Service, store *agentstate.Store, id, parent 
 	if err != nil {
 		t.Fatal(err)
 	}
-	key := agentstate.Key{App: "kasuri", User: "local", ID: id}
+	key := agentstate.Key{App: agentstate.StateApp, User: "local", ID: id}
 	if _, err := store.CreateSession(t.Context(), key, agentstate.State{"private": json.RawMessage(`"PRIVATE_PROMPT"`)}); err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestAgentMigrationFailureAndCancellationPreventProviderDispatch(t *testing.
 			if err == nil {
 				t.Fatal("failed migration became admitted work")
 			}
-			if kind == "future" && !strings.Contains(err.Error(), "upgrade Kasuri") {
+			if kind == "future" && !strings.Contains(err.Error(), "upgrade Kogin") {
 				t.Fatalf("newer journal error has no remedy: %v", err)
 			}
 			read, err := os.ReadFile(path)

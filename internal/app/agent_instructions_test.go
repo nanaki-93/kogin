@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func TestAnalysisAgentsUseGuidesAndInvalidateChangedGuidance(t *testing.T) {
@@ -66,7 +66,7 @@ func TestAnalysisAgentsUseGuidesAndInvalidateChangedGuidance(t *testing.T) {
 			if prompt := <-prompts; !strings.Contains(prompt, "Preserve error propagation instead.") || strings.Contains(prompt, "Preserve the cancellation boundary.") {
 				t.Fatal("refreshed analysis used outdated guidance")
 			}
-			if err := os.WriteFile(filepath.Join(root, ".kasuriignore"), []byte("AGENTS.md\n"), 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(root, ".koginignore"), []byte("AGENTS.md\n"), 0644); err != nil {
 				t.Fatal(err)
 			}
 			run()

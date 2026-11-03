@@ -16,13 +16,13 @@ import (
 
 // issueStepsRef keeps a task's issue commits until it is accepted.
 func issueStepsRef(session *ChangeSession) string {
-	return "refs/kasuri/tasks/" + session.ID
+	return "refs/kogin/tasks/" + session.ID
 }
 
 // worktreeProposalTree writes the tree of the base commit with the proposal
 // applied, in a private index, and returns its ID.
 func worktreeProposalTree(ctx context.Context, root string, session *ChangeSession) (string, error) {
-	temporary, err := os.MkdirTemp("", "kasuri-git-index-")
+	temporary, err := os.MkdirTemp("", "kogin-git-index-")
 	if err != nil {
 		return "", err
 	}
@@ -57,7 +57,7 @@ func commitIssueStep(ctx context.Context, root string, session *ChangeSession, i
 		return "", err
 	}
 	oid = strings.TrimSpace(oid)
-	if _, err := gitRead(ctx, root, "update-ref", "-m", "kasuri: issue step", issueStepsRef(session), oid); err != nil {
+	if _, err := gitRead(ctx, root, "update-ref", "-m", "kogin: issue step", issueStepsRef(session), oid); err != nil {
 		return "", err
 	}
 	return oid, nil

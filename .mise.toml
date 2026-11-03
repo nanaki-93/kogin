@@ -1,4 +1,4 @@
-# Pinned language runtimes and static analysis / hook tooling for Kasuri
+# Pinned language runtimes and static analysis / hook tooling for Kogin
 [tools]
 go = "1.27.3"
 node = "22"

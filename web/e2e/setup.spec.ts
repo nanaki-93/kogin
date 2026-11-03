@@ -7,7 +7,7 @@ test('a project without configuration opens setup and saves it step by step', as
   daemon.serveSetup('needed');
   await page.goto('/#/');
   await expect(page).toHaveURL(/#\/setup/);
-  await expect(page.getByRole('heading', { name: 'Set up kasuri' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Set up kogin' })).toBeVisible();
 
   const bug = page.getByRole('region', { name: 'Bug model' });
   await bug.getByLabel('Provider').selectOption('agy');

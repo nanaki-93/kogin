@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/api"
+	"github.com/nanaki-93/kogin/v2/internal/api"
 )
 
 // Client talks to a daemon's HTTP API.
@@ -102,7 +102,7 @@ func (c *Client) ConfigNote(ctx context.Context) string {
 		return "Restart the daemon to load another configuration."
 	}
 	if *catalog.ConfigFile == "" {
-		return "The running daemon found no config.yaml and uses the built-in local model defaults; stop it and run kasuri again after adding one."
+		return "The running daemon found no config.yaml and uses the built-in local model defaults; stop it and run kogin again after adding one."
 	}
 	return "The running daemon uses " + *catalog.ConfigFile + "; restart it to load another configuration."
 }

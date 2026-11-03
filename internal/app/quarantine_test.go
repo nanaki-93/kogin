@@ -8,15 +8,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 func TestNewerTaskFilesAreSkippedNotSetAside(t *testing.T) {
 	server := changeProvider(t, func() string { return workflowImplementation })
 	service, root := newSemanticAnalysisService(t, server.URL, 0)
 	session := prepareChangeFixture(t, service, "new.go")
-	path := filepath.Join(root, ".kasuri", "changes", session.ID+".json")
+	path := filepath.Join(root, ".kogin", "changes", session.ID+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -33,7 +33,7 @@ func TestNewerTaskFilesAreSkippedNotSetAside(t *testing.T) {
 		t.Fatalf("newer task listed or failed the list: %+v %v", history, err)
 	}
 	report, err := service.Quarantine(context.Background())
-	if err != nil || len(report.Files) != 0 || len(report.Skipped) != 1 || !strings.Contains(report.Skipped[0].Remedy, "Upgrade Kasuri") {
+	if err != nil || len(report.Files) != 0 || len(report.Skipped) != 1 || !strings.Contains(report.Skipped[0].Remedy, "Upgrade Kogin") {
 		t.Fatalf("report: %+v %v", report, err)
 	}
 	if kept, _ := os.ReadFile(path); string(kept) != newer {
@@ -45,7 +45,7 @@ func TestUnreadableAnalysisProgressIsSetAsideSoAnalysisCanStart(t *testing.T) {
 	server, _ := analysisResponseServer(t, emptyAnalysisReply)
 	service, root := newSemanticAnalysisService(t, server.URL, 0)
 	path := filepath.Join(root, analysisRunRelativePath)
-	broken := `{"schema_version":"1","written_by":"an older Kasuri"}`
+	broken := `{"schema_version":"1","written_by":"an older Kogin"}`
 	if err := storage.WriteFile(path, []byte(broken), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestUnreadableAnalysisProgressIsSetAsideSoAnalysisCanStart(t *testing.T) {
 		t.Fatalf("report: %+v %v", report, err)
 	}
 	record := report.Files[0]
-	if record.Kind != "analysis_run" || record.File != analysisRunRelativePath || !strings.HasPrefix(record.QuarantinedAs, ".kasuri/analysis/run.quarantined-") {
+	if record.Kind != "analysis_run" || record.File != analysisRunRelativePath || !strings.HasPrefix(record.QuarantinedAs, ".kogin/analysis/run.quarantined-") {
 		t.Fatalf("record: %+v", record)
 	}
 	if kept, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(record.QuarantinedAs))); err != nil || string(kept) != broken {
@@ -126,8 +126,8 @@ func TestSetAsideAnalysisProgressIsDeletedWithItsRecord(t *testing.T) {
 	if _, err := service.DeleteQuarantined(context.Background(), stale); !errors.Is(err, project.ErrRevisionConflict) {
 		t.Fatalf("stale identity: %v", err)
 	}
-	live := filepath.Join(root, ".kasuri", "index.json")
-	for _, other := range []string{".kasuri/index.json", ".kasuri/analysis/run.json", "../outside.quarantined-1.json", ".kasuri/agents/x/journal.quarantined-1.json"} {
+	live := filepath.Join(root, ".kogin", "index.json")
+	for _, other := range []string{".kogin/index.json", ".kogin/analysis/run.json", "../outside.quarantined-1.json", ".kogin/agents/x/journal.quarantined-1.json"} {
 		if _, err := service.DeleteQuarantined(context.Background(), deleteRequest(t, service, other)); !errors.Is(err, ErrQuarantineNotListed) {
 			t.Fatalf("%s: %v", other, err)
 		}
@@ -152,7 +152,7 @@ func TestSetAsideAnalysisProgressIsDeletedWithItsRecord(t *testing.T) {
 
 func TestSetAsideRecordsFromMiniOrcaNameWhereTheFilesAreNow(t *testing.T) {
 	service, root := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
-	kept := ".kasuri/analysis/run.quarantined-20261028T130610.402215000Z.json"
+	kept := ".kogin/analysis/run.quarantined-20261028T130610.402215000Z.json"
 	if err := storage.WriteFile(filepath.Join(root, filepath.FromSlash(kept)), []byte(`{}`), 0o600); err != nil {
 		t.Fatal(err)
 	}

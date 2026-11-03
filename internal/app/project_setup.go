@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
-	"github.com/nanaki-93/kasuri/v2/internal/textutil"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
 
 // Project setup writes the project's own configuration file
@@ -30,7 +30,7 @@ const (
 	SetupInvalid    = "invalid"    // The project's file exists but could not be applied.
 )
 
-const setupSkipPath = ".kasuri/setup.json"
+const setupSkipPath = ".kogin/setup.json"
 
 // SetupModel is one model scope as setup shows and edits it. Secrets are
 // never returned: APIKeySet says whether one is configured, and an empty

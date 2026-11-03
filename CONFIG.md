@@ -1,8 +1,8 @@
 # Configuration Guide
 
-Kasuri reads YAML configuration at two levels: the daemon's `config.yaml`
+Kogin reads YAML configuration at two levels: the daemon's `config.yaml`
 (see [Configuration changes](#configuration-changes) for where it is found)
-and, for each project, that project's own `.kasuri/config.yaml`, which the
+and, for each project, that project's own `.kogin/config.yaml`, which the
 first-run setup in the Web UI writes (see [Project configuration](#project-configuration)).
 Start from `config.example.yaml`; do not commit provider credentials. Unknown or
 retired keys are refused with the full field path in the error. JSON
@@ -54,7 +54,7 @@ model_scopes:
 The default context budgets are 120000 tokens for `analyze`, 32000 for `bug`,
 and 4000 for `code`. For HTTP profiles, `temperature` must be from 0 through 2;
 `max_tokens` must be 1–65536; `context_max_tokens` must be 1–120000. API keys
-are never returned, logged, or embedded in metadata. Kasuri does not perform
+are never returned, logged, or embedded in metadata. Kogin does not perform
 environment interpolation or use a vault or Keychain.
 
 The ADK runtime supports bounded Chat Completions, typed function calls and text
@@ -170,7 +170,7 @@ model_scopes:
 CLI and HTTP scopes can be mixed. CLI profiles use the CLI's own credentials
 and settings; omit `api_base_url`, `api_key`, `temperature`, `max_tokens`, and
 sampling options. Unsupported settings fail startup instead of being ignored.
-Context budgets still limit Kasuri's supplied context. Pi maps reasoning
+Context budgets still limit Kogin's supplied context. Pi maps reasoning
 `none` to `off`; agy and Claude Code support `low`, `medium`, `high`, `xhigh`,
 and `max` (Claude Code's `--effort`; available levels depend on the model).
 Use exact model identifiers, not Pi fuzzy patterns or thinking suffixes.
@@ -206,19 +206,19 @@ Google Antigravity and Gemini CLI support in
 Pi still supports the Google Gemini API with its own authentication, such as
 `GEMINI_API_KEY`; signing in to Agy does not populate that Pi provider. See
 [Pi providers](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/providers.md).
-Kasuri disables Pi extensions for both discovery and inference, so providers
+Kogin disables Pi extensions for both discovery and inference, so providers
 added only by a Pi extension are not included.
 
 Each request starts a separate process in a private temporary directory, using
-Kasuri's supplied source context. Pi runs in JSON print mode with tools,
+Kogin's supplied source context. Pi runs in JSON print mode with tools,
 extensions, MCP, skills, context-file discovery and session saving disabled. Its
 temporary project settings disable automatic retries and compaction. Agy uses
-a temporary `kasuri` agent with file, command, subagent and MCP tools disabled,
+a temporary `kogin` agent with file, command, subagent and MCP tools disabled,
 slash expansion disabled, and JSON stdin/stdout. Claude Code runs in print mode
 (`-p --output-format stream-json`) with its built-in tools off (`--tools ""`),
 no MCP server (`--strict-mcp-config`), `dontAsk` permissions, only the empty
 directory's project settings (so no user hooks, plugins, skills, memory files or
-`apiKeyHelper`), slash commands and skills disabled, no saved session, Kasuri's
+`apiKeyHelper`), slash commands and skills disabled, no saved session, Kogin's
 system prompt, and one turn. Agy also keeps `finish` disabled:
 native schema completion depends on that tool, which user hooks can reject.
 These adapters require CLI versions supporting those options and the documented
@@ -228,7 +228,7 @@ and [agy headless reference](https://www.antigravity.google/docs/cli/headless/).
 
 Only a successful final assistant response is accepted. Both CLI providers
 receive the JSON Schema in their system prompt and must return a JSON answer.
-Kasuri validates the final response against that schema locally, with no
+Kogin validates the final response against that schema locally, with no
 unconstrained fallback. Failed, truncated, tool-bearing or incomplete responses
 fail the request.
 CLI stderr and raw protocol errors are not returned or logged. Output is bounded
@@ -239,22 +239,22 @@ groups are stopped on completion or cancellation, and temporary prompt files are
 require Unix process-group support; HTTP providers retain their existing platforms.
 
 CLI providers always require remote-provider confirmation, even if Pi is
-configured with a local model: Kasuri cannot independently verify the CLI's
+configured with a local model: Kogin cannot independently verify the CLI's
 downstream destination. Metadata shows `cli://agy`, `cli://pi` or `cli://claude`, with
 `temperature` and `max_tokens` set to `null` because those controls are unavailable.
-Existing Review, explicit Apply, and Undo still own source changes. Kasuri
+Existing Review, explicit Apply, and Undo still own source changes. Kogin
 does not configure the CLI's credential storage or upstream retention; agy may
 retain its own conversation records under its normal settings. Application
 retry limits count CLI invocations; upstream retries internal to a CLI or its
-service are outside Kasuri's transport accounting.
+service are outside Kogin's transport accounting.
 
 ### Subscriptions, not API keys
 
 The CLIs run on the subscription their user signed in with: Claude Code on the
 Claude plan (`/login` with a Pro or Max account), agy on the Google AI plan, pi
-on the ChatGPT plan (or a local model). Kasuri never reads or copies a CLI's
+on the ChatGPT plan (or a local model). Kogin never reads or copies a CLI's
 login. Claude Code would bill an API key or a cloud account found in its
-environment, so Kasuri starts it without any `ANTHROPIC_*`,
+environment, so Kogin starts it without any `ANTHROPIC_*`,
 `CLAUDE_CODE_USE_*` or Bedrock token variable, loads no user settings (where an
 `apiKeyHelper` could live), and stops a run before the model is called when
 Claude Code still reports an API-key source; sign out of the key and sign in with
@@ -274,24 +274,24 @@ Code or agy gets a tool-using agent for that stage. Its only tools are those of 
 per-run MCP server on a loopback port with a one-time token; a call to any other
 tool stops the run.
 
-- **pi** loads only Kasuri's extension, which registers the server and blocks
+- **pi** loads only Kogin's extension, which registers the server and blocks
   every other tool; the token reaches it through the environment.
 - **Claude Code** gets the server in a private `--mcp-config` file
-  (`--strict-mcp-config`, built-in tools off, `--allowedTools mcp__kasuri`,
+  (`--strict-mcp-config`, built-in tools off, `--allowedTools mcp__kogin`,
   `dontAsk` permissions, `--max-turns`). A run that cannot connect to the server
   stops before the model works.
 - **agy** gets the server in the run's private workspace
-  (`.agents/mcp_config.json`, limited to the run's tools) and a `kasuri`
+  (`.agents/mcp_config.json`, limited to the run's tools) and a `kogin`
   agent with no built-in tools, no command execution and no subagents. agy's
   model calls MCP tools through one `call_mcp_tool` tool, so the agent's prompt
-  lists each of Kasuri's tools with its arguments schema, and only a call
-  naming the `kasuri` server and one of the run's tools is accepted. Headless
-  agy denies an MCP tool that would ask for approval, and Kasuri does not
-  skip agy's permissions, so allow Kasuri's server once in
+  lists each of Kogin's tools with its arguments schema, and only a call
+  naming the `kogin` server and one of the run's tools is accepted. Headless
+  agy denies an MCP tool that would ask for approval, and Kogin does not
+  skip agy's permissions, so allow Kogin's server once in
   `~/.gemini/antigravity-cli/settings.json`:
 
   ```json
-  {"permissions": {"allow": ["mcp(kasuri/*)"]}}
+  {"permissions": {"allow": ["mcp(kogin/*)"]}}
   ```
 
   A run whose tools agy denied fails with this instruction.
@@ -459,7 +459,7 @@ source hashes, instructions, policy, schema and configuration. Current source
 authority is checked again on every hit and model dispatch.
 
 Private cache data and paid-operation receipts live in
-`.kasuri/agents/<workspace-hash>/context-cache.json` with mode `0600`.
+`.kogin/agents/<workspace-hash>/context-cache.json` with mode `0600`.
 The catalog permits 1024 records, 1 MiB per value and 32 MiB total. Expired local
 composition is pruned during writes. Completed summaries remain reusable; an
 uncertain summary or remote-cache creation remains pending across restarts and
@@ -469,7 +469,7 @@ checkout's cache file after reviewing the prior run; subsequent requests may pay
 for summarization or cache creation again. Removing local metadata does not
 delete provider-held content.
 
-`provider_cache` enables a Kasuri adapter over the GenAI Go cache API; ADK Go
+`provider_cache` enables a Kogin adapter over the GenAI Go cache API; ADK Go
 does not provide `ContextCacheConfig`. It requires an explicit
 `provider_ttl_seconds` of 60–3600 and selected Gemini API or Vertex profiles in the
 Gemini 2.5/3 Flash/Pro families. Unsupported profiles fail locally; model/account
@@ -516,7 +516,7 @@ logging:
 The operation timeouts bound the request contexts; retries only cover explicit
 prompt requests. Settings → Models & agents → Time limits (and the Agents &
 budget step of setup) edit them for a project: they are saved in its
-`.kasuri/config.yaml` and applied at once. `analysis_seconds` bounds each
+`.kogin/config.yaml` and applied at once. `analysis_seconds` bounds each
 analysis request, `import_seconds` the project overview and other Analyze
 model requests, `generation_seconds` each Code model request,
 `workflow_model_seconds` each agent model call and `focused_check_seconds`
@@ -541,7 +541,7 @@ plan, consent and execution trust.
 
 ## Project configuration
 
-A project can carry its own configuration in `.kasuri/config.yaml`. It uses
+A project can carry its own configuration in `.kogin/config.yaml`. It uses
 the daemon's schema except `logging` and `project_path`, which configure the
 daemon, and it is applied on top of the daemon's configuration: a model scope
 it names (`model_scopes.analyze`, `bug` or `code`) replaces that scope whole, so
@@ -563,10 +563,10 @@ The first time a project without that file opens, the Web UI starts **setup**:
    analysis.
 
 Skipping keeps the daemon's configuration and records the choice in
-`.kasuri/setup.json`; Settings → Project shows where the configuration comes
+`.kogin/setup.json`; Settings → Project shows where the configuration comes
 from and reopens setup at any time. Setup rewrites only the keys it manages and
 keeps any others, with their comments. The file is written `0600`, and
-`.kasuri/.gitignore` lists it so it stays out of Git.
+`.kogin/.gitignore` lists it so it stays out of Git.
 
 The configuration applies without restarting: opening or switching to a
 project loads its file, and saving setup reloads it at once. Saving is refused
@@ -587,33 +587,33 @@ and a later analysis writes the overview.
 
 Only the current YAML schema is supported. For retired configurations, create a
 fresh local file from `config.example.yaml`; unknown keys fail startup instead
-of invoking compatibility fallbacks. `KASURI_CONFIG` selects the daemon's
+of invoking compatibility fallbacks. `KOGIN_CONFIG` selects the daemon's
 file; a missing file then stops startup. Otherwise the daemon reads the first
-`config.yaml` of `~/.config/kasuri/`, the platform configuration
-directory's `kasuri/` (`~/Library/Application Support/kasuri/` on macOS),
+`config.yaml` of `~/.config/kogin/`, the platform configuration
+directory's `kogin/` (`~/Library/Application Support/kogin/` on macOS),
 the same two under their `mini-orca/` names from before the rename (and
-`MINI_ORCA_CONFIG` when `KASURI_CONFIG` is not set), and the folder of the
+`MINI_ORCA_CONFIG` when `KOGIN_CONFIG` is not set), and the folder of the
 daemon binary, symlinks resolved. A `config.yaml` in the
 project folder belongs to the project and is not read. With no daemon file, it
 starts with local defaults (`http://localhost:1234/v1`) and logs the folders it
 searched; `GET /api/models/current` reports the file in use as `config_file`
 (the project's file when one is applied, empty for the defaults). `make
 install` copies the repository's `config.yaml` to
-`~/.config/kasuri/config.yaml` when that file does not exist (and no
+`~/.config/kogin/config.yaml` when that file does not exist (and no
 `~/.config/mini-orca/config.yaml` is there from before the rename). Restart the
 daemon after changing its own file; project files apply live.
 
 ## Local metadata and manual cleanup
 
-Configuration stays separate from project metadata. Kasuri stores its local
+Configuration stays separate from project metadata. Kogin stores its local
 index, analysis, findings, shared proposals and grouped recovery data
-under the imported project's `.kasuri/` directory; see
+under the imported project's `.kogin/` directory; see
 [README.md](README.md#project-intelligence) for the current paths. These files are
 application metadata, separate from configuration.
 Do not delete Apply receipts or Undo backups as a routine cache reset.
 
 ADK session state, input history, final events, invocation status and shared budget
-checkpoints live in `.kasuri/agents/<checkout-hash>/journal.json`. The hash binds
+checkpoints live in `.kogin/agents/<checkout-hash>/journal.json`. The hash binds
 the canonical checkout path; worktrees have separate records. Journals use atomic
 replacement, Unix file/directory modes 0600/0700, and a process lock. Windows
 access follows the checkout's filesystem ACLs. Input and response
@@ -664,13 +664,13 @@ smaller. Source, policy, instructions and project identity are rechecked at
 dispatch and publication; a changed scope stops the investigation.
 
 Execution trust decisions are private user settings, outside project metadata.
-They are stored in `kasuri/execution-trust/` under the OS user configuration
-directory (on macOS, `~/Library/Application Support/`). `KASURI_TRUST_DIR`
+They are stored in `kogin/execution-trust/` under the OS user configuration
+directory (on macOS, `~/Library/Application Support/`). `KOGIN_TRUST_DIR`
 can select another absolute, user-controlled directory. Each decision is bound
-to the canonical project path and command scope; copying `.kasuri/` to another
+to the canonical project path and command scope; copying `.kogin/` to another
 checkout does not transfer consent. Grant or revoke trust in **Settings → Trust**.
 
-Each launch writes a new write token to `kasuri/daemon-token` in the same
+Each launch writes a new write token to `kogin/daemon-token` in the same
 user configuration directory, readable only by you (mode `0600`);
-`KASURI_TOKEN_FILE` selects another absolute path. Requests that change
-state send it in `X-Kasuri-Token`; the Web UI receives it in its page.
+`KOGIN_TOKEN_FILE` selects another absolute path. Requests that change
+state send it in `X-Kogin-Token`; the Web UI receives it in its page.

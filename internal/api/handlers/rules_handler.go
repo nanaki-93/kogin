@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/nanaki-93/kasuri/v2/internal/api"
+	"github.com/nanaki-93/kogin/v2/internal/api"
 )
 
 // Rules returns the project's test file patterns and the AGENTS.md files

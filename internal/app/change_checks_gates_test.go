@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func TestChangeChecksEnforceArchitectureBoundariesAndComplexityGate(t *testing.T) {
@@ -178,7 +178,7 @@ func TestAFileAlreadyOverBudgetMayChangeWithoutGrowingAndOpensOneIssue(t *testin
 	if err := os.WriteFile(filepath.Join(root, "legacy.py"), []byte(legacy), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("```kasuri\nbudgets:\n  file_lines: 3\n```\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("```kogin\nbudgets:\n  file_lines: 3\n```\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	manager, err := project.NewManager(root)

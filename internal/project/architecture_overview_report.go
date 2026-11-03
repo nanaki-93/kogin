@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
-	"github.com/nanaki-93/kasuri/v2/internal/project/handbook"
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/project/handbook"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 const (
 	projectAnalysisSchemaVersion = "1"
 	// v7: short prose, walkthroughs checked against the files, no diagrams.
 	projectAnalysisPromptVersion = "project-analysis-v7"
-	projectAnalysisReportPath    = ".kasuri/project-analysis.json"
+	projectAnalysisReportPath    = ".kogin/project-analysis.json"
 	maxProjectAnalysisBytes      = 64 * 1024
 	maxProjectAnalysisItems      = 32
 	maxProjectAnalysisItemBytes  = 2048

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
+	"github.com/nanaki-93/kogin/v2/internal/app/gitops"
 )
 
 // Every task lives in its own Git worktree: a new branch from the main

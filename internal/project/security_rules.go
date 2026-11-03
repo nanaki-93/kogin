@@ -1,7 +1,7 @@
 package project
 
 import (
-	"github.com/nanaki-93/kasuri/v2/internal/project/securityrules"
+	"github.com/nanaki-93/kogin/v2/internal/project/securityrules"
 )
 
 const SecurityRuleSetVersion = securityrules.SecurityRuleSetVersion

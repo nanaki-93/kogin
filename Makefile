@@ -1,13 +1,13 @@
-# Kasuri Makefile
+# Kogin Makefile
 
 # Variables
-APP_NAME := kasuri
+APP_NAME := kogin
 VERSION := $(shell sed -n 's/.*Version = "\([^"]*\)"/\1/p' internal/version/version.go)
 IMAGE_NAME := $(APP_NAME)
 IMAGE_TAG := $(VERSION)
 DOCKER_IMAGE := $(IMAGE_NAME):$(IMAGE_TAG)
 BUILD_DIR := build
-DESKTOP_APP := $(BUILD_DIR)/Kasuri.app
+DESKTOP_APP := $(BUILD_DIR)/Kogin.app
 # The Applications folder the Finder shows when this user can write there (an
 # administrator can), else the one in the home folder.
 DESKTOP_INSTALL_DIR ?= $(shell [ -w /Applications ] && echo /Applications || echo "$(HOME)/Applications")
@@ -37,29 +37,30 @@ all: help
 
 # ─── Help ──────────────────────────────────────────────────────────────────────
 help: ## Show this help message
-	@echo "$(COLOR_BLUE)Kasuri $(VERSION) - Makefile Targets$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)Kogin $(VERSION) - Makefile Targets$(COLOR_RESET)"
 	@echo ""
 	@echo "$(COLOR_GREEN)Build Targets:$(COLOR_RESET)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(COLOR_BLUE)%-20s$(COLOR_RESET) %s\n", $$1, $$2}'
 	@echo ""
 
 # ─── Local Build ───────────────────────────────────────────────────────────────
-build: build-agents ## Build the kasuri launcher, the daemon (which serves the Web UI) and the evaluation and inspector commands
+build: build-agents ## Build the kogin launcher, the daemon (which serves the Web UI) and the evaluation and inspector commands
 	@echo "$(COLOR_GREEN)Building $(APP_NAME) $(VERSION)...$(COLOR_RESET)"
 	@mkdir -p $(BUILD_DIR)
-	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/kasuri/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME)-daemon ./cmd/daemon
-	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/kasuri/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME) ./cmd/kasuri
+	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/kogin/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME)-daemon ./cmd/daemon
+	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/kogin/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME) ./cmd/kogin
 	@cp -f $(BUILD_DIR)/$(APP_NAME) ./$(APP_NAME)
 	@cp -f $(BUILD_DIR)/$(APP_NAME)-daemon ./$(APP_NAME)-daemon
-	@echo "$(COLOR_GREEN)Build complete: ./$(APP_NAME), ./$(APP_NAME)-daemon ($(BUILD_DIR)/); run kasuri in a project folder$(COLOR_RESET)"
+	@echo "$(COLOR_GREEN)Build complete: ./$(APP_NAME), ./$(APP_NAME)-daemon ($(BUILD_DIR)/); run kogin in a project folder$(COLOR_RESET)"
 
-install: build ## Build and copy kasuri and kasuri-daemon into ~/DEV/lab/kasuri and KASURI_HOME (or ~/DEV/programs/kasuri, else the earlier ~/DEV/programs/mini-orca)
-	@target_dir="$$HOME/DEV/lab/kasuri"; \
+install: build ## Build and copy kogin and kogin-daemon into ~/DEV/lab/kogin and KOGIN_HOME (or ~/DEV/programs/kogin, else the earlier ~/DEV/programs/kasuri or mini-orca)
+	@target_dir="$$HOME/DEV/lab/kogin"; \
 	if [ -d "$$target_dir" ] && [ "$$(cd "$$target_dir" && pwd)" != "$$(pwd)" ]; then \
 		cp -f $(BUILD_DIR)/$(APP_NAME) $(BUILD_DIR)/$(APP_NAME)-daemon "$$target_dir/"; \
 	fi
-	@home="$${KASURI_HOME:-$${MINI_ORCA_HOME:-}}"; \
+	@home="$${KOGIN_HOME:-$${KASURI_HOME:-$${MINI_ORCA_HOME:-}}}"; \
 	if [ -n "$$home" ] && [ -d "$$home" ]; then :; \
+	elif [ -d "$$HOME/DEV/programs/kogin" ]; then home="$$HOME/DEV/programs/kogin"; \
 	elif [ -d "$$HOME/DEV/programs/kasuri" ]; then home="$$HOME/DEV/programs/kasuri"; \
 	elif [ -d "$$HOME/DEV/programs/mini-orca" ]; then home="$$HOME/DEV/programs/mini-orca"; \
 	else home=""; fi; \
@@ -67,20 +68,24 @@ install: build ## Build and copy kasuri and kasuri-daemon into ~/DEV/lab/kasuri 
 		cp -f $(BUILD_DIR)/$(APP_NAME) $(BUILD_DIR)/$(APP_NAME)-daemon "$$home/"; \
 		echo "$(COLOR_GREEN)Installed $(APP_NAME) and $(APP_NAME)-daemon into $$home$(COLOR_RESET)"; \
 	fi
-	@user_config="$$HOME/.config/kasuri/config.yaml"; \
-	if [ -e "$$HOME/.config/mini-orca/config.yaml" ] && [ ! -e "$$user_config" ]; then \
-		echo "$(COLOR_GREEN)Using $$HOME/.config/mini-orca/config.yaml from before the rename (move it to $$user_config when you like)$(COLOR_RESET)"; \
+	@user_config="$$HOME/.config/kogin/config.yaml"; \
+	legacy_config=""; \
+	for old in kasuri mini-orca; do \
+		if [ -z "$$legacy_config" ] && [ -e "$$HOME/.config/$$old/config.yaml" ]; then legacy_config="$$HOME/.config/$$old/config.yaml"; fi; \
+	done; \
+	if [ -n "$$legacy_config" ] && [ ! -e "$$user_config" ]; then \
+		echo "$(COLOR_GREEN)Using $$legacy_config from before the rename (move it to $$user_config when you like)$(COLOR_RESET)"; \
 	elif [ -f config.yaml ] && [ ! -e "$$user_config" ]; then \
 		mkdir -p "$$(dirname "$$user_config")" && cp config.yaml "$$user_config" && chmod 600 "$$user_config"; \
 		echo "$(COLOR_GREEN)Copied config.yaml to $$user_config$(COLOR_RESET)"; \
 	elif [ ! -e "$$user_config" ]; then \
 		echo "$(COLOR_YELLOW)No config.yaml: copy config.example.yaml to $$user_config and fill the model scopes$(COLOR_RESET)"; \
 	fi
-	@echo "$(COLOR_GREEN)Run kasuri in a project folder to open it in the Web UI$(COLOR_RESET)"
+	@echo "$(COLOR_GREEN)Run kogin in a project folder to open it in the Web UI$(COLOR_RESET)"
 
 build-linux: build-agents-linux ## Build all Linux amd64 release command binaries
 	@mkdir -p $(BUILD_DIR)
-	@CGO_ENABLED=$(CGO_ENABLED) GOOS=linux GOARCH=amd64 $(GO) build -ldflags="-w -s -X github.com/nanaki-93/kasuri/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME)-daemon-linux-amd64 ./cmd/daemon
+	@CGO_ENABLED=$(CGO_ENABLED) GOOS=linux GOARCH=amd64 $(GO) build -ldflags="-w -s -X github.com/nanaki-93/kogin/v2/internal/version.Version=$(VERSION)" -o $(BUILD_DIR)/$(APP_NAME)-daemon-linux-amd64 ./cmd/daemon
 	@echo "$(COLOR_GREEN)Linux build complete: $(BUILD_DIR)/$(APP_NAME)-daemon-linux-amd64$(COLOR_RESET)"
 
 build-agents: ## Build the evaluation and inspector commands without CGO
@@ -101,37 +106,37 @@ clean: ## Remove build artifacts
 	@echo "$(COLOR_YELLOW)Clean complete$(COLOR_RESET)"
 
 # ─── Desktop App ───────────────────────────────────────────────────────────────
-desktop: ## Build the desktop app's program (build/kasuri-desktop) for this machine; it starts the daemon found beside it or on PATH
+desktop: ## Build the desktop app's program (build/kogin-desktop) for this machine; it starts the daemon found beside it or on PATH
 	@mkdir -p $(BUILD_DIR)
 	@cd desktop && CGO_ENABLED=1 $(GO) build -tags production -trimpath -ldflags="-w -s" -o ../$(BUILD_DIR)/$(APP_NAME)-desktop .
 	@echo "$(COLOR_GREEN)Built $(BUILD_DIR)/$(APP_NAME)-desktop$(COLOR_RESET)"
 
-desktop-app: ## Build build/Kasuri.app (macOS): the desktop app with its daemon inside
+desktop-app: ## Build build/Kogin.app (macOS): the desktop app with its daemon inside
 	@[ "$$(uname)" = Darwin ] || { echo "desktop-app builds a macOS app: run it on a Mac (make desktop builds the program elsewhere)"; exit 1; }
 	@rm -rf $(DESKTOP_APP)
 	@mkdir -p $(DESKTOP_APP)/Contents/MacOS $(DESKTOP_APP)/Contents/Resources
 	@cd desktop && CGO_ENABLED=1 $(GO) build -tags production -trimpath -ldflags="-w -s" -o ../$(DESKTOP_APP)/Contents/MacOS/$(APP_NAME)-desktop .
-	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/kasuri/v2/internal/version.Version=$(VERSION)" -o $(DESKTOP_APP)/Contents/MacOS/$(APP_NAME)-daemon ./cmd/daemon
+	@CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-w -s -X github.com/nanaki-93/kogin/v2/internal/version.Version=$(VERSION)" -o $(DESKTOP_APP)/Contents/MacOS/$(APP_NAME)-daemon ./cmd/daemon
 	@sed -e 's/__SHORT_VERSION__/$(SHORT_VERSION)/' -e 's/__VERSION__/$(VERSION)/' desktop/macos/Info.plist > $(DESKTOP_APP)/Contents/Info.plist
 	@cp desktop/macos/icon.icns $(DESKTOP_APP)/Contents/Resources/icon.icns
 	@codesign --force --sign - $(DESKTOP_APP)/Contents/MacOS/$(APP_NAME)-daemon
 	@codesign --force --sign - $(DESKTOP_APP)
 	@echo "$(COLOR_GREEN)Built $(DESKTOP_APP) $(VERSION)$(COLOR_RESET)"
 
-install-desktop: desktop-app ## Build Kasuri.app and copy it into /Applications (or ~/Applications; DESKTOP_INSTALL_DIR)
+install-desktop: desktop-app ## Build Kogin.app and copy it into /Applications (or ~/Applications; DESKTOP_INSTALL_DIR)
 	@mkdir -p "$(DESKTOP_INSTALL_DIR)"
-	@rm -rf "$(DESKTOP_INSTALL_DIR)/Kasuri.app"
-	@ditto $(DESKTOP_APP) "$(DESKTOP_INSTALL_DIR)/Kasuri.app"
+	@rm -rf "$(DESKTOP_INSTALL_DIR)/Kogin.app"
+	@ditto $(DESKTOP_APP) "$(DESKTOP_INSTALL_DIR)/Kogin.app"
 	@# An earlier install went to ~/Applications; keep a single copy.
-	@if [ "$(DESKTOP_INSTALL_DIR)" != "$(HOME)/Applications" ] && [ -d "$(HOME)/Applications/Kasuri.app" ]; then \
-		rm -rf "$(HOME)/Applications/Kasuri.app" && echo "Removed the earlier copy in $(HOME)/Applications"; \
+	@if [ "$(DESKTOP_INSTALL_DIR)" != "$(HOME)/Applications" ] && [ -d "$(HOME)/Applications/Kogin.app" ]; then \
+		rm -rf "$(HOME)/Applications/Kogin.app" && echo "Removed the earlier copy in $(HOME)/Applications"; \
 	fi
-	@# Kasuri was called Mini-Orca: remove the app installed under the old name.
-	@for old in "$(DESKTOP_INSTALL_DIR)/Mini-Orca.app" "$(HOME)/Applications/Mini-Orca.app"; do \
-		if [ -d "$$old" ]; then rm -rf "$$old" && echo "Removed $$old (Kasuri was called Mini-Orca)"; fi; \
+	@# Kogin was called Kasuri and Mini-Orca: remove apps installed under those names.
+	@for old in "$(DESKTOP_INSTALL_DIR)/Kasuri.app" "$(HOME)/Applications/Kasuri.app" "$(DESKTOP_INSTALL_DIR)/Mini-Orca.app" "$(HOME)/Applications/Mini-Orca.app"; do \
+		if [ -d "$$old" ]; then rm -rf "$$old" && echo "Removed $$old (Kogin's earlier name)"; fi; \
 	done
-	@echo "$(COLOR_GREEN)Installed $(DESKTOP_INSTALL_DIR)/Kasuri.app$(COLOR_RESET)"
-	@echo "Open it from Launchpad or Spotlight, or with: open \"$(DESKTOP_INSTALL_DIR)/Kasuri.app\""
+	@echo "$(COLOR_GREEN)Installed $(DESKTOP_INSTALL_DIR)/Kogin.app$(COLOR_RESET)"
+	@echo "Open it from Launchpad or Spotlight, or with: open \"$(DESKTOP_INSTALL_DIR)/Kogin.app\""
 
 desktop-check: ## Vet and cross-build the desktop app for macOS and Linux without cgo (no Xcode or GTK needed)
 	@cd desktop && for target in darwin/arm64 darwin/amd64 linux/amd64; do \
@@ -209,8 +214,8 @@ docker-run: ## Run container in detached mode
 		-v $$(pwd)/config.yaml:/app/config.yaml:ro \
 		-v $$(pwd)/projects:/app/projects:rw \
 		-v $$(pwd)/logs:/app/logs:rw \
-		-e KASURI_CONFIG=/app/config.yaml \
-		-e KASURI_BIND_ADDRESS=0.0.0.0:9090 \
+		-e KOGIN_CONFIG=/app/config.yaml \
+		-e KOGIN_BIND_ADDRESS=0.0.0.0:9090 \
 		$(DOCKER_IMAGE)
 	@echo "$(COLOR_GREEN)Container started: $(APP_NAME)$(COLOR_RESET)"
 	@echo "$(COLOR_BLUE)Web UI available at: http://localhost:9090/ui$(COLOR_RESET)"
@@ -276,7 +281,7 @@ dev-watch: ## Run with air for hot reload (if installed)
 
 # ─── Version Info ──────────────────────────────────────────────────────────────
 version: ## Show version information
-	@echo "$(COLOR_BLUE)Kasuri Version: $(VERSION)$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)Kogin Version: $(VERSION)$(COLOR_RESET)"
 	@echo "$(COLOR_BLUE)Go Version: $$(go version)$(COLOR_RESET)"
 	@echo "$(COLOR_BLUE)Docker Version: $$(docker --version 2>/dev/null || echo 'not installed')$(COLOR_RESET)"
 	@echo "$(COLOR_BLUE)Docker Compose: $$(docker compose version 2>/dev/null || echo 'not installed')$(COLOR_RESET)"

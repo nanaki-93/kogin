@@ -3,9 +3,9 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/nanaki-93/kasuri/v2/internal/api"
-	"github.com/nanaki-93/kasuri/v2/internal/app"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/api"
+	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 type findingStatusRequest struct {

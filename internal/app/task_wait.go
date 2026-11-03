@@ -6,15 +6,15 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project/rules"
 )
 
 // Two tasks never change the same code at once. A task whose run would change
 // code another open task (in another worktree, not merged yet) is already
 // changing waits for it: when its run starts, or when an issue step asks for
 // such a file with widen_scope. The waiting run keeps the request it was
-// started with; when the other task is merged or deleted, Kasuri continues
+// started with; when the other task is merged or deleted, Kogin continues
 // the waiting task on the updated main checkout (task_wait_resume.go).
 
 // ChangeWorkflowWait names the task a run waits for and the code they share.

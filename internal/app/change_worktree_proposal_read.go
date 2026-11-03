@@ -9,8 +9,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/project/diff"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project/diff"
 )
 
 // readWorktreeProposal reads the proposal back from the worktree: tracked

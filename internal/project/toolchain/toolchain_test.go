@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
+	"github.com/nanaki-93/kogin/v2/internal/project/rules"
 )
 
 func writeFiles(t *testing.T, files map[string]string) (string, []string) {
@@ -64,9 +64,9 @@ func TestAGENTSChecksOverrideAndTaskRunnersBeatDefaults(t *testing.T) {
 	root, files := writeFiles(t, map[string]string{
 		"go.mod":           "module example.test/m\n",
 		"Makefile":         "test:\n\tgo test -v ./...\ncheck: test\n",
-		"AGENTS.md":        "```kasuri\nchecks:\n  lint: go vet ./...\n```\n",
+		"AGENTS.md":        "```kogin\nchecks:\n  lint: go vet ./...\n```\n",
 		"web/package.json": `{"scripts":{"test":"vitest run"}}`,
-		"web/AGENTS.md":    "```kasuri\nchecks:\n  test: \"\"\n```\n",
+		"web/AGENTS.md":    "```kogin\nchecks:\n  test: \"\"\n```\n",
 	})
 	got := Detect(root, files, rules.NewResolver(root))
 	want := []Profile{{Dir: "", Kind: "make", Source: "AGENTS.md", Test: []string{"make", "test"}, Lint: []string{"go", "vet", "./..."}}}

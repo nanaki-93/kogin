@@ -32,7 +32,7 @@ func TestUnreadableJournalIsNamedAndSetAside(t *testing.T) {
 	path := writeJournal(t, s, `{"version":2,`)
 	_, err = Open(root)
 	var problem *JournalError
-	if !errors.As(err, &problem) || !errors.Is(err, ErrCorrupt) || problem.Newer || !strings.HasPrefix(problem.Path, ".kasuri/agents/") || !strings.Contains(err.Error(), "not valid JSON") {
+	if !errors.As(err, &problem) || !errors.Is(err, ErrCorrupt) || problem.Newer || !strings.HasPrefix(problem.Path, ".kogin/agents/") || !strings.Contains(err.Error(), "not valid JSON") {
 		t.Fatalf("corrupt journal error: %v", err)
 	}
 	record, err := Quarantine(t.Context(), root)
@@ -65,7 +65,7 @@ func TestNewerJournalIsNeverSetAside(t *testing.T) {
 	}
 	path := writeJournal(t, s, `{"version":9,"future_field":true}`)
 	_, err = Open(root)
-	if !errors.Is(err, ErrNewerJournal) || !strings.Contains(err.Error(), "upgrade Kasuri") || !strings.Contains(err.Error(), "format 9") {
+	if !errors.Is(err, ErrNewerJournal) || !strings.Contains(err.Error(), "upgrade Kogin") || !strings.Contains(err.Error(), "format 9") {
 		t.Fatalf("newer journal error: %v", err)
 	}
 	if record, err := Quarantine(t.Context(), root); record != nil || !errors.Is(err, ErrNewerJournal) {
@@ -92,7 +92,7 @@ func TestSetAsideJournalIsDeletedWithItsRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	journal := writeJournal(t, live, `{"version":2,"workspace":"kept"}`)
-	for _, other := range []string{record.File, ".kasuri/agents/elsewhere/" + filepath.Base(record.QuarantinedAs), ".kasuri/quarantine.json"} {
+	for _, other := range []string{record.File, ".kogin/agents/elsewhere/" + filepath.Base(record.QuarantinedAs), ".kogin/quarantine.json"} {
 		if err := DeleteQuarantined(t.Context(), root, other); !errors.Is(err, ErrNotSetAside) {
 			t.Fatalf("%s: %v", other, err)
 		}
@@ -122,8 +122,8 @@ func TestSetAsideJournalRecordedUnderMiniOrcaIsDeletedWhereItIsNow(t *testing.T)
 	if err != nil || record == nil {
 		t.Fatalf("quarantine: %+v %v", record, err)
 	}
-	legacy := strings.Replace(record.QuarantinedAs, ".kasuri/", ".mini-orca/", 1)
-	data := `[{"file":"` + strings.Replace(record.File, ".kasuri/", ".mini-orca/", 1) + `","quarantined_as":"` + legacy + `","reason":"not valid JSON","at":"2026-10-28T13:06:10Z"}]`
+	legacy := strings.Replace(record.QuarantinedAs, ".kogin/", ".mini-orca/", 1)
+	data := `[{"file":"` + strings.Replace(record.File, ".kogin/", ".mini-orca/", 1) + `","quarantined_as":"` + legacy + `","reason":"not valid JSON","at":"2026-10-28T13:06:10Z"}]`
 	log, err := s.path("quarantine.json")
 	if err != nil {
 		t.Fatal(err)
@@ -132,7 +132,7 @@ func TestSetAsideJournalRecordedUnderMiniOrcaIsDeletedWhereItIsNow(t *testing.T)
 		t.Fatal(err)
 	}
 	if err := DeleteQuarantined(t.Context(), root, legacy); !errors.Is(err, ErrNotSetAside) {
-		t.Fatalf("a .mini-orca path was resolved outside .kasuri: %v", err)
+		t.Fatalf("a .mini-orca path was resolved outside .kogin: %v", err)
 	}
 	if err := DeleteQuarantined(t.Context(), root, record.QuarantinedAs); err != nil {
 		t.Fatal(err)

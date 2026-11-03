@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/nanaki-93/kasuri/v2/internal/brand"
+	"github.com/nanaki-93/kogin/v2/internal/brand"
 )
 
 // WriteTokenHeader carries the daemon's per-launch write token.
-const WriteTokenHeader = "X-Kasuri-Token"
+const WriteTokenHeader = "X-Kogin-Token"
 
 // RequireWriteToken admits a request that can change state (any method but
 // GET, HEAD and OPTIONS) only when it carries this launch's write token. The
@@ -38,12 +38,12 @@ func RequireWriteToken(next http.Handler, token, tokenFile string) http.Handler 
 }
 
 // WriteTokenFile is where the daemon saves its write token for local clients:
-// KASURI_TOKEN_FILE when set (an absolute path), otherwise
-// kasuri/daemon-token in the user configuration directory.
+// KOGIN_TOKEN_FILE when set (an absolute path), otherwise
+// kogin/daemon-token in the user configuration directory.
 func WriteTokenFile() (string, error) {
-	if path := brand.Getenv("KASURI_TOKEN_FILE"); path != "" {
+	if path := brand.Getenv("KOGIN_TOKEN_FILE"); path != "" {
 		if !filepath.IsAbs(path) {
-			return "", fmt.Errorf("KASURI_TOKEN_FILE must be an absolute path")
+			return "", fmt.Errorf("KOGIN_TOKEN_FILE must be an absolute path")
 		}
 		return path, nil
 	}

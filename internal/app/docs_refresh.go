@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/project/projectmap"
-	"github.com/nanaki-93/kasuri/v2/internal/textutil"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project/projectmap"
+	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
 
 // DocsRefresh says what refreshing the docs' model-written parts did: the

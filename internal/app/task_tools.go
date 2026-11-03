@@ -12,9 +12,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/toolserver"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
+	"github.com/nanaki-93/kogin/v2/internal/app/toolserver"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project/rules"
 )
 
 // An agent run's tools work on the task's worktree. Every call passes the
@@ -197,7 +197,7 @@ func decodeToolArguments(arguments json.RawMessage, into any) error {
 }
 
 // cleanToolPath makes a model-supplied path project-relative and refuses
-// paths outside the project and Git or Kasuri metadata.
+// paths outside the project and Git or Kogin metadata.
 func cleanToolPath(file string) (string, error) {
 	file = strings.TrimPrefix(strings.TrimSpace(filepath.ToSlash(file)), "./")
 	clean := path.Clean(file)
@@ -207,7 +207,7 @@ func cleanToolPath(file string) (string, error) {
 	case strings.HasPrefix(clean, "../") || clean == ".." || path.IsAbs(clean):
 		return "", fmt.Errorf("%s is outside the project; use project-relative paths", boundedProposalPath(file))
 	case worktreeMetadata(clean):
-		return "", fmt.Errorf("%s belongs to Git or Kasuri", boundedProposalPath(file))
+		return "", fmt.Errorf("%s belongs to Git or Kogin", boundedProposalPath(file))
 	}
 	return clean, nil
 }

@@ -15,7 +15,7 @@ import (
 )
 
 func TestRunCheckCommandHonorsCancellation(t *testing.T) {
-	t.Setenv("KASURI_CHECK_HELPER", "1")
+	t.Setenv("KOGIN_CHECK_HELPER", "1")
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 	_, err := RunCommand(ctx, t.TempDir(), checkHelperCommand("cancel-with-output"))
@@ -25,7 +25,7 @@ func TestRunCheckCommandHonorsCancellation(t *testing.T) {
 }
 
 func TestRunCheckCommandBoundsOutputAndPreservesExitCode(t *testing.T) {
-	t.Setenv("KASURI_CHECK_HELPER", "1")
+	t.Setenv("KOGIN_CHECK_HELPER", "1")
 	result, err := RunCommand(context.Background(), t.TempDir(), checkHelperCommand("huge-output"))
 	if err == nil || result.ExitCode != 17 {
 		t.Fatalf("command result = %+v, err = %v", result, err)
@@ -40,7 +40,7 @@ func TestRunCheckCommandBoundsOutputAndPreservesExitCode(t *testing.T) {
 }
 
 func TestRunCheckCommandCancellationDoesNotWaitForInheritedOutputPipe(t *testing.T) {
-	t.Setenv("KASURI_CHECK_HELPER", "1")
+	t.Setenv("KOGIN_CHECK_HELPER", "1")
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 	started := time.Now()

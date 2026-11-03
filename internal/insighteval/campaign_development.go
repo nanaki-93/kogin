@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/app"
 )
 
 func (handoff *EngineeringInsightScoringHandoff) Discard() {
@@ -99,7 +99,7 @@ func loadCleanCanonicalRecoveryBase(root string) (string, error) {
 }
 
 func validateRecoveryCoordinatorBoundary(root string) error {
-	data, err := os.ReadFile(filepath.Join(root, ".kasuri", "autopilot", "coordinator", "RCV-recovery.json"))
+	data, err := os.ReadFile(filepath.Join(root, ".kogin", "autopilot", "coordinator", "RCV-recovery.json"))
 	if err != nil || ValidateStrictJSONDocument(data) != nil {
 		return fmt.Errorf("recovery coordinator boundary is invalid")
 	}

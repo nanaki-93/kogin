@@ -143,7 +143,7 @@ func TestEditsMadeInTheWorktreeBecomePartOfTheProposal(t *testing.T) {
 func TestTheDiffPolicyKeepsRulesAndMetadataOutOfAProposal(t *testing.T) {
 	for name, reply := range map[string]string{
 		"rules":    `{"explanation":"Loosen the budget.","changes":[{"path":"AGENTS.md","content":"Max file lines: 9999\n"}]}`,
-		"metadata": `{"explanation":"Edit history.","changes":[{"path":".kasuri/changes/x.json","content":"{}"}]}`,
+		"metadata": `{"explanation":"Edit history.","changes":[{"path":".kogin/changes/x.json","content":"{}"}]}`,
 		"escape":   `{"explanation":"Escape.","changes":[{"path":"../outside.go","content":"package main\n"}]}`,
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -199,6 +199,27 @@ func TestAgentRunsLockTheTaskWorktreeAndStaleLocksAreReleased(t *testing.T) {
 			t.Fatalf("a stale run lock was kept: %+v", tree)
 		}
 	}
+	// So is one left by Kasuri, Kogin's earlier name; a run takes it over.
+	testGit(t, worktree, "worktree", "lock", "--reason", legacyRunLockReasons[0], worktree)
+	workspace, err = service.GitWorkspace(context.Background(), index.ProjectID, index.ProjectRevision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tree := range workspace.Worktrees {
+		if tree.Path == worktree && tree.Locked {
+			t.Fatalf("a stale Kasuri run lock was kept: %+v", tree)
+		}
+	}
+	testGit(t, worktree, "worktree", "lock", "--reason", legacyRunLockReasons[0], worktree)
+	unlock = child.lockTaskWorktree(&changeWorkflowJob{root: worktree, sessionID: session.ID})
+	if reason, locked := worktreeLock(context.Background(), worktree); !locked || reason != runLockReason {
+		t.Fatalf("a run over a Kasuri lock = %q, %v", reason, locked)
+	}
+	unlock()
+	if _, locked := worktreeLock(context.Background(), worktree); locked {
+		t.Fatal("the Kasuri lock outlived the run")
+	}
+
 	testGit(t, worktree, "worktree", "lock", "--reason", "release audit", worktree)
 	if unlock := child.lockTaskWorktree(&changeWorkflowJob{root: worktree, sessionID: session.ID}); unlock != nil {
 		unlock()

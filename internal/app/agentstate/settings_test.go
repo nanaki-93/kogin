@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 func settingsPreferences(t *testing.T) *AgentPreferences {
@@ -33,7 +33,7 @@ func TestSettingsPassiveReadCASResetAndRestart(t *testing.T) {
 	if err != nil || before.Version != 0 || before.Values != nil {
 		t.Fatal(before, err)
 	}
-	if _, err := os.Stat(filepath.Join(root, ".kasuri")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(root, ".kogin")); !os.IsNotExist(err) {
 		t.Fatal("passive settings read created metadata", err)
 	}
 	values, hash := settingsPreferences(t), strings.Repeat("a", 64)

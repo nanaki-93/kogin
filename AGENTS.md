@@ -1,4 +1,4 @@
-# Kasuri agent instructions
+# Kogin agent instructions
 
 These instructions apply to the whole repository. Before editing, read the
 relevant area guide below, even when starting from the repository root. Area
@@ -20,15 +20,15 @@ guides add local detail; keep shared rules here instead of copying them.
 
 ## Architecture boundaries & ownership
 
-Kasuri is a local-first coding assistant: a Go 1.27.3 daemon with a loopback
+Kogin is a local-first coding assistant: a Go 1.27.3 daemon with a loopback
 HTTP API and an embedded browser workspace (`web/`, served at `/ui`). It supports
 project-wide analysis and checked chat proposals across up to eight captured
 paths, with diff review, explicit Apply and guarded Undo.
 
-- `cmd/` owns startup, configuration wiring and command entry points (`daemon`, the `kasuri` launcher, `engineering-insight-eval`, `agent-eval`, `agent-inspect`). `internal/launcher` attaches to or starts the daemon for a project folder, for the launcher and the desktop app.
+- `cmd/` owns startup, configuration wiring and command entry points (`daemon`, the `kogin` launcher, `engineering-insight-eval`, `agent-eval`, `agent-inspect`). `internal/launcher` attaches to or starts the daemon for a project folder, for the launcher and the desktop app.
 - `desktop/` is the desktop app (Wails v3), a separate Go module (`desktop/go.mod`, replacing the root module with `../`) so the daemon's build and tests never need Wails, cgo or a WebView. It only wires a window, menus and dialogs around `internal/launcher`; keep logic that can be tested in `internal/launcher`. `make desktop-check` vets and cross-builds it without cgo; see [DESKTOP.md](DESKTOP.md).
 - `internal/api/` owns HTTP decoding, local request policy and error responses (`internal/api/handlers`). Handlers must never import `internal/storage` or `internal/llm` directly; always call `internal/app` service methods.
-- `internal/app/` owns workflow orchestration, model calls and guarded changes, with isolated domain subpackages for architecture/complexity checks (`internal/app/archgate`), sandboxed workspace and check execution (`internal/app/sandbox`), pure change source/hash/metadata path helpers (`internal/app/changes`), Git repository/worktree/merge operations (`internal/app/gitops`), and the per-run MCP tool server that CLI agents reach Kasuri's gated task tools through (`internal/app/toolserver`, a leaf: the tools and their gates live in `internal/app`).
+- `internal/app/` owns workflow orchestration, model calls and guarded changes, with isolated domain subpackages for architecture/complexity checks (`internal/app/archgate`), sandboxed workspace and check execution (`internal/app/sandbox`), pure change source/hash/metadata path helpers (`internal/app/changes`), Git repository/worktree/merge operations (`internal/app/gitops`), and the per-run MCP tool server that CLI agents reach Kogin's gated task tools through (`internal/app/toolserver`, a leaf: the tools and their gates live in `internal/app`).
 - `internal/project/` owns project facts, indexing, context policy and composition, with isolated domain subpackages for unified diff/impact analysis (`internal/project/diff`), multi-language import extraction (`internal/project/symbols`), heuristic code insight (`internal/project/insight`), engineering handbook generation (`internal/project/handbook`), deterministic security rules (`internal/project/securityrules`), the code rules AGENTS.md files declare (`internal/project/rules`), language-neutral parsing of functions, spans and complexity (`internal/project/syntax`, go/ast for Go, a pure-Go tree-sitter runtime for the rest), and the project map: modules, resolved imports, entry points and manifests in any language (`internal/project/projectmap`). It must never import `internal/app` or `internal/api`.
 - `internal/storage/` owns durable file primitives; domain stores own their schemas. `internal/textutil` holds dependency-free text helpers, such as truncation that keeps whole UTF-8 characters.
 - `internal/app/agentruntime/` owns SDK adapters, native graphs and tools; it is the only ADK import boundary. `internal/app/agentstate/` owns private durable runtime records. Both remain leaf packages; `internal/app` retains consent, admission and mutation authority.
@@ -36,11 +36,11 @@ paths, with diff review, explicit Apply and guarded Undo.
 - `internal/insighteval/` and `internal/agenteval/` own engineering-insight and synthetic task/trajectory evaluation, separate from normal app use. Replay evidence must not be presented as live model quality or cost improvement.
 - `web/` owns the browser workspace (React + TypeScript): server state through TanStack Query, pages under `src/features`, shared pieces under `src/components`. Its built bundle in `internal/api/handlers/webui/dist` is embedded by `internal/api/handlers`.
 
-Code rules, read by Kasuri's gates for every task and by
+Code rules, read by Kogin's gates for every task and by
 `TestRepositoryArchitectureBoundaries`. Paths are relative to this file; an
 AGENTS.md in a subdirectory may add rules and override budgets for its files.
 
-```kasuri
+```kogin
 budgets:
   function_complexity: 15
 checks:
@@ -96,7 +96,7 @@ imports:
 3. Identify observable behavior, failure cases and checks that establish completion. For a bug, reproduce it or add a regression case that exposes it.
 4. Resolve routine choices from the code and request. Ask only when missing information materially changes product behavior, compatibility or scope.
 
-Current behavior is documented in the README, UI guidelines, UI behavior contract and API contract. Do not infer authorization from old task queues or `.kasuri/autopilot/` worktrees.
+Current behavior is documented in the README, UI guidelines, UI behavior contract and API contract. Do not infer authorization from old task queues or `.kogin/autopilot/` worktrees.
 
 ## Implementation, error handling & concurrency standard
 
@@ -114,7 +114,7 @@ Current behavior is documented in the README, UI guidelines, UI behavior contrac
 - Source and composed diffs are read-only except guided `AGENTS.md` instruction text. Source mutation requires explicit diff Review/Apply and guarded Undo with current project, proposal and source identity/hash checks.
 - Navigation, disclosures, previews and local restore must not trigger provider requests, project-code execution or source writes. Keep remote-provider consent, Security review intent and execution trust tied to the relevant scope.
 - Keep model suggestions, verified findings and measured benchmarks distinct. Failed, unavailable, partial, stale and canceled results retain their meaning.
-- Keep the daemon loopback-only by default. Never commit credentials, provider tokens, source-bearing diagnostics, local `config.yaml`, or generated outputs (`build/`, `.kasuri/autopilot/`, `web/node_modules/`). The one committed build output is the embedded Web UI bundle in `internal/api/handlers/webui/dist`, rebuilt with `make webui-build` in the same change as its `web/src` sources.
+- Keep the daemon loopback-only by default. Never commit credentials, provider tokens, source-bearing diagnostics, local `config.yaml`, or generated outputs (`build/`, `.kogin/autopilot/`, `web/node_modules/`). The one committed build output is the embedded Web UI bundle in `internal/api/handlers/webui/dist`, rebuilt with `make webui-build` in the same change as its `web/src` sources.
 
 ## Validation, diff review & handoff
 

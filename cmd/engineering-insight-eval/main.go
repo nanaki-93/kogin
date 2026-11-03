@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/insighteval"
+	"github.com/nanaki-93/kogin/v2/internal/insighteval"
 )
 
 func main() {

@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 // Workflow choices reference catalog models or configured profiles; credentials

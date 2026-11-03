@@ -41,14 +41,14 @@ func TestWebUIHandlerServesDocumentWithStrictSecurityHeaders(t *testing.T) {
 		t.Fatalf("status = %d, want 200", res.Code)
 	}
 	body := res.Body.String()
-	nonce := regexp.MustCompile(`<meta name="kasuri-style-nonce" content="([A-Za-z0-9+/]{24})"`).FindStringSubmatch(body)
+	nonce := regexp.MustCompile(`<meta name="kogin-style-nonce" content="([A-Za-z0-9+/]{24})"`).FindStringSubmatch(body)
 	if nonce == nil {
 		t.Fatalf("web UI document carries no per-response style nonce:\n%s", body)
 	}
 	if strings.Contains(body, webUIStyleNoncePlaceholder) {
 		t.Fatal("style nonce placeholder was not replaced")
 	}
-	if !strings.Contains(body, `<meta name="kasuri-write-token" content="test-write-token"`) || strings.Contains(body, webUIWriteTokenPlaceholder) {
+	if !strings.Contains(body, `<meta name="kogin-write-token" content="test-write-token"`) || strings.Contains(body, webUIWriteTokenPlaceholder) {
 		t.Fatalf("web UI document does not carry the write token:\n%s", body)
 	}
 	if got, want := res.Header().Get("Content-Security-Policy"), WebUIDocumentCSP(nonce[1]); got != want || !strings.Contains(got, "style-src 'self' 'nonce-"+nonce[1]+"'") {

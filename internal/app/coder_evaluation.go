@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // CoderTask is a task for comparing the coders: a small project, what to
@@ -46,10 +46,10 @@ type CoderAttempt struct {
 // one-shot proposal, on a task in its own worktree of a scratch copy of the
 // project. It runs no tests, fix-ups or reviewers: the caller scores the
 // result. The configuration's bug profile is the coder. Execution trust is
-// granted for the scratch project, so callers point KASURI_TRUST_DIR at a
+// granted for the scratch project, so callers point KOGIN_TRUST_DIR at a
 // scratch directory as cmd/agent-eval does.
 func RunCoder(ctx context.Context, cfg *config.Config, task CoderTask, tools bool) (*CoderAttempt, error) {
-	root, err := os.MkdirTemp("", "kasuri-coder-eval-")
+	root, err := os.MkdirTemp("", "kogin-coder-eval-")
 	if err != nil {
 		return nil, err
 	}
@@ -104,10 +104,10 @@ func openCoderTask(ctx context.Context, cfg *config.Config, root string, task Co
 			return nil, nil, "", err
 		}
 	}
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kasuri/\n.worktrees/\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kogin/\n.worktrees/\n"), 0o644); err != nil {
 		return nil, nil, "", err
 	}
-	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.name", "Kasuri evaluation"}, {"config", "user.email", "eval@kasuri.invalid"}, {"add", "--", "."}, {"commit", "-q", "-m", "Evaluation fixture"}} {
+	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.name", "Kogin evaluation"}, {"config", "user.email", "eval@kogin.invalid"}, {"add", "--", "."}, {"commit", "-q", "-m", "Evaluation fixture"}} {
 		if _, err := gitRead(ctx, root, args...); err != nil {
 			return nil, nil, "", fmt.Errorf("prepare the evaluation project: %w", err)
 		}

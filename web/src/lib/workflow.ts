@@ -408,7 +408,7 @@ export function workflowBlocker(session: { state: string; freshness: string; kin
   if (session.freshness && session.freshness !== 'current') return 'Its files changed since this task was captured. Re-analyze it first.';
   if (session.kind === 'instructions') return 'Instruction edits use the manual proposal flow.';
   if (session.workflow && ['running', 'canceling'].includes(session.workflow.status)) return 'Agents are already working on this task.';
-  if (!session.worktree) return 'This task was made in the main checkout; Kasuri no longer runs agents on it.';
+  if (!session.worktree) return 'This task was made in the main checkout; Kogin no longer runs agents on it.';
   if (!trusted) return 'Allow this project to run checks (Settings → Trust) so agents can verify their work.';
   return '';
 }

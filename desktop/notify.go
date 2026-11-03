@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/launcher"
+	"github.com/nanaki-93/kogin/v2/internal/launcher"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 )
@@ -26,7 +26,7 @@ func (s *shell) notifyOutcomes(session *launcher.Session) {
 	s.notifications = service
 	s.mu.Unlock()
 	if granted, err := service.RequestNotificationAuthorization(); err != nil || !granted {
-		s.note("Notifications are off: the system did not allow them (%v). Allow Kasuri in System Settings → Notifications and restart it.", err)
+		s.note("Notifications are off: the system did not allow them (%v). Allow Kogin in System Settings → Notifications and restart it.", err)
 		return
 	}
 	service.OnNotificationResponse(func(result notifications.NotificationResult) {
@@ -71,6 +71,6 @@ func (s *shell) note(format string, args ...any) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.log != nil {
-		fmt.Fprintf(s.log, "Kasuri: "+format+"\n", args...)
+		fmt.Fprintf(s.log, "Kogin: "+format+"\n", args...)
 	}
 }

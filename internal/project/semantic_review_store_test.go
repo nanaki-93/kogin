@@ -189,10 +189,10 @@ func TestFileAnalysisCacheInvalidatesWhenPolicyRulesChange(t *testing.T) {
 	if err := cache.Store(newFreshAnalysis(input)); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(root, ".kasuri"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, ".kogin"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".kasuri", "context-policy.json"), []byte(`{"exclude":["generated/**"]}`), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".kogin", "context-policy.json"), []byte(`{"exclude":["generated/**"]}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 	changedPolicy, err := NewContextPolicy(root)

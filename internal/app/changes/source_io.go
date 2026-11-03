@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 var SessionIDPattern = regexp.MustCompile(`^change-[a-f0-9]{32}$`)
@@ -26,7 +26,7 @@ func NewOpaqueID(prefix string) string {
 
 // MetadataPath disallows metadata-directory aliases before either reads or writes.
 func MetadataPath(root, name string) (string, error) {
-	return storage.MetadataPath(root, ".kasuri", "changes", name)
+	return storage.MetadataPath(root, ".kogin", "changes", name)
 }
 
 // AtomicWriteSource writes content to a temporary file in the same directory,
@@ -39,7 +39,7 @@ func AtomicWriteSource(path string, content []byte) error {
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	temp, err := os.CreateTemp(filepath.Dir(path), ".kasuri-*.tmp")
+	temp, err := os.CreateTemp(filepath.Dir(path), ".kogin-*.tmp")
 	if err != nil {
 		return err
 	}

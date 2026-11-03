@@ -55,7 +55,7 @@ func TestDetectProjectUsesDeterministicRootPrecedence(t *testing.T) {
 func TestDetectProjectIgnoresNestedBuildFilesAndUnknownRoots(t *testing.T) {
 	root := t.TempDir()
 	writeDetectionFixture(t, root, filepath.Join("node_modules", "dependency", "go.mod"), "module dependency\n")
-	writeDetectionFixture(t, root, filepath.Join(".kasuri", "Cargo.toml"), "[package]\n")
+	writeDetectionFixture(t, root, filepath.Join(".kogin", "Cargo.toml"), "[package]\n")
 	if got := detectProject(root); got.Type != "unknown" || got.BuildFile != "" {
 		t.Fatalf("detectProject() = %+v, want unknown root", got)
 	}

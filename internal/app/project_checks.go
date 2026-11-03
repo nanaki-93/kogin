@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/archgate"
-	"github.com/nanaki-93/kasuri/v2/internal/app/sandbox"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/project/toolchain"
+	"github.com/nanaki-93/kogin/v2/internal/app/archgate"
+	"github.com/nanaki-93/kogin/v2/internal/app/sandbox"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project/toolchain"
 )
 
 const (
@@ -117,7 +117,7 @@ func (run *projectCheckRun) runCommands(ctx context.Context, commands []Analysis
 	for _, command := range commands {
 		run.complete[checkSources[command.Kind]] = true
 	}
-	workspace, err := os.MkdirTemp("", "kasuri-checks-")
+	workspace, err := os.MkdirTemp("", "kogin-checks-")
 	if err == nil {
 		defer os.RemoveAll(workspace)
 		err = copyCheckWorkspace(ctx, run.root, workspace)
@@ -271,7 +271,7 @@ func (run *projectCheckRun) commandFinding(source string, category project.Findi
 func (run *projectCheckRun) semgrepFindings(raw string) ([]project.UnifiedFinding, error) {
 	results, err := toolchain.ParseSemgrep([]byte(raw))
 	if err != nil {
-		return nil, fmt.Errorf("semgrep printed output Kasuri could not read; run it in a terminal to see why")
+		return nil, fmt.Errorf("semgrep printed output Kogin could not read; run it in a terminal to see why")
 	}
 	var findings []project.UnifiedFinding
 	for _, result := range results {

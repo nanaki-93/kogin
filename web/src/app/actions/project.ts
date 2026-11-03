@@ -1,5 +1,5 @@
 // Project actions: execution trust, reindexing, opening a project and
-// deleting files Kasuri set aside.
+// deleting files Kogin set aside.
 
 import { api, withWorktree } from '@/api/client';
 import type { ExecutionTrust, Project, QuarantinedFile } from '@/api/types';
@@ -60,12 +60,12 @@ export function projectActions(context: ActionContext) {
     });
   }
 
-  /** Deletes a file Kasuri set aside because it could not read it, with its record. */
+  /** Deletes a file Kogin set aside because it could not read it, with its record. */
   async function deleteSetAside(project: Project, worktreePath: string, file: QuarantinedFile) {
     if (!file.quarantined_as) return;
     const ok = await confirm({
       title: 'Delete the set-aside file?',
-      body: `${file.quarantined_as} is deleted for good. Kasuri no longer reads it, so work is not affected; only the history it held is lost.`,
+      body: `${file.quarantined_as} is deleted for good. Kogin no longer reads it, so work is not affected; only the history it held is lost.`,
       confirmLabel: 'Delete file',
       danger: true,
     });

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 const agyCatalogFixture = "gemini-3.8-flash-high\tGemini 3.8 Flash (High)\ngemini-4-argon-medium\tGemini 4 Argon (Medium)\n"

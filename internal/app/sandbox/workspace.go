@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/brand"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/brand"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // CopyWorkspace intentionally keeps its own traversal: a temporary Go
@@ -279,11 +279,11 @@ func pythonEnvironment(path string) bool {
 }
 
 func isCheckWorkspaceMetadata(relative string) bool {
-	switch filepath.Base(relative) {
-	case brand.MetadataDir, brand.LegacyMetadataDir, ".worktrees", ".git", ".hg", ".svn":
+	switch base := filepath.Base(relative); base {
+	case ".worktrees", ".git", ".hg", ".svn":
 		return true
 	default:
-		return false
+		return brand.IsMetadataDir(base)
 	}
 }
 

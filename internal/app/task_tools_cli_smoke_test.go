@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/toolserver"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/app/toolserver"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
 )
 
 // The live smoke tests run the Claude Code or agy installed on this machine
@@ -23,8 +23,8 @@ import (
 // tools only record their calls. They use a little of the plan, so they run
 // only when asked:
 //
-//	KASURI_CLAUDE_SMOKE=1 go test ./internal/app -run TestRealClaude -v
-//	KASURI_AGY_SMOKE=gemini-model-slug go test ./internal/app -run TestRealAgy -v
+//	KOGIN_CLAUDE_SMOKE=1 go test ./internal/app -run TestRealClaude -v
+//	KOGIN_AGY_SMOKE=gemini-model-slug go test ./internal/app -run TestRealAgy -v
 //
 // The agy tests also check that agy's own tools stay off.
 
@@ -100,9 +100,9 @@ func runSmokeAgent(t *testing.T, profile config.ModelProfile, trace func()) {
 	t.Logf("%s: %d turns, %d tool calls, %d tokens, model %s", profile.Provider, result.Turns, result.ToolCalls, result.Usage.TotalTokens, result.Model)
 }
 
-func TestRealClaudeCodeRunsOnItsPlanWithOnlyKasurisTools(t *testing.T) {
-	if os.Getenv("KASURI_CLAUDE_SMOKE") != "1" {
-		t.Skip("set KASURI_CLAUDE_SMOKE=1 to run the installed Claude Code on your Claude plan")
+func TestRealClaudeCodeRunsOnItsPlanWithOnlyKoginsTools(t *testing.T) {
+	if os.Getenv("KOGIN_CLAUDE_SMOKE") != "1" {
+		t.Skip("set KOGIN_CLAUDE_SMOKE=1 to run the installed Claude Code on your Claude plan")
 	}
 	profile := config.ModelProfile{Provider: config.ClaudeProvider, Model: "haiku", CLIPath: "claude"}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -114,10 +114,10 @@ func TestRealClaudeCodeRunsOnItsPlanWithOnlyKasurisTools(t *testing.T) {
 	runSmokeAgent(t, profile, nil)
 }
 
-func TestRealAgyRunsOnItsPlanWithOnlyKasurisTools(t *testing.T) {
-	model := os.Getenv("KASURI_AGY_SMOKE")
+func TestRealAgyRunsOnItsPlanWithOnlyKoginsTools(t *testing.T) {
+	model := os.Getenv("KOGIN_AGY_SMOKE")
 	if model == "" {
-		t.Skip("set KASURI_AGY_SMOKE to a model slug from agy models to run the installed agy on your Google AI plan")
+		t.Skip("set KOGIN_AGY_SMOKE to a model slug from agy models to run the installed agy on your Google AI plan")
 	}
 	cli, trace := tracedCLI(t, "agy")
 	runSmokeAgent(t, config.ModelProfile{Provider: config.AgyProvider, Model: model, CLIPath: cli}, trace)
@@ -127,9 +127,9 @@ func TestRealAgyRunsOnItsPlanWithOnlyKasurisTools(t *testing.T) {
 // or terminal tools. The run's agent allows none, so the model must answer
 // without them; a built-in tool call stops the run and fails the test.
 func TestRealAgyKeepsItsBuiltInToolsOff(t *testing.T) {
-	model := os.Getenv("KASURI_AGY_SMOKE")
+	model := os.Getenv("KOGIN_AGY_SMOKE")
 	if model == "" {
-		t.Skip("set KASURI_AGY_SMOKE to a model slug from agy models to run the installed agy on your Google AI plan")
+		t.Skip("set KOGIN_AGY_SMOKE to a model slug from agy models to run the installed agy on your Google AI plan")
 	}
 	cli, trace := tracedCLI(t, "agy")
 	defer func() {
@@ -145,7 +145,7 @@ func TestRealAgyKeepsItsBuiltInToolsOff(t *testing.T) {
 		MCPURL: server.URL, MCPToken: server.Token, Tools: smokeToolList, MaxTurns: 4, ToolTimeout: time.Minute,
 	})
 	if err != nil {
-		t.Fatalf("agy run: %v (result %+v); a call outside Kasuri's server means agy's built-in tools are reachable", err, result)
+		t.Fatalf("agy run: %v (result %+v); a call outside Kogin's server means agy's built-in tools are reachable", err, result)
 	}
 	if !strings.Contains(result.Final, "NO_BUILTIN_TOOLS") || len(calls()) != 0 {
 		t.Fatalf("final = %q, tool server calls %v", result.Final, calls())

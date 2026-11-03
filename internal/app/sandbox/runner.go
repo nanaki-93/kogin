@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/archgate"
-	"github.com/nanaki-93/kasuri/v2/internal/textutil"
+	"github.com/nanaki-93/kogin/v2/internal/app/archgate"
+	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
 
 const (

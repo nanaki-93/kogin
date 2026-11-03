@@ -12,13 +12,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/insight"
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/project/insight"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 const (
 	fileAnalysisSchemaVersion = "1"
-	fileAnalysisRelativeDir   = ".kasuri/file-analysis"
+	fileAnalysisRelativeDir   = ".kogin/file-analysis"
 
 	AnalysisStatusFresh   = "fresh"
 	AnalysisStatusMissing = "missing"

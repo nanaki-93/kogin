@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentruntime"
 )
 
 // observeAgentRuns tells clients when an agent run's records change.

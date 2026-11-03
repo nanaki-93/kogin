@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 type AgentSettings struct {

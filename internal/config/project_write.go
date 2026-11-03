@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,7 +25,7 @@ type ProjectUpdate struct {
 	Timeouts *TimeoutConfig
 }
 
-const projectConfigHeader = "# Kasuri configuration for this project. It is applied on top of the\n# daemon's configuration and may hold API keys: keep it out of version control."
+const projectConfigHeader = "# Kogin configuration for this project. It is applied on top of the\n# daemon's configuration and may hold API keys: keep it out of version control."
 
 const projectIgnore = "config.yaml"
 
@@ -116,7 +116,7 @@ func projectDocument(root string) (*yaml.Node, error) {
 // ignoreProjectConfig keeps the configuration file out of Git with a
 // .gitignore inside the metadata folder, leaving the project's own alone.
 func ignoreProjectConfig(root string) error {
-	path, err := storage.MetadataPath(root, ".kasuri", ".gitignore")
+	path, err := storage.MetadataPath(root, ".kogin", ".gitignore")
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func ignoreProjectConfig(root string) error {
 	}
 	content := string(existing)
 	if content == "" {
-		content = "# Kasuri: the project configuration may hold API keys.\n"
+		content = "# Kogin: the project configuration may hold API keys.\n"
 	} else if !strings.HasSuffix(content, "\n") {
 		content += "\n"
 	}

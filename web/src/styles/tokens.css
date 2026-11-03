@@ -1,4 +1,4 @@
-/* Design tokens. Dark is the default, in one of several palettes (Kasuri, the
+/* Design tokens. Dark is the default, in one of several palettes (Kogin, the
    brand's midnight violet with emerald and violet, unless the user picks
    another); light follows the OS or the user's choice. Brand kit: brand/. */
 
@@ -65,10 +65,10 @@
 }
 
 /* Dark palettes: each replaces the surfaces, text and accent of the dark theme.
-   Outside Kasuri, navigation uses the palette's own accent and success its
+   Outside Kogin, navigation uses the palette's own accent and success its
    usual green. */
 
-:root[data-theme='dark'][data-palette]:not([data-palette='kasuri']) {
+:root[data-theme='dark'][data-palette]:not([data-palette='kogin']) {
   --nav-accent: var(--accent);
   --nav-accent-soft: var(--active);
   --nav-accent-text: var(--accent-text);

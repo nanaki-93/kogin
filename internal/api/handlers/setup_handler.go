@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/api"
-	"github.com/nanaki-93/kasuri/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/api"
+	"github.com/nanaki-93/kogin/v2/internal/app"
 )
 
 // SetupHandler serves project setup: the project's own configuration file.

@@ -6,12 +6,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 // Catalog commands inherit CLI authentication but never the imported workspace.
 func readCLIModelCatalog(ctx context.Context, provider config.ModelProvider, executable string, args []string, input string) (output []byte, err error) {
-	directory, err := os.MkdirTemp("", "kasuri-models-")
+	directory, err := os.MkdirTemp("", "kogin-models-")
 	if err != nil {
 		return nil, fmt.Errorf("cannot create private %s catalog directory", provider)
 	}

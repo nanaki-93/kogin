@@ -1,9 +1,9 @@
 {
-  "name": "kasuri-web",
+  "name": "kogin-web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Kasuri Web UI. The production build is embedded in the daemon (internal/api/handlers/webui/dist).",
+  "description": "Kogin Web UI. The production build is embedded in the daemon (internal/api/handlers/webui/dist).",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

@@ -1,10 +1,10 @@
-# Kasuri local API contract
+# Kogin local API contract
 
 **Version:** 6.0.0-dev
 **Base URL:** `http://localhost:9090`  
 **Content type:** `application/json`
 
-Kasuri is a loopback daemon serving one active project to its embedded Web UI.
+Kogin is a loopback daemon serving one active project to its embedded Web UI.
 The shared change workflow captures explicit text paths (up to eight write paths for a planned task),
 prepares versioned proposals in a Git worktree of its own for every task,
 checks them, records diff review and explicitly accepts them as commits on the
@@ -30,13 +30,13 @@ with the structured error response described below.
 The daemon serves local clients of its loopback API; it does not provide
 browser sessions or CORS access. Every request that can change state (any
 method but `GET`, `HEAD` and `OPTIONS`) must carry the daemon's per-launch
-write token in `X-Kasuri-Token`; otherwise it receives `401 Unauthorized`
+write token in `X-Kogin-Token`; otherwise it receives `401 Unauthorized`
 before any route runs. Each launch creates a new token and saves it, with a
 newline, to a file only the daemon's user can read (mode `0600`):
-`KASURI_TOKEN_FILE` when set (an absolute path), otherwise `kasuri/daemon-token`
+`KOGIN_TOKEN_FILE` when set (an absolute path), otherwise `kogin/daemon-token`
 under the user configuration directory (`~/Library/Application Support` on
 macOS, `$XDG_CONFIG_HOME` or `~/.config` on Linux, `%AppData%` on Windows). The
-Web UI document carries the token in a `kasuri-write-token` meta tag; a page
+Web UI document carries the token in a `kogin-write-token` meta tag; a page
 from an earlier launch is told to reload. A web page in another origin can read
 neither, so it cannot forge a write even when the Host and Origin checks pass.
 Reads, health checks and event streams need no token.
@@ -47,7 +47,7 @@ Web UI call (marker header) or a Web UI asset load; CORS preflight requests
 receive `403 Forbidden` with no CORS response headers. This prevents a web page from treating the daemon as
 a browser API while preserving local tool requests, which send no
 `Origin` header. The embedded Web UI is same-origin and marks every request with
-`X-Kasuri-Web-UI: 1`.
+`X-Kogin-Web-UI: 1`.
 
 `POST` and `PATCH` requests with a body must send `Content-Type:
 application/json` (a charset parameter is permitted); other media types and a
@@ -55,7 +55,7 @@ missing content type receive `415 Unsupported Media Type` before a route
 handler runs. Analysis controls carry the full run identity in their JSON body. `GET /health` remains available to
 loopback health checks with no request body.
 
-`KASURI_BIND_ADDRESS` can deliberately bind the daemon beyond loopback. In
+`KOGIN_BIND_ADDRESS` can deliberately bind the daemon beyond loopback. In
 that mode the Host restriction is relaxed so a configured native client can
 reach it; writes still need the token and browser origins are still rejected,
 but reads are unauthenticated. Restrict it with network controls; it is not suitable for public or
@@ -77,7 +77,7 @@ untrusted networks.
 | GET | `/api/projects/current/overview` | Read source-free metrics, structured analysis, the docs (`docs`), coverage, and finding counts for `project_revision`. |
 | GET | `/api/projects/current/docs/component` | List one docs component's code files (`path` = the component path) with each file's language, lines and the first sentence of its saved summary, for `project_revision`; 404 when the docs show no component there. Never calls a model. |
 | POST | `/api/projects/current/docs/refresh` | Start writing the docs' model-written parts again in the background with the analyze model: the summaries of components whose files' summaries changed, then the overview from all of them. Needs `project_id`/`project_revision`, and `confirm_remote_provider` for a remote model; 202 with the running refresh, 409 while another runs. The overview's `docs_refresh` reports it until it ends. |
-| POST | `/api/projects/current/ask` | Answer a question about the code: the Review role's model runs as an agent (Claude Code, Agy or Pi) with read-only tools over the checkout, starting from the docs, and ends with an answer and citations Kasuri checked against the files (the lines exist and contain the quote). Needs `project_id`/`project_revision`, a question of at most 2,000 characters and `confirm_remote_provider`; 422 when the Review role's model cannot run as an agent. Nothing is written or kept. |
+| POST | `/api/projects/current/ask` | Answer a question about the code: the Review role's model runs as an agent (Claude Code, Agy or Pi) with read-only tools over the checkout, starting from the docs, and ends with an answer and citations Kogin checked against the files (the lines exist and contain the quote). Needs `project_id`/`project_revision`, a question of at most 2,000 characters and `confirm_remote_provider`; 422 when the Review role's model cannot run as an agent. Nothing is written or kept. |
 | GET | `/api/projects/current/analysis/selection` | Read the file checklist and saved exclusions with project/revision guards; no dispatch. |
 | POST | `/api/projects/current/analysis/selection` | Save excluded paths with project/revision and selection identity guards; no source changes. |
 | POST | `/api/projects/current/analysis/preview` | Whole-project, read-only preflight with strict project/revision guards. |
@@ -90,11 +90,11 @@ untrusted networks.
 | GET | `/api/projects/current/findings/{findingID}/task` | Draft the task that fixes one issue for the composer: kind, title, description, the file and its conventional test in any language, criteria and the linked finding. Nothing is saved. |
 | GET | `/api/projects/current/findings/task` | Draft one task that fixes several open issues of one file (`id` repeated, one to five): the file and its conventional test, every issue in line order with its line, function, message and evidence, their criteria once each, links to all of them, and each as one of `issues` (fixed one at a time in the task's worktree). 400 when the issues are not all open or not in one file; 409 when one is no longer listed. Nothing is saved. |
 | GET | `/api/projects/current/events` | Stream Server-Sent Events (SSE) when analysis runs, scans, reindexing or change workflows change state; workflow events name the task, stage and status and carry the run's usage and estimated cost. |
-| GET | `/api/projects/current/quarantine` | List records set aside because they were unreadable, and records skipped because a newer Kasuri wrote them, with the remedy. |
+| GET | `/api/projects/current/quarantine` | List records set aside because they were unreadable, and records skipped because a newer Kogin wrote them, with the remedy. |
 | POST | `/api/projects/current/quarantine/delete` | Delete a set-aside file (`quarantined_as` as listed, with the project identity) and its record; answers with the records left. 404 when the file is not listed as set aside. |
 | GET | `/api/projects/current/usage` | Total agent model calls, tokens and estimated cost per task in the checkout, plus work not tied to a task. |
 | GET | `/api/projects/current/setup` | The project's configuration as setup edits it: `state` (`needed`, `skipped`, `configured`, `invalid`), the project and daemon files, models (secrets as `api_key_set`), roles and budget. |
-| POST | `/api/projects/current/setup` | Write the project's `.kasuri/config.yaml` and apply it live; 409 while work runs. |
+| POST | `/api/projects/current/setup` | Write the project's `.kogin/config.yaml` and apply it live; 409 while work runs. |
 | POST | `/api/projects/current/setup/timeouts` | Save only the project's time limits and apply them at once. |
 | POST | `/api/projects/current/setup/skip` | Keep the daemon's configuration for this project and stop offering setup. |
 | POST | `/api/projects/current/setup/test-model` | Send one short request to a model as setup would configure it for a scope. |
@@ -188,7 +188,7 @@ code proposals use `code`. A non-loopback HTTP or CLI scope requires
 scope never authorizes another. Restore, reindex, scans, validation, checks
 and Accept never require provider confirmation.
 
-Context policy reads `.gitignore` and `.kasuriignore` in each traversed
+Context policy reads `.gitignore` and `.koginignore` in each traversed
 directory. Patterns use directory-relative Git ignore semantics, including
 anchored paths, directory exclusions, `**`, and ordered negation; an excluded
 parent must be reopened before a child can be included. Explicit context-policy
@@ -240,7 +240,7 @@ CLI credentials are not exposed. CLI responses must complete successfully;
 structured responses are also validated locally before entering domain parsers.
 See [CLI configuration and boundaries](../CONFIG.md#cli-providers).
 
-Prompt-bearing HTTP provider requests never follow redirects. Kasuri rejects
+Prompt-bearing HTTP provider requests never follow redirects. Kogin rejects
 every 3xx response at the configured provider origin and returns a status-only
 error; it does not send the prompt, request body, or authorization header to a
 redirect target, and it does not retry a rejected redirect. Update the configured
@@ -339,7 +339,7 @@ Schema-1 runs without `models` remain readable with their original defaults.
 Feature discovery is retired. Preview/start no longer accept `include_features`,
 and a request that sets `models.features` returns 400. Runs saved with
 `plan.features`/`run.features` stay readable but cannot resume: resuming one
-returns 409 "this analysis included feature discovery, which Kasuri no longer
+returns 409 "this analysis included feature discovery, which Kogin no longer
 has; cancel it and start a new analysis".
 
 Every preview also plans the docs refresh that ends a run (`preview.docs`): the
@@ -585,7 +585,7 @@ unchanged. Reading saved results never generates titles with a provider call.
 `file-analysis-v18` adds two optional parts to each risk, so reports saved with
 earlier versions are stale and their files are analyzed again by the next run.
 `anchor` is one line the model copies from the source where the risk shows;
-Kasuri finds it (whitespace collapsed) and stores `start_line`/`end_line`,
+Kogin finds it (whitespace collapsed) and stores `start_line`/`end_line`,
 which the risk's issue points at, or no lines when the copy is not in the file.
 `task_spec.test_candidate` (`path`, `name`, `content`) replaces the Go-only
 `go_test_candidate`: a regression test in the target's language, kept only when
@@ -631,7 +631,7 @@ absent files may be retained. Stale project/selection guards and unknown new pat
 return 409. Malformed input returns 400. An active, paused or interrupted run
 must finish or be canceled before editing its selection (409 otherwise).
 
-Exclusions are saved atomically in `.kasuri/analysis/selection.json`, schema
+Exclusions are saved atomically in `.kogin/analysis/selection.json`, schema
 version `1`, and restored across project/app/daemon restarts. Corrupt or unreadable
 selection metadata fails explicitly; it never silently selects everything.
 New files default to selected. Selection changes invalidate pending admission
@@ -710,7 +710,7 @@ records of the other Go files in each target package, the non-test Go files of
 local packages the targets import, and the build manifests (`go.mod`, `go.sum`,
 `package.json` and lock files, `Cargo.toml`, `pyproject.toml`, `Makefile` and
 similar) in the target directories and their ancestors. Files that `.gitignore`
-or `.kasuriignore` exclude are not part of the scope, and at most 512 files
+or `.koginignore` exclude are not part of the scope, and at most 512 files
 are recorded. A scope file that changes, appears or disappears makes the session
 `stale`; GET returns `stale_reason` naming it, and the task list reports the same
 freshness. Edits elsewhere and reindexing leave the session `current`; mutations
@@ -781,22 +781,22 @@ next run starts a new journal. Agent history and waiting reviews it held are
 no longer available. An unreadable task file is set aside the same way
 (`<id>.quarantined-<UTC time>.json`) by the task list; listings that decide on
 the whole history, such as merging a worktree, still fail and name the file.
-Unreadable saved analysis progress (`.kasuri/analysis/run.json`, for example
-from an older Kasuri) is set aside to `run.quarantined-<UTC time>.json`
+Unreadable saved analysis progress (`.kogin/analysis/run.json`, for example
+from an older Kogin) is set aside to `run.quarantined-<UTC time>.json`
 beside it when it is next read, so the overview loads and a new analysis can
 be previewed and started. The moves of task files and analysis progress are
-recorded in `.kasuri/quarantine.json`; agent journals keep their own record.
-Records written by a newer Kasuri (a higher journal `version`, task
+recorded in `.kogin/quarantine.json`; agent journals keep their own record.
+Records written by a newer Kogin (a higher journal `version`, task
 `schema_version` or analysis progress `schema_version`) are never moved: the
 agent journal refuses work with an error naming the file and asking to
 upgrade, newer task files are skipped, and the overview loads without newer
 analysis progress while an analysis preview returns `409` asking to upgrade.
-Kasuri no longer reads the recovery journal that applying a task in the main
-checkout once wrote (`.kasuri/changes/last-mutation.json`); it can be deleted. `GET /api/projects/current/quarantine` (with the project
+Kogin no longer reads the recovery journal that applying a task in the main
+checkout once wrote (`.kogin/changes/last-mutation.json`); it can be deleted. `GET /api/projects/current/quarantine` (with the project
 guards) returns `files` (set aside: `kind` `agent_journal`, `task` or `analysis_run`, `file`,
 `quarantined_as`, `reason`, `remedy`, `at`) and `skipped` (newer files with the
-same fields but no move). Records made before the rename to Kasuri are listed
-with their `.mini-orca/` paths as `.kasuri/` (opening the project moved that
+same fields but no move). Records made before the rename to Kogin are listed
+with their `.mini-orca/` paths as `.kogin/` (opening the project moved that
 folder) and this version's remedy; a record whose set-aside file no longer
 exists is left out. `POST /api/projects/current/quarantine/delete` takes
 `project_id`, `project_revision` and a listed `quarantined_as`, deletes that
@@ -917,11 +917,11 @@ identity comes from normal Git configuration, and no push or remote request
 occurs. The `commit` object on receipts, sessions and history records `state`,
 message, base, branch and `oid`. Tasks made in the main checkout before every
 task got its own worktree still load and can be deleted; Accept refuses them
-with 400, and Kasuri never writes their proposals into the main checkout.
+with 400, and Kogin never writes their proposals into the main checkout.
 
 Every proposal revision clears earlier checks/review. Accept uses current-session
 authority and rechecks source, policy, instruction and whole check-workspace hashes.
-Local `.kasuri/changes/` history intentionally contains source, proposed contents
+Local `.kogin/changes/` history intentionally contains source, proposed contents
 and conversations in private files; it is excluded from prompt context and Git
 source indexing. Limits are eight paths, 256 KiB prompt/response content, forty
 messages, 2 MiB per conversation and two hundred conversations.
@@ -987,7 +987,7 @@ back: the proposal returns to what it was before the step, the issue becomes
 `not_fixed` with its `reason`, and its finding target is dropped, so the issue
 is open again. A fixed issue becomes a
 commit (`fix: <issue>`) of the proposal at that point, chained from the
-worktree's base under `refs/kasuri/tasks/<task id>`; the worktree itself stays on
+worktree's base under `refs/kogin/tasks/<task id>`; the worktree itself stays on
 its base, and `issues[].status` moves through `pending`, `fixing`, `fixed`,
 `does_not_hold` and `not_fixed`, each move published as a workflow event of the
 create stage. Checks
@@ -1049,7 +1049,7 @@ and existing regression baseline rules. Tests and review never apply source.
 
 For a task in its own worktree whose create or test model is a pi, Claude Code or
 agy profile, that stage runs as a tool-using agent instead of returning file
-contents. Kasuri serves the run's tools over MCP on a loopback port with a
+contents. Kogin serves the run's tools over MCP on a loopback port with a
 one-time bearer token; the CLI starts in a private directory with no other
 extensions, MCP servers, built-in tools, skills or context files, a call to any
 other tool stops the run, and its model can call only `read_file`, `list_files`, `search`,
@@ -1061,7 +1061,7 @@ policy, writes the task's diff policy; the testing agent writes test files only
 (`finding_targets` with a file) changes code only in the folders of those files
 and of the files it names, and in the files it was granted; test files may
 change anywhere. Its coding agent may ask for more with `widen_scope` (files
-and why): Kasuri grants files in the project's own folders that code in the
+and why): Kogin grants files in the project's own folders that code in the
 task's folders imports (by the project map's import edges), within the diff
 policy, at most two folders beyond the task's own and eight code files in all.
 Grants are stored in `scope_grants` (`path`, `reason`, and the `issue` step
@@ -1079,7 +1079,7 @@ detail, path) the gaps the change cannot cover instead of writing failing tests
 for them; the latest testing run's are stored in `follow_ups`.
 
 Two tasks never change the same code at once. When a run starts, and when an
-issue step's `widen_scope` asks for a file, Kasuri checks the main checkout's
+issue step's `widen_scope` asks for a file, Kogin checks the main checkout's
 other worktrees for an open task (a draft that is not waiting, or an accepted
 task whose commit the main branch does not hold) that is ahead (running, holding
 a proposal or accepted) and names one of the same code files. The run then ends,
@@ -1087,7 +1087,7 @@ or does not start, with status `waiting`, `waiting` naming that task and the
 shared files, and `pending` keeping its request; an issue step that asked is
 rolled back first. A waiting task never holds up another. When the task it
 waits for is merged, deleted or discarded (and when checks are allowed again,
-or the project is opened), Kasuri opens the waiting task again in a new
+or the project is opened), Kogin opens the waiting task again in a new
 worktree from the main checkout, cherry-picks its fixed issues' commits in order
 until one does not apply, makes their changes the proposal and the picked
 commits its issue commits, notes it in the conversation, removes the waiting
@@ -1223,7 +1223,7 @@ The docs (`ProjectOverview.docs`, schema `4`) are built on every read and never
 stored: the overview's purpose, architecture and walkthroughs come from the
 project analysis report; components, imports, entry points, commands and
 dependencies from the project map, toolchain profiles and manifests; component
-summaries from `.kasuri/module-summaries.json`. Older reports remain
+summaries from `.kogin/module-summaries.json`. Older reports remain
 readable: a report from prompt `project-analysis-v6` or earlier is stale, its
 Mermaid architecture is left out and its flows, entry points and next steps are
 no longer read. The overview prompt `project-analysis-v7` asks for short prose,
@@ -1375,7 +1375,7 @@ branch, and removes the source checkout with `git worktree remove` without force
 After checkout removal, the source branch is deleted only if its captured commit
 is integrated and no registered worktree still uses that branch. Ref deletion
 compares the captured HEAD atomically, preserving concurrently advanced branches.
-Private `.kasuri/` task history is locally ignored for removal and deleted
+Private `.kogin/` task history is locally ignored for removal and deleted
 with the checkout. Checkouts containing another
 registered worktree are retained. Conflicted, failed and aborted merges never
 complete findings or remove the source. Successful removal returns `removed_worktree`
@@ -1428,7 +1428,7 @@ reported in `warnings` without hiding the successful removal receipt.
 Every setup request carries the active project's `project_id` and
 `project_revision` (query parameters for GET, body fields for POST); a stale
 pair returns 409. GET returns `state`, `config_file` (the project's
-`.kasuri/config.yaml`, existing or not), `daemon_config_file` (empty for
+`.kogin/config.yaml`, existing or not), `daemon_config_file` (empty for
 the built-in defaults), `error` for an `invalid` file, `models` keyed `analyze`,
 `bug` and `code` (`provider`, `model`, `api_base_url`, `vertex_project`,
 `vertex_location`, `cli_path`, `reasoning_effort`, optional `temperature`,
@@ -1441,12 +1441,12 @@ takes `models`, `roles`, `limits` and optional `timeouts` in the same shape
 (omitted, the time limits are kept; given, each must be 1–86400 seconds); an empty `api_key` keeps the configured key for the same
 provider and `clear_api_key: true` removes it. The result is validated on top
 of the daemon's configuration (400 with the field and reason), written `0600`
-with the file listed in `.kasuri/.gitignore`, and applied at once; other keys
+with the file listed in `.kogin/.gitignore`, and applied at once; other keys
 of an existing file and their comments are kept. A running analysis, agent
 run or worktree work returns 409 naming it. Saving resets the agent
 overrides of `…/agent-settings` and then reports `overrides_reset: true`. A `configuration` event
 announces every applied change. `…/setup/skip` records the choice in
-`.kasuri/setup.json`. `…/setup/timeouts` takes `timeouts` alone, writes
+`.kogin/setup.json`. `…/setup/timeouts` takes `timeouts` alone, writes
 only that section with the same checks, busy refusal and live apply, keeps
 agent overrides, and returns the setup. `…/setup/test-model` takes `scope` and `model` and
 returns `ok`, `model`, `latency_ms`, and for a failure `reason` (the same kinds

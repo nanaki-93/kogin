@@ -9,16 +9,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/toolserver"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
-	"github.com/nanaki-93/kasuri/v2/internal/textutil"
+	"github.com/nanaki-93/kogin/v2/internal/app/toolserver"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project/rules"
+	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
 
 // Asking the codebase: the Review role's model runs as an agent with
-// Kasuri's read-only tools over the checkout, starting from the docs, and
-// ends with an answer whose citations Kasuri checks against the files.
+// Kogin's read-only tools over the checkout, starting from the docs, and
+// ends with an answer whose citations Kogin checks against the files.
 // Nothing is written; the answer is not kept.
 
 // AskRequest is a question about the active project.
@@ -29,7 +29,7 @@ type AskRequest struct {
 	ConfirmRemoteProvider bool   `json:"confirm_remote_provider"`
 }
 
-// AskCitation is lines of a file that support an answer; Kasuri found
+// AskCitation is lines of a file that support an answer; Kogin found
 // the quote in those lines of the file with this content hash.
 type AskCitation struct {
 	Path        string `json:"path"`
@@ -69,7 +69,7 @@ const (
 	askTimeout = 5 * time.Minute
 )
 
-const askSystem = `You are Kasuri's guide to a codebase. You answer one question about the project by reading its code through Kasuri's read-only tools; you cannot change files or run commands. Paths are project-relative.
+const askSystem = `You are Kogin's guide to a codebase. You answer one question about the project by reading its code through Kogin's read-only tools; you cannot change files or run commands. Paths are project-relative.
 
 How to work:
 1. Start from the project map in the question, then read the code that answers it: search, find_definitions, find_references, outline and read_file. The map's summaries are model-written and may be out of date; the code decides.
@@ -149,7 +149,7 @@ func (run *askRun) ask(ctx context.Context, runtime modelRuntime, prompt string)
 	timed, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 	tools := run.serve(append(run.readTools(), run.answerTool()))
-	server, err := toolserver.Start(timed, "Kasuri's read-only tools for one question. Read the code, then call answer.", tools)
+	server, err := toolserver.Start(timed, "Kogin's read-only tools for one question. Read the code, then call answer.", tools)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +276,7 @@ func (s *Service) askBrief() (string, error) {
 		return "", err
 	}
 	var brief strings.Builder
-	fmt.Fprintf(&brief, "\nProject map (Kasuri's docs for %s):\n", analysis.Name)
+	fmt.Fprintf(&brief, "\nProject map (Kogin's docs for %s):\n", analysis.Name)
 	if purpose := strings.TrimSpace(docs.Overview.Purpose); purpose != "" {
 		brief.WriteString("Purpose (model-written): " + purpose + "\n")
 	}

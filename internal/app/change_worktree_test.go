@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app/gitops"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func worktreeTaskRequest(t *testing.T, service *Service, paths ...string) ChangeOpenRequest {

@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/nanaki-93/kasuri/v2/internal/brand"
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/brand"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 // DesktopState is what the desktop app keeps between launches.
@@ -64,20 +64,20 @@ func RememberProject(folder string) error {
 }
 
 // DesktopLogFolder is where the desktop app writes the daemon's log:
-// ~/Library/Logs/Kasuri on macOS, the user cache folder elsewhere.
+// ~/Library/Logs/Kogin on macOS, the user cache folder elsewhere.
 func DesktopLogFolder() (string, error) {
 	if runtime.GOOS == "darwin" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return "", err
 		}
-		return filepath.Join(home, "Library", "Logs", "Kasuri"), nil
+		return filepath.Join(home, "Library", "Logs", "Kogin"), nil
 	}
 	cache, err := os.UserCacheDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(cache, "kasuri"), nil
+	return filepath.Join(cache, "kogin"), nil
 }
 
 // OpenDesktopLog starts this launch's daemon log in folder, keeping the

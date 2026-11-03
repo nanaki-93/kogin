@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/logging"
+	"github.com/nanaki-93/kogin/v2/internal/logging"
 	"gopkg.in/yaml.v3"
 )
 

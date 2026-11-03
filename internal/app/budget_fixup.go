@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/archgate"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/project/syntax"
+	"github.com/nanaki-93/kogin/v2/internal/app/archgate"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project/syntax"
 )
 
 const (
@@ -212,7 +212,7 @@ func checkBudgetFixupMoves(session, scoped *ChangeSession, over []archgate.Budge
 	if lost > 0 {
 		return "", fmt.Errorf("the fix-up dropped %d function(s): %s", lost, strings.Join(lostNames, ", "))
 	}
-	summary := fmt.Sprintf("Kasuri checked the split: %d function(s) kept or moved verbatim", moved)
+	summary := fmt.Sprintf("Kogin checked the split: %d function(s) kept or moved verbatim", moved)
 	if changed > 0 {
 		summary += fmt.Sprintf("; %d changed while moving (review them): %s", changed, strings.Join(changedNames, ", "))
 	}

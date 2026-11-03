@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/adk/v2/session"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
 )
 
 // Observer owns only live delivery. Durable progress is committed by agentstate

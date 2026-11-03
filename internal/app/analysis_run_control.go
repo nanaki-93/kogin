@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func (s *Service) ControlAnalysisRun(ctx context.Context, request AnalysisRunControlRequest) (*AnalysisRun, error) {

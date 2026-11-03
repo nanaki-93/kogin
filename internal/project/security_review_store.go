@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/securityrules"
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/project/securityrules"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 const (
@@ -207,7 +207,7 @@ func (c *SecurityReportCache) LoadStored(path, source string) (*SecurityFileRepo
 func (c *SecurityReportCache) Clear() error {
 	securityCacheMu.Lock()
 	defer securityCacheMu.Unlock()
-	directory, err := storage.MetadataPath(c.root, ".kasuri", "security", "files")
+	directory, err := storage.MetadataPath(c.root, ".kogin", "security", "files")
 	if err != nil {
 		return fmt.Errorf("clear security cache: %w", err)
 	}
@@ -219,7 +219,7 @@ func (c *SecurityReportCache) Clear() error {
 
 func (c *SecurityReportCache) resolveCachePath(path, source string) (string, error) {
 	key := sha256.Sum256([]byte(source + "\x00" + path))
-	return storage.MetadataPath(c.root, ".kasuri", "security", "files", hex.EncodeToString(key[:])+".json")
+	return storage.MetadataPath(c.root, ".kogin", "security", "files", hex.EncodeToString(key[:])+".json")
 }
 
 func (c *SecurityReportCache) reportCurrent(report SecurityFileReport, input SecurityReportInput) (bool, error) {

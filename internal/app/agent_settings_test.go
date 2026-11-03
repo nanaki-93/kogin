@@ -11,9 +11,9 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func settingsQuery(t *testing.T, s *Service) AgentRunQuery {
@@ -45,7 +45,7 @@ func TestAgentSettingsArePassiveGuardedDurableAndBounded(t *testing.T) {
 	if err != nil || view.State != "configured" || view.Version != 0 || len(view.Models) != 3 {
 		t.Fatal(view, err)
 	}
-	if _, err := os.Stat(filepath.Join(root, ".kasuri", "agents")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(root, ".kogin", "agents")); !os.IsNotExist(err) {
 		t.Fatal("passive settings created a journal", err)
 	}
 	if view.Models[0].MaxTokens != nil {

@@ -9,9 +9,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/project/toolchain"
+	"github.com/nanaki-93/kogin/v2/internal/app/gitops"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project/toolchain"
 )
 
 // MergeChecksRequest names a merge in the current checkout: the commit the
@@ -47,7 +47,7 @@ func (s *Service) CheckMerge(ctx context.Context, request MergeChecksRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	workspace, err := os.MkdirTemp("", "kasuri-merge-check-")
+	workspace, err := os.MkdirTemp("", "kogin-merge-check-")
 	if err != nil {
 		return nil, err
 	}

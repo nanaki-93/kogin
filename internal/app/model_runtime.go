@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentruntime"
 )
 
 // All scoped model work enters the same ADK runner; retries and publication

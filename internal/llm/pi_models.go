@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 // PiModel contains only catalog metadata. Authentication and headers stay in Pi.

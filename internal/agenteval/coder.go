@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app"
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
-	"github.com/nanaki-93/kasuri/v2/internal/project/toolchain"
+	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/project/toolchain"
 )
 
 // The coder suite compares the tool-using coder with the one-shot proposal
@@ -222,7 +222,7 @@ func boundedReason(reason string) string {
 // scoreCoderAttempt rebuilds the project with the coder's changes and the
 // hidden tests in a scratch directory and runs the task's test command.
 func scoreCoderAttempt(ctx context.Context, item coderCase, changes []app.CoderFile) (string, string, []string) {
-	dir, err := os.MkdirTemp("", "kasuri-coder-score-")
+	dir, err := os.MkdirTemp("", "kogin-coder-score-")
 	if err != nil {
 		return "unavailable", err.Error(), nil
 	}

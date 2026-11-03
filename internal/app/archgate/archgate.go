@@ -8,9 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/diff"
-	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
-	"github.com/nanaki-93/kasuri/v2/internal/project/symbols"
+	"github.com/nanaki-93/kogin/v2/internal/project/diff"
+	"github.com/nanaki-93/kogin/v2/internal/project/rules"
+	"github.com/nanaki-93/kogin/v2/internal/project/symbols"
 )
 
 const (

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // issueStepError is a step that ends without a commit of its own while the
@@ -24,7 +24,7 @@ type issueStepError struct {
 
 func (e *issueStepError) Error() string { return e.reason }
 
-// agentOutcomeError marks a tool-using agent's result that Kasuri refused
+// agentOutcomeError marks a tool-using agent's result that Kogin refused
 // (no change, a file out of scope): the agent ran, its outcome is not usable.
 type agentOutcomeError struct{ err error }
 

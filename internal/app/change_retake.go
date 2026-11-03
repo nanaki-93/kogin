@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // A task in its own worktree starts from the main branch's commit of the

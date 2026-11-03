@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/insight"
+	"github.com/nanaki-93/kogin/v2/internal/project/insight"
 )
 
 type securityWire struct {

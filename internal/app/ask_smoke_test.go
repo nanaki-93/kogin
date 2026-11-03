@@ -6,24 +6,24 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 // TestRealAskAnswersWithCheckedCitations asks a CLI installed on this
 // machine, on its signed-in plan, one question about a small project. It
 // uses a little of the plan, so it runs only when given the Review role's
-// model as Kasuri names it:
+// model as Kogin names it:
 //
-//	KASURI_ASK_SMOKE=claude:sonnet go test ./internal/app -run TestRealAsk -v
-//	KASURI_ASK_SMOKE=agy:gemini-model-slug go test ./internal/app -run TestRealAsk -v
-//	KASURI_ASK_SMOKE=pi:openai-codex/gpt-5.5 go test ./internal/app -run TestRealAsk -v
+//	KOGIN_ASK_SMOKE=claude:sonnet go test ./internal/app -run TestRealAsk -v
+//	KOGIN_ASK_SMOKE=agy:gemini-model-slug go test ./internal/app -run TestRealAsk -v
+//	KOGIN_ASK_SMOKE=pi:openai-codex/gpt-5.5 go test ./internal/app -run TestRealAsk -v
 func TestRealAskAnswersWithCheckedCitations(t *testing.T) {
-	selection := os.Getenv("KASURI_ASK_SMOKE")
+	selection := os.Getenv("KOGIN_ASK_SMOKE")
 	if selection == "" {
-		t.Skip("set KASURI_ASK_SMOKE to the Review model (claude:…, agy:… or pi:…) to ask a real CLI")
+		t.Skip("set KOGIN_ASK_SMOKE to the Review model (claude:…, agy:… or pi:…) to ask a real CLI")
 	}
 	if _, _, ok := cliModelSelection(selection); !ok {
-		t.Fatalf("KASURI_ASK_SMOKE=%q is not a CLI model Kasuri knows", selection)
+		t.Fatalf("KOGIN_ASK_SMOKE=%q is not a CLI model Kogin knows", selection)
 	}
 	fixture, root := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
 	writeDocsFixture(t, root)

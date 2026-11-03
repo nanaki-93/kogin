@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
-	"github.com/nanaki-93/kasuri/v2/internal/brand"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app/gitops"
+	"github.com/nanaki-93/kogin/v2/internal/brand"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // The caller owns jobLifecycleMu, so no new worktree request can be routed while
@@ -42,9 +42,10 @@ func (s *Service) removeGitWorktree(ctx context.Context, root string, source *Gi
 	}
 	// Private task history can be untracked even though the checkout is clean.
 	// Ignore only that metadata so Git still refuses other uncommitted files.
-	// A checkout made before the rename to Kasuri may still hold .mini-orca/.
-	for _, pattern := range []string{"/" + brand.MetadataDir + "/", "/" + brand.LegacyMetadataDir + "/"} {
-		if err := gitops.AddLocalExclude(ctx, root, pattern); err != nil {
+	// A checkout made before the rename to Kogin may still hold .kasuri/ or
+	// .mini-orca/.
+	for _, folder := range brand.MetadataDirs() {
+		if err := gitops.AddLocalExclude(ctx, root, "/"+folder+"/"); err != nil {
 			return err
 		}
 	}

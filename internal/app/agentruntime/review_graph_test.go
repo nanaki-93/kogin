@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"sync/atomic"
 	"testing"
+
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
 )
 
 func reviewGraphFixture() ReviewGraphInput {
@@ -26,7 +28,7 @@ func TestReviewGraphBoundsParallelWorkAndJoinsInCanonicalOrder(t *testing.T) {
 	failure := make(chan error, 1)
 	go func() {
 		result, err := RunReviewGraph(ctx, input, func(ctx context.Context, role string, snapshot ChangeSnapshot) (ReviewNodeResult, error) {
-			records, err := store.Sessions(ctx, "kasuri", "local")
+			records, err := store.Sessions(ctx, agentstate.StateApp, "local")
 			if err != nil || len(records) != 1 {
 				return ReviewNodeResult{}, fmt.Errorf("missing durable review admission: %v", err)
 			}

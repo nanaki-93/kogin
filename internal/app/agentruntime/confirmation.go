@@ -16,7 +16,7 @@ import (
 	"google.golang.org/adk/v2/workflow"
 	"google.golang.org/genai"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
 )
 
 const ConfirmationSchema = "proposal-review-v1"
@@ -130,7 +130,7 @@ func (n *confirmationNode) Run(ctx agent.Context, _ any) iter.Seq2[*session.Even
 }
 
 func confirmationRunner(service session.Service, worker agent.Agent) (*runner.Runner, error) {
-	return runner.New(runner.Config{AppName: "kasuri", Agent: worker, SessionService: service})
+	return runner.New(runner.Config{AppName: agentstate.StateApp, Agent: worker, SessionService: service})
 }
 
 // ResumeConfirmation only resolves a pure handoff node. There are no model,

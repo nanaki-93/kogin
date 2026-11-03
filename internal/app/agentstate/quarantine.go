@@ -12,16 +12,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 // An unreadable journal blocks every agent run in its checkout. The host may
 // set it aside: its bytes move to a quarantined file next to it, a record of
 // the move is kept, and the next run starts a new journal. A journal written
-// by a newer Kasuri is never set aside; it needs that version.
+// by a newer Kogin is never set aside; it needs that version.
 
 // ErrNewerJournal marks a journal in a format this version cannot read.
-var ErrNewerJournal = errors.New("agent journal was written by a newer Kasuri")
+var ErrNewerJournal = errors.New("agent journal was written by a newer Kogin")
 
 // ErrNotSetAside is returned for a path that names no journal set aside in
 // the checkout.
@@ -39,7 +39,7 @@ type JournalError struct {
 
 func (e *JournalError) Error() string {
 	if e.Newer {
-		return fmt.Sprintf("agent journal %s was written by a newer Kasuri (%s); upgrade Kasuri to use it, or move the file away to start a new journal", e.Path, e.Reason)
+		return fmt.Sprintf("agent journal %s was written by a newer Kogin (%s); upgrade Kogin to use it, or move the file away to start a new journal", e.Path, e.Reason)
 	}
 	return fmt.Sprintf("agent journal %s is unreadable: %s; existing data was preserved", e.Path, e.Reason)
 }
@@ -143,7 +143,7 @@ func Quarantine(ctx context.Context, root string) (*QuarantineRecord, error) {
 
 // DeleteQuarantined deletes a journal set aside in the checkout, named by its
 // checkout-relative path as listed, and drops its record. A record made
-// before the rename to Kasuri names .mini-orca, where .kasuri is now. A
+// before the rename to Kogin names .kasuri or .mini-orca, where .kogin is now. A
 // record whose file is already gone only loses its record.
 func DeleteQuarantined(ctx context.Context, root, quarantinedAs string) error {
 	s, err := newStore(root)

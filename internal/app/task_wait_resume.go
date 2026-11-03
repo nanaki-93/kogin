@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app/gitops"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // A waiting task continues once the task it waits for is merged or deleted:
-// Kasuri opens it again in a new worktree from the main checkout as it is
+// Kogin opens it again in a new worktree from the main checkout as it is
 // now, carries over its fixed issues commit by commit until one no longer
 // applies (the run fixes that one and the rest again), removes the old task
 // and its worktree, and starts the agents with the waiting run's request.

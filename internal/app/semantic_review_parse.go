@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 type semanticAnalysisResponse struct {
@@ -38,7 +38,7 @@ type semanticAnalysisFinding struct {
 	Severity string                  `json:"severity"`
 	Title    string                  `json:"title"`
 	Summary  string                  `json:"summary"`
-	// Anchor copies the line of TARGET_SOURCE the risk is at; Kasuri
+	// Anchor copies the line of TARGET_SOURCE the risk is at; Kogin
 	// finds its line number.
 	Anchor   string          `json:"anchor"`
 	TaskSpec json.RawMessage `json:"task_spec"`

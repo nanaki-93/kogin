@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/gitops"
+	"github.com/nanaki-93/kogin/v2/internal/app/gitops"
 )
 
 func gitWorkflowFixture(t *testing.T) (*Service, string, GitMutationRequest) {
@@ -250,7 +250,7 @@ func TestPassiveGitStatusDoesNotExecuteFilters(t *testing.T) {
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Fatal("passive status executed filter")
 	}
-	if gitops.StatusDirty("?? .kasuri/index.json\x00?? .worktrees/fix-1/\x00") {
+	if gitops.StatusDirty("?? .kogin/index.json\x00?? .worktrees/fix-1/\x00") {
 		t.Fatal("private metadata or worktree paths marked repository dirty")
 	}
 }

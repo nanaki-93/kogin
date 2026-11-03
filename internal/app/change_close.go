@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // ChangeClosed reports a task closed after its agents found nothing to fix.

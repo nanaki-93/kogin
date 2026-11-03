@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/textutil"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
 
 func workflowStageLabel(stage string) string {
@@ -49,7 +49,7 @@ func workflowFailure(err error, checks []CheckResult) (string, string) {
 	case errors.Is(err, errWorkflowChecksFailed):
 		base := "Tests or source checks failed. Inspect the check evidence before running again."
 		if existingTestsFail(checks) {
-			base = "Checks already failed before this change and Kasuri could not tell which failures are new, so the agent cannot fix them. Fix or skip those checks, or declare a narrower command in AGENTS.md, then run again."
+			base = "Checks already failed before this change and Kogin could not tell which failures are new, so the agent cannot fix them. Fix or skip those checks, or declare a narrower command in AGENTS.md, then run again."
 		} else if !workflowChecksRepairable(checks) {
 			base = "Required checks did not complete. Inspect the check evidence and retry checks before changing code."
 		}

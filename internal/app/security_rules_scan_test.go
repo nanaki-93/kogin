@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // securityRulesStageResult scans one file as an analysis run's security_rules
@@ -158,10 +158,10 @@ func TestSecurityRulesStageDoesNotContactConfiguredProvider(t *testing.T) {
 
 func TestSecurityRulesScanRejectsStaleExcludedSymlinkAndUnsupportedPaths(t *testing.T) {
 	service, root, revision := newTrustedService(t, map[string]string{
-		"main.go":       "package fixture\nfunc Run() {}\n",
-		"notes.txt":     "run it\n",
-		".kasuriignore": "excluded.go\n",
-		"excluded.go":   "package fixture\nfunc Excluded() {}\n",
+		"main.go":      "package fixture\nfunc Run() {}\n",
+		"notes.txt":    "run it\n",
+		".koginignore": "excluded.go\n",
+		"excluded.go":  "package fixture\nfunc Excluded() {}\n",
 	})
 	if _, err := service.prepareSecurityRulesScan("main.go", "stale"); !errors.Is(err, project.ErrRevisionConflict) {
 		t.Fatalf("stale scan = %v", err)

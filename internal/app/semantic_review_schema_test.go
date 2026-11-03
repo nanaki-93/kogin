@@ -5,8 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
 	"github.com/santhosh-tekuri/jsonschema/v6"
+
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func TestSemanticAnalysisRequiresExplicitCategoryInSchemaAndParser(t *testing.T) {

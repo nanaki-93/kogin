@@ -107,7 +107,7 @@ func (s *Service) adoptCarriedIssues(ctx context.Context, id string, old *Change
 			}
 		}
 	}
-	if _, err := gitRead(ctx, root, "update-ref", "-m", "kasuri: carried issue steps", issueStepsRef(session), picked[len(picked)-1]); err != nil {
+	if _, err := gitRead(ctx, root, "update-ref", "-m", "kogin: carried issue steps", issueStepsRef(session), picked[len(picked)-1]); err != nil {
 		return 0, err
 	}
 	if err := storeChangeSession(root, session); err != nil {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentruntime"
 )
 
 // workflowStart is where an admitted run enters the change graph and how many

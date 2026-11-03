@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 func artifactFixture(key Key, name, body string) ArtifactWrite {
@@ -182,7 +182,7 @@ func TestArtifactExactDeletionAndPrivateExports(t *testing.T) {
 	paths := map[string]bool{}
 	for range 2 {
 		path, err := s.ExportArtifactFile(t.Context(), record.Key, record.Version, record.Hash, nil)
-		if err != nil || paths[path] || filepath.Dir(path) != filepath.Join(s.root, ".kasuri", "exports", "artifacts") {
+		if err != nil || paths[path] || filepath.Dir(path) != filepath.Join(s.root, ".kogin", "exports", "artifacts") {
 			t.Fatalf("export path=%q error=%v", path, err)
 		}
 		paths[path] = true
@@ -241,7 +241,7 @@ func TestArtifactMutationsRecheckAuthorizationAtPersistence(t *testing.T) {
 			if _, err := s.ExportArtifact(t.Context(), record.Key, record.Version); err != nil {
 				t.Fatal("rejected action deleted original")
 			}
-			files, err := filepath.Glob(filepath.Join(s.root, ".kasuri", "exports", "artifacts", "*"))
+			files, err := filepath.Glob(filepath.Join(s.root, ".kogin", "exports", "artifacts", "*"))
 			if err != nil || len(files) != 0 {
 				t.Fatalf("rejected export left files=%v %v", files, err)
 			}
@@ -260,13 +260,13 @@ func TestArtifactExportRejectsSymlinksCancellationAndDiskFailure(t *testing.T) {
 	if _, err := s.ExportArtifactFile(ctx, record.Key, record.Version, record.Hash, nil); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled export: %v", err)
 	}
-	if err := os.Symlink(t.TempDir(), filepath.Join(s.root, ".kasuri", "exports")); err != nil {
+	if err := os.Symlink(t.TempDir(), filepath.Join(s.root, ".kogin", "exports")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.ExportArtifactFile(t.Context(), record.Key, record.Version, record.Hash, nil); err == nil {
 		t.Fatal("export followed symlink")
 	}
-	if err := os.Remove(filepath.Join(s.root, ".kasuri", "exports")); err != nil {
+	if err := os.Remove(filepath.Join(s.root, ".kogin", "exports")); err != nil {
 		t.Fatal(err)
 	}
 	s.write = func(string, []byte, os.FileMode, func() error) error { return errors.New("fixture disk failure") }
@@ -360,10 +360,10 @@ func TestArtifactBoundsSymlinksCancellationAndWriteFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Mkdir(filepath.Join(root, ".kasuri"), 0700); err != nil {
+	if err := os.Mkdir(filepath.Join(root, ".kogin"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(t.TempDir(), filepath.Join(root, ".kasuri", "agents")); err != nil {
+	if err := os.Symlink(t.TempDir(), filepath.Join(root, ".kogin", "agents")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := other.SaveArtifact(t.Context(), request); err == nil {

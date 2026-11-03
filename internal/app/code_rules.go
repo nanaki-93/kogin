@@ -5,9 +5,9 @@ import (
 	"path"
 	"sort"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/archgate"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
+	"github.com/nanaki-93/kogin/v2/internal/app/archgate"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project/rules"
 )
 
 // ProjectRules is what the Web UI needs to apply the project's code rules on

@@ -7,7 +7,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 type findingDocument struct {
@@ -20,7 +20,7 @@ type findingDocument struct {
 // Store instances for the same checkout share read-modify-write ownership.
 var findingStoreLocks sync.Map
 
-// FindingStore persists only sanitized finding metadata under .kasuri.
+// FindingStore persists only sanitized finding metadata under .kogin.
 type FindingStore struct {
 	root string
 	mu   *sync.Mutex

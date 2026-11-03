@@ -13,8 +13,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func TestSemanticStageCachesStructuredOneFileSummary(t *testing.T) {
@@ -44,7 +44,7 @@ func TestSemanticStageCachesStructuredOneFileSummary(t *testing.T) {
 	if strings.Contains(prompt, "helper secret") || !strings.Contains(prompt, "func Run") || !strings.Contains(prompt, "TARGET_SOURCE (the only source content supplied)") || !strings.Contains(prompt, "target_path copied exactly") || !strings.Contains(prompt, "Ground selected-file behavior and engineering insights in TARGET_SOURCE") || !strings.Contains(prompt, "Default to tests that characterize current behavior") {
 		t.Fatalf("semantic prompt was not one-file scoped: %s", prompt)
 	}
-	if _, err := os.Stat(filepath.Join(root, ".kasuri", "file-analysis")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, ".kogin", "file-analysis")); err != nil {
 		t.Fatalf("analysis cache not written: %v", err)
 	}
 	index, err := service.manager.Index()

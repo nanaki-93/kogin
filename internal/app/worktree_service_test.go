@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func TestWorktreeImplementationsRunConcurrentlyAndApplyInIsolation(t *testing.T) {
@@ -60,7 +60,7 @@ func TestWorktreeImplementationsRunConcurrentlyAndApplyInIsolation(t *testing.T)
 		if err != nil {
 			t.Fatal(err)
 		}
-		records, err := store.Sessions(context.Background(), "kasuri", "local")
+		records, err := store.Sessions(context.Background(), agentstate.StateApp, "local")
 		if err != nil || len(records) != 3 {
 			t.Fatalf("worktree journal is not isolated: %d records, %v", len(records), err)
 		}

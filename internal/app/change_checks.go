@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/archgate"
-	"github.com/nanaki-93/kasuri/v2/internal/app/sandbox"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
-	"github.com/nanaki-93/kasuri/v2/internal/textutil"
+	"github.com/nanaki-93/kogin/v2/internal/app/archgate"
+	"github.com/nanaki-93/kogin/v2/internal/app/sandbox"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project/rules"
+	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
 
 func (s *Service) CheckChange(ctx context.Context, id string, request ChangeCheckRequest) (*ChangeSession, error) {
@@ -177,7 +177,7 @@ func changeSourceChecks(root string, targets []ChangeTarget, edits []ChangeEdit)
 // checkChangeWorkspace runs checks in an isolated copy and returns the
 // whole-tree fingerprint of the project the copy reproduces.
 func (s *Service) checkChangeWorkspace(ctx context.Context, root string, session *ChangeSession, options CheckOptions) ([]CheckResult, string, error) {
-	workspace, err := os.MkdirTemp("", "kasuri-change-check-")
+	workspace, err := os.MkdirTemp("", "kogin-change-check-")
 	if err != nil {
 		return nil, "", err
 	}

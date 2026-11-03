@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/toolchain"
-	"github.com/nanaki-93/kasuri/v2/internal/textutil"
+	"github.com/nanaki-93/kogin/v2/internal/project/toolchain"
+	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
 
 // failureLinePattern matches output lines that say what failed: a failing

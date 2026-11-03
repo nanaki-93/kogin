@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // currentTestAnalysisRun can restore metadata but never starts a worker or reuses consent.

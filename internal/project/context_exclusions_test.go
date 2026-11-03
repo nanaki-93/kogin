@@ -36,7 +36,7 @@ func TestWorktreeSourcesCannotEnterContextThroughExplicitIncludes(t *testing.T) 
 	root := t.TempDir()
 	writeSourceWalkFixture(t, root, "main.go", "package main\n")
 	writeSourceWalkFixture(t, root, ".worktrees/fix/duplicate.go", "package duplicate\n")
-	writeSourceWalkFixture(t, root, ".kasuri/context-policy.json", `{"include":["**"]}`)
+	writeSourceWalkFixture(t, root, ".kogin/context-policy.json", `{"include":["**"]}`)
 	policy, err := NewContextPolicy(root)
 	if err != nil {
 		t.Fatal(err)

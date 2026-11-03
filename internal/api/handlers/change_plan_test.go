@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/app"
 )
 
 func TestChangeFileReviewHTTPGuards(t *testing.T) {

@@ -103,7 +103,7 @@ for rel_path in "${FILES[@]}"; do
 
     # Never bundle local secrets, runtime configs, or generated/worktree state
     case "$rel_path" in
-        .env|.env.*|*/.env|*/.env.*|config.yaml|*/config.yaml|.kasuri/*|*/.kasuri/*|build/*|*/build/*|.worktrees/*|*/.worktrees/*)
+        .env|.env.*|*/.env|*/.env.*|config.yaml|*/config.yaml|.kogin/*|*/.kogin/*|build/*|*/build/*|.worktrees/*|*/.worktrees/*)
             SKIPPED_FILES+=("$rel_path (excluded sensitive or generated path)")
             continue
             ;;

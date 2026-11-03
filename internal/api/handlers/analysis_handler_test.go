@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/api"
-	"github.com/nanaki-93/kasuri/v2/internal/app"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/api"
+	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func newAnalysisHandlerFixture(t *testing.T) (*AnalysisHandler, *ProjectHandler, *project.Analysis, *atomic.Int32) {

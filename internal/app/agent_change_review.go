@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentruntime"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentruntime"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
 )
 
 var workflowReviewRoles = []string{"correctness", "architecture", "test_quality", "security", "performance"}

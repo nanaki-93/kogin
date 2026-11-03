@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/diff"
+	"github.com/nanaki-93/kogin/v2/internal/project/diff"
 )
 
 const diffContextLines = 3

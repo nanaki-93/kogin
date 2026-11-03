@@ -9,9 +9,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
 // ErrQuarantineNotListed is returned for a set-aside file the checkout does
@@ -26,13 +26,13 @@ type QuarantineDeleteRequest struct {
 	QuarantinedAs   string `json:"quarantined_as"`
 }
 
-// setAsideDirs is where each kind of record in .kasuri/quarantine.json is set
+// setAsideDirs is where each kind of record in .kogin/quarantine.json is set
 // aside; agent journals keep their own record.
-var setAsideDirs = map[string]string{"task": ".kasuri/changes", "analysis_run": ".kasuri/analysis"}
+var setAsideDirs = map[string]string{"task": ".kogin/changes", "analysis_run": ".kogin/analysis"}
 
-// DeleteQuarantined deletes a file Kasuri set aside, and its record, and
-// returns the report without it. It is the remedy for a record Kasuri no
-// longer reads; skipped records of a newer Kasuri are never deleted.
+// DeleteQuarantined deletes a file Kogin set aside, and its record, and
+// returns the report without it. It is the remedy for a record Kogin no
+// longer reads; skipped records of a newer Kogin are never deleted.
 func (s *Service) DeleteQuarantined(ctx context.Context, request QuarantineDeleteRequest) (*QuarantineReport, error) {
 	index, err := s.manager.Index()
 	if err != nil {
@@ -42,7 +42,7 @@ func (s *Service) DeleteQuarantined(ctx context.Context, request QuarantineDelet
 		return nil, project.ErrRevisionConflict
 	}
 	root, target := s.manager.Root(), strings.TrimSpace(request.QuarantinedAs)
-	if strings.HasPrefix(target, ".kasuri/agents/") {
+	if strings.HasPrefix(target, ".kogin/agents/") {
 		err = agentstate.DeleteQuarantined(ctx, root, target)
 		if errors.Is(err, agentstate.ErrNotSetAside) {
 			err = fmt.Errorf("%w: %s", ErrQuarantineNotListed, target)

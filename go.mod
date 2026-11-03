@@ -1,4 +1,4 @@
-module github.com/nanaki-93/kasuri/v2
+module github.com/nanaki-93/kogin/v2
 
 go 1.27.3
 

@@ -12,18 +12,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
-const analysisRunRelativePath = ".kasuri/analysis/run.json"
+const analysisRunRelativePath = ".kogin/analysis/run.json"
 const maxAnalysisRunMetadataBytes = 64 * 1024 * 1024
 
 var errAnalysisRunCorrupt = errors.New("saved analysis progress is unreadable")
 
 // ErrNewerAnalysisRun identifies saved analysis progress written by a newer
-// Kasuri. It is never set aside: upgrading reads it again.
-var ErrNewerAnalysisRun = errors.New("saved analysis progress was written by a newer Kasuri; upgrade Kasuri to use it, or move it away")
+// Kogin. It is never set aside: upgrading reads it again.
+var ErrNewerAnalysisRun = errors.New("saved analysis progress was written by a newer Kogin; upgrade Kogin to use it, or move it away")
 
 func cloneAnalysisPreview(plan AnalysisRunPreview) AnalysisRunPreview {
 	copy := plan

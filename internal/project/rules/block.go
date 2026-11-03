@@ -14,7 +14,15 @@ import (
 )
 
 // blockInfo is the info string of the fenced rules block in AGENTS.md.
-const blockInfo = "kasuri"
+const blockInfo = "kogin"
+
+// legacyBlockInfos are blockInfo's names before the rename to Kogin; guides
+// written then keep working.
+var legacyBlockInfos = []string{"kasuri", "mini-orca"}
+
+func isBlockInfo(info string) bool {
+	return info == blockInfo || slices.Contains(legacyBlockInfos, info)
+}
 
 // block is the rules one AGENTS.md declares. Paths are relative to the
 // directory of that AGENTS.md. A nil budget is not declared there.
@@ -39,7 +47,7 @@ type importDecl struct {
 	Never []string `yaml:"never"`
 }
 
-// parseAgents reads the rules an AGENTS.md declares: its fenced kasuri
+// parseAgents reads the rules an AGENTS.md declares: its fenced kogin
 // block when it has one, otherwise the plain-language lines older guides use
 // ("max file lines 800", "`a` must never import `b`").
 func parseAgents(content string) (block, bool, error) {
@@ -63,7 +71,7 @@ func fencedBlock(content string) (string, bool, error) {
 	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
 	for i, line := range lines {
 		fence, info := splitFence(line)
-		if fence == "" || info != blockInfo {
+		if fence == "" || !isBlockInfo(info) {
 			continue
 		}
 		for j := i + 1; j < len(lines); j++ {

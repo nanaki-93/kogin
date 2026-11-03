@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project/symbols"
+	"github.com/nanaki-93/kogin/v2/internal/project/symbols"
 )
 
 // Map is a project's structure.

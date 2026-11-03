@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 func TestCLIProvidersSendOnlyControlledArgumentsAndValidateStructuredResponses(t *testing.T) {
@@ -121,7 +121,7 @@ func TestCLIOptionalFinalContentRequiresNormalCompletion(t *testing.T) {
 			if err != nil || response.Choices[0].Message.Content != "" {
 				t.Fatalf("normal blank review = %+v, %v", response, err)
 			}
-			t.Setenv("KASURI_TEST_CLI", "failed")
+			t.Setenv("KOGIN_TEST_CLI", "failed")
 			if _, err := client.Chat(context.Background(), []ChatMessage{{Role: "user", Content: "Review this file."}}); !errors.Is(err, ErrUnusableResponse) {
 				t.Fatalf("abnormal review completion = %v", err)
 			}

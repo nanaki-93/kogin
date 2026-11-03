@@ -20,9 +20,9 @@ func testGit(t *testing.T, root string, args ...string) string {
 func initializeChangeGit(t *testing.T, service *Service, root string) {
 	t.Helper()
 	testGit(t, root, "init", "-b", "main")
-	testGit(t, root, "config", "user.name", "Kasuri Test")
+	testGit(t, root, "config", "user.name", "Kogin Test")
 	testGit(t, root, "config", "user.email", "test@example.invalid")
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kasuri/\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kogin/\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	testGit(t, root, "add", "--", ".")

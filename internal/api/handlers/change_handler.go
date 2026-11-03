@@ -4,9 +4,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/nanaki-93/kasuri/v2/internal/api"
-	"github.com/nanaki-93/kasuri/v2/internal/app"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/api"
+	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 type ChangeHandler struct {
@@ -232,7 +232,7 @@ func (h *ChangeHandler) Apply(w http.ResponseWriter, r *http.Request) {
 	}
 	value, err := h.service.ApplyChange(r.Context(), r.PathValue("sessionID"), request)
 	if errors.Is(err, app.ErrCheckoutTask) {
-		api.WriteAppError(w, api.BadRequest("accept failed", "This task was made in the main checkout, which Kasuri no longer changes. Delete it and create it again: every task now gets its own worktree.", err))
+		api.WriteAppError(w, api.BadRequest("accept failed", "This task was made in the main checkout, which Kogin no longer changes. Delete it and create it again: every task now gets its own worktree.", err))
 		return
 	}
 	respondGit(w, value, err)

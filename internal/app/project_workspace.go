@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // ProjectOverview is the source-free contract shared by project workspaces.
@@ -66,7 +66,7 @@ func (s *Service) ProjectOverview() (*ProjectOverview, error) {
 	// Reading a workspace restores progress without starting requests. A retained
 	// persistence fault is visible in the run's status/reason; deterministic facts
 	// remain available while the user recovers through explicit run controls,
-	// or upgrades to read progress a newer Kasuri saved.
+	// or upgrades to read progress a newer Kogin saved.
 	run, runErr := s.currentAnalysisRunLocked(context.Background())
 	if runErr != nil && !errors.Is(runErr, errAnalysisRunPersistence) && !errors.Is(runErr, ErrNewerAnalysisRun) {
 		return nil, runErr

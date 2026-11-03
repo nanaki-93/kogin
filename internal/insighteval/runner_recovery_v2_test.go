@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 func TestEngineeringInsightRecoveryV2BindsCompleteHistoricalEvidenceSet(t *testing.T) {
@@ -324,7 +324,7 @@ func TestEngineeringInsightRecoveryV2PeriodJSONIsStrict(t *testing.T) {
 
 func TestEngineeringInsightRecoveryV2CoordinatorBoundaryIsExact(t *testing.T) {
 	root := t.TempDir()
-	directory := filepath.Join(root, ".kasuri", "autopilot", "coordinator")
+	directory := filepath.Join(root, ".kogin", "autopilot", "coordinator")
 	if err := os.MkdirAll(directory, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -394,7 +394,7 @@ func recoveryV2TestRoot(t *testing.T) (string, string) {
 		return strings.TrimSpace(string(output))
 	}
 	gitCommand("checkout", "-b", "codex/autopilot")
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kasuri/\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kogin/\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	gitCommand("add", ".gitignore")

@@ -10,8 +10,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
-	"github.com/nanaki-93/kasuri/v2/internal/textutil"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
 
 const workflowTestPrompt = "Write meaningful regression and boundary tests for this proposal and its acceptance criteria. Return complete test file contents only for captured test file paths (such as _test.go, .test.ts, test_*.py, or tests/ files). Preserve existing tests and all pinned regression tests. Do not change implementation files or claim tests ran."

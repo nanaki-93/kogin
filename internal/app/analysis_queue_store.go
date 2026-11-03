@@ -8,10 +8,10 @@ import (
 	"os"
 	"sort"
 
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 )
 
-const analysisSelectionRelativePath = ".kasuri/analysis/selection.json"
+const analysisSelectionRelativePath = ".kogin/analysis/selection.json"
 const analysisSelectionExclusion = "Ignored in analysis file selection."
 
 type storedAnalysisSelection struct {

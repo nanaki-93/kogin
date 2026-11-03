@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // ReadAnalysisRun guards the project even when it has no saved run yet.

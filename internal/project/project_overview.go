@@ -12,11 +12,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nanaki-93/kasuri/v2/internal/brand"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
-	"github.com/nanaki-93/kasuri/v2/internal/project/handbook"
-	"github.com/nanaki-93/kasuri/v2/internal/project/projectmap"
-	"github.com/nanaki-93/kasuri/v2/internal/project/symbols"
+	"github.com/nanaki-93/kogin/v2/internal/brand"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/project/handbook"
+	"github.com/nanaki-93/kogin/v2/internal/project/projectmap"
+	"github.com/nanaki-93/kogin/v2/internal/project/symbols"
 )
 
 const (
@@ -24,10 +24,19 @@ const (
 	maxProjectFiles  = 20000
 )
 
-var ignoredProjectDirectories = map[string]bool{
-	".git": true, ".gradle": true, ".idea": true, brand.MetadataDir: true, brand.LegacyMetadataDir: true, ".worktrees": true,
+var ignoredProjectDirectories = metadataDirectories(map[string]bool{
+	".git": true, ".gradle": true, ".idea": true, ".worktrees": true,
 	"node_modules": true, "vendor": true, "build": true, "dist": true,
 	"target": true, "out": true, ".next": true, ".cache": true,
+})
+
+// metadataDirectories adds Kogin's own folder, under its current and earlier
+// names, to directories.
+func metadataDirectories(directories map[string]bool) map[string]bool {
+	for _, name := range brand.MetadataDirs() {
+		directories[name] = true
+	}
+	return directories
 }
 
 // ErrAnalysisPublicationBlocked lets an admitted client preserve a fatal host

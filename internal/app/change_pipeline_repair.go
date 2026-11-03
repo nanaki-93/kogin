@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func (s *Service) shouldAutoRepairWorkflow(ctx context.Context, job *changeWorkflowJob, runErr error) (bool, error) {
@@ -31,7 +31,7 @@ func (s *Service) shouldAutoRepairWorkflow(ctx context.Context, job *changeWorkf
 }
 
 // existingTestsFail reports a failure that predates the proposal and that
-// Kasuri could not separate from new ones: repairing the proposal cannot
+// Kogin could not separate from new ones: repairing the proposal cannot
 // fix it, so automatic repair would only spend budget. Failures it could
 // separate never block (outcome known_failures).
 func existingTestsFail(checks []CheckResult) bool {

@@ -1,4 +1,4 @@
-// Command kasuri-desktop is Kasuri as a desktop app: one window on the
+// Command kogin-desktop is Kogin as a desktop app: one window on the
 // Web UI, with the daemon started beside it for the last project (or the
 // folder the user chooses) and stopped when the app quits. A daemon that was
 // already running is used as it is and keeps running.
@@ -18,7 +18,7 @@ var icon []byte
 func main() {
 	shell := newShell()
 	app := application.New(application.Options{
-		Name:        "Kasuri",
+		Name:        "Kogin",
 		Description: "Local-first coding assistant",
 		Icon:        icon,
 		// The status page shown until the Web UI loads.
@@ -29,7 +29,7 @@ func main() {
 		// A second launch shows this window instead of starting another
 		// daemon session.
 		SingleInstance: &application.SingleInstanceOptions{
-			UniqueID:               "io.github.nanaki-93.kasuri",
+			UniqueID:               "io.github.nanaki-93.kogin",
 			OnSecondInstanceLaunch: func(application.SecondInstanceData) { shell.show() },
 		},
 		// After the window is gone: the daemon gets its time to stop

@@ -8,14 +8,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/api"
-	"github.com/nanaki-93/kasuri/v2/internal/app"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/api"
+	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // testWriteToken guards the daemon in tests; testHTTPMux sends it with every
 // request that does not set its own, as the Web UI does.
-var testWriteToken = writeToken{value: "test-write-token", file: "/tmp/kasuri-test/daemon-token"}
+var testWriteToken = writeToken{value: "test-write-token", file: "/tmp/kogin-test/daemon-token"}
 
 func testHTTPMux(service *app.Service, manager *project.Manager) http.Handler {
 	mux := newHTTPMux(service, manager, testWriteToken)
@@ -29,7 +29,7 @@ func testHTTPMux(service *app.Service, manager *project.Manager) http.Handler {
 
 func TestWriteTokenIsSavedPrivatelyPerLaunch(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "daemon-token")
-	t.Setenv("KASURI_TOKEN_FILE", path)
+	t.Setenv("KOGIN_TOKEN_FILE", path)
 	first, err := newWriteToken()
 	if err != nil || first.file != path || len(first.value) < 20 {
 		t.Fatalf("token: %+v %v", first, err)
@@ -45,7 +45,7 @@ func TestWriteTokenIsSavedPrivatelyPerLaunch(t *testing.T) {
 	if err != nil || second.value == first.value {
 		t.Fatal("token was reused across launches")
 	}
-	t.Setenv("KASURI_TOKEN_FILE", "relative/token")
+	t.Setenv("KOGIN_TOKEN_FILE", "relative/token")
 	if _, err := newWriteToken(); err == nil {
 		t.Fatal("relative token path accepted")
 	}

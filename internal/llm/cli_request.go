@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
@@ -23,7 +23,7 @@ func (c *Client) chatCLI(ctx context.Context, messages []ChatMessage, format *Re
 	if err != nil {
 		return nil, err
 	}
-	directory, err := os.MkdirTemp("", "kasuri-provider-")
+	directory, err := os.MkdirTemp("", "kogin-provider-")
 	if err != nil {
 		return nil, fmt.Errorf("llm client: cannot create private CLI working directory")
 	}
@@ -89,7 +89,7 @@ func prepareCLIInvocation(profile config.ModelProfile, messages []ChatMessage, f
 }
 
 func cliPrompt(messages []ChatMessage, format *ResponseFormat) (string, string, error) {
-	system := "You are Kasuri's model provider. Answer the final user message in the supplied JSON conversation. Use only the supplied context. Return the requested answer, without file access, commands, or external tools."
+	system := "You are Kogin's model provider. Answer the final user message in the supplied JSON conversation. Use only the supplied context. Return the requested answer, without file access, commands, or external tools."
 	conversation := make([]ChatMessage, 0, len(messages))
 	for _, message := range messages {
 		switch message.Role {
@@ -138,11 +138,11 @@ func preparePi(directory string, profile config.ModelProfile, system string) ([]
 func prepareAgy(directory string, profile config.ModelProfile, system string) ([]string, error) {
 	// Native --json-schema requires finish, which user tool hooks can deny.
 	// Keep this a text completion, with the prompted schema enforced by chatCLI.
-	agent := "---\nname: kasuri\ndescription: Kasuri completion provider\ntools: []\nmainAgent: true\nsubagent: false\ninheritMcp: false\ncommandExecutionPolicy: off\nmcpServers: []\nskills: []\nplugins: []\n---\n# System Prompt\n" + system
-	if err := writeCLIFile(directory, ".agents/agents/kasuri/agent.md", agent); err != nil {
+	agent := "---\nname: kogin\ndescription: Kogin completion provider\ntools: []\nmainAgent: true\nsubagent: false\ninheritMcp: false\ncommandExecutionPolicy: off\nmcpServers: []\nskills: []\nplugins: []\n---\n# System Prompt\n" + system
+	if err := writeCLIFile(directory, ".agents/agents/kogin/agent.md", agent); err != nil {
 		return nil, err
 	}
-	args := []string{"--input-format", "stream-json", "--output-format", "stream-json", "--agent", "kasuri", "--disable-slash-commands", "--model", profile.Model, "--log-file", os.DevNull}
+	args := []string{"--input-format", "stream-json", "--output-format", "stream-json", "--agent", "kogin", "--disable-slash-commands", "--model", profile.Model, "--log-file", os.DevNull}
 	if profile.ReasoningEffort != "" {
 		args = append(args, "--effort", profile.ReasoningEffort)
 	}
@@ -182,7 +182,7 @@ func compileCLISchema(format *ResponseFormat) (*jsonschema.Schema, error) {
 	}
 	compiler := jsonschema.NewCompiler()
 	compiler.UseLoader(cliSchemaLoader{})
-	const location = "urn:kasuri:response"
+	const location = "urn:kogin:response"
 	if err := compiler.AddResource(location, document); err != nil {
 		return nil, fmt.Errorf("llm client: %w: invalid CLI response schema", ErrStructuredRequestRejected)
 	}

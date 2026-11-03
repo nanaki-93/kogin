@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // agentScope admits a request for agent records of the captured checkout.

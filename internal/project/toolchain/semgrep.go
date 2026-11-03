@@ -13,7 +13,7 @@ var semgrepConfigs = []string{".semgrep.yml", ".semgrep.yaml", ".semgrep"}
 
 // SemgrepConfig names the project's own semgrep rules under root: a
 // .semgrep.yml or .semgrep.yaml file or a .semgrep directory; empty when it
-// has none. Kasuri never downloads rules from the registry.
+// has none. Kogin never downloads rules from the registry.
 func SemgrepConfig(root string) string {
 	for _, name := range semgrepConfigs {
 		info, err := os.Lstat(filepath.Join(root, name))

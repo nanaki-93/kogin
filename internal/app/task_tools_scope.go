@@ -11,7 +11,7 @@ import (
 )
 
 // A fix that needs code outside its folders may widen its scope instead of
-// stopping: an agent asks for the files with widen_scope, and Kasuri grants
+// stopping: an agent asks for the files with widen_scope, and Kogin grants
 // those the task's own code imports, within limits. The grants stay on the
 // task, so the reviewers and you see what was added and why.
 const (
@@ -25,7 +25,7 @@ func (run *taskToolRun) scopeTools() []toolSpec {
 		return nil
 	}
 	return []toolSpec{{name: "widen_scope", call: run.widenScope,
-		description: fmt.Sprintf("Ask to change code outside this fix's folders when the fix needs it. Kasuri allows files in the project's own folders that this task's code imports, at most %d more folders and %d code files in the task in total. Say why the fix needs them; reviewers see it. If it is refused, leave those files and finish with outcome needs_own_task.", maxScopeGrantFolders, maxScopeFiles),
+		description: fmt.Sprintf("Ask to change code outside this fix's folders when the fix needs it. Kogin allows files in the project's own folders that this task's code imports, at most %d more folders and %d code files in the task in total. Say why the fix needs them; reviewers see it. If it is refused, leave those files and finish with outcome needs_own_task.", maxScopeGrantFolders, maxScopeFiles),
 		schema:      fmt.Sprintf(`{"type":"object","properties":{"paths":{"type":"array","minItems":1,"maxItems":%d,"items":{"type":"string","minLength":1}},"reason":{"type":"string","minLength":1,"maxLength":%d}},"required":["paths","reason"],"additionalProperties":false}`, maxScopeFiles, maxScopeGrantReason)}}
 }
 
@@ -73,7 +73,7 @@ func (run *taskToolRun) widenScope(ctx context.Context, arguments json.RawMessag
 	}
 	if wait != nil {
 		run.wait = wait
-		return "", fmt.Errorf("%s: another task, “%s”, is changing it and is not merged yet. Stop here and call finish; Kasuri continues this issue by itself on the updated code once that task is merged", strings.Join(wait.Files, ", "), wait.Title)
+		return "", fmt.Errorf("%s: another task, “%s”, is changing it and is not merged yet. Stop here and call finish; Kogin continues this issue by itself on the updated code once that task is merged", strings.Join(wait.Files, ", "), wait.Title)
 	}
 	issue := run.fixingIssue()
 	for _, file := range wanted {

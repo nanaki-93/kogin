@@ -1,4 +1,4 @@
-// Package agenteval runs bounded synthetic tasks through Kasuri's native
+// Package agenteval runs bounded synthetic tasks through Kogin's native
 // agent boundary. Its receipts deliberately exclude prompts and model output.
 package agenteval
 
@@ -18,9 +18,9 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app"
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 //go:embed testdata/tasks.json

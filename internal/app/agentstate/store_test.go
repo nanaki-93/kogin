@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/config"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 func testStore(t *testing.T) (*Store, Key) {
@@ -108,7 +108,7 @@ func TestJournalTraversalSymlinkAndPassiveOpen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(root, ".kasuri")); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(root, ".kogin")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("opening journal created files")
 	}
 	for _, id := range []string{"../escape", "/absolute", "..", "a\\b", "a\x00b"} {
@@ -116,10 +116,10 @@ func TestJournalTraversalSymlinkAndPassiveOpen(t *testing.T) {
 			t.Fatalf("accepted identity %q", id)
 		}
 	}
-	if err := os.Mkdir(filepath.Join(root, ".kasuri"), 0700); err != nil {
+	if err := os.Mkdir(filepath.Join(root, ".kogin"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(t.TempDir(), filepath.Join(root, ".kasuri", "agents")); err != nil {
+	if err := os.Symlink(t.TempDir(), filepath.Join(root, ".kogin", "agents")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.CreateSession(t.Context(), Key{"app", "user", "session"}, nil); err == nil {
@@ -203,7 +203,7 @@ func TestJournalSeparateProcessesKeepAllAppends(t *testing.T) {
 	commands := make([]*exec.Cmd, 2)
 	for i := range commands {
 		command := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestJournalChildWriter$")
-		command.Env = append(os.Environ(), "KASURI_TEST_JOURNAL="+s.root, fmt.Sprintf("KASURI_TEST_WRITER=%d", i))
+		command.Env = append(os.Environ(), "KOGIN_TEST_JOURNAL="+s.root, fmt.Sprintf("KOGIN_TEST_WRITER=%d", i))
 		if err := command.Start(); err != nil {
 			t.Fatal(err)
 		}
@@ -306,7 +306,7 @@ func TestJournalVersionsCompletionInvestigationAndGraphRunsExplicitly(t *testing
 }
 
 func TestJournalChildWriter(t *testing.T) {
-	root := os.Getenv("KASURI_TEST_JOURNAL")
+	root := os.Getenv("KOGIN_TEST_JOURNAL")
 	if root == "" {
 		return
 	}
@@ -315,7 +315,7 @@ func TestJournalChildWriter(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := range 10 {
-		_, err := s.AppendEvent(t.Context(), Key{"app", "user", "session"}, Event{ID: fmt.Sprintf("%s-%d", os.Getenv("KASURI_TEST_WRITER"), i), Data: json.RawMessage(`{}`)}, nil)
+		_, err := s.AppendEvent(t.Context(), Key{"app", "user", "session"}, Event{ID: fmt.Sprintf("%s-%d", os.Getenv("KOGIN_TEST_WRITER"), i), Data: json.RawMessage(`{}`)}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

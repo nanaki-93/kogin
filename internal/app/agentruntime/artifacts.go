@@ -15,7 +15,7 @@ import (
 	"google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app/agentstate"
+	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
 )
 
 type localArtifactService struct {
@@ -164,7 +164,7 @@ func (s *localArtifactService) Delete(ctx context.Context, req *artifact.DeleteR
 }
 
 func newArtifactPlugin() (*plugin.Plugin, error) {
-	return plugin.New(plugin.Config{Name: "kasuri_completion_artifacts", OnEventCallback: saveCompletionArtifact})
+	return plugin.New(plugin.Config{Name: "kogin_completion_artifacts", OnEventCallback: saveCompletionArtifact})
 }
 
 func saveCompletionArtifact(ctx agent.InvocationContext, event *session.Event) (*session.Event, error) {

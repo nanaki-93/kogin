@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/app"
 )
 
 func TestCleanupMergedHTTPGuardsIdentityAndReturnsRemovalReceipt(t *testing.T) {
@@ -81,7 +81,7 @@ func gitChangeHandlerFixture(t *testing.T) *ChangeHandler {
 			t.Fatalf("git: %v %s", err, out)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kasuri/\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kogin/\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	git("init", "-b", "main")

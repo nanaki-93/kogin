@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nanaki-93/kasuri/v2/internal/app"
-	"github.com/nanaki-93/kasuri/v2/internal/llm"
-	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func executeRunnerAttempt(parent context.Context, cfg EngineeringInsightRunnerConfig, item EngineeringInsightRunnerCase) (EngineeringInsightEvaluationAttempt, string, app.FileAnalysisDiagnostics, error) {
@@ -27,7 +27,7 @@ func executeRunnerAttempt(parent context.Context, cfg EngineeringInsightRunnerCo
 }
 
 func buildRunnerPrompt(cfg EngineeringInsightRunnerConfig, item EngineeringInsightRunnerCase) (string, string, *project.IndexFile, error) {
-	root, err := os.MkdirTemp("", "kasuri-insight-fixture-")
+	root, err := os.MkdirTemp("", "kogin-insight-fixture-")
 	if err != nil {
 		return "", "", nil, fmt.Errorf("create private evaluation fixture")
 	}

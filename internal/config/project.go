@@ -8,7 +8,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/nanaki-93/kasuri/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/storage"
 	"gopkg.in/yaml.v3"
 )
 
@@ -19,7 +19,7 @@ import (
 // and every other key it sets replaces the daemon's value for that key.
 
 // ProjectConfigPath is the project configuration file, relative to the project.
-const ProjectConfigPath = ".kasuri/config.yaml"
+const ProjectConfigPath = ".kogin/config.yaml"
 
 const maxProjectConfigBytes = 1 << 20
 
@@ -32,7 +32,7 @@ var modelScopeKeys = []ModelScope{AnalyzeModelScope, BugModelScope, CodeModelSco
 // ProjectFile is the absolute path of root's configuration file, refusing
 // metadata paths that escape root through symlinks.
 func ProjectFile(root string) (string, error) {
-	return storage.MetadataPath(root, ".kasuri", "config.yaml")
+	return storage.MetadataPath(root, ".kogin", "config.yaml")
 }
 
 // LoadProject returns the configuration root runs with: global with root's
