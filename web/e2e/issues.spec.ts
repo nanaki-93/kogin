@@ -125,3 +125,34 @@ test('an issue without a file opens a composer that says what Start agents needs
   await expect(start).toBeEnabled();
   await expect(dialog.getByRole('status')).toHaveCount(0);
 });
+
+test("low-severity issues in test files are kept apart under Test quality, and an issue says what else reported it", async ({ page, daemon }) => {
+  const base = { ...data.findings[0], source: 'ai', evidence: undefined, location: { path: 'cmd/master_test.go', start_line: 10 } };
+  const nitpicks = [1, 2].map(n => ({ ...base, id: `t${n}`, severity: 'low', test: true, title: `Test nitpick ${n}`, message: `Nitpick ${n}.`, location: { path: 'cmd/master_test.go', start_line: 10 * n } }));
+  const testBug = { ...base, id: 't3', severity: 'medium', test: true, title: 'Test never fails', message: 'The assertion is inverted.', location: { path: 'cmd/master_test.go', start_line: 40 } };
+  const merged = { ...base, id: 'm1', severity: 'high', title: 'Recorded PBKDF2 iterations ignored', message: 'deriveKey always uses the constant.', location: { path: 'cmd/master.go', start_line: 461 }, also_reported: [{ analysis: 'security', title: 'Recorded KDF iterations ignored', severity: 'medium', line: 256 }] };
+  const repeat = { ...base, id: 'r1', severity: 'medium', status: 'dismissed', title: 'Active key wiped by deferred clear', message: 'SetMasterKey may keep the slice.', location: { path: 'cmd/master.go' }, seen_before: { id: 'old', title: 'Derived key zeroed after handoff' } };
+  daemon.serve('/api/projects/current/findings', () => ({ ...data.project, findings: [...data.findings, ...nitpicks, testBug, merged, repeat] }));
+  await page.goto('/#/issues');
+  const table = page.getByRole('table', { name: 'Issues' });
+  await expect(table.getByRole('row', { name: /Test nitpick/ })).toHaveCount(0);
+  await expect(table.getByRole('row', { name: /Test never fails/ })).toHaveCount(1);
+  await expect(page.getByRole('rowgroup', { name: 'cmd/master_test.go' }).getByRole('button', { name: /together/ })).toHaveCount(0);
+  const scope = page.getByRole('radiogroup', { name: 'Issues in' });
+  await expect(scope.getByRole('radio', { name: /Test quality/ })).toContainText('3');
+  await scope.getByRole('radio', { name: /Test quality/ }).click();
+  await expect(page).toHaveURL(/scope=tests/);
+  await expect(table.getByRole('row', { name: /Test nitpick|Test never fails/ })).toHaveCount(3);
+  await expect(table.getByRole('row', { name: /PBKDF2/ })).toHaveCount(0);
+  // Nitpicks are fixed one at a time, if at all.
+  await expect(page.getByRole('rowgroup', { name: 'cmd/master_test.go' }).getByRole('button', { name: /together/ })).toHaveCount(0);
+
+  await page.goto('/#/issues?id=m1');
+  const detail = page.getByRole('complementary', { name: 'Issue detail' });
+  await expect(detail).toContainText('Also reported');
+  await expect(detail).toContainText('Recorded KDF iterations ignored (Security, medium, line 256)');
+  await page.goto('/#/issues?status=dismissed&id=r1');
+  await expect(detail).toContainText('Dismissed before');
+  await expect(detail).toContainText('This repeats “Derived key zeroed after handoff”, which was dismissed');
+  await expect(detail.getByRole('button', { name: /Reopen/ })).toBeVisible();
+});

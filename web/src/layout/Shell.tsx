@@ -19,7 +19,7 @@ import type { Project } from '@/api/types';
 import { Dot, IconButton, Kbd, Spinner, Tip, cx } from '@/components/ui';
 import { BrandMark } from '@/components/BrandMark';
 import { formatKeys } from '@/app/shortcuts';
-import { isOpenFinding } from '@/components/domain';
+import { isCountedOpenFinding } from '@/components/domain';
 
 interface NavItem {
   path: string;
@@ -54,7 +54,7 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
 
   const needsYou = tasks.filter(task => ['needs_you', 'ready'].includes(taskStatus(task).status)).length;
   const running = tasks.filter(task => taskStatus(task).status === 'running').length;
-  const openIssues = findings.filter(isOpenFinding).length;
+  const openIssues = findings.filter(isCountedOpenFinding).length;
   const toMerge = (git?.worktrees ?? []).filter(tree => !tree.current && tree.mergeable).length;
   const analyzing = runActive(useOverview().data?.analysis_run);
 

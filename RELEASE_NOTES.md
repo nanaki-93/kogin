@@ -108,6 +108,16 @@ are listed here as they land.
   and lead with the lines that say what failed, before the end of the output;
   when a Go test binary exits before any test reports a failure, the repair is
   told so. The agents' own `run_checks` output reads the same way.
+- **Fewer repeated issues after a run:** when the file, Security and
+  Performance analyses report the same problem in one file, it is one issue
+  (the most severe), listing the others under **Also reported**. An issue
+  that comes back in new words after you dismissed it, or after a task found
+  it does not hold, is dismissed again with a note saying which one it
+  repeats (reopen it if it is different).
+- **Test quality apart:** Issues has **Code** and **Test quality**.
+  Low-severity issues in test files are listed under Test quality only, are
+  not counted with the open issues, and are not offered in **Fix N together**,
+  so fixes that add tests no longer feed a stream of test nitpicks.
 - **A fix can reach the code it calls:** a task that fixes issues no longer
   stops when the fix belongs in code its files import (a fix in
   `cmd/master.go` that needs `internal/utils`). Its coding agent asks for those

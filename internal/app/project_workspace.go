@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/nanaki-93/kasuri/v2/internal/project"
+	"github.com/nanaki-93/kasuri/v2/internal/project/rules"
 )
 
 // ProjectOverview is the source-free contract shared by project workspaces.
@@ -199,9 +200,11 @@ func (s *Service) listFindings(analysis *project.Analysis, index *project.Projec
 		return nil, err
 	}
 	s.reportFindingProgress(s.manager.Root(), input.ProjectID, findings)
+	resolver := rules.NewResolver(s.manager.Root())
 	result := make([]project.UnifiedFinding, 0, len(findings))
 	for _, finding := range findings {
 		if matchesFindingFilter(finding, filter) {
+			finding.Test = finding.Location.Path != "" && resolver.IsTestFile(finding.Location.Path)
 			result = append(result, finding)
 		}
 	}

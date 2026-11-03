@@ -121,6 +121,15 @@ func TestFindingStoreReconcilesTriageSanitizationAndFreshness(t *testing.T) {
 	if err != nil || stale[0].Freshness != FindingFreshnessStale {
 		t.Fatalf("changed input findings = %+v, %v", stale, err)
 	}
+	// Left out of a report, a dismissed finding stays dismissed (so a repeat
+	// of it is recognized); any other retires.
+	kept, err := store.ReconcileSource(input, FindingSourceAI, nil)
+	if err != nil || kept[0].Status != FindingStatusDismissed || kept[0].Freshness != FindingFreshnessStale {
+		t.Fatalf("dismissed finding left out = %+v, %v", kept, err)
+	}
+	if err := store.SetStatus(stored[0].ID, FindingStatusOpen); err != nil {
+		t.Fatal(err)
+	}
 	retired, err := store.ReconcileSource(input, FindingSourceAI, nil)
 	if err != nil || retired[0].Status != FindingStatusRetired || retired[0].Freshness != FindingFreshnessStale {
 		t.Fatalf("retired findings = %+v, %v", retired, err)

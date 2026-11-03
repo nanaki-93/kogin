@@ -14,11 +14,17 @@ import { severityRank } from '@/lib/util';
 import { MAX_ISSUES_PER_TASK, groupByFile, type FileIssues } from '@/lib/issues';
 import { taskFixingIssue } from '@/lib/workflow';
 import { Badge, Button, Callout, EmptyState, Input, Segmented, Skeleton, cx } from '@/components/ui';
-import { SeverityBadge, isInProgressFinding, isOpenFinding, isUnresolvedFinding, sourceLabel } from '@/components/domain';
+import { SeverityBadge, isInProgressFinding, isOpenFinding, isTestNitpick, isUnresolvedFinding, sourceLabel } from '@/components/domain';
 import { openTask } from '@/features/tasks/TaskListPage';
 
 type StatusFilter = 'open' | 'in_progress' | 'dismissed' | 'all';
 type View = 'file' | 'list';
+/** The code's issues (without low-severity test nitpicks), or every issue in a test file. */
+type Scope = 'code' | 'tests';
+
+function inScope(finding: Finding, scope: Scope): boolean {
+  return scope === 'tests' ? Boolean(finding.test) : !isTestNitpick(finding);
+}
 
 /** Open issues have no task yet; in progress, a task is fixing them; dismissed covers fixed and retired too. */
 function hasStatus(finding: Finding, status: StatusFilter): boolean {
@@ -36,22 +42,24 @@ export function IssuesPage() {
   const category = route.params.get('category') ?? '';
   const selectedId = route.params.get('id') ?? '';
   const view: View = route.params.get('view') === 'list' ? 'list' : 'file';
+  const scope: Scope = route.params.get('scope') === 'tests' ? 'tests' : 'code';
   const [q, setQ] = useState('');
 
   const list = useMemo(() => {
-    const filtered = all.filter(f => hasStatus(f, status)).filter(f => severity === 'all' || (f.severity || '').toLowerCase() === severity).filter(f => !category || f.category === category);
+    const filtered = all.filter(f => inScope(f, scope) && hasStatus(f, status)).filter(f => severity === 'all' || (f.severity || '').toLowerCase() === severity).filter(f => !category || f.category === category);
     const sorted = [...filtered].sort((a, b) => severityRank(a.severity) - severityRank(b.severity) || (a.location?.path ?? '').localeCompare(b.location?.path ?? ''));
     return rankItems(sorted, q, f => `${f.title} ${f.location?.path ?? ''} ${f.category ?? ''}`, 1000).map(r => r.item);
-  }, [all, status, severity, category, q]);
+  }, [all, scope, status, severity, category, q]);
   // By file, issues are grouped and keys move through them in that order.
   const groups = useMemo(() => (view === 'file' ? groupByFile(list) : null), [list, view]);
   const ordered = useMemo(() => (groups ? groups.flatMap(group => group.findings) : list), [groups, list]);
   const selected = list.find(f => f.id === selectedId) ?? null;
   const categoryCounts = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const f of all.filter(isOpenFinding)) if (f.category) c[f.category] = (c[f.category] ?? 0) + 1;
+    for (const f of all.filter(f => isOpenFinding(f) && inScope(f, scope))) if (f.category) c[f.category] = (c[f.category] ?? 0) + 1;
     return c;
-  }, [all]);
+  }, [all, scope]);
+  const testIssues = useMemo(() => all.filter(f => f.test && isOpenFinding(f)).length, [all]);
   const categories = Object.keys(categoryCounts).sort();
   const project = useProject().data;
   const { worktreePath } = useCheckout();
@@ -82,9 +90,9 @@ export function IssuesPage() {
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const f of all.filter(isOpenFinding)) c[(f.severity || 'info').toLowerCase()] = (c[(f.severity || 'info').toLowerCase()] ?? 0) + 1;
+    for (const f of all.filter(f => isOpenFinding(f) && inScope(f, scope))) c[(f.severity || 'info').toLowerCase()] = (c[(f.severity || 'info').toLowerCase()] ?? 0) + 1;
     return c;
-  }, [all]);
+  }, [all, scope]);
 
   return (
     <div className="split-page">
@@ -96,6 +104,7 @@ export function IssuesPage() {
           </div>
         </div>
         <div className="toolbar">
+          <Segmented label="Issues in" value={scope} onChange={v => setParam('scope', v === 'code' ? undefined : v)} options={[{ value: 'code', label: 'Code' }, { value: 'tests', label: 'Test quality', count: testIssues || undefined }]} />
           <Segmented label="Status" value={status} onChange={v => setParam('status', v === 'open' ? undefined : v)} options={[{ value: 'open', label: 'Open' }, { value: 'in_progress', label: 'In progress', count: inProgress }, { value: 'dismissed', label: 'Dismissed' }, { value: 'all', label: 'All' }]} />
           <div className="chips">
             {['all', 'critical', 'high', 'medium', 'low'].map(s => (
@@ -123,7 +132,7 @@ export function IssuesPage() {
           <Skeleton lines={8} />
         ) : !list.length ? (
           <EmptyState icon={CircleAlert} title={all.length ? (status === 'in_progress' ? 'No issue is being fixed' : 'No issues match') : 'No issues yet'}>
-            {all.length ? (status === 'in_progress' ? 'Fix an open issue with agents; it shows here while its task is under way.' : 'Try another filter.') : 'Run a project analysis to find bugs, performance and security issues.'}
+            {all.length ? (status === 'in_progress' ? 'Fix an open issue with agents; it shows here while its task is under way.' : scope === 'code' && testIssues ? 'Try another filter. Low-severity issues in test files are under Test quality.' : 'Try another filter.') : 'Run a project analysis to find bugs, performance and security issues.'}
           </EmptyState>
         ) : (
           <table className="table" aria-label="Issues">
@@ -172,7 +181,8 @@ function IssueRow({ finding: f, selected, inFile }: { finding: Finding; selected
 
 /** A file's heading in the grouped list: the file, its issues and fixing its open ones in one task. */
 function FileGroupHead({ group, onFix }: { group: FileIssues; onFix: (open: Finding[]) => void }) {
-  const open = group.findings.filter(isOpenFinding);
+  // Low-severity test nitpicks are fixed one at a time, if at all.
+  const open = group.findings.filter(f => isOpenFinding(f) && !isTestNitpick(f));
   const chosen = open.slice(0, MAX_ISSUES_PER_TASK);
   return (
     <div className="group-head">
@@ -218,6 +228,8 @@ function Evidence({ text }: { text: string }) {
   );
 }
 
+const ANALYSIS_LABELS: Record<string, string> = { file: 'file analysis', security: 'Security', performance: 'Performance', project: 'project analysis' };
+
 const CATEGORY_LABELS: Record<string, string> = { bugs: 'Bugs', bug: 'Bugs', performance: 'Performance', security: 'Security', maintainability: 'Maintainability' };
 
 function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => void }) {
@@ -251,6 +263,23 @@ function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => vo
       ) : null}
       {finding.location?.symbol ? <div className="mono xs faint">in {finding.location.symbol}</div> : null}
       <p className="prose small">{finding.message}</p>
+      {finding.seen_before ? (
+        <Callout tone="neutral" icon={RotateCcw} title="Dismissed before">
+          This repeats “{finding.seen_before.title}”, which was dismissed, so it was dismissed too. Reopen it if it is a different issue.
+        </Callout>
+      ) : null}
+      {finding.also_reported?.length ? (
+        <div>
+          <div className="label-row">Also reported</div>
+          <ul className="small">
+            {finding.also_reported.map((report, i) => (
+              <li key={i}>
+                {report.title} <span className="faint">({[ANALYSIS_LABELS[report.analysis] ?? report.analysis, report.severity, report.line ? `line ${report.line}` : ''].filter(Boolean).join(', ')})</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div className="row-wrap detail-actions">
         {open ? <Button variant="primary" icon={Wrench} onClick={() => void actions.fixIssue(project, worktreePath, finding)} disabled={!files.length} kbd="F">Fix with agents</Button> : null}
         {task ? <Button variant="primary" icon={ListTodo} onClick={() => openTask(task)} kbd="F">Open task</Button> : null}

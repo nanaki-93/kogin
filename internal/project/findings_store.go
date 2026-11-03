@@ -78,20 +78,18 @@ func (s *FindingStore) ReconcileSource(input FindingInput, source string, report
 		}
 		current = append(current, finding)
 	}
-	seen := make(map[string]bool, len(reported))
-	for _, finding := range reported {
-		if finding.Source != source {
-			return nil, fmt.Errorf("finding source does not match reconciliation source")
-		}
-		finding = normalizeFinding(finding, input)
-		if err := validateFinding(finding); err != nil {
-			return nil, err
-		}
-		if prior, ok := byID[finding.ID]; ok && prior.Status != FindingStatusRetired {
-			finding.Status = prior.Status
-		}
+	normalized, err := normalizeReported(input, source, reported)
+	if err != nil {
+		return nil, err
+	}
+	if source == FindingSourceAI {
+		normalized = mergeAcrossPasses(normalized, func(id string) bool { return triaged(byID[id].Status) })
+	}
+	dismissed := dismissedFindings(byID, document.Dismissed)
+	seen := make(map[string]bool, len(normalized))
+	for _, finding := range normalized {
 		seen[finding.ID] = true
-		current = append(current, finding)
+		current = append(current, carryTriage(finding, byID, source, dismissed))
 	}
 	for id, finding := range byID {
 		if seen[id] {
@@ -152,11 +150,64 @@ func (s *FindingStore) RecordFindings(input FindingInput, source string, reporte
 	return s.storeLocked(document)
 }
 
+// unseenFindingStatus is the status of a finding the latest report left
+// out: one a task is fixing stays in progress, and a dismissed one stays
+// dismissed, so a repeat of it is recognized; any other retires.
 func unseenFindingStatus(status string) string {
-	if status == FindingStatusInProgress {
-		return FindingStatusInProgress
+	if status == FindingStatusInProgress || status == FindingStatusDismissed {
+		return status
 	}
 	return FindingStatusRetired
+}
+
+// carryTriage gives a reported finding the triage it had; a new suggestion
+// that repeats a dismissed one is dismissed too.
+func carryTriage(finding UnifiedFinding, byID map[string]UnifiedFinding, source string, dismissed []UnifiedFinding) UnifiedFinding {
+	prior, known := byID[finding.ID]
+	switch {
+	case known && prior.Status != FindingStatusRetired:
+		finding.Status, finding.SeenBefore = prior.Status, prior.SeenBefore
+	case !known && source == FindingSourceAI:
+		if ref := repeatsDismissed(finding, dismissed); ref != nil {
+			finding.Status, finding.SeenBefore = FindingStatusDismissed, ref
+		}
+	}
+	return finding
+}
+
+// normalizeReported checks and normalizes one source's reported findings.
+func normalizeReported(input FindingInput, source string, reported []UnifiedFinding) ([]UnifiedFinding, error) {
+	normalized := make([]UnifiedFinding, 0, len(reported))
+	for _, finding := range reported {
+		if finding.Source != source {
+			return nil, fmt.Errorf("finding source does not match reconciliation source")
+		}
+		finding = normalizeFinding(finding, input)
+		if err := validateFinding(finding); err != nil {
+			return nil, err
+		}
+		normalized = append(normalized, finding)
+	}
+	return normalized, nil
+}
+
+// triaged reports whether a finding's status is a decision of its own, which
+// merging must not hide.
+func triaged(status string) bool {
+	return status == FindingStatusInProgress || status == FindingStatusDismissed || status == FindingStatusFixed
+}
+
+// dismissedFindings are a source's dismissed findings, in ID order: those
+// with that status and those a task dismissed, even once retired.
+func dismissedFindings(byID map[string]UnifiedFinding, targets []FindingTarget) []UnifiedFinding {
+	var dismissed []UnifiedFinding
+	for _, finding := range byID {
+		if finding.Status == FindingStatusDismissed || findingMatchesAnyTarget(finding, targets) {
+			dismissed = append(dismissed, finding)
+		}
+	}
+	sort.Slice(dismissed, func(i, j int) bool { return dismissed[i].ID < dismissed[j].ID })
+	return dismissed
 }
 
 // SetStatus records an explicit user triage decision for one persisted finding.

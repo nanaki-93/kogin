@@ -86,6 +86,16 @@ export function isOpenFinding(finding: Finding): boolean {
   return isUnresolvedFinding(finding) && !isInProgressFinding(finding);
 }
 
+/** A low-severity issue in a test file: Test quality, not counted with the code's issues or fixed together. */
+export function isTestNitpick(finding: Finding): boolean {
+  return Boolean(finding.test) && ['low', 'info', ''].includes((finding.severity || '').toLowerCase());
+}
+
+/** An open issue counted with the project's: not a test nitpick. */
+export function isCountedOpenFinding(finding: Finding): boolean {
+  return isOpenFinding(finding) && !isTestNitpick(finding);
+}
+
 export function FileIcon({ path, size = 14 }: { path: string; size?: number }) {
   const ext = path.slice(path.lastIndexOf('.') + 1).toLowerCase();
   const Icon = isTestPath(path) ? FlaskConical : ext === 'json' || ext === 'yaml' || ext === 'yml' || ext === 'toml' ? FileJson : ext === 'md' || ext === 'txt' ? FileText : FileCode2;

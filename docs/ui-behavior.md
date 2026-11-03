@@ -344,6 +344,13 @@ every guard when the action arrives.
   nothing starts until the user does. An issue without a file, such as a
   project-wide suggestion, drafts no files, so the composer asks for them; a
   long title is shortened to its first sentence (the description keeps it whole).
+  **Issues in** splits **Code** (the default; every issue except
+  low-severity ones in test files) from **Test quality** (every issue in a
+  test file, with its count). Low-severity test issues are left out of the
+  open-issue counts (navigation and Inbox) and of **Fix N together**. An issue
+  other analysis passes also reported lists them under **Also reported**; one
+  that repeats a dismissed issue is shown dismissed, saying which one, and can
+  be reopened.
   Issues are grouped by file by default (files with the most severe issue
   first, a file's issues by severity and line; **By severity** lists them
   flat). A file with more than one open issue offers **Fix N together**: one

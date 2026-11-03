@@ -9,7 +9,7 @@ import { taskStatus } from '@/lib/readiness';
 import { plural, severityRank, timeAgo } from '@/lib/util';
 import { runActive, runProgress, statusLabel, statusTone } from '@/lib/analysis';
 import { Badge, Button, Callout, EmptyState, Kbd, ListGroup, Progress, Skeleton } from '@/components/ui';
-import { SeverityBadge, isOpenFinding } from '@/components/domain';
+import { SeverityBadge, isCountedOpenFinding } from '@/components/domain';
 import { QuarantineNotice } from '@/features/settings/Quarantine';
 import { AgentSettingsNotice } from '@/features/settings/AgentSettingsNotice';
 import { TaskRow } from '@/features/tasks/TaskListPage';
@@ -18,7 +18,7 @@ import { OpenProject } from '@/features/settings/OpenProject';
 export function InboxPage() {
   const main = useMainProject();
   const { tasks, isLoading } = useTasks();
-  const findings = (useFindings().data?.findings ?? []).filter(isOpenFinding);
+  const findings = (useFindings().data?.findings ?? []).filter(isCountedOpenFinding);
   const overview = useOverview().data;
   const git = useGitWorkspace().data;
   const trust = useTrust().data;

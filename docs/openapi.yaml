@@ -1521,8 +1521,28 @@ components:
         status: {type: string, enum: [open, dismissed, fixed, retired]}
         freshness: {type: string, enum: [fresh, stale]}
         detected_at: {type: string, format: date-time}
-        originating_analysis: {type: string, enum: [project, file]}
+        originating_analysis: {type: string, enum: [project, file, security, performance]}
         engineering_insight: {$ref: '#/components/schemas/EngineeringInsight'}
+        also_reported:
+          type: array
+          maxItems: 4
+          description: Other analysis passes' reports of the same issue in the same file, merged into this finding (the most severe of them).
+          items:
+            type: object
+            required: [analysis, title, severity]
+            properties:
+              analysis: {type: string, enum: [file, security, performance]}
+              title: {type: string}
+              severity: {type: string}
+              line: {type: integer}
+        seen_before:
+          type: object
+          required: [id, title]
+          description: The dismissed finding of the same file this one repeats in new words; it was recorded dismissed for that reason and can be reopened.
+          properties:
+            id: {type: string}
+            title: {type: string}
+        test: {type: boolean, description: 'Set when the finding is in a test file (by naming convention or the project''s AGENTS.md test_files); derived on listing.'}
     EngineeringInsight:
       type: object
       required: [mechanism, why_it_matters_here]

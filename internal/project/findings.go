@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -83,6 +84,13 @@ type UnifiedFinding struct {
 	OriginatingAnalysis string              `json:"originating_analysis,omitempty"`
 	TaskSpec            *BugTaskSpec        `json:"task_spec,omitempty"`
 	EngineeringInsight  *EngineeringInsight `json:"engineering_insight,omitempty"`
+	// AlsoReported are other passes' reports of this issue, merged into it.
+	AlsoReported []FindingReport `json:"also_reported,omitempty"`
+	// SeenBefore is the dismissed finding this one repeats; it was recorded
+	// dismissed for that reason.
+	SeenBefore *FindingRef `json:"seen_before,omitempty"`
+	// Test is set on listing when the finding is in a test file.
+	Test bool `json:"test,omitempty"`
 }
 
 // FindingInput is the active deterministic state used to assess freshness.
@@ -224,6 +232,11 @@ func cloneFindings(source []UnifiedFinding) []UnifiedFinding {
 	for index := range result {
 		result[index].TaskSpec = insight.CloneBugTaskSpec(source[index].TaskSpec)
 		result[index].EngineeringInsight = CloneEngineeringInsight(source[index].EngineeringInsight)
+		result[index].AlsoReported = slices.Clone(source[index].AlsoReported)
+		if ref := source[index].SeenBefore; ref != nil {
+			copied := *ref
+			result[index].SeenBefore = &copied
+		}
 	}
 	return result
 }

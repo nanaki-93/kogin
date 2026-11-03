@@ -59,6 +59,22 @@ export interface Finding {
   freshness?: string;
   category?: string;
   task_spec?: { target_path?: string; acceptance_criteria?: string[]; non_goals?: string[] };
+  /** The pass that found it: file, security, performance or project. */
+  originating_analysis?: string;
+  /** Other passes' reports of the same issue, merged into this one. */
+  also_reported?: FindingReport[];
+  /** The dismissed issue this one repeats in new words; it was dismissed for that reason. */
+  seen_before?: { id: string; title: string };
+  /** In a test file. */
+  test?: boolean;
+}
+
+/** Another analysis pass's report of an issue. */
+export interface FindingReport {
+  analysis: string;
+  title: string;
+  severity: string;
+  line?: number;
 }
 
 export interface FindingsResponse extends ProjectIdentity {
