@@ -181,6 +181,7 @@ func (a *Analyzer) interpret(ctx context.Context, analysis *Analysis, contextTex
 	report.Architecture = parsed.Architecture
 	report.Components = parsed.Components
 	report.Walkthroughs = checkWalkthroughs(analysis.Path, analysis.Files, parsed.Walkthroughs)
+	report.ChangeGuide = checkWalkthroughs(analysis.Path, analysis.Files, parsed.ChangeGuide)
 	report.Risks = parsed.Risks
 	report.EngineeringInsight = CloneEngineeringInsight(parsed.EngineeringInsight)
 	if response.Model != "" {

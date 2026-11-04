@@ -23,7 +23,9 @@ test('the docs open on what the project is for, where it starts and how its feat
 
 test('a component page says how it connects, which walkthroughs pass through it and what each file does', async ({ page }) => {
   await page.goto('/#/docs/architecture');
-  await expect(page.getByText('cmd/daemon wires internal/api')).toBeVisible();
+  const lines = page.locator('.doc ul.bulleted li');
+  await expect(lines).toHaveCount(3);
+  await expect(lines.first()).toContainText('cmd/daemon: wires the routes in main and starts the loopback server.');
   const diagram = page.getByRole('img', { name: '5 components and the imports between them' });
   await expect(page.getByText('Drawn from the code')).toBeVisible();
   await diagram.getByRole('button', { name: 'internal/app: open its page' }).click();
@@ -38,9 +40,21 @@ test('a component page says how it connects, which walkthroughs pass through it 
   await expect(page.getByText('Request policy')).toBeVisible();
   const files = page.getByRole('region', { name: /^Files in internal\/api/ }).first();
   await expect(files).toContainText('Maps app errors to JSON responses');
-  await expect(page.getByText('2 of 3 have one')).toBeVisible();
   await page.getByRole('button', { name: 'webui.go' }).click();
   await expect(page).toHaveURL(/#\/code\?file=internal%2Fapi%2Fhandlers%2Fwebui\.go/);
+});
+
+test('where to change lists the usual changes, and names in docs prose open the code', async ({ page }) => {
+  await page.goto('/#/docs/overview');
+  await page.getByRole('region', { name: 'Where to change' }).getByRole('button', { name: 'Add an API route' }).click();
+  await expect(page).toHaveURL(/#\/docs\/changes\?n=1/);
+  await expect(page.getByRole('heading', { name: 'Add an API route', level: 1 })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Add an API route' })).toHaveAttribute('aria-current', 'page');
+  await page.locator('.doc > p').getByRole('button', { name: 'main' }).click();
+  await expect(page).toHaveURL(/#\/code\?file=cmd%2Fdaemon%2Fmain\.go&line=40/);
+  await page.goto('/#/docs/architecture');
+  await page.locator('.doc ul.bulleted').getByRole('button', { name: 'internal/project' }).click();
+  await expect(page.getByRole('heading', { name: 'internal/project', level: 1 })).toBeVisible();
 });
 
 test('get started lists the declared commands by where they run, and dependencies by manifest', async ({ page }) => {

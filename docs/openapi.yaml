@@ -1288,10 +1288,10 @@ components:
         finding_counts: {$ref: '#/components/schemas/FindingCounts'}
     ProjectDocsReport:
       type: object
-      description: "The project's docs, built on every read: the overview's purpose, architecture and walkthroughs (model-written), and the components, the imports between them, entry points, commands and dependencies read from the code (the project map, the subprojects' check commands and the manifests). Component summaries are model-written and say where they come from."
-      required: [schema_version, project_id, project_revision, status, overview, components, walkthroughs, commands, dependencies, graph, updated_at]
+      description: "The project's docs, built on every read: the overview's purpose, architecture, walkthroughs and change guide (model-written), and the components, the imports between them, entry points, commands and dependencies read from the code (the project map, the subprojects' check commands and the manifests). Component summaries are model-written and say where they come from."
+      required: [schema_version, project_id, project_revision, status, overview, components, walkthroughs, change_guide, commands, dependencies, graph, updated_at]
       properties:
-        schema_version: {type: string, enum: ['4']}
+        schema_version: {type: string, enum: ['5']}
         project_id: {type: string}
         project_revision: {type: string}
         status: {type: string, description: "The model-written parts' freshness: the project overview's status."}
@@ -1300,7 +1300,7 @@ components:
           required: [languages, files, lines]
           properties:
             purpose: {type: string, description: Model-written; absent without an overview.}
-            architecture: {type: string, description: "Model-written prose on how the parts fit; absent without an overview, and for an older overview that drew a diagram instead."}
+            architecture: {type: string, description: "Model-written: since project-analysis-v8 one 'path: role' line per main part, newline-separated; older overviews hold one paragraph. Absent without an overview, and for an older overview that drew a diagram instead."}
             languages:
               type: array
               description: Programming languages by indexed file count, most first.
@@ -1326,13 +1326,17 @@ components:
               lines: {type: integer}
               summary: {type: string}
               summary_source: {type: string, enum: [module, overview], description: "module: the component's own summary from its files' summaries; overview: the project overview's model; absent: no summary yet."}
-              responsibilities: {type: array, description: At most three in summaries from module-summary-v2., items: {type: string}}
+              responsibilities: {type: array, description: "At most three; one whose words the summary already has is left out.", items: {type: string}}
               entry_points: {type: array, description: Where programs in this component start., items: {$ref: '#/components/schemas/DocsEntryPoint'}}
               imports: {type: array, description: Components this one imports, resolved from the code., items: {type: string}}
               used_by: {type: array, description: Components that import this one., items: {type: string}}
         walkthroughs:
           type: array
           description: "The main things the project does, traced through its files by the overview's model. Only steps whose files the project still has are listed; a walkthrough without any is left out."
+          items: {$ref: '#/components/schemas/ProjectWalkthrough'}
+        change_guide:
+          type: array
+          description: "The changes a developer most likely makes (such as 'Add a subcommand'), each as the files and functions to touch in order; checked like the walkthroughs. Empty for an overview older than project-analysis-v8."
           items: {$ref: '#/components/schemas/ProjectWalkthrough'}
         commands:
           type: array
@@ -1429,10 +1433,11 @@ components:
         schema_version: {type: string}
         project_id: {type: string}
         project_revision: {type: string}
-        purpose: {type: string, description: Two or three sentences on what the project is and does.}
-        architecture: {type: string, description: "Prose on how the main parts fit; reports from prompt project-analysis-v6 and older may hold a Mermaid diagram instead."}
+        purpose: {type: string, description: One or two sentences on what the project is and who uses it.}
+        architecture: {type: string, description: "How the main parts fit: since project-analysis-v8 at most five 'path: role' lines; reports from prompt project-analysis-v6 and older may hold a Mermaid diagram instead."}
         components: {type: array, items: {type: string}, description: "'path (Name): responsibility' lines, used for components without a summary of their own."}
         walkthroughs: {type: array, items: {$ref: '#/components/schemas/ProjectWalkthrough'}, description: "Checked when written: steps keep only files the project had, and a symbol only where the file declares it."}
+        change_guide: {type: array, items: {$ref: '#/components/schemas/ProjectWalkthrough'}, description: "The usual changes and the files and functions to touch, checked like the walkthroughs; absent before project-analysis-v8."}
         risks: {type: array, items: {$ref: '#/components/schemas/Finding'}, description: Become AI-suggested issues; not shown in the docs.}
         engineering_insight: {$ref: '#/components/schemas/EngineeringInsight'}
         status: {type: string, enum: [fresh, stale, failed, unavailable]}

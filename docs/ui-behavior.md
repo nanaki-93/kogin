@@ -295,15 +295,22 @@ every guard when the action arrives.
   and resumes from the dashboard.
 - **Docs.** A guide to the project, laid out like a docs site: a nav with
   Overview, Get started, Architecture, How it works (one page per
-  walkthrough), Components (one page per component), Dependencies and Ask
-  the code, with an ask box on top. The components, the imports between them
-  (the diagram), entry points, commands and dependencies are read from the
-  code on every visit. The overview's purpose and architecture, the
-  walkthroughs and component summaries are model-written and marked **AI**;
-  a walkthrough step keeps only a file the project has and a function only
-  where the file declares it, and opens that file at its line. A component
-  page lists its imports, what uses it, the walkthroughs through it and its
-  files, each with the first sentence of its saved summary. When the overview
+  walkthrough), Where to change (one page per usual change: the files and
+  functions to touch, in order), Components (one page per component),
+  Dependencies and Ask the code, with an ask box on top. The components, the
+  imports between them (the diagram), entry points, commands and dependencies
+  are read from the code on every visit. The overview's purpose and
+  architecture (one `path: role` line per part, shown as a list), the
+  walkthroughs, the change guide and component summaries are model-written;
+  a page with such prose shows one **AI** mark beside its title. A step keeps
+  only a file the project has and a function only where the file declares
+  it, and opens that file at its line. In model-written prose a project file
+  path, a `backticked` file or a component path is a link (to Code, or to
+  the component's page), and a backticked name a step found opens its
+  declaration in Code; other backticked names show as code. A component
+  page lists its imports, what uses it, the walkthroughs and changes through
+  it and its files, each with the first sentence of its saved summary; a
+  responsibility that only repeats the summary is left out. When the overview
   is missing, failed or out of date the model-written pages say so. An
   analysis run ends by summarizing again the components whose files changed
   and writing the overview again; its confirmation counts those requests.

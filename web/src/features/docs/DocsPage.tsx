@@ -3,7 +3,7 @@
 // from the code and what a model wrote stay marked apart.
 
 import { useState, type ReactNode } from 'react';
-import { BookOpen, Boxes, ChevronRight, Compass, Layers, Library, MessageCircleQuestion, RefreshCw, Route as RouteIcon, Terminal } from 'lucide-react';
+import { BookOpen, Boxes, ChevronRight, Compass, Layers, Library, MessageCircleQuestion, RefreshCw, Route as RouteIcon, Terminal, Wrench } from 'lucide-react';
 import { useOverview, useProject } from '@/api/hooks';
 import type { DocsRefresh, ProjectDocs } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
@@ -15,7 +15,8 @@ import { Button, EmptyState, Input, Skeleton, Spinner, cx } from '@/components/u
 import { AskPanel, handQuestion } from './AskPanel';
 import { ArchitecturePage, DependenciesPage, OverviewPage, StartPage } from './GuidePages';
 import { ComponentPage, ComponentsIndex } from './ComponentPage';
-import { WalkthroughPage, WalkthroughsIndex } from './WalkthroughPage';
+import { DocRefsProvider } from './DocText';
+import { ChangeGuideIndex, ChangeGuidePage, WalkthroughPage, WalkthroughsIndex } from './WalkthroughPage';
 
 export function DocsPage({ section }: { section: string }) {
   const { data, isLoading } = useOverview();
@@ -48,6 +49,10 @@ export function DocsPage({ section }: { section: string }) {
 }
 
 function DocsContent({ docs, section, path, n }: { docs: ProjectDocs; section: DocsSection; path: string; n: number }) {
+  return <DocRefsProvider docs={docs}><DocsSectionPage docs={docs} section={section} path={path} n={n} /></DocRefsProvider>;
+}
+
+function DocsSectionPage({ docs, section, path, n }: { docs: ProjectDocs; section: DocsSection; path: string; n: number }) {
   switch (section) {
     case 'start':
       return <StartPage docs={docs} />;
@@ -57,6 +62,8 @@ function DocsContent({ docs, section, path, n }: { docs: ProjectDocs; section: D
       return path ? <ComponentPage docs={docs} path={path} /> : <ComponentsIndex docs={docs} />;
     case 'flows':
       return n > 0 ? <WalkthroughPage docs={docs} n={n} /> : <WalkthroughsIndex docs={docs} />;
+    case 'changes':
+      return n > 0 ? <ChangeGuidePage docs={docs} n={n} /> : <ChangeGuideIndex docs={docs} />;
     case 'dependencies':
       return <DependenciesPage docs={docs} />;
     default:
@@ -75,6 +82,7 @@ function DocsNav({ docs, current }: { docs: ProjectDocs | undefined; current: Do
   const path = route.params.get('path') ?? '';
   const n = Number(route.params.get('n') ?? 0);
   const walkthroughs = docs?.walkthroughs ?? [];
+  const changes = docs?.change_guide ?? [];
   const components = docs?.components ?? [];
 
   return (
@@ -89,6 +97,11 @@ function DocsNav({ docs, current }: { docs: ProjectDocs | undefined; current: Do
         <NavGroup title="How it works" icon={RouteIcon} to="/docs/flows" active={current === 'flows' && !n} count={walkthroughs.length}>
           {walkthroughs.map((walkthrough, index) => (
             <NavLink key={index} to="/docs/flows" params={{ n: String(index + 1) }} active={current === 'flows' && n === index + 1} nested>{walkthrough.title}</NavLink>
+          ))}
+        </NavGroup>
+        <NavGroup title="Where to change" icon={Wrench} to="/docs/changes" active={current === 'changes' && !n} count={changes.length}>
+          {changes.map((change, index) => (
+            <NavLink key={index} to="/docs/changes" params={{ n: String(index + 1) }} active={current === 'changes' && n === index + 1} nested>{change.title}</NavLink>
           ))}
         </NavGroup>
         <NavGroup title="Components" icon={Boxes} to="/docs/components" active={current === 'components' && !path} count={components.length}>

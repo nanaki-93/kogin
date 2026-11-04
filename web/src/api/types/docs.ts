@@ -84,6 +84,8 @@ export interface ProjectDocs {
   overview?: { purpose?: string; architecture?: string; languages?: { name: string; files: number }[]; files?: number; lines?: number };
   components?: DocsComponent[];
   walkthroughs?: Walkthrough[];
+  /** The changes a developer most likely makes, each as the files and functions to touch in order; absent before overview v8. */
+  change_guide?: Walkthrough[];
   commands?: DocsCommand[];
   dependencies?: DocsDependency[];
   graph?: DocsGraph;

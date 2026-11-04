@@ -14,12 +14,13 @@ import (
 // parser trims what is longer (boundedWalkthroughs) instead.
 const projectAnalysisResponseSchemaDocument = `{
  "type":"object","additionalProperties":false,
- "required":["purpose","architecture","components","walkthroughs","risks","engineering_insight"],
+ "required":["purpose","architecture","components","walkthroughs","change_guide","risks","engineering_insight"],
  "properties":{
   "purpose":{"$ref":"#/$defs/text"},
   "architecture":{"$ref":"#/$defs/text"},
   "components":{"$ref":"#/$defs/textList"},
   "walkthroughs":{"type":"array","maxItems":%[1]d,"items":{"$ref":"#/$defs/walkthrough"}},
+  "change_guide":{"type":"array","maxItems":%[1]d,"items":{"$ref":"#/$defs/walkthrough"}},
   "risks":{"type":"array","maxItems":%[1]d,"items":{"$ref":"#/$defs/risk"}},
   "engineering_insight":{"$ref":"#/$defs/optionalInsight"}
  },

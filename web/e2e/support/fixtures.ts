@@ -224,11 +224,11 @@ export const overview: Overview = {
   analysis_coverage: { fresh: 402, stale: 21, missing: 8 },
   analysis_run: { status: 'completed', updated_at: ago(180) },
   docs: {
-    schema_version: '4',
+    schema_version: '5',
     status: 'stale',
     overview: {
       purpose: 'A local-first coding assistant: a Go daemon and a browser workspace that run coding agents on a task in its own worktree.',
-      architecture: 'cmd/daemon wires internal/api, which calls internal/app; internal/app reads the project through internal/project.',
+      architecture: 'cmd/daemon: wires the routes in `main` and starts the loopback server.\ninternal/api: decodes requests and calls internal/app.\ninternal/app: runs tasks; reads the project through internal/project.',
       languages: [{ name: 'Go', files: 443 }, { name: 'TypeScript', files: 64 }],
       files: 610,
       lines: 77400,
@@ -248,6 +248,12 @@ export const overview: Overview = {
       { title: "Start a task's agents", summary: 'A task runs its agents in its own worktree.', steps: [
         { text: 'The change handler decodes the request.', path: 'internal/api/handlers/change_handler.go', symbol: 'ChangeHandler.Create', line: 88 },
         { text: 'The app service starts the workflow.', path: 'internal/app/service.go' },
+      ] },
+    ],
+    change_guide: [
+      { title: 'Add an API route', summary: 'Register a handler in `main` that calls the app service.', steps: [
+        { text: 'Add the handler method.', path: 'internal/api/handlers/webui.go', symbol: 'ServeAsset', line: 1 },
+        { text: 'Register it in `main`.', path: 'cmd/daemon/main.go', symbol: 'main', line: 40 },
       ] },
     ],
     commands: [

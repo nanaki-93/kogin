@@ -74,7 +74,7 @@ browser workspace is built for three jobs: **start a task and watch the agents**
 | **Task** | — | A pull-request style page: **Conversation** (brief, code rules per file, live agent timeline with stages and reviewers, revise box), **Files changed** (tree with viewed marks, unified/split diff, “since last review”), **Checks**, and a **Ready to apply?** gate with Apply, commit and Undo. |
 | **Code** | `g c` | IDE-style explorer: virtualized tree, editor tabs, highlighted source, issue markers, line links, Ask about it and “New task with this file”. |
 | **Issues** | `g i` | Findings by status and severity with evidence and **Fix with agents**, which opens the task the daemon drafts: the file, its conventional test in that language, and “done when” criteria. |
-| **Docs** | `g d` | A guide to the project: what it is for, how to run it, the components diagram, walkthroughs of its main features step by step through the files, a page per component with its files, dependencies, and **Ask the code** (an agent answers with checked line citations). |
+| **Docs** | `g d` | A guide to the project: what it is for, how to run it, the components diagram, walkthroughs of its main features step by step through the files, **Where to change** (the files and functions to touch for the usual changes), a page per component with its files, dependencies, and **Ask the code** (an agent answers with checked line citations). |
 | **Branches** | `g b` | Task worktrees (each new task gets its own by default), merge preview (commits and diff), guarded merge or abort, the checks of the merged result, and removal of merged worktrees. |
 | **Settings** | `g s` | Project, execution trust, models and agents, usage, appearance. |
 

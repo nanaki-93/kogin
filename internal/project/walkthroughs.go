@@ -43,6 +43,53 @@ func boundedWalkthroughs(raw []ProjectWalkthrough) []ProjectWalkthrough {
 	return walkthroughs
 }
 
+// cloneWalkthroughs copies walkthroughs and their steps.
+func cloneWalkthroughs(source []ProjectWalkthrough) []ProjectWalkthrough {
+	cloned := make([]ProjectWalkthrough, len(source))
+	for index, walkthrough := range source {
+		walkthrough.Steps = append([]ProjectWalkthroughStep(nil), walkthrough.Steps...)
+		cloned[index] = walkthrough
+	}
+	return cloned
+}
+
+// leadSentences keeps the first count sentences of text, within limit
+// characters; a model that writes more loses the rest, not the start.
+func leadSentences(text string, count, limit int) string {
+	rest := strings.Join(strings.Fields(text), " ")
+	kept := ""
+	for range count {
+		sentence := textutil.FirstSentence(rest, limit)
+		if sentence == "" || (kept != "" && utf8.RuneCountInString(kept)+1+utf8.RuneCountInString(sentence) > limit) {
+			break
+		}
+		kept = strings.TrimSpace(kept + " " + sentence)
+		rest = strings.TrimSpace(strings.TrimPrefix(rest, sentence))
+	}
+	if kept == "" {
+		return textutil.Clip(text, limit)
+	}
+	return kept
+}
+
+// architectureLines keeps the overview's architecture as at most five
+// "path: role" lines, each clipped; a single paragraph from an older prompt
+// or a model that ignored the lines stays one line.
+func architectureLines(text string) string {
+	lines := []string{}
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(line), "-*•"))
+		if line == "" {
+			continue
+		}
+		if len(lines) == maxArchitectureLines {
+			break
+		}
+		lines = append(lines, textutil.Clip(line, maxArchitectureLineText))
+	}
+	return strings.Join(lines, "\n")
+}
+
 // walkthroughPath is a step's file as a clean project-relative path, or
 // empty when the model named something else.
 func walkthroughPath(raw string) string {

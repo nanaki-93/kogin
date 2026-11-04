@@ -49,18 +49,26 @@ func TestDocsDescribeTheComponentsTheCodeDefines(t *testing.T) {
 					{Text: "Write it.", Path: "internal/store/store.go"},
 				}},
 				{Title: "Gone", Summary: "Only gone files.", Steps: []WalkthroughStep{{Text: "x", Path: "internal/old/old.go"}}},
+			},
+			ChangeGuide: []Walkthrough{
+				{Title: "Add a field", Summary: "Store it.", Steps: []WalkthroughStep{{Text: "Gone.", Path: "internal/old/old.go"}, {Text: "Save it.", Path: "internal/store/store.go"}}},
+				{Title: "Gone", Summary: "Only gone files.", Steps: []WalkthroughStep{{Text: "x", Path: "internal/old/old.go"}}},
 			}}}
 	docs := BuildProjectDocs(DocsInputs{
 		Analysis: analysis, Map: mapped(),
 		Profiles:  []toolchain.Profile{{Dir: "", Kind: "go", Source: "go.mod", Test: []string{"go", "test", "./..."}, Lint: []string{"go", "vet", "./..."}}},
-		Summaries: map[string]ModuleSummary{"internal/model": {Path: "internal/model", Summary: "Defines the item types.", Responsibilities: []string{"Item"}}},
+		Summaries: map[string]ModuleSummary{"internal/model": {Path: "internal/model", Summary: "Defines the item types.", Responsibilities: []string{"Item", "Define item types", "Validate an item"}}},
 	})
-	if docs.SchemaVersion != "4" || docs.Status != ProjectAnalysisStatusFresh || !docs.UpdatedAt.Equal(now) {
+	if docs.SchemaVersion != "5" || docs.Status != ProjectAnalysisStatusFresh || !docs.UpdatedAt.Equal(now) {
 		t.Fatalf("docs = %+v", docs)
 	}
 	wantOverview := ProjectDocsOverview{Purpose: "Keeps items.", Architecture: "cmd/app uses internal/store.", Languages: []ProjectDocsLanguage{{Name: "Go", Files: 6}, {Name: "TypeScript", Files: 4}}, Files: 12, Lines: 600}
 	if !reflect.DeepEqual(docs.Overview, wantOverview) {
 		t.Fatalf("overview = %+v", docs.Overview)
+	}
+	wantGuide := []Walkthrough{{Title: "Add a field", Summary: "Store it.", Steps: []WalkthroughStep{{Text: "Save it.", Path: "internal/store/store.go"}}}}
+	if !reflect.DeepEqual(docs.ChangeGuide, wantGuide) {
+		t.Fatalf("change guide = %+v", docs.ChangeGuide)
 	}
 	var paths []string
 	byPath := map[string]ProjectDocsComponent{}
@@ -75,7 +83,7 @@ func TestDocsDescribeTheComponentsTheCodeDefines(t *testing.T) {
 	if store.Name != "Store" || store.SummarySource != "overview" || store.Summary != "Saves items." || len(store.Responsibilities) != 0 || !slices.Equal(store.Imports, []string{"internal/model"}) || !slices.Equal(store.UsedBy, []string{"cmd/app"}) || store.Files != 3 {
 		t.Fatalf("store = %+v", store)
 	}
-	if model := byPath["internal/model"]; model.SummarySource != "module" || model.Summary != "Defines the item types." || !slices.Equal(model.Responsibilities, []string{"Item"}) {
+	if model := byPath["internal/model"]; model.SummarySource != "module" || model.Summary != "Defines the item types." || !slices.Equal(model.Responsibilities, []string{"Validate an item"}) {
 		t.Fatalf("model = %+v", model)
 	}
 	if web := byPath["web/src"]; web.SummarySource != "" || web.Summary != "" || len(web.Imports) != 0 {

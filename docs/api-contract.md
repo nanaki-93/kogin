@@ -133,17 +133,19 @@ untrusted networks.
 | POST | `/api/projects/current/changes/{sessionID}/reanalyze` | Re-check an out-of-date task's issue against the current files: still valid captures it again, not valid deletes it and dismisses its linked issues. |
 | POST | `/api/projects/current/changes/{sessionID}/retake` | Re-check the issue of a task in its own worktree whose files the main branch changed against the main branch: still valid opens it again in a new worktree from there, not valid dismisses its linked issues; the old task is deleted either way. |
 
-Project analysis (the overview) holds short prose (`purpose`, `architecture`),
-`components` lines as `path (Module name): responsibility`, structured
-`walkthroughs` and `risks`; see the docs paragraph under agent invocation
-history for how walkthroughs are checked. Reports from older prompts remain
+Project analysis (the overview) holds short prose (`purpose`, and
+`architecture` as `path: role` lines), `components` lines as
+`path (Module name): responsibility`, structured `walkthroughs`, a
+`change_guide` of the same shape and `risks`; see the docs paragraph under
+agent invocation history for how walkthroughs are checked. Reports from older prompts remain
 readable but are stale; their Mermaid `architecture` is left out of the docs.
 
 Project import and the docs refresh send a strict `json_schema` response
 format. Its limits are loose on purpose: CLI runners check a reply against the
-schema and refuse it whole, so the prompt (`project-analysis-v7`) asks for
-short text and the daemon trims longer walkthroughs instead of failing the
-overview. Provider rejection of the structured request does not trigger a
+schema and refuse it whole, so the prompt (`project-analysis-v8`) asks for
+short text and the daemon trims longer text instead of failing the overview:
+purpose to two sentences, architecture to five lines, walkthroughs and the
+change guide to their limits. Provider rejection of the structured request does not trigger a
 fallback to unconstrained chat. Truncated or refused replies cannot become
 fresh reports, even when their content parses as JSON. A failed import
 retains the factual inventory and persists a source-free failure reason; restore
@@ -1229,22 +1231,27 @@ newly scanned checkout. A provider timeout/refusal retains a failed report and
 rechecked factual inventory; journal or policy failures remain errors. Cached
 reads, restore and handbook composition make no provider request.
 
-The docs (`ProjectOverview.docs`, schema `4`) are built on every read and never
-stored: the overview's purpose, architecture and walkthroughs come from the
-project analysis report; components, imports, entry points, commands and
+The docs (`ProjectOverview.docs`, schema `5`) are built on every read and never
+stored: the overview's purpose, architecture, walkthroughs and change guide
+come from the project analysis report; components, imports, entry points, commands and
 dependencies from the project map, toolchain profiles and manifests; component
 summaries from `.kogin/module-summaries.json`. Older reports remain
 readable: a report from prompt `project-analysis-v6` or earlier is stale, its
 Mermaid architecture is left out and its flows, entry points and next steps are
-no longer read. The overview prompt `project-analysis-v7` asks for short prose,
-component lines and up to six walkthroughs of two to eight steps; each step
-names a file and optionally a function or type. When the report is written,
-steps whose files are not in the project are dropped, a symbol is kept only
-when the file's outline declares it (its line is stored), and a walkthrough
-left without steps is dropped; on read, steps whose files have gone are
-dropped too. Project-level risks still become AI-suggested issues and are not
-shown in the docs. Module summaries (`module-summary-v2`) are one or two
-sentences and at most three responsibilities.
+no longer read; a `project-analysis-v7` report has no change guide. The
+overview prompt `project-analysis-v8` asks for terse prose (purpose in one or
+two sentences, architecture as two to five `path: role` lines), component
+lines, up to six walkthroughs of two to eight steps and a `change_guide` of
+three to six usual changes (such as "Add a subcommand"), each with the files
+and functions to touch in order; each step names a file and optionally a
+function or type. When the report is written, steps of both whose files are
+not in the project are dropped, a symbol is kept only when the file's outline
+declares it (its line is stored), and an entry left without steps is dropped;
+on read, steps whose files have gone are dropped too. Project-level risks
+still become AI-suggested issues and are not shown in the docs. Module
+summaries (`module-summary-v3`) are one sentence and at most three
+responsibilities; a responsibility whose words the summary already has is
+left out of the docs.
 
 Budgets are shared totals, so child usage must not be added together.
 `usage.input_tokens` and `output_tokens` are enforced budget charges, including

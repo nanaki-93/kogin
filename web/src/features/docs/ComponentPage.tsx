@@ -9,14 +9,14 @@ import { componentLabel, firstSentence, walkthroughsThrough } from '@/lib/docs';
 import { navigate } from '@/lib/router';
 import { basename, dirname, plural } from '@/lib/util';
 import { Button, EmptyState, Skeleton } from '@/components/ui';
-import { DocsStatusNote, EntryPoints, FileLink, ModelWritten } from './GuidePages';
+import { DocText } from './DocText';
+import { DocTitle, DocsStatusNote, EntryPoints, FileLink } from './GuidePages';
 
 export function ComponentsIndex({ docs }: { docs: ProjectDocs }) {
   const components = docs.components ?? [];
   return (
     <article className="doc">
-      <h1>Components</h1>
-      <p className="small muted">The directories that hold code, folded so at most sixteen show. Which one imports which is read from the code.</p>
+      <DocTitle ai={components.some(component => component.summary)}>Components</DocTitle>
       <ul className="component-list">
         {components.map(component => (
           <li key={component.path}>
@@ -50,26 +50,30 @@ export function ComponentPage({ docs, path }: { docs: ProjectDocs; path: string 
     <button key={target} type="button" className="chip mono" onClick={() => navigate('/docs/components', { path: target })} title={byPath.get(target)?.summary}>{componentLabel({ path: target })}</button>
   );
   const flows = walkthroughsThrough(component.path, docs.walkthroughs ?? [], components);
+  const changes = walkthroughsThrough(component.path, docs.change_guide ?? [], components);
   return (
     <article className="doc">
       {component.summary_source === 'overview' ? <DocsStatusNote status={docs.status} /> : null}
       <header className="doc-head">
         <div className="xs muted"><button type="button" className="link-btn" onClick={() => navigate('/docs/components')}>Components</button> /</div>
-        <h1 className="mono">{componentLabel(component)}</h1>
+        <DocTitle mono ai={Boolean(component.summary)} title={component.summary_source === 'module' ? 'Written by the analyze model from the summaries of its files.' : 'From the project overview, written by the analyze model.'}>{componentLabel(component)}</DocTitle>
         <div className="xs muted">{meta(component)}</div>
       </header>
       {component.summary ? (
         <div className="stack">
-          <p>{component.summary} <ModelWritten title={component.summary_source === 'module' ? 'Written by the analyze model from the summaries of its files.' : 'From the project overview, written by the analyze model.'} /></p>
-          {component.responsibilities?.length ? <ul className="plain-list bulleted small">{component.responsibilities.map((r, i) => <li key={i}>{r}</li>)}</ul> : null}
+          <p><DocText text={component.summary} /></p>
+          {component.responsibilities?.length ? <ul className="plain-list bulleted small">{component.responsibilities.map((r, i) => <li key={i}><DocText text={r} /></li>)}</ul> : null}
         </div>
-      ) : <p className="small muted">No summary yet: an analysis run writes one from its files' summaries.</p>}
+      ) : <p className="small muted">No summary yet.</p>}
       <dl className="relations">
         <div><dt>Imports</dt><dd>{component.imports?.length ? component.imports.map(chip) : <span className="small faint">nothing in this project</span>}</dd></div>
         <div><dt>Used by</dt><dd>{component.used_by?.length ? component.used_by.map(chip) : <span className="small faint">nothing in this project</span>}</dd></div>
         {component.entry_points?.length ? <div><dt>Starts at</dt><dd><EntryPoints entries={component.entry_points} /></dd></div> : null}
         {flows.length ? (
           <div><dt>Walkthroughs</dt><dd>{flows.map(({ n, walkthrough }) => <button key={n} type="button" className="chip" onClick={() => navigate('/docs/flows', { n: String(n) })}>{walkthrough.title}</button>)}</dd></div>
+        ) : null}
+        {changes.length ? (
+          <div><dt>Changed in</dt><dd>{changes.map(({ n, walkthrough }) => <button key={n} type="button" className="chip" onClick={() => navigate('/docs/changes', { n: String(n) })}>{walkthrough.title}</button>)}</dd></div>
         ) : null}
       </dl>
       <div className="row">
@@ -87,7 +91,6 @@ function ComponentFiles({ path }: { path: string }) {
   if (error || !data) return <p className="small muted">{error instanceof Error ? error.message : 'The files could not be read.'}</p>;
   if (!data.files.length) return <p className="small muted">No code files.</p>;
   const groups = groupByDirectory(data);
-  const summarized = data.files.filter(file => file.summary).length;
   return (
     <div className="stack">
       {groups.map(([dir, files]) => (
@@ -97,16 +100,13 @@ function ComponentFiles({ path }: { path: string }) {
             {files.map(file => (
               <li key={file.path}>
                 <FileLink path={file.path} label={basename(file.path)} />
-                <span className="small muted file-summary">{file.summary ?? ''}</span>
+                <span className="small muted file-summary">{file.summary ? <DocText text={file.summary} /> : ''}</span>
                 <span className="xs faint">{file.lines}</span>
               </li>
             ))}
           </ul>
         </section>
       ))}
-      <div className="xs faint">
-        {summarized ? `One line per file from its summary in the last analysis (AI); ${summarized} of ${data.files.length} have one.` : 'No file has a summary yet: an analysis writes them.'}
-      </div>
     </div>
   );
 }

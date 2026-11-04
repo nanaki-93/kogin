@@ -43,7 +43,10 @@ type ProjectAnalysisReport struct {
 	// component that has no summary of its own yet.
 	Components []string `json:"components"`
 	// Walkthroughs trace the main things the project does through its files.
-	Walkthroughs       []Walkthrough         `json:"walkthroughs"`
+	Walkthroughs []Walkthrough `json:"walkthroughs"`
+	// ChangeGuide is the changes a developer most likely makes, each as the
+	// files and functions to touch in order; empty before prompt v8.
+	ChangeGuide        []Walkthrough         `json:"change_guide,omitempty"`
 	Risks              []ProjectAnalysisRisk `json:"risks"`
 	EngineeringInsight *EngineeringInsight   `json:"engineering_insight,omitempty"`
 	Status             string                `json:"status"`
@@ -96,9 +99,9 @@ type Analysis struct {
 	Report          ProjectAnalysisReport `json:"report"`
 }
 
-// projectDocsSchemaVersion 4: an overview, components, walkthroughs,
-// commands and dependencies; built on every read, never stored.
-const projectDocsSchemaVersion = "4"
+// projectDocsSchemaVersion 5: an overview, components, walkthroughs, a
+// change guide, commands and dependencies; built on every read, never stored.
+const projectDocsSchemaVersion = "5"
 
 // ProjectDocsReport is the project's docs: what it is for and how its parts
 // fit, from the overview's model; its components, commands, dependencies and
@@ -112,6 +115,7 @@ type ProjectDocsReport struct {
 	Overview     ProjectDocsOverview     `json:"overview"`
 	Components   []ProjectDocsComponent  `json:"components"`
 	Walkthroughs []Walkthrough           `json:"walkthroughs"`
+	ChangeGuide  []Walkthrough           `json:"change_guide"`
 	Commands     []ProjectDocsCommand    `json:"commands"`
 	Dependencies []ProjectDocsDependency `json:"dependencies"`
 	Graph        ProjectDocsGraph        `json:"graph"`
@@ -229,7 +233,8 @@ func BuildProjectDocs(in DocsInputs) ProjectDocsReport {
 		Status:          status,
 		Overview:        buildDocsOverview(analysis),
 		Components:      components,
-		Walkthroughs:    currentWalkthroughs(analysis),
+		Walkthroughs:    currentWalkthroughs(analysis.Files, analysis.Report.Walkthroughs),
+		ChangeGuide:     currentWalkthroughs(analysis.Files, analysis.Report.ChangeGuide),
 		Commands:        buildCommands(in.Profiles, in.Map.Manifests),
 		Dependencies:    manifestDependencies(in.Map.Manifests),
 		Graph:           ProjectDocsGraph{Edges: edges, EntryPoints: in.Map.EntryPoints, Modules: len(in.Map.Modules), Truncated: in.Map.Truncated},

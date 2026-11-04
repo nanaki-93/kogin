@@ -29,6 +29,18 @@ are listed here as they land.
   - `make install-desktop` removes Kasuri.app and Mini-Orca.app.
   The repository is now `github.com/nanaki-93/kogin` (the old URLs redirect),
   and the Go module path is `github.com/nanaki-93/kogin/v2`.
+- **Docs, shorter and linked to the code:** the overview (prompt
+  `project-analysis-v8`) is terse: purpose in one or two sentences,
+  architecture as one `path: role` line per main part, shown as a list,
+  walkthrough steps of a few words; component summaries (`module-summary-v3`)
+  are one sentence, without responsibilities that repeat it. New **Where to
+  change** pages: the changes you most likely make to the project (such as
+  "Add a subcommand"), each with the files and functions to touch in order,
+  checked against the code like the walkthroughs. File paths, components and
+  backticked names in the docs' prose open the code (or the component's page).
+  One **AI** mark per page instead of one per paragraph, and the explanatory
+  notes under the page titles are gone. Refresh docs (or run an analysis) to
+  get the new overview; until then the old one shows, marked out of date.
 - **Desktop app (macOS):** `just desktop` builds Kogin.app into
   `/Applications`: the Web UI in a window of its own. It reopens the last
   project (or asks for one), starts the daemon beside it with your login

@@ -2,8 +2,10 @@ package handbook
 
 import (
 	"path"
+	"slices"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/nanaki-93/kogin/v2/internal/project/projectmap"
 	"github.com/nanaki-93/kogin/v2/internal/project/toolchain"
@@ -39,7 +41,7 @@ func buildMapComponents(in DocsInputs) ([]ProjectDocsComponent, []projectmap.Edg
 			Imports: orEmpty(dependencies[group.Path]), UsedBy: orEmpty(usedBy[group.Path]),
 		}
 		if summary, ok := in.Summaries[group.Path]; ok && strings.TrimSpace(summary.Summary) != "" {
-			component.Summary, component.Responsibilities, component.SummarySource = summary.Summary, orEmpty(summary.Responsibilities), "module"
+			component.Summary, component.Responsibilities, component.SummarySource = summary.Summary, newResponsibilities(summary.Summary, summary.Responsibilities), "module"
 		} else if model, ok := overviewFor(group.Path, overview); ok && model.Summary != "" {
 			component.Summary, component.SummarySource = model.Summary, "overview"
 		}
@@ -180,4 +182,33 @@ func orEmpty(items []string) []string {
 		return []string{}
 	}
 	return items
+}
+
+// newResponsibilities are the responsibilities that say something the
+// summary does not: one whose words the summary all has is left out.
+func newResponsibilities(summary string, responsibilities []string) []string {
+	said := map[string]bool{}
+	for _, word := range contentWords(summary) {
+		said[word] = true
+	}
+	kept := []string{}
+	for _, responsibility := range responsibilities {
+		words := contentWords(responsibility)
+		if len(words) == 0 || slices.ContainsFunc(words, func(word string) bool { return !said[word] }) {
+			kept = append(kept, responsibility)
+		}
+	}
+	return kept
+}
+
+// contentWords are text's words in lower case without a plural or
+// third-person "s", leaving out short ones ("a", "of", "the").
+func contentWords(text string) []string {
+	words := []string{}
+	for _, word := range strings.FieldsFunc(strings.ToLower(text), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
+		if len(word) > 3 {
+			words = append(words, strings.TrimSuffix(word, "s"))
+		}
+	}
+	return words
 }

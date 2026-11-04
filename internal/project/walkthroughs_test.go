@@ -68,3 +68,37 @@ func TestWalkthroughStepsPointAtDeclarationsTheFilesHave(t *testing.T) {
 		t.Fatalf("walkthroughs = %+v", got)
 	}
 }
+
+func TestOverviewProseIsCutToItsShape(t *testing.T) {
+	purpose := leadSentences("Kogin is a coding assistant. It runs locally, e.g. on a laptop. It has a web UI. And more.", 2, maxOverviewPurpose)
+	if purpose != "Kogin is a coding assistant. It runs locally, e.g. on a laptop." {
+		t.Fatalf("purpose = %q", purpose)
+	}
+	if got := leadSentences(strings.Repeat("word ", 100), 2, 40); utf8.RuneCountInString(got) > 40 || !strings.HasSuffix(got, "…") {
+		t.Fatalf("one long sentence = %q", got)
+	}
+	architecture := architectureLines("- cmd: starts it\n\n* internal/api: decodes requests\ninternal/app: runs tasks\na\nb\nc\nd")
+	if architecture != "cmd: starts it\ninternal/api: decodes requests\ninternal/app: runs tasks\na\nb" {
+		t.Fatalf("architecture = %q", architecture)
+	}
+	if paragraph := architectureLines("One paragraph from an older prompt."); paragraph != "One paragraph from an older prompt." {
+		t.Fatalf("paragraph = %q", paragraph)
+	}
+}
+
+func TestChangeGuideIsParsedLikeWalkthroughs(t *testing.T) {
+	output := `{"purpose":"A tool. It helps. It does more.","architecture":"cmd: entry\ninternal/store: saves","components":[],"walkthroughs":[],` +
+		`"change_guide":[{"title":"Add a subcommand","summary":"Register it on the root command.","steps":[{"text":"Add the command file.","path":"./cmd/new.go","symbol":""},{"text":"","path":"cmd/root.go","symbol":"init"}]},{"title":"","summary":"x","steps":[{"text":"x","path":"a.go","symbol":""}]}],` +
+		`"risks":[],"engineering_insight":null}`
+	parsed, err := parseProjectAnalysisResponse(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []ProjectWalkthrough{{Title: "Add a subcommand", Summary: "Register it on the root command.", Steps: []ProjectWalkthroughStep{{Text: "Add the command file.", Path: "cmd/new.go"}}}}
+	if !reflect.DeepEqual(parsed.ChangeGuide, want) || parsed.Purpose != "A tool. It helps." || parsed.Architecture != "cmd: entry\ninternal/store: saves" {
+		t.Fatalf("parsed = %+v", parsed)
+	}
+	if !strings.Contains(string(projectAnalysisResponseSchema().Schema), `"change_guide"`) {
+		t.Fatal("the schema does not ask for the change guide")
+	}
+}

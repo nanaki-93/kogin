@@ -13,7 +13,7 @@ import (
 	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
-const projectReportFixture = `{"purpose":"Runs a small daemon.","architecture":"main.go holds the whole daemon.","components":[". (Daemon): Handles requests."],"walkthroughs":[{"title":"Run the daemon","summary":"The program prints and exits.","steps":[{"text":"Run prints a line.","path":"./main.go","symbol":"Run"},{"text":"The model named a declaration the file lacks.","path":"main.go","symbol":"Serve"},{"text":"The model named a file the project lacks.","path":"server/http.go","symbol":"Listen"}]},{"title":"Invented","summary":"Only files the project lacks.","steps":[{"text":"Nothing here.","path":"../outside.go","symbol":""}]}],"risks":[{"severity":"low","summary":"Add request coverage.","engineering_insight":null}],"engineering_insight":null}`
+const projectReportFixture = `{"purpose":"Runs a small daemon.","architecture":"main.go holds the whole daemon.","components":[". (Daemon): Handles requests."],"walkthroughs":[{"title":"Run the daemon","summary":"The program prints and exits.","steps":[{"text":"Run prints a line.","path":"./main.go","symbol":"Run"},{"text":"The model named a declaration the file lacks.","path":"main.go","symbol":"Serve"},{"text":"The model named a file the project lacks.","path":"server/http.go","symbol":"Listen"}]},{"title":"Invented","summary":"Only files the project lacks.","steps":[{"text":"Nothing here.","path":"../outside.go","symbol":""}]}],"change_guide":[{"title":"Change the output","summary":"Edit what Run prints.","steps":[{"text":"Change the printed line.","path":"main.go","symbol":"Run"},{"text":"Gone.","path":"server/http.go","symbol":""}]}],"risks":[{"severity":"low","summary":"Add request coverage.","engineering_insight":null}],"engineering_insight":null}`
 
 func TestAnalyzeProjectRequestsSchemaAndChecksWalkthroughsAgainstTheFiles(t *testing.T) {
 	var received llm.ChatRequest
@@ -51,6 +51,10 @@ func TestAnalyzeProjectRequestsSchemaAndChecksWalkthroughsAgainstTheFiles(t *tes
 	}}}
 	if !reflect.DeepEqual(analysis.Report.Walkthroughs, want) {
 		t.Fatalf("walkthroughs = %+v", analysis.Report.Walkthroughs)
+	}
+	guide := []project.ProjectWalkthrough{{Title: "Change the output", Summary: "Edit what Run prints.", Steps: []project.ProjectWalkthroughStep{{Text: "Change the printed line.", Path: "main.go", Symbol: "Run", Line: 5}}}}
+	if !reflect.DeepEqual(analysis.Report.ChangeGuide, guide) {
+		t.Fatalf("change guide = %+v", analysis.Report.ChangeGuide)
 	}
 	format := received.ResponseFormat
 	if format == nil || format.Type != "json_schema" || format.JSONSchema == nil || !format.JSONSchema.Strict || format.JSONSchema.Name == "" {

@@ -5,16 +5,27 @@ import type { ReactNode } from 'react';
 import { ArrowRight, Copy, FileCode2, Sparkles } from 'lucide-react';
 import { useProject } from '@/api/hooks';
 import type { DocsCommand, DocsEntryPoint, ProjectDocs } from '@/api/types';
-import { componentLabel, firstSentence } from '@/lib/docs';
+import { architectureLines, componentLabel, firstSentence } from '@/lib/docs';
 import { navigate } from '@/lib/router';
 import { plural } from '@/lib/util';
 import { Badge, Callout, IconButton } from '@/components/ui';
 import { useFeedback } from '@/components/overlays';
 import { ComponentGraph } from './ComponentGraph';
+import { DocText } from './DocText';
 
-/** Marks text a model wrote, so it is never read as a fact from the code. */
+/** Marks a page whose prose a model wrote, once in its header, so it is never read as a fact from the code. */
 export function ModelWritten({ title = 'Written by the analyze model from the code. Check the code before relying on it.' }: { title?: string }) {
   return <Badge tone="accent" icon={Sparkles} title={title}>AI</Badge>;
+}
+
+/** A docs page's title, with the AI mark when the page shows model-written prose. */
+export function DocTitle({ children, ai, title, mono }: { children: ReactNode; ai?: boolean; title?: string; mono?: boolean }) {
+  return (
+    <div className="row doc-title">
+      <h1 className={mono ? 'mono grow' : 'grow'}>{children}</h1>
+      {ai ? <ModelWritten title={title} /> : null}
+    </div>
+  );
 }
 
 const STATUS_NOTES: Record<string, { title: string; body: string }> = {
@@ -81,13 +92,13 @@ export function OverviewPage({ docs }: { docs: ProjectDocs }) {
     <article className="doc">
       <DocsStatusNote status={docs.status} />
       <header className="doc-head">
-        <h1>{project?.name ?? 'Overview'}</h1>
+        <DocTitle ai={Boolean(overview?.purpose)}>{project?.name ?? 'Overview'}</DocTitle>
         <div className="xs muted">{facts.join(' · ')}</div>
       </header>
       {overview?.purpose ? (
-        <p className="lead">{overview.purpose} <ModelWritten /></p>
+        <p className="lead"><DocText text={overview.purpose} /></p>
       ) : (
-        <p className="muted">What this project is for is written by the analyze model; it has not been written yet.</p>
+        <p className="muted">No overview yet.</p>
       )}
       <div className="start-grid">
         <section className="doc-card" aria-label="Where it starts">
@@ -95,14 +106,12 @@ export function OverviewPage({ docs }: { docs: ProjectDocs }) {
           <EntryPoints entries={(docs.graph?.entry_points ?? []).slice(0, 5)} />
         </section>
         <section className="doc-card" aria-label="How it works">
-          <div className="row"><h2 className="grow">How it works</h2>{walkthroughs.length ? <ModelWritten /> : null}</div>
-          {walkthroughs.length ? (
-            <ol className="plain-list numbered">
-              {walkthroughs.map((walkthrough, index) => (
-                <li key={index}><button type="button" className="link-btn" onClick={() => navigate('/docs/flows', { n: String(index + 1) })}>{walkthrough.title}</button></li>
-              ))}
-            </ol>
-          ) : <p className="small muted">Walkthroughs of the main features come with the next overview.</p>}
+          <h2>How it works</h2>
+          <GuideTitles guides={walkthroughs} to="/docs/flows" empty="Comes with the next overview." />
+        </section>
+        <section className="doc-card" aria-label="Where to change">
+          <h2>Where to change</h2>
+          <GuideTitles guides={docs.change_guide ?? []} to="/docs/changes" empty="Comes with the next overview." />
         </section>
         <section className="doc-card" aria-label="Run it">
           <h2>Run it</h2>
@@ -163,13 +172,27 @@ export function StartPage({ docs }: { docs: ProjectDocs }) {
   );
 }
 
+/** The titles of walkthroughs or change-guide entries, each opening its page. */
+function GuideTitles({ guides, to, empty }: { guides: { title: string }[]; to: string; empty: string }) {
+  if (!guides.length) return <p className="small muted">{empty}</p>;
+  return (
+    <ol className="plain-list numbered">
+      {guides.map((guide, index) => (
+        <li key={index}><button type="button" className="link-btn" onClick={() => navigate(to, { n: String(index + 1) })}>{guide.title}</button></li>
+      ))}
+    </ol>
+  );
+}
+
 export function ArchitecturePage({ docs }: { docs: ProjectDocs }) {
-  const architecture = docs.overview?.architecture;
+  const lines = architectureLines(docs.overview?.architecture);
   return (
     <article className="doc">
       <DocsStatusNote status={docs.status} />
-      <h1>Architecture</h1>
-      {architecture ? <p>{architecture} <ModelWritten /></p> : null}
+      <DocTitle ai={lines.length > 0}>Architecture</DocTitle>
+      {lines.length > 1 ? (
+        <ul className="plain-list bulleted">{lines.map((line, index) => <li key={index}><DocText text={line} /></li>)}</ul>
+      ) : lines.length ? <p><DocText text={lines[0]} /></p> : null}
       <ComponentGraph components={docs.components ?? []} graph={docs.graph} onOpen={component => navigate('/docs/components', { path: component.path })} />
     </article>
   );

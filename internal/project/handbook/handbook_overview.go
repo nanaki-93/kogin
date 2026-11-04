@@ -50,16 +50,16 @@ func codeLanguages(counts map[string]int) []ProjectDocsLanguage {
 	return languages
 }
 
-// currentWalkthroughs are the overview's walkthroughs with only the steps
-// whose files the project still has; a walkthrough left without steps is
-// dropped.
-func currentWalkthroughs(analysis Analysis) []Walkthrough {
-	files := make(map[string]bool, len(analysis.Files))
-	for _, file := range analysis.Files {
+// currentWalkthroughs are the overview's walkthroughs (or change guide)
+// with only the steps whose files the project still has; a walkthrough left
+// without steps is dropped.
+func currentWalkthroughs(projectFiles []string, report []Walkthrough) []Walkthrough {
+	files := make(map[string]bool, len(projectFiles))
+	for _, file := range projectFiles {
 		files[file] = true
 	}
 	walkthroughs := []Walkthrough{}
-	for _, walkthrough := range analysis.Report.Walkthroughs {
+	for _, walkthrough := range report {
 		steps := []WalkthroughStep{}
 		for _, step := range walkthrough.Steps {
 			if files[step.Path] {
