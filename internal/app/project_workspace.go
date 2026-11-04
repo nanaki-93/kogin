@@ -249,14 +249,21 @@ func (s *Service) refreshAISuggestions(analysis *project.Analysis, index *projec
 	reported = append(reported, reports.suggested...)
 	project.AttachSymbols(s.manager.Root(), reported)
 	project.AttachSymbols(s.manager.Root(), reports.ruled)
+	// Code nothing calls is one delete issue per file; what the analysis
+	// says about code inside it is left out.
+	unused := s.unusedCode(index)
+	byPath := unusedByPath(unused)
 	store, err := project.NewFindingStore(s.manager.Root())
 	if err != nil {
 		return err
 	}
-	if _, err := store.ReconcileSource(input, project.FindingSourceAI, reported); err != nil {
+	if _, err := store.ReconcileSource(input, project.FindingSourceAI, withoutUnused(reported, byPath)); err != nil {
 		return err
 	}
-	_, err = store.ReconcileSource(input, project.FindingSourceSecurityRules, reports.ruled)
+	if _, err := store.ReconcileSource(input, project.FindingSourceSecurityRules, withoutUnused(reports.ruled, byPath)); err != nil {
+		return err
+	}
+	_, err = store.ReconcileSource(input, project.FindingSourceUnused, unusedCodeFindings(unused, input.FileHashes))
 	return err
 }
 

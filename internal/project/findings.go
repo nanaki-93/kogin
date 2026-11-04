@@ -33,6 +33,9 @@ const (
 	// FindingSourceSecurityRules marks matches of the deterministic security
 	// rules; they are reported, not suggested.
 	FindingSourceSecurityRules = "security_rules"
+	// FindingSourceUnused marks code nothing calls, found by name from each
+	// program's entry points (internal/project/reach).
+	FindingSourceUnused = "unused"
 
 	// FindingCategoryMaintainability is code to refactor, such as a file over
 	// its line budget or a lint diagnostic. Only rules and lint use it.
@@ -143,7 +146,7 @@ func findingMatchesInput(finding UnifiedFinding, input FindingInput) bool {
 }
 
 func validateFinding(finding UnifiedFinding) error {
-	maintainability := (finding.Source == FindingSourceRules || finding.Source == FindingSourceLint) && finding.Category == FindingCategoryMaintainability
+	maintainability := (finding.Source == FindingSourceRules || finding.Source == FindingSourceLint || finding.Source == FindingSourceUnused) && finding.Category == FindingCategoryMaintainability
 	if finding.Category != FindingCategoryUnclassified && !finding.Category.Valid() && !maintainability {
 		return fmt.Errorf("finding category is invalid")
 	}
@@ -212,7 +215,7 @@ func validPersistedGoTestCandidate(candidate *GoTestCandidateSpec) bool {
 
 func validFindingSource(value string) bool {
 	switch value {
-	case FindingSourceAI, FindingSourceParser, FindingSourceVet, FindingSourceTest, FindingSourceLint, FindingSourceSemgrep, FindingSourceRules, FindingSourceSecurityRules:
+	case FindingSourceAI, FindingSourceParser, FindingSourceVet, FindingSourceTest, FindingSourceLint, FindingSourceSemgrep, FindingSourceRules, FindingSourceSecurityRules, FindingSourceUnused:
 		return true
 	}
 	return false

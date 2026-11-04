@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -105,18 +104,4 @@ func dropIssueStepsRef(ctx context.Context, root string, session *ChangeSession)
 	if len(session.Issues) > 0 {
 		_, _ = gitRead(ctx, root, "update-ref", "-d", issueStepsRef(session))
 	}
-}
-
-// describeIssueCommits names the fixed issues' commits for a message.
-func describeIssueCommits(session *ChangeSession) string {
-	var parts []string
-	seen := map[string]bool{}
-	for _, issue := range session.Issues {
-		// An issue an earlier step fixed shares that step's commit.
-		if issue.Status == IssueFixed && !seen[issue.Commit] {
-			seen[issue.Commit] = true
-			parts = append(parts, fmt.Sprintf("%s (%s)", issueCommitMessage(issue), issue.Commit[:min(len(issue.Commit), 8)]))
-		}
-	}
-	return strings.Join(parts, "; ")
 }

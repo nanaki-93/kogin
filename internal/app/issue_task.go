@@ -173,6 +173,8 @@ func issueCriteria(finding project.UnifiedFinding, file string) []string {
 	switch {
 	case finding.TaskSpec != nil && len(finding.TaskSpec.AcceptanceCriteria) > 0:
 		return append([]string(nil), finding.TaskSpec.AcceptanceCriteria...)
+	case finding.Rule == unusedCodeRule:
+		return unusedCodeCriteria(finding, file)
 	case finding.Category == project.FindingCategoryMaintainability:
 		return []string{
 			fmt.Sprintf("Bring %s within the budgets of its AGENTS.md, splitting it into cohesive sibling files where needed", file),

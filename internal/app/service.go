@@ -70,6 +70,7 @@ type Service struct {
 	resumeWG                        sync.WaitGroup // The passes still running.
 	manager                         *project.Manager
 	projectMaps                     projectMapCache
+	unusedCodes                     unusedCodeCache
 	docsRefreshMu                   sync.Mutex // One docs refresh at a time.
 	docsJob                         docsRefreshJob
 	discoverPiModels                func(context.Context, string) ([]llm.PiModel, error)

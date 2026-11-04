@@ -63,6 +63,7 @@ const SOURCE_LABELS: Record<string, string> = {
   semgrep: 'Semgrep rule',
   security_rules: 'Security rule',
   rules: 'Code budget (AGENTS.md)',
+  unused: 'Unused code',
 };
 
 /** Where a finding comes from; model output is never presented as verified. */

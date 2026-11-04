@@ -34,7 +34,9 @@ func TestChangeWorkflowRerunAfterPinnedTestsAndLargeFunctionScope(t *testing.T) 
 		},
 	})
 	padding := "// " + strings.Repeat("context ", 2400) + "\n"
-	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\n"+padding+"func main() {}\n"), 0644); err != nil {
+	// No main function: the Helper the agents add is the package's API, not
+	// code the unused-code check holds against them.
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\n"+padding+"func padded() {}\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Reindex(); err != nil {

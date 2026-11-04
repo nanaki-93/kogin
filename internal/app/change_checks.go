@@ -174,6 +174,9 @@ func changeSourceChecks(root string, targets []ChangeTarget, edits []ChangeEdit)
 	}
 	gates, budgets := archgate.ChangeArchitectureAndComplexityChecks(root, targets, edits)
 	checks = append(checks, gates...)
+	if unused := unusedCodeCheck(root, targets, edits); unused != nil {
+		checks = append(checks, *unused)
+	}
 	if len(edits) > 0 {
 		checks = append(checks, archgate.CheckChangeSecretAndHygiene(edits))
 	}
