@@ -33,6 +33,9 @@ type ChangeSession struct {
 	LastReviewedChanges []ChangeEdit `json:"last_reviewed_changes,omitempty"`
 	LastReviewedHash    string       `json:"last_reviewed_hash,omitempty"`
 	ReviewDiff          []ChangeEdit `json:"review_diff,omitempty"`
+	// AcceptedBehaviorChanges are the behavior changes the human accepted
+	// with the approved version.
+	AcceptedBehaviorChanges []ReviewItem `json:"accepted_behavior_changes,omitempty"`
 	// Walkthrough explains the proposal file by file for its reviewer.
 	Walkthrough        *ChangeWalkthrough      `json:"walkthrough,omitempty"`
 	SchemaVersion      int                     `json:"schema_version"`

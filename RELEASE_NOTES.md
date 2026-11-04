@@ -39,6 +39,15 @@ are listed here as they land.
   (`security-file-v5`) and Performance (`performance-file-v8`) write those
   lines; issues found before read theirs from what was stored (never from a
   stored insight, which older analyses could lend from another problem).
+- **Unused code is deleted, not fixed.** Before a file is analyzed, Kogin
+  finds the Go functions nothing calls (by name from `main`, `init` and
+  package-level code; a library's exported code is its API). Each file's
+  become one **Delete unused code** issue, and analysis issues inside them are
+  left out. A task may not add a function nothing calls, or leave one without
+  its caller: a required **unused code** check fails it.
+- **Behavior changes are accepted, not slipped in.** Reviewers list what a
+  change alters for users and scripts (flags, exit codes, output, formats,
+  timing); Accept & commit asks you to accept them.
 - **What it fixes, beside the diff:** after the reviewers, the review model
   explains the reviewed version file by file: what each file's change fixes
   and, per hunk, the issue it serves, the wrong behavior it removes and how,

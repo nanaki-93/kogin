@@ -148,7 +148,7 @@ func (s *Service) respondChangeInputLocked(ctx context.Context, root string, ses
 		return nil, project.ErrRevisionConflict
 	}
 	if request.Decision == "approve" {
-		return s.reviewChangeLocked(ctx, root, session, "")
+		return s.reviewChangeLocked(ctx, root, session, "", false)
 	}
 	if request.Decision != "reject" && request.Decision != "cancel" {
 		return nil, fmt.Errorf("decision must be approve, reject or cancel")
@@ -218,9 +218,13 @@ func (s *Service) validateHumanReview(session *ChangeSession) error {
 	return nil
 }
 
-func (s *Service) reviewChangeLocked(ctx context.Context, root string, session *ChangeSession, notes string) (*ChangeSession, error) {
+func (s *Service) reviewChangeLocked(ctx context.Context, root string, session *ChangeSession, notes string, acceptBehavior bool) (*ChangeSession, error) {
 	if err := s.validateHumanReview(session); err != nil {
 		return nil, err
+	}
+	behavior := reviewedBehaviorChanges(session)
+	if len(behavior) > 0 && !acceptBehavior {
+		return nil, ErrBehaviorChangesNotAccepted
 	}
 	if err := verifyChecksWorkspace(ctx, root, session); err != nil {
 		return nil, err
@@ -234,6 +238,7 @@ func (s *Service) reviewChangeLocked(ctx context.Context, root string, session *
 		}
 	}
 	session.ReviewedHash, session.ReviewNotes = session.Hash, notes
+	session.AcceptedBehaviorChanges = slices.Clone(behavior)
 	if session.Workflow != nil {
 		session.Workflow.Stages[3].Status = "completed"
 	}

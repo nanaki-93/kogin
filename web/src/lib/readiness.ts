@@ -2,7 +2,7 @@
 // authority: these helpers only decide which controls are offered, so a stale
 // or incomplete proposal never presents Accept as available.
 
-import type { ChangeComment, ChangeHistoryEntry, ChangeSession, Check, FileChange, LoadedSession, ReviewProgress, WorkflowPhase } from '@/api/types';
+import type { ChangeComment, ChangeHistoryEntry, ChangeSession, Check, FileChange, LoadedSession, ReviewItem, ReviewProgress, WorkflowPhase } from '@/api/types';
 import type { Tone } from './util';
 
 /** waiting: nothing runs until someone acts (your review, or a plan's reset). */
@@ -151,6 +151,13 @@ export function proposalReadiness(session: ChangeSession | null | undefined): Re
  * current version: a finished run, the verdict at this hash, passing checks
  * and no human decision yet. The daemon re-checks every condition.
  */
+/** The behavior changes the reviewers listed for the session's current version; approving it accepts them. */
+export function behaviorChanges(session: ChangeSession | null | undefined): ReviewItem[] {
+  const review = session?.workflow?.review;
+  if (!session || !review || review.proposal_hash !== session.hash) return [];
+  return review.behavior_changes ?? [];
+}
+
 export function canOverrideReview(session: ChangeSession | null | undefined): boolean {
   const workflow = session?.workflow;
   const ready = proposalReadiness(session);

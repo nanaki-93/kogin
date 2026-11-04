@@ -85,6 +85,9 @@ type ChangeWorkflowReview struct {
 	Summary      string       `json:"summary"`
 	Findings     []ReviewItem `json:"findings"`
 	Notes        []ReviewItem `json:"notes,omitempty"`
+	// BehaviorChanges are what a user, a script or a caller can observe
+	// differently after the change; approving the version accepts them.
+	BehaviorChanges []ReviewItem `json:"behavior_changes,omitempty"`
 }
 
 // ChangeWorkflowOverride records a human decision to review a proposal the

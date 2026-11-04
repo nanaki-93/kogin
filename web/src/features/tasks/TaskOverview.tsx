@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Archive, Bot, CircleCheck, CornerDownLeft, FileText, Gavel, Hourglass, ListChecks, MessageSquare, Plus, ShieldAlert, Square, User } from 'lucide-react';
 import type { ChangeWorkflow, LoadedSession } from '@/api/types';
 import { useActions, useBusy, usePendingRevision } from '@/app/actions';
-import { openComments, proposalReadiness, workflowActive } from '@/lib/readiness';
+import { behaviorChanges, openComments, proposalReadiness, workflowActive } from '@/lib/readiness';
 import { activeOverride, issueStepState, pauseTitle, stageStatusLabel, workflowSpecialists, workflowStages, type SpecialistView, type StageView } from '@/lib/workflow';
 import { formatDuration, formatElapsed, plural, timeAgo } from '@/lib/util';
 import { costCaveat, costLabel, formatTokens, usageLabel } from '@/lib/usage';
@@ -222,6 +222,7 @@ function Stage({ stage, specialists, session }: { stage: StageView; specialists:
         {stage.name === 'test' ? <TestDecisions session={session} /> : null}
         {specialists.length ? (
           <div className="reviewers">
+            <BehaviorChanges session={session} />
             {specialists.map(sp => (
               <Reviewer key={sp.id} reviewer={sp} session={session} />
             ))}
@@ -283,6 +284,22 @@ function ScopeGrants({ session }: { session: LoadedSession }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** What a user, a script or a caller sees differently after this version; Accept asks you to accept them. */
+function BehaviorChanges({ session }: { session: LoadedSession }) {
+  const changes = behaviorChanges(session);
+  if (!changes.length) return null;
+  const accepted = session.reviewed_hash === session.hash;
+  return (
+    <div className="behavior-changes" role="group" aria-label="Behavior changes">
+      <div className="row">
+        <span className="strong small">{plural(changes.length, 'behavior change')}</span>
+        <Badge tone={accepted ? 'success' : 'warning'}>{accepted ? 'Accepted' : 'To accept'}</Badge>
+      </div>
+      <ReviewItems items={changes} session={session} advisory />
+    </div>
   );
 }
 

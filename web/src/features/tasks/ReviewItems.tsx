@@ -5,6 +5,7 @@ import type { LoadedSession, ReviewItem } from '@/api/types';
 import { reviewItemPlace, reviewItemRoute } from '@/lib/workflow';
 import { navigate } from '@/lib/router';
 import { cx } from '@/components/ui';
+import { DocText } from '@/features/docs/DocText';
 
 export function ReviewItems({ items, session, advisory, links = true }: { items: ReviewItem[]; session: LoadedSession; advisory?: boolean; links?: boolean }) {
   return (
@@ -23,7 +24,7 @@ function ReviewItemRow({ item, session, links }: { item: ReviewItem; session: Lo
   return (
     <li className="review-item">
       <div className="review-item-head">
-        <span className="review-item-title">{item.title}</span>
+        <span className="review-item-title"><DocText text={item.title} /></span>
         {route ? (
           <button type="button" className="link-btn mono xs review-place" title={`Open ${where}`} onClick={() => navigate(route.path, route.params)}>
             {place}
@@ -35,7 +36,7 @@ function ReviewItemRow({ item, session, links }: { item: ReviewItem; session: Lo
       {item.detail ? (
         <details className="review-item-detail">
           <summary className="xs muted">Why</summary>
-          <p className="small muted">{item.detail}</p>
+          <p className="small muted"><DocText text={item.detail} /></p>
         </details>
       ) : null}
     </li>

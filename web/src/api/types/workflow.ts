@@ -44,6 +44,8 @@ export interface WorkflowReview {
   findings: ReviewItem[];
   /** Advisory suggestions that never decide the verdict. */
   notes?: ReviewItem[];
+  /** What a user, a script or a caller can observe differently; approving the version accepts them. */
+  behavior_changes?: ReviewItem[];
 }
 
 /** A human override of the reviewers' rejection, bound to one proposal hash. */

@@ -6,7 +6,9 @@ import { useState } from 'react';
 import { GitCommitHorizontal } from 'lucide-react';
 import type { LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
-import { proposalReadiness } from '@/lib/readiness';
+import { behaviorChanges, proposalReadiness } from '@/lib/readiness';
+import { plural } from '@/lib/util';
+import { ReviewItems } from './ReviewItems';
 import { Button, Input, Textarea } from '@/components/ui';
 import { Modal } from '@/components/overlays';
 
@@ -26,11 +28,15 @@ export function AcceptTask({ session }: { session: LoadedSession }) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState(() => defaultCommitMessage(session));
   const [notes, setNotes] = useState('');
+  const [acceptChanges, setAcceptChanges] = useState(false);
   const branch = session.worktree?.branch ?? '';
+  // Approving a version accepts what it changes for its users; already approved, there is nothing left to accept.
+  const changes = ready.approved ? [] : behaviorChanges(session);
   const submit = async () => {
-    if (await actions.accept(session, message, ready.approved ? '' : notes)) {
+    if (await actions.accept(session, message, ready.approved ? '' : notes, changes.length > 0 && acceptChanges)) {
       setOpen(false);
       setNotes('');
+      setAcceptChanges(false);
     }
   };
   return (
@@ -48,7 +54,7 @@ export function AcceptTask({ session }: { session: LoadedSession }) {
             <Button variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" form="accept-task" variant="primary" icon={GitCommitHorizontal} disabled={!message.trim() || Boolean(busy)} loading={busy === 'Accepting…'}>
+            <Button type="submit" form="accept-task" variant="primary" icon={GitCommitHorizontal} disabled={!message.trim() || (changes.length > 0 && !acceptChanges) || Boolean(busy)} loading={busy === 'Accepting…'}>
               Accept & commit
             </Button>
           </>
@@ -66,6 +72,16 @@ export function AcceptTask({ session }: { session: LoadedSession }) {
             <span className="field-label">Commit message</span>
             <Input value={message} onChange={e => setMessage(e.target.value)} maxLength={MAX_MESSAGE} aria-label="Commit message" autoFocus />
           </label>
+          {changes.length ? (
+            <div className="field">
+              <span className="field-label">{plural(changes.length, 'behavior change')}</span>
+              <ReviewItems items={changes} session={session} advisory links={false} />
+              <label className="check-label small">
+                <input type="checkbox" checked={acceptChanges} onChange={e => setAcceptChanges(e.target.checked)} />
+                I accept these behavior changes
+              </label>
+            </div>
+          ) : null}
           {ready.approved ? null : (
             <label className="field">
               <span className="field-label">Notes <span className="faint">(optional)</span></span>

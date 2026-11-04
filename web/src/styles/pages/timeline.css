@@ -80,6 +80,17 @@
   margin-top: 8px;
 }
 
+/* What the version changes for its users, accepted with it. */
+.behavior-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warning);
+  border-radius: 8px;
+}
+
 .reviewer {
   border: 1px solid var(--border);
   border-radius: 8px;

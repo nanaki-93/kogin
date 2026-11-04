@@ -2190,6 +2190,7 @@ components:
         - type: object
           properties:
             notes: {type: string, maxLength: 2048, description: Reviewer notes kept with this approval; cleared when the approval is.}
+            accept_behavior_changes: {type: boolean, description: Accepts the behavior changes the current review lists; required to approve a version that has some.}
     Event:
       type: object
       required: [kind]
@@ -2584,6 +2585,7 @@ components:
         summary: {type: string, minLength: 1, maxLength: 4096}
         findings: {type: array, maxItems: 80, description: Blocking issues; approve exactly when empty., items: {$ref: '#/components/schemas/ReviewItem'}}
         notes: {type: array, maxItems: 40, description: Advisory suggestions that never decide the verdict., items: {$ref: '#/components/schemas/ReviewItem'}}
+        behavior_changes: {type: array, maxItems: 40, description: What a user, a script or a caller can observe differently after the change; approving the version accepts them. Never decides the verdict., items: {$ref: '#/components/schemas/ReviewItem'}}
     ReviewItem:
       type: object
       required: [title]
@@ -2756,6 +2758,7 @@ components:
         last_reviewed_changes: {type: array, items: {$ref: '#/components/schemas/ChangeEdit'}}
         review_diff: {type: array, items: {$ref: '#/components/schemas/ChangeEdit'}, description: Differences from the last completely reviewed proposal to the current proposal.}
         walkthrough: {$ref: '#/components/schemas/ChangeWalkthrough'}
+        accepted_behavior_changes: {type: array, items: {$ref: '#/components/schemas/ReviewItem'}, description: The behavior changes accepted with the approval; cleared with it.}
         targets: {type: array, items: {$ref: '#/components/schemas/ChangeTarget'}}
         changes: {type: array, items: {$ref: '#/components/schemas/ChangeEdit'}}
         messages:

@@ -311,13 +311,14 @@ func parseWorkflowReview(output string, session *ChangeSession) (*ChangeWorkflow
 		Summary  string            `json:"summary"`
 		Findings []json.RawMessage `json:"findings"`
 		Notes    []json.RawMessage `json:"notes"`
+		Behavior []json.RawMessage `json:"behavior_changes"`
 	}
 	decoder := json.NewDecoder(strings.NewReader(output))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&wire); err != nil {
 		return nil, err
 	}
-	if decoder.Decode(new(any)) != io.EOF || wire.Findings == nil || len(wire.Findings) > maxSpecialistFindings || len(wire.Notes) > maxSpecialistNotes {
+	if decoder.Decode(new(any)) != io.EOF || wire.Findings == nil || len(wire.Findings) > maxSpecialistFindings || len(wire.Notes) > maxSpecialistNotes || len(wire.Behavior) > maxSpecialistBehavior {
 		return nil, fmt.Errorf("invalid workflow review response")
 	}
 	files := reviewFiles(session)
@@ -332,7 +333,14 @@ func parseWorkflowReview(output string, session *ChangeSession) (*ChangeWorkflow
 	if len(notes) == 0 {
 		notes = nil
 	}
-	review := &ChangeWorkflowReview{Verdict: wire.Verdict, Summary: wire.Summary, Findings: findings, Notes: notes}
+	behavior, err := decodeReviewItems(wire.Behavior, files)
+	if err != nil {
+		return nil, err
+	}
+	if len(behavior) == 0 {
+		behavior = nil
+	}
+	review := &ChangeWorkflowReview{Verdict: wire.Verdict, Summary: wire.Summary, Findings: findings, Notes: notes, BehaviorChanges: behavior}
 	return review, validateWorkflowReview(review)
 }
 
@@ -341,14 +349,14 @@ func validateWorkflowReview(review *ChangeWorkflowReview) error {
 		return fmt.Errorf("invalid workflow review verdict")
 	}
 	limit := len(workflowReviewRoles)
-	if !boundedWorkflowText(review.Summary, 4096) || len(review.Findings) > limit*maxSpecialistFindings || len(review.Notes) > limit*maxSpecialistNotes {
+	if !boundedWorkflowText(review.Summary, 4096) || len(review.Findings) > limit*maxSpecialistFindings || len(review.Notes) > limit*maxSpecialistNotes || len(review.BehaviorChanges) > limit*maxSpecialistBehavior {
 		return fmt.Errorf("invalid workflow review summary")
 	}
 	// Only blocking findings decide the verdict; advisory notes never do.
 	if (review.Verdict == "approve") != (len(review.Findings) == 0) {
 		return fmt.Errorf("workflow verdict and findings disagree")
 	}
-	for _, item := range slices.Concat(review.Findings, review.Notes) {
+	for _, item := range slices.Concat(review.Findings, review.Notes, review.BehaviorChanges) {
 		if !validReviewItem(item) {
 			return fmt.Errorf("invalid workflow review finding")
 		}
@@ -359,6 +367,7 @@ func validateWorkflowReview(review *ChangeWorkflowReview) error {
 const (
 	maxSpecialistFindings = 16
 	maxSpecialistNotes    = 8
+	maxSpecialistBehavior = 8
 	maxOverrideReason     = 1024
 	maxApprovalNotes      = 2048
 )

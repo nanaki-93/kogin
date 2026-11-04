@@ -46,6 +46,26 @@ test('reviews the files, then accepts and commits in one step', async ({ page, d
   await expect(page).toHaveURL(/#\/git/);
 });
 
+test('a version that changes behavior is accepted only with its behavior changes', async ({ page, daemon }) => {
+  const session = daemon.sessions.get('chg-1')!;
+  const change = { title: 'Nested asset paths return 404', path: 'internal/api/handlers/webui.go', line: 42, detail: 'Before: 500. After: 404. The task asked for it.' };
+  daemon.sessions.set('chg-1', { ...session, reviewed_files: session.changes.map(c => c.path), workflow: { ...session.workflow!, review: { ...session.workflow!.review!, behavior_changes: [change] } } });
+  await page.goto('/#/tasks/chg-1');
+  // The review stage lists what the version changes for its users.
+  const listed = page.getByRole('group', { name: 'Behavior changes' });
+  await expect(listed).toContainText('1 behavior change');
+  await expect(listed).toContainText('To accept');
+  await page.getByRole('complementary', { name: 'Review gate' }).getByRole('button', { name: 'Accept & commit' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Accept and commit?' });
+  await expect(dialog).toContainText('Nested asset paths return 404');
+  const confirm = dialog.getByRole('button', { name: 'Accept & commit' });
+  await expect(confirm).toBeDisabled();
+  await dialog.getByLabel('I accept these behavior changes').check();
+  await confirm.click();
+  await expect(page.getByText('Accepted and committed on orca/reject-nested-a1b2c3.')).toBeVisible();
+  expect(daemon.mutations('/review')[0].body).toMatchObject({ hash: 'sha256:9f2c1a7be4', accept_behavior_changes: true });
+});
+
 test('cancelling the Accept confirmation approves and commits nothing', async ({ page, daemon }) => {
   const session = daemon.sessions.get('chg-1')!;
   daemon.sessions.set('chg-1', { ...session, reviewed_files: session.changes.map(change => change.path) });

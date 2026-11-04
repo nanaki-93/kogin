@@ -84,7 +84,7 @@ untrusted networks.
 | POST | `/api/projects/current/analysis/run` | Durably admit the previewed run with fresh provider and Security intent. |
 | GET | `/api/projects/current/analysis/run` | Read progress with `project_id` and `project_revision`; 204 when absent. |
 | POST | `/api/projects/current/analysis/run/control` | Pause, resume or cancel the exact run generation. |
-| GET | `/api/projects/current/findings` | List source-free verified findings and AI suggestions with provenance, filters, and freshness: the semantic, Performance and Security AI stages' suggestions (`ai`, `originating_analysis` `file`, `performance` or `security`), security rule matches (`security_rules`), and what each analysis run's checks report: parser diagnostics (`parser`), lint diagnostics (`lint`), failing tests (`test`), the project's semgrep rules (`semgrep`) and files over their code budgets (`rules`). `vet` marks go vet failures of the retired Go scan; lint closes them. `location` has the path, lines and `symbol`, the function around the first line when the file still has the content the finding was made from. `status` is `in_progress` while a live task links the finding (a draft, or a task applied in its own worktree and not merged yet) and `open` again once no task does; merging marks it `fixed`. AI suggestions from different passes about the same issue in one file (their words overlap) are one finding, the most severe, with the others in `also_reported` (`analysis`, `title`, `severity`, `line`); one with a triage of its own is never merged away. A new suggestion that repeats a dismissed one of the same file (dismissed by the user or by a task that found it does not hold) is recorded `dismissed`, with that one in `seen_before` (`id`, `title`), and can be reopened; a dismissed finding a later report leaves out stays dismissed instead of retiring. `test` marks a finding in a test file. |
+| GET | `/api/projects/current/findings` | List source-free verified findings and AI suggestions with provenance, filters, and freshness: the semantic, Performance and Security AI stages' suggestions (`ai`, `originating_analysis` `file`, `performance` or `security`), security rule matches (`security_rules`), and what each analysis run's checks report: parser diagnostics (`parser`), lint diagnostics (`lint`), failing tests (`test`), the project's semgrep rules (`semgrep`), files over their code budgets (`rules`) and code nothing calls (`unused`: one finding per file, rule `unused-code`, category `maintainability`, whose fix is to delete it; AI and security-rule findings inside those functions are left out). `vet` marks go vet failures of the retired Go scan; lint closes them. `location` has the path, lines and `symbol`, the function around the first line when the file still has the content the finding was made from. `status` is `in_progress` while a live task links the finding (a draft, or a task applied in its own worktree and not merged yet) and `open` again once no task does; merging marks it `fixed`. AI suggestions from different passes about the same issue in one file (their words overlap) are one finding, the most severe, with the others in `also_reported` (`analysis`, `title`, `severity`, `line`); one with a triage of its own is never merged away. A new suggestion that repeats a dismissed one of the same file (dismissed by the user or by a task that found it does not hold) is recorded `dismissed`, with that one in `seen_before` (`id`, `title`), and can be reopened; a dismissed finding a later report leaves out stays dismissed instead of retiring. `test` marks a finding in a test file. |
 | GET | `/api/projects/current/rules` | Test file patterns (conventions plus AGENTS.md `test_files`), the indexed AGENTS.md files and any rules block that could not be read. |
 | PATCH | `/api/projects/current/findings/{findingID}` | Record an explicit user triage status for one finding. |
 | GET | `/api/projects/current/findings/{findingID}/task` | Draft the task that fixes one issue for the composer: kind, title, description, the file and its conventional test in any language, criteria and the linked finding. Nothing is saved. |
@@ -173,8 +173,18 @@ Analysis is always user-started. Each run ends its files with the project checks
 (see the analysis run's `checks`), which run in a bounded temporary copy of the
 project; a copy that fails is reported as unavailable checks with sanitized evidence.
 Findings keep source (`ai`, `parser`, `lint`, `test`, `semgrep`, `rules`,
-`security_rules`), confidence, severity, status and freshness separate so a model
+`security_rules`, `unused`), confidence, severity, status and freshness separate so a model
 suggestion is never presented as a verified tool result.
+
+Code nothing calls is found by name from each Go program's entry points
+(`main` of a main package, every `init`, package-level declarations and
+`//export`/`//go:linkname` directives) before a file's analysis, which is told
+which of its functions are unused. A module without a `main` function is a
+library: its exported functions are its API; exported methods always count as
+called. A main package without `main` reports nothing. Proposals with Go
+changes get a required `unused code` check: it fails each function the change
+adds without a caller, or leaves without one; code unused before the change is
+its own issue.
 
 Shared proposals support captured Go and Markdown files. Go changes require
 parse and format checks; other languages retain import extraction
@@ -867,6 +877,15 @@ approval. Empty fields preserve existing plan hashes.
 
 Legacy API conversations and schema-1 history without `plan` retain their direct
 message flow. Planned sessions reject generation without current approval.
+
+Every reviewer also lists `behavior_changes` (at most 8 each, `ReviewItem`s):
+what a user, a script or a caller can observe differently after the change
+(commands, flags, exit codes, output and error text, formats, defaults, timing,
+API responses), with before and after and whether the task asked for it. They
+never block approval and are merged across reviewers. `POST …/review` on a
+version whose current review lists behavior changes needs
+`accept_behavior_changes: true` (else it is refused and nothing is approved);
+the approval stores them as `accepted_behavior_changes`, cleared with it.
 
 `POST /api/projects/current/changes/{sessionID}/review-file` accepts `ChangeIdentity`
 and a changed `path`. It records `reviewed_files` and `file_review_hash` without

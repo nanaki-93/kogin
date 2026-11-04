@@ -116,7 +116,7 @@ export function reviewActions(context: ActionContext) {
    * unless it is already approved, then commits it on the task branch in its
    * own worktree. The caller confirms first.
    */
-  async function accept(session: LoadedSession, message: string, notes = ''): Promise<boolean> {
+  async function accept(session: LoadedSession, message: string, notes = '', acceptBehaviorChanges = false): Promise<boolean> {
     const ready = proposalReadiness(session);
     if (!ready.canAccept || !session.worktree) return false;
     const branch = session.worktree.branch;
@@ -129,7 +129,7 @@ export function reviewActions(context: ActionContext) {
       let current = session;
       try {
         if (!ready.approved) {
-          const body = notes.trim() ? { ...changeIdentity(session), notes: notes.trim() } : changeIdentity(session);
+          const body = { ...changeIdentity(session), ...(notes.trim() ? { notes: notes.trim() } : {}), ...(acceptBehaviorChanges ? { accept_behavior_changes: true } : {}) };
           const approved = await api.post<ChangeSession>(changePath(session, '/review'), body);
           setSession(approved, session);
           current = { ...approved, checkout: session.checkout };

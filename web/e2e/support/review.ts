@@ -9,9 +9,11 @@ import * as data from './fixtures';
 export function approveSession(s: ChangeSession, body: Record<string, unknown>): ChangeSession {
   const workflow = s.workflow;
   if (workflow && workflow.status !== 'awaiting_human_review') throw new Error('The workflow has not reached human review.');
+  const changes = workflow?.review?.proposal_hash === s.hash ? (workflow.review.behavior_changes ?? []) : [];
+  if (changes.length && body.accept_behavior_changes !== true) throw new Error('this version changes behavior; accept its behavior changes to approve it');
   const notes = typeof body.notes === 'string' ? body.notes : '';
   const input = workflow?.input?.status === 'waiting' ? { ...workflow.input, status: 'approved' } : workflow?.input;
-  return { ...s, reviewed_hash: s.hash, review_notes: notes || undefined, workflow: workflow && { ...workflow, input } };
+  return { ...s, reviewed_hash: s.hash, review_notes: notes || undefined, accepted_behavior_changes: changes.length ? changes : undefined, workflow: workflow && { ...workflow, input } };
 }
 
 /** Only the reviewers' rejection of this exact hash can be overridden, with a reason. */

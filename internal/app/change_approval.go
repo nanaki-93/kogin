@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -14,6 +15,9 @@ import (
 type ChangeReviewRequest struct {
 	ChangeIdentity
 	Notes string `json:"notes,omitempty"`
+	// AcceptBehaviorChanges accepts the behavior changes the reviewers
+	// listed for this version; approving a version that has some needs it.
+	AcceptBehaviorChanges bool `json:"accept_behavior_changes,omitempty"`
 }
 
 // ChangeReviewOverride asks to review a proposal the model reviewers rejected.
@@ -26,7 +30,7 @@ type ChangeReviewOverride struct {
 // revokeApproval clears the human approval together with its notes; both bind
 // the hash they were given for.
 func revokeApproval(session *ChangeSession) {
-	session.ReviewedHash, session.ReviewNotes = "", ""
+	session.ReviewedHash, session.ReviewNotes, session.AcceptedBehaviorChanges = "", "", nil
 }
 
 func (s *Service) ReviewChange(ctx context.Context, id string, request ChangeReviewRequest) (*ChangeSession, error) {
@@ -40,7 +44,20 @@ func (s *Service) ReviewChange(ctx context.Context, id string, request ChangeRev
 	if err != nil {
 		return nil, err
 	}
-	return s.reviewChangeLocked(ctx, root, session, notes)
+	return s.reviewChangeLocked(ctx, root, session, notes, request.AcceptBehaviorChanges)
+}
+
+// ErrBehaviorChangesNotAccepted refuses an approval that does not accept the
+// version's behavior changes.
+var ErrBehaviorChangesNotAccepted = errors.New("this version changes behavior; accept its behavior changes to approve it")
+
+// reviewedBehaviorChanges are the behavior changes the reviewers listed for
+// the session's current version.
+func reviewedBehaviorChanges(session *ChangeSession) []ReviewItem {
+	if session.Workflow == nil || session.Workflow.Review == nil || session.Workflow.Review.ProposalHash != session.Hash {
+		return nil
+	}
+	return session.Workflow.Review.BehaviorChanges
 }
 
 // OverrideChangeReview lets the human take the last word on a model review: a

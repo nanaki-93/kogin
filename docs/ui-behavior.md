@@ -161,6 +161,11 @@ every guard when the action arrives.
 - **View files.** Each changed file is marked viewed at the current proposal
   hash (`v` marks it and moves to the next unviewed file). "Since last review"
   shows only what changed since the last complete review.
+- **Behavior changes.** When the reviewers list what the version changes for
+  its users (flags, exit codes, output, formats, timing…), the review stage
+  shows them ("N behavior changes", To accept / Accepted), and **Accept &
+  commit** lists them with "I accept these behavior changes", which must be
+  ticked before it commits.
 - **What it fixes.** Beside the diff (below it on a narrow window), the
   review model's walkthrough of the file: one line on what its change fixes,
   then a note per hunk with the issue it serves ("Issue 2 · …", or the
@@ -356,7 +361,10 @@ every guard when the action arrives.
   whole project: saved results show as done from the moment it starts, only the
   retried stages run, canceling it leaves the saved results done, and the
   confirmation says how many files are retried and kept.
-- **Issues.** Dismiss and reopen are local triage. **Fix with agents** opens the
+- **Issues.** Dismiss and reopen are local triage. Code nothing calls is one
+  "Delete unused code in <file>" issue per file (source "Unused code"); its
+  task deletes the functions and the tests that only call them, and issues the
+  analysis found inside them are not listed. **Fix with agents** opens the
   composer with the task the daemon drafts from the finding (its file, that
   file's conventional test in its language, the kind and “done when” criteria);
   nothing starts until the user does. An issue without a file, such as a

@@ -2,7 +2,7 @@
 
 import type { FindingTarget, FollowUp, ScopeGrant, TaskIssue } from './issues';
 import type { GitIdentity, ProjectIdentity } from './project';
-import type { ChangeWorkflow } from './workflow';
+import type { ChangeWorkflow, ReviewItem } from './workflow';
 
 export type CheckState = 'passed' | 'failed' | 'running' | 'skipped' | 'unavailable' | 'canceled' | 'pending' | string;
 
@@ -118,6 +118,8 @@ export interface ChangeSession extends ProjectIdentity {
   checks: Check[];
   reviewed_hash?: string;
   review_notes?: string;
+  /** The behavior changes the human accepted with the approved version. */
+  accepted_behavior_changes?: ReviewItem[];
   comments?: ChangeComment[];
   /** Why the proposal is stale: the scope file that changed. */
   stale_reason?: string;
