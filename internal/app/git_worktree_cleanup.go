@@ -40,6 +40,7 @@ func (s *Service) removeGitWorktree(ctx context.Context, root string, source *Gi
 			return err
 		}
 	}
+	recordWorktreeOutcome(source.Path, removal)
 	// Private task history can be untracked even though the checkout is clean.
 	// Ignore only that metadata so Git still refuses other uncommitted files.
 	// A checkout made before the rename to Kogin may still hold .kasuri/ or

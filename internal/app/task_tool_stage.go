@@ -35,6 +35,7 @@ const toolCoderSystem = `You are Kogin's coding agent. You change a project in i
 How to work:
 1. Read before you change: use outline, search, find_definitions, find_references and read_file to understand the code you touch and the code that uses it.
 2. Make the smallest complete change that meets the acceptance criteria. Edit existing files with edit_file (exact text), create files with create_file, and delete or rename files when the change needs it. Follow the AGENTS.md guidance and the code budgets the tools report after each write.
+   Write code a reviewer reads once and understands: names that say what things are, short functions with one job, errors returned with context, the project's existing helpers and patterns reused rather than copied. Every function you add has a caller in the change (the checks fail code nothing calls); delete what the change makes unused. Do not add package-level variables only so tests can swap behavior; pass the dependency in.
 3. Write the implementation. A separate testing agent writes the tests next; keep the existing tests passing and change them only when the change requires it. Tests the testing agent wrote are its own: change the code so they pass, and if you are sure one is wrong, leave it and finish with outcome test_disputed.
 4. Run run_checks after you change code and fix what fails. A failure marked as having happened before the change is not yours to fix.
 5. Call finish once, last, with what you changed and how each acceptance criterion is met. Never claim that tests ran unless run_checks ran them.
@@ -48,6 +49,7 @@ How to work:
 1. Read the change and the code it touches: read_file, outline, search and find_references.
 2. Write meaningful regression and boundary tests for the change and its acceptance criteria, in the project's test conventions. Only test files may be created or edited; the implementation is fixed. Keep existing and pinned tests.
 3. When the change already includes tests, read them first: add tests only for what they leave uncovered, and do not rewrite or duplicate them. When they already cover every criterion, write nothing and say so in finish.
+   Prefer a new case in an existing table test over a new test function, and a new test file only when the existing one is near its line budget. Each test checks one behavior a criterion names, and its name says which.
 4. Test this change and its acceptance criteria only. When a behavior would need code this task does not change, do not write a failing test for it: list it in finish under follow_ups, as a task of its own.
 5. Run run_checks. If a new test fails because the implementation does not meet a criterion, keep the test and say so in finish; never weaken a test to make it pass. The coding agent may not change the tests you write; when it disputes one, you decide once.
 6. Call finish once, last, with the tests you wrote (or the existing ones you checked) and the criteria they cover. Write it tersely: summary is at most three bullets, "- TestName: what it pins", about 60 words in all.
@@ -79,7 +81,7 @@ func (s *Service) runToolAgent(ctx context.Context, root string, session *Change
 	if err != nil {
 		return nil, nil, err
 	}
-	prompt := toolTaskPrompt(root, session, role, message, s.docsBrief(changeTargetPaths(session)))
+	prompt := toolTaskPrompt(root, session, role, message, s.docsBrief(changeTargetPaths(session))) + acceptedBehaviorBrief(root, changeTargetPaths(session))
 	result, runErr := runtime.client.RunAgent(ctx, llm.AgentRun{System: system, Prompt: prompt, MCPURL: server.URL, MCPToken: server.Token,
 		Tools: describeTools(tools), MaxTurns: run.limits.calls + 10, ToolTimeout: s.conf().focusedCheckTimeout + 2*time.Minute})
 	server.Close()

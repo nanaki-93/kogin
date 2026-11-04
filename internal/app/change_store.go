@@ -179,7 +179,11 @@ func storeChangeSession(root string, session *ChangeSession) error {
 	if err := storeChangeArtifacts(root, session); err != nil {
 		return err
 	}
-	return storage.WriteFile(path, data, 0600)
+	if err := storage.WriteFile(path, data, 0600); err != nil {
+		return err
+	}
+	recordHistory(root, session)
+	return nil
 }
 
 func storeChangeArtifacts(root string, session *ChangeSession) error {

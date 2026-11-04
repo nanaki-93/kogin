@@ -93,6 +93,7 @@ untrusted networks.
 | GET | `/api/projects/current/quarantine` | List records set aside because they were unreadable, and records skipped because a newer Kogin wrote them, with the remedy. |
 | POST | `/api/projects/current/quarantine/delete` | Delete a set-aside file (`quarantined_as` as listed, with the project identity) and its record; answers with the records left. 404 when the file is not listed as set aside. |
 | GET | `/api/projects/current/usage` | Total agent model calls, tokens and estimated cost per task in the checkout, plus work not tied to a task. |
+| GET | `/api/projects/current/history/failures` | How the project's agent runs failed in the last `days` (7 by default, at most 365), by stage and failure category, from the task history. |
 | GET | `/api/projects/current/setup` | The project's configuration as setup edits it: `state` (`needed`, `skipped`, `configured`, `invalid`), the project and daemon files, models (secrets as `api_key_set`), roles and budget. |
 | POST | `/api/projects/current/setup` | Write the project's `.kogin/config.yaml` and apply it live; 409 while work runs. |
 | POST | `/api/projects/current/setup/timeouts` | Save only the project's time limits and apply them at once. |
@@ -950,6 +951,24 @@ Local `.kogin/changes/` history intentionally contains source, proposed contents
 and conversations in private files; it is excluded from prompt context and Git
 source indexing. Limits are eight paths, 256 KiB prompt/response content, forty
 messages, 2 MiB per conversation and two hundred conversations.
+
+The task history (`.kogin/kogin.db`, SQLite, schema in `PRAGMA user_version`,
+private to the user) outlives tasks and their worktrees: a task in its own
+worktree writes it in the main checkout's `.kogin/`. Every store of a task
+writes the task and its latest run: the run's status, its stages (times,
+model and provider, model and tool calls, tokens), each issue step's outcome,
+every reviewer's findings, notes and behavior changes, and the checks. Failed,
+paused and rejected runs and stages carry a fixed `failure` category
+(`plan_limit`, `timeout`, `context_limit`, `call_budget`, `no_finish`,
+`invalid_response`, `checks_failed`, `review_rejected`, `main_changed`,
+`provider`, `canceled`, `other`). A task's `outcome` is `accepted` (with its
+commit), `merged`, `deleted`, `closed` or `discarded`. Writes are best effort
+and never fail a task; an unreadable file is set aside as
+`kogin.unreadable-<time>.db` and started again; one a newer Kogin wrote is
+left alone. Behavior changes of accepted or merged tasks, those in the same
+directories first (at most 8), are given to the next tasks' agents and
+reviewers so they reuse those names. `GET …/history/failures` counts the
+failures; the rest is read with `sqlite3`.
 A stage prompt carries a file the current proposal changes once, as its
 proposed content, and at most 48 KiB of the conversation: the task as first
 asked (up to 16 KiB) and the newest messages that fit (up to 8 KiB each), with a

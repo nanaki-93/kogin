@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/nanaki-93/kogin/v2/internal/api"
 	"github.com/nanaki-93/kogin/v2/internal/app"
@@ -259,4 +260,23 @@ func (h *ChangeHandler) Walkthrough(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.WriteJSON(w, http.StatusOK, value)
+}
+
+// Failures counts how the project's agent runs failed in the last days
+// (?days=, 7 by default), by stage and category.
+func (h *ChangeHandler) Failures(w http.ResponseWriter, r *http.Request) {
+	if !guardedWorkflowRead(w, r, h.manager) {
+		return
+	}
+	days := 7
+	if raw := r.URL.Query().Get("days"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			api.WriteError(w, http.StatusBadRequest, "days must be a whole number")
+			return
+		}
+		days = parsed
+	}
+	value, err := h.service.TaskFailures(r.Context(), days)
+	respondWorkflow(w, value, err)
 }

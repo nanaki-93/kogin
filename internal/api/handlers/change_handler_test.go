@@ -295,3 +295,25 @@ func TestChangeHTTPKeepsTheIssuesATaskFixesOneAtATime(t *testing.T) {
 		}
 	}
 }
+
+func TestFailuresCountTheHistoryAndRefuseABadRange(t *testing.T) {
+	h := newChangeHandlerFixture(t, "http://127.0.0.1:1")
+	index, err := h.manager.Index()
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := "?project_id=" + index.ProjectID + "&project_revision=" + index.ProjectRevision
+	for _, test := range []struct {
+		query string
+		code  int
+	}{{"", http.StatusOK}, {"&days=30", http.StatusOK}, {"&days=0", http.StatusBadRequest}, {"&days=x", http.StatusBadRequest}} {
+		response := httptest.NewRecorder()
+		h.Failures(response, httptest.NewRequest("GET", "/api/projects/current/history/failures"+identity+test.query, nil))
+		if response.Code != test.code {
+			t.Fatalf("%q: %d %s", test.query, response.Code, response.Body.String())
+		}
+		if test.code == http.StatusOK && !strings.Contains(response.Body.String(), `"failures":[]`) {
+			t.Fatalf("%q: %s", test.query, response.Body.String())
+		}
+	}
+}

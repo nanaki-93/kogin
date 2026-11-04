@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/nanaki-93/kogin/v2/internal/app/history"
 	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
@@ -44,6 +45,7 @@ func (s *Service) CloseChange(ctx context.Context, id string, request ChangeIden
 	if err := s.removeChangeLocked(root, session); err != nil {
 		return nil, err
 	}
+	recordOutcome(root, session, history.OutcomeClosed)
 	s.notifyEvent("findings")
 	s.scheduleResume()
 	return &ChangeClosed{Deleted: session.ID, DismissedIssues: len(session.DismissedTargets)}, nil

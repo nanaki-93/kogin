@@ -145,7 +145,7 @@ func (s *Service) reviewWorkflowProposal(ctx context.Context, job *changeWorkflo
 	if err != nil {
 		return err
 	}
-	request := "Review the complete checked proposal against the task, captured source and acceptance criteria:\n" + changeCheckEvidence(session.Checks) + leftOutBrief(session) +
+	request := "Review the complete checked proposal against the task, captured source and acceptance criteria:\n" + changeCheckEvidence(session.Checks) + leftOutBrief(session) + acceptedBehaviorBrief(job.root, changeTargetPaths(session)) +
 		"\n\nThe proposal as a diff against the files before the task:\n" + proposalDiffText(session.Changes, maxReviewDiffBytes)
 	messages, err := changeMessages(session, request, text)
 	if err != nil {
@@ -248,7 +248,7 @@ func specialistReviewInstruction(role string) string {
 
 // behaviorChangeInstruction asks every reviewer for the change's observable
 // behavior changes, which the human accepts with the version.
-const behaviorChangeInstruction = "Also list in behavior_changes (at most 8) every change a user, a script or a caller of this code can observe: commands, flags and arguments, exit codes, output and error text, prompts, file and config formats, defaults, timing or blocking, API requests and responses. Each item: title names the change in a few words ('`get` refuses to print to a pipe'), path and quote where it is made, detail says before and after, and whether the task asked for it. A refactor that changes nothing observable is not a behavior change. Behavior changes never block approval; leave the array out when there are none. "
+const behaviorChangeInstruction = "Also list in behavior_changes (at most 8) every change a user, a script or a caller of this code can observe: commands, flags and arguments, exit codes, output and error text, prompts, file and config formats, defaults, timing or blocking, API requests and responses. Each item: title names the change in a few words ('`get` refuses to print to a pipe'), path and quote where it is made, detail says before and after, and whether the task asked for it. A refactor that changes nothing observable is not a behavior change. Behavior changes never block approval; leave the array out when there are none. A name the change gives to something an accepted behavior change listed in the request already names differently is a finding. "
 
 func aggregateSpecialistReviews(reports []ChangeSpecialistReview, hash string) *ChangeWorkflowReview {
 	review := &ChangeWorkflowReview{ProposalHash: hash, Verdict: "approve", Findings: []ReviewItem{}}

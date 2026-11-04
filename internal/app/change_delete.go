@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/nanaki-93/kogin/v2/internal/app/history"
 	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
@@ -65,6 +66,7 @@ func (s *Service) removeChangeLocked(root string, session *ChangeSession) error 
 		dropIssueStepsRef(context.Background(), root, session)
 	}
 	delete(s.changeAuthority, session.ProjectID+"/"+session.ID)
+	recordOutcome(root, session, history.OutcomeDeleted)
 	s.publishEvent(Event{Kind: "workflow", SessionID: session.ID, Title: session.Title, Status: "deleted"})
 	return nil
 }

@@ -48,6 +48,13 @@ are listed here as they land.
 - **Behavior changes are accepted, not slipped in.** Reviewers list what a
   change alters for users and scripts (flags, exit codes, output, formats,
   timing); Accept & commit asks you to accept them.
+- **Task history in `.kogin/kogin.db`.** Every run, stage, issue step,
+  review item, check and task outcome is kept in a per-project SQLite file
+  after the worktree is gone, with each failure in a fixed category
+  (`timeout`, `plan_limit`, `checks_failed`, `review_rejected`, …), so where
+  agents fail can be counted. Behavior changes accepted in earlier tasks are
+  given to the next tasks' agents and reviewers, so a second name for the
+  same flag is caught.
 - **What it fixes, beside the diff:** after the reviewers, the review model
   explains the reviewed version file by file: what each file's change fixes
   and, per hunk, the issue it serves, the wrong behavior it removes and how,
