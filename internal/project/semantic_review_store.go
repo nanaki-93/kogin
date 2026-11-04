@@ -48,6 +48,11 @@ type Finding struct {
 	Severity string          `json:"severity"`
 	Title    string          `json:"title,omitempty"`
 	Summary  string          `json:"summary"`
+	// Impact, Fix and Verify complete the issue's brief: what the problem
+	// costs, the change that fixes it and how to see it fixed.
+	Impact string `json:"impact,omitempty"`
+	Fix    string `json:"fix,omitempty"`
+	Verify string `json:"verify,omitempty"`
 	// StartLine and EndLine are where the risk is, found from the line the
 	// model copied; zero when it copied none that is in the file.
 	StartLine          int                 `json:"start_line,omitempty"`

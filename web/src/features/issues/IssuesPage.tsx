@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { usePageKeys } from '@/app/shortcuts';
 import { CircleAlert, ExternalLink, ListTodo, Search, Wrench, XCircle, RotateCcw } from 'lucide-react';
 import { useFindings, useIndex, useProject, useTasks } from '@/api/hooks';
-import type { Finding, TaskEntry } from '@/api/types';
+import type { Finding, FindingBrief, TaskEntry } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
 import { navigate, setParam, useRoute } from '@/lib/router';
@@ -16,6 +16,7 @@ import { taskFixingIssue } from '@/lib/workflow';
 import { Badge, Button, Callout, EmptyState, Input, Segmented, Skeleton, cx } from '@/components/ui';
 import { SeverityBadge, isInProgressFinding, isOpenFinding, isTestNitpick, isUnresolvedFinding, sourceLabel } from '@/components/domain';
 import { openTask } from '@/features/tasks/TaskListPage';
+import { DocText } from '@/features/docs/DocText';
 
 type StatusFilter = 'open' | 'in_progress' | 'dismissed' | 'all';
 type View = 'file' | 'list';
@@ -201,30 +202,49 @@ function FileGroupHead({ group, onFix }: { group: FileIssues; onFix: (open: Find
 }
 
 // The labels the analysis stages give the parts of an issue's evidence.
-const EVIDENCE_LABELS = ['Preconditions', 'Remediation', 'How to verify', 'Reference', 'Workload', 'Recommendation', 'Tradeoff'];
+const EVIDENCE_LABELS = ['Impact', 'Fix', 'Preconditions', 'Remediation', 'How to verify', 'Reference', 'Workload', 'Recommendation', 'Tradeoff'];
 const EVIDENCE_LINE = new RegExp(`^(${EVIDENCE_LABELS.join('|')}): (.*)$`);
 
-/** Labeled evidence reads as short sections; anything else (tool output) stays preformatted. */
-function Evidence({ text }: { text: string }) {
-  const lines = text.split('\n').filter(line => line.trim());
-  const parts = lines.map(line => line.match(EVIDENCE_LINE));
-  if (!parts.every(Boolean)) {
-    return (
-      <div>
-        <div className="label-row">Evidence</div>
-        <pre className="output">{text}</pre>
-      </div>
-    );
-  }
+const BRIEF_ROWS: [keyof FindingBrief, string][] = [['problem', 'Problem'], ['impact', 'Impact'], ['fix', 'Fix'], ['verify', 'Verify']];
+
+/** The issue in four short lines. */
+function Brief({ brief }: { brief: FindingBrief }) {
   return (
-    <dl className="evidence">
-      {parts.map((match, i) => (
-        <div key={i}>
-          <dt className="label-row">{match![1] === 'Remediation' ? 'Fix' : match![1]}</dt>
-          <dd className="small">{match![2]}</dd>
+    <dl className="issue-brief">
+      {BRIEF_ROWS.filter(([key]) => brief[key]).map(([key, label]) => (
+        <div key={key}>
+          <dt>{label}</dt>
+          <dd><DocText text={brief[key] ?? ''} /></dd>
         </div>
       ))}
     </dl>
+  );
+}
+
+/** The analysis' own words, when they say more than the brief: folded away. */
+function FullAnalysis({ finding }: { finding: Finding }) {
+  const lines = (finding.evidence ?? '').split('\n').filter(line => line.trim());
+  const labeled = lines.length > 0 && lines.every(line => EVIDENCE_LINE.test(line));
+  if (finding.evidence && !labeled) {
+    return (
+      <div>
+        <div className="label-row">Output</div>
+        <pre className="output">{finding.evidence}</pre>
+      </div>
+    );
+  }
+  const brief = finding.brief;
+  const more = !brief || finding.message.trim() !== brief.problem.trim() || lines.length > 0;
+  if (!more) return null;
+  return (
+    <details className="issue-more">
+      <summary className="xs muted">Full analysis</summary>
+      <p className="small">{finding.message}</p>
+      {lines.map((line, i) => {
+        const match = line.match(EVIDENCE_LINE)!;
+        return <p key={i} className="small"><span className="strong">{match[1]}:</span> {match[2]}</p>;
+      })}
+    </details>
   );
 }
 
@@ -262,7 +282,7 @@ function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => vo
         </button>
       ) : null}
       {finding.location?.symbol ? <div className="mono xs faint">in {finding.location.symbol}</div> : null}
-      <p className="prose small">{finding.message}</p>
+      {finding.brief ? <Brief brief={finding.brief} /> : <p className="prose small">{finding.message}</p>}
       {finding.seen_before ? (
         <Callout tone="neutral" icon={RotateCcw} title="Dismissed before">
           This repeats “{finding.seen_before.title}”, which was dismissed, so it was dismissed too. Reopen it if it is a different issue.
@@ -296,7 +316,7 @@ function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => vo
           It is marked fixed when the task is merged, and returns to the open issues if the task is deleted or its worktree discarded.
         </Callout>
       ) : null}
-      {finding.evidence ? <Evidence text={finding.evidence} /> : null}
+      <FullAnalysis finding={finding} />
       {finding.task_spec?.acceptance_criteria?.length ? (
         <div>
           <div className="label-row">A fix is done when</div>

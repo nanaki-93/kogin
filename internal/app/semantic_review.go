@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	semanticAnalysisPromptVersion = "file-analysis-v18"
+	semanticAnalysisPromptVersion = "file-analysis-v19"
 	maxSemanticAnalysisBytes      = 64 * 1024
 	fileAnalysisInsightFieldCount = 4
 	fileAnalysisInsightMaxChars   = 250

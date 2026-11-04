@@ -91,6 +91,8 @@ type UnifiedFinding struct {
 	SeenBefore *FindingRef `json:"seen_before,omitempty"`
 	// Test is set on listing when the finding is in a test file.
 	Test bool `json:"test,omitempty"`
+	// Brief is set on listing: the issue in four short lines (see BriefOf).
+	Brief *FindingBrief `json:"brief,omitempty"`
 }
 
 // FindingInput is the active deterministic state used to assess freshness.

@@ -67,6 +67,16 @@ export interface Finding {
   seen_before?: { id: string; title: string };
   /** In a test file. */
   test?: boolean;
+  /** The issue in four short lines, read from its message and evidence. */
+  brief?: FindingBrief;
+}
+
+/** What is wrong, what it costs, the fix and how to see it fixed. */
+export interface FindingBrief {
+  problem: string;
+  impact?: string;
+  fix?: string;
+  verify?: string;
 }
 
 /** Another analysis pass's report of an issue. */

@@ -368,7 +368,7 @@ export class FakeDaemon {
     return {
       kind: finding.category === 'security' ? 'security' : finding.category === 'performance' ? 'performance' : 'fix',
       title: refactor ? finding.title : `Fix: ${finding.title}`,
-      description: `${finding.message}${finding.evidence ? `\n\nEvidence:\n${finding.evidence}` : ''}${file ? `\n\nLocation: ${file}${finding.location?.start_line ? `:${finding.location.start_line}` : ''}` : ''}`,
+      description: `Problem: ${finding.brief?.problem ?? finding.message}${finding.brief?.fix ? `\nFix: ${finding.brief.fix}` : ''}${file ? `\nWhere: ${file}${finding.location?.start_line ? `:${finding.location.start_line}` : ''}` : ''}`,
       paths,
       acceptance_criteria: finding.task_spec?.acceptance_criteria?.length
         ? finding.task_spec.acceptance_criteria

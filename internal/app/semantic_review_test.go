@@ -85,7 +85,7 @@ func TestSemanticStageRefreshClassifiesLegacyCacheWithoutPassiveModelCalls(t *te
 		}
 	}
 	stage, err := semanticStageFor(t, service, "main.go", true)
-	if fresh := stage.Semantic; err != nil || fresh == nil || fresh.Status != project.AnalysisStatusFresh || fresh.PromptVersion != "file-analysis-v18" || len(fresh.Risks) != 1 || fresh.Risks[0].Category != project.FindingCategorySecurity || calls.Load() != 1 {
+	if fresh := stage.Semantic; err != nil || fresh == nil || fresh.Status != project.AnalysisStatusFresh || fresh.PromptVersion != "file-analysis-v19" || len(fresh.Risks) != 1 || fresh.Risks[0].Category != project.FindingCategorySecurity || calls.Load() != 1 {
 		t.Fatalf("explicit refresh = %+v, %v; calls=%d", stage, err, calls.Load())
 	}
 	if _, err := service.CachedFileAnalysis("main.go"); err != nil || calls.Load() != 1 {
@@ -116,8 +116,8 @@ func TestCachedFileAnalysisMarksV11PromptResultsStale(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := EngineeringInsightPromptVersion(); got != "file-analysis-v18" {
-		t.Fatalf("file analysis prompt version = %q, want file-analysis-v18", got)
+	if got := EngineeringInsightPromptVersion(); got != "file-analysis-v19" {
+		t.Fatalf("file analysis prompt version = %q, want file-analysis-v19", got)
 	}
 	legacy := project.FileAnalysis{
 		SchemaVersion: "1", ProjectID: prepared.input.ProjectID, ProjectRevision: prepared.input.ProjectRevision,

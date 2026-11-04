@@ -28,7 +28,7 @@ func TestCLIProvidersAnalyzeAndProposeChangesWithScopeConsent(t *testing.T) {
 			cfg.Retry = config.RetryConfig{MaxRetries: 1, BackoffBase: 1, BackoffMax: 1}
 			calls := filepath.Join(t.TempDir(), "calls")
 			cfg.ModelScopes = config.ModelScopesConfig{
-				Analyze: cliAppProfile(t, provider, "analyze-model", `{"purpose":"Explains the fixture.","architecture":"One package.","components":[],"walkthroughs":[],"risks":[],"engineering_insight":null}`, calls),
+				Analyze: cliAppProfile(t, provider, "analyze-model", `{"purpose":"Explains the fixture.","architecture":"One package.","components":[],"walkthroughs":[],"change_guide":[],"risks":[],"engineering_insight":null}`, calls),
 				Bug:     cliAppProfile(t, provider, "bug-model", strings.TrimSuffix(validSemanticAnalysis, "}")+`,"engineering_insight":null}`, calls),
 				Code:    cliAppProfile(t, provider, "function-model", `{"explanation":"Updates the message.","changes":[{"path":"main.go","content":"package main\nimport \"fmt\"\nfunc Run() { fmt.Println(\"updated\") }\n"}]}`, calls),
 			}

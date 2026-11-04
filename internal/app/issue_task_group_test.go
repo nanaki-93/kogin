@@ -25,16 +25,16 @@ func TestSeveralIssuesOfAFileDraftOneTaskThatLinksThemAll(t *testing.T) {
 	if task.Kind != "security" || task.Title != "Fix 2 issues in cmd/master.go" || !slices.Equal(task.Paths, []string{"cmd/master.go", "cmd/master_test.go"}) {
 		t.Fatalf("task = %+v", task)
 	}
-	// In line order, each with where it is and its evidence.
-	first, later := strings.Index(task.Description, "1. Issue a (line 26, in fna)"), strings.Index(task.Description, "2. Issue b (line 140, in fnb)")
-	if first < 0 || later < first || !strings.Contains(task.Description, "Evidence:\nRemediation: Write the vault first.") {
+	// In line order, each with where it is and its brief.
+	first, later := strings.Index(task.Description, "1. Issue a — cmd/master.go:26 in `fna`\nProblem: What a gets wrong."), strings.Index(task.Description, "2. Issue b — cmd/master.go:140 in `fnb`\nProblem: What b gets wrong.\nFix: Write the vault first.")
+	if first < 0 || later < first || strings.Contains(task.Description, "Evidence") {
 		t.Fatalf("description = %q", task.Description)
 	}
 	if len(task.FindingTargets) != 2 || task.FindingTargets[0].ID != "a" || task.FindingTargets[1].ID != "b" {
 		t.Fatalf("targets = %+v", task.FindingTargets)
 	}
-	// Each issue is a step of its own: where it is, what is wrong, its evidence and criteria.
-	if len(task.Issues) != 2 || task.Issues[0].FindingID != "a" || task.Issues[1].Title != "Issue b" || task.Issues[1].Detail != "(line 140, in fnb)\nWhat b gets wrong.\nEvidence:\nRemediation: Write the vault first." || !slices.Equal(task.Issues[1].Criteria, []string{"The vault is written before the key file is removed"}) {
+	// Each issue is a step of its own: where it is, its brief and criteria.
+	if len(task.Issues) != 2 || task.Issues[0].FindingID != "a" || task.Issues[1].Title != "Issue b" || task.Issues[1].Detail != "(line 140, in fnb)\nProblem: What b gets wrong.\nFix: Write the vault first." || !slices.Equal(task.Issues[1].Criteria, []string{"The vault is written before the key file is removed"}) {
 		t.Fatalf("issues = %+v", task.Issues)
 	}
 	if _, err := newChangeIssues(task.Issues, task.FindingTargets); err != nil {

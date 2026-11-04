@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
 
 type semanticAnalysisResponse struct {
@@ -38,6 +39,9 @@ type semanticAnalysisFinding struct {
 	Severity string                  `json:"severity"`
 	Title    string                  `json:"title"`
 	Summary  string                  `json:"summary"`
+	Impact   string                  `json:"impact"`
+	Fix      string                  `json:"fix"`
+	Verify   string                  `json:"verify"`
 	// Anchor copies the line of TARGET_SOURCE the risk is at; Kogin
 	// finds its line number.
 	Anchor   string          `json:"anchor"`
@@ -133,6 +137,9 @@ func parseSemanticRisks(risks []semanticAnalysisFinding, target project.IndexFil
 			Severity:           strings.ToLower(strings.TrimSpace(risk.Severity)),
 			Title:              strings.Join(strings.Fields(risk.Title), " "),
 			Summary:            strings.TrimSpace(risk.Summary),
+			Impact:             briefField(risk.Impact),
+			Fix:                briefField(risk.Fix),
+			Verify:             briefField(risk.Verify),
 			TaskSpec:           parseOptionalBugTaskSpec(risk.TaskSpec, target, source),
 			EngineeringInsight: diagnostics.parseInsight("risk", &index, risk.Insight),
 		}
@@ -198,4 +205,9 @@ func validateSemanticRisks(risks []project.Finding) error {
 		}
 	}
 	return nil
+}
+
+// briefField keeps one line of a risk's brief, at most 300 characters.
+func briefField(text string) string {
+	return textutil.Clip(strings.Join(strings.Fields(text), " "), 300)
 }

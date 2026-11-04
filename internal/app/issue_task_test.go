@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
 
 func TestIssueTaskTitlesFitTheTaskTitleLimit(t *testing.T) {
@@ -34,8 +35,8 @@ func TestIssueTaskTitlesFitTheTaskTitleLimit(t *testing.T) {
 		if criterion := task.AcceptanceCriteria[0]; !strings.HasPrefix(criterion, "Resolve “"+strings.TrimPrefix(strings.TrimSuffix(task.Title, "…"), "Fix: ")) {
 			t.Fatalf("%s: criterion = %q, want it to quote the title", test.name, criterion)
 		}
-		if !strings.Contains(task.Description, strings.TrimSpace(test.title)) {
-			t.Fatalf("%s: description lost the full message: %q", test.name, task.Description)
+		if want := "Problem: " + textutil.FirstSentence(test.title, 200); !strings.HasPrefix(task.Description, want) {
+			t.Fatalf("%s: description = %q, want it to start with %q", test.name, task.Description, want)
 		}
 		request := ChangeCreateRequest{Title: task.Title, Kind: task.Kind, Paths: []string{"cmd/master.go"}, AcceptanceCriteria: task.AcceptanceCriteria}
 		if err := validateChangeCreateRequest(request); err != nil {

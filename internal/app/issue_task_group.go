@@ -88,13 +88,9 @@ func issuesTask(root string, findings []project.UnifiedFinding) *IssueTask {
 		task.Paths = append(task.Paths, companion)
 	}
 	var description strings.Builder
-	fmt.Fprintf(&description, "Fix these %d issues in %s. Analysis found them; check each against the code first and leave out any that does not hold.\n", len(findings), file)
+	fmt.Fprintf(&description, "%d issues in %s. Check each against the code; skip any that does not hold.\n", len(findings), file)
 	for index, finding := range findings {
-		fmt.Fprintf(&description, "\n%d. %s%s\n%s", index+1, issueTitle("", finding.Title), issuePlace(finding.Location), finding.Message)
-		if finding.Evidence != "" {
-			description.WriteString("\nEvidence:\n" + finding.Evidence)
-		}
-		description.WriteString("\n")
+		fmt.Fprintf(&description, "\n%d. %s — %s%s%s\n%s\n", index+1, issueTitle("", finding.Title), file, issueLine(finding.Location), issueSymbol(finding.Location), issueBriefText(finding))
 		if finding.ProjectID != "" {
 			task.FindingTargets = append(task.FindingTargets, project.FindingTarget{ProjectID: finding.ProjectID, Kind: "semantic", ID: finding.ID, Path: file})
 			task.Issues = append(task.Issues, issueStep(finding, file))
@@ -156,10 +152,7 @@ func groupKind(findings []project.UnifiedFinding) string {
 // issueStep is an issue as its own step reads it: what is wrong and where,
 // its evidence, and its criteria.
 func issueStep(finding project.UnifiedFinding, file string) ChangeIssue {
-	detail := strings.TrimSpace(strings.TrimPrefix(issuePlace(finding.Location), " ") + "\n" + finding.Message)
-	if finding.Evidence != "" {
-		detail += "\nEvidence:\n" + finding.Evidence
-	}
+	detail := strings.TrimSpace(strings.TrimPrefix(issuePlace(finding.Location), " ") + "\n" + issueBriefText(finding))
 	var criteria []string
 	for _, criterion := range issueCriteria(finding, file) {
 		if criterion = strings.TrimSpace(criterion); criterion != "" && len(criteria) < 16 {

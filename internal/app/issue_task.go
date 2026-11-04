@@ -10,6 +10,7 @@ import (
 
 	"github.com/nanaki-93/kogin/v2/internal/project"
 	"github.com/nanaki-93/kogin/v2/internal/project/rules"
+	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
 
 // IssueTask is a task drafted from an issue, for the composer to show before
@@ -97,23 +98,46 @@ func issueTitle(prefix, title string) string {
 	return prefix + strings.TrimRight(cut, " ,;:") + ellipsis
 }
 
-// issueDescription says what is wrong, the evidence and where.
+// issueDescription is the issue's brief and where it is.
 func issueDescription(finding project.UnifiedFinding, file string) string {
-	var description strings.Builder
-	description.WriteString(finding.Message)
-	if finding.Evidence != "" {
-		description.WriteString("\n\nEvidence:\n" + finding.Evidence)
-	}
+	description := issueBriefText(finding)
 	if file != "" {
-		description.WriteString("\n\nLocation: " + file)
-		if finding.Location.StartLine > 0 {
-			description.WriteString(fmt.Sprintf(":%d", finding.Location.StartLine))
-		}
-		if finding.Location.Symbol != "" {
-			description.WriteString(" (in " + finding.Location.Symbol + ")")
+		description += "\nWhere: " + file + issueLine(finding.Location) + issueSymbol(finding.Location)
+	}
+	return description
+}
+
+// issueBriefText is the issue in short labeled lines (see project.BriefOf);
+// evidence that is not labeled lines, such as a tool's output, follows it.
+func issueBriefText(finding project.UnifiedFinding) string {
+	brief := project.BriefOf(finding)
+	lines := []string{"Problem: " + brief.Problem}
+	for _, part := range [][2]string{{"Impact", brief.Impact}, {"Fix", brief.Fix}, {"Verify", brief.Verify}} {
+		if part[1] != "" {
+			lines = append(lines, part[0]+": "+part[1])
 		}
 	}
-	return description.String()
+	if evidence := strings.TrimSpace(finding.Evidence); evidence != "" && !project.EvidenceIsLabeled(evidence) {
+		lines = append(lines, "Output:\n"+textutil.Truncate(evidence, maxIssueOutputBytes))
+	}
+	return strings.Join(lines, "\n")
+}
+
+// maxIssueOutputBytes bounds a tool's output in an issue's task.
+const maxIssueOutputBytes = 2048
+
+func issueLine(location project.FindingLocation) string {
+	if location.StartLine > 0 {
+		return fmt.Sprintf(":%d", location.StartLine)
+	}
+	return ""
+}
+
+func issueSymbol(location project.FindingLocation) string {
+	if location.Symbol != "" {
+		return " in `" + location.Symbol + "`"
+	}
+	return ""
 }
 
 // addTestCandidate starts the task from the regression test the analysis

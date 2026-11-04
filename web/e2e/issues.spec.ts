@@ -43,14 +43,18 @@ test('issues label where each finding comes from', async ({ page }) => {
   await expect(table.getByRole('row', { name: /ignores cancellation/ })).toContainText('AI suggestion');
 });
 
-test("an issue's evidence reads as sections, with its actions above them", async ({ page }) => {
+test("an issue reads as a four-line brief above its actions, the analysis' own words folded below", async ({ page }) => {
   await page.goto('/#/issues?id=f1');
   const detail = page.getByRole('complementary', { name: 'Issue detail' });
-  await expect(detail.getByRole('term')).toHaveText(['Preconditions', 'Fix', 'How to verify']);
-  await expect(detail.getByRole('definition').nth(1)).toHaveText('Wrap the body in http.MaxBytesReader before reading it.');
+  await expect(detail.getByRole('term')).toHaveText(['Problem', 'Impact', 'Fix', 'Verify']);
+  await expect(detail.getByRole('definition').nth(2)).toHaveText('Wrap the body in http.MaxBytesReader before reading it.');
+  await expect(detail.getByRole('definition').nth(2).locator('code')).toHaveText('http.MaxBytesReader');
+  const brief = await detail.getByRole('term').last().boundingBox();
   const fix = await detail.getByRole('button', { name: /Fix with agents/ }).boundingBox();
-  const evidence = await detail.getByRole('term').first().boundingBox();
-  expect(fix!.y).toBeLessThan(evidence!.y);
+  expect(brief!.y).toBeLessThan(fix!.y);
+  await expect(detail.getByText('Remediation:')).toBeHidden();
+  await detail.getByText('Full analysis').click();
+  await expect(detail.getByText('Remediation:')).toBeVisible();
 });
 
 test('issues are triaged from the keyboard, filtered by kind and fixed in a linked task', async ({ page, daemon }) => {

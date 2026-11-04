@@ -38,7 +38,8 @@ func SuggestedFindingsForFile(analysis FileAnalysis) []UnifiedFinding {
 		}
 		location := FindingLocation{Path: analysis.Path, StartLine: risk.StartLine, EndLine: risk.EndLine}
 		eng := resolveFileRiskInsight(analysis, risk, idx)
-		findings = append(findings, UnifiedFinding{Category: risk.Category, Source: FindingSourceAI, Confidence: FindingConfidenceSuggested, Severity: risk.Severity, Title: title, Message: risk.Summary, FileHash: analysis.ContentHash, Location: location, OriginatingAnalysis: "file", TaskSpec: insight.CloneBugTaskSpec(risk.TaskSpec), EngineeringInsight: eng})
+		findings = append(findings, UnifiedFinding{Category: risk.Category, Source: FindingSourceAI, Confidence: FindingConfidenceSuggested, Severity: risk.Severity, Title: title, Message: risk.Summary, FileHash: analysis.ContentHash, Location: location, OriginatingAnalysis: "file",
+			Evidence: labeledLines([2]string{"Impact", risk.Impact}, [2]string{"Fix", risk.Fix}, [2]string{"How to verify", risk.Verify}), TaskSpec: insight.CloneBugTaskSpec(risk.TaskSpec), EngineeringInsight: eng})
 	}
 	return findings
 }

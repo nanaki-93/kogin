@@ -141,7 +141,7 @@ func TestSemanticPromptRequiresTypedInsightsAtEverySupportedLocation(t *testing.
 		"Never use a string, array, or partial object",
 		"Do not duplicate that lesson in risks or suggestions",
 		"bugs for incorrect behavior, performance for avoidable resource costs, or security for a trust-boundary weakness",
-		"State the relevant local control/data flow and conditions in summary",
+		"summary is the problem (which identifier does what wrong, under which condition)",
 		"never invent measured impact",
 		"do not infer missing safeguards in an unseen callee",
 		"Omit concerns unsupported by TARGET_SOURCE",

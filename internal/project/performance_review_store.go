@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	PerformancePromptVersion  = "performance-file-v7"
+	PerformancePromptVersion  = "performance-file-v8"
 	PerformanceMaxSourceBytes = 64 * 1024
 	maxPerformanceOutputBytes = 64 * 1024
 	maxPerformanceFindings    = 5

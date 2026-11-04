@@ -205,6 +205,8 @@ func (s *Service) listFindings(analysis *project.Analysis, index *project.Projec
 	for _, finding := range findings {
 		if matchesFindingFilter(finding, filter) {
 			finding.Test = finding.Location.Path != "" && resolver.IsTestFile(finding.Location.Path)
+			brief := project.BriefOf(finding)
+			finding.Brief = &brief
 			result = append(result, finding)
 		}
 	}

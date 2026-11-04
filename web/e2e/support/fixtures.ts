@@ -214,7 +214,8 @@ export const otherTasks: ChangeHistoryEntry[] = [
 
 export const findings: Finding[] = [
   { id: 'f1', project_id: 'p1', source: 'security_rules', severity: 'high', title: 'Request body read without a size limit', message: 'io.ReadAll on r.Body.', location: { path: 'internal/api/handlers/change_handler.go', start_line: 88, symbol: 'ChangeHandler.Create' }, status: 'open', category: 'security',
-    evidence: 'Preconditions: A client can send a request body of any size.\nRemediation: Wrap the body in http.MaxBytesReader before reading it.\nHow to verify: Post a body over the limit and expect 413.' },
+    evidence: 'Preconditions: A client can send a request body of any size.\nRemediation: Wrap the body in http.MaxBytesReader before reading it.\nHow to verify: Post a body over the limit and expect 413.',
+    brief: { problem: '`io.ReadAll` on `r.Body`.', impact: 'A client can send a request body of any size.', fix: 'Wrap the body in `http.MaxBytesReader` before reading it.', verify: 'Post a body over the limit and expect 413.' } },
   { id: 'f2', project_id: 'p1', source: 'ai', severity: 'medium', title: 'Retry loop ignores cancellation', message: 'time.Sleep without ctx.Done().', location: { path: 'internal/llm/client.go', start_line: 212 }, status: 'open', category: 'bug' },
   { id: 'f3', project_id: 'p1', source: 'vet', severity: 'low', title: 'Unchecked Close error', message: 'A failed Close can lose data.', location: { path: 'internal/storage/store.go', start_line: 64 }, status: 'dismissed', category: 'bug' },
 ];
