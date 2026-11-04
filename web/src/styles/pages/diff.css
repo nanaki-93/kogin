@@ -132,10 +132,83 @@
   color: var(--text-2);
 }
 
-.fc-diff-body {
+.fc-diff-main {
+  display: flex;
   flex: 1;
   min-height: 0;
+}
+
+.fc-diff-body {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
   overflow: auto;
+}
+
+/* Why it changed: the walkthrough's notes beside the diff. */
+.change-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 0 0 280px;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 12px;
+  border-left: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.change-notes-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.change-notes-summary {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.change-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.change-notes-list li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.change-note-line {
+  flex: 0 0 34px;
+  text-align: right;
+}
+
+.change-note-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.45;
+}
+
+@media (max-width: 1100px) {
+  .fc-diff-main {
+    flex-direction: column;
+  }
+
+  .change-notes {
+    flex: 0 0 auto;
+    max-height: 40%;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
 }
 
 .diff-counts {

@@ -89,6 +89,11 @@ func TestChangeWorkflowSelectedModelsTestsReviewAndHumanApply(t *testing.T) {
 	if session.Workflow.Status != "awaiting_human_review" || session.Workflow.Review.ProposalHash != session.Hash || session.ReviewedHash != "" || len(session.Changes) != 2 {
 		t.Fatalf("handoff: %+v", session)
 	}
+	// The review stage also explains the reviewed proposal; the fake's
+	// walkthrough names no file, so it is kept as failed with its reason.
+	if w := session.Walkthrough; w == nil || w.ProposalHash != session.Hash || w.Status != WalkthroughFailed || w.Reason == "" {
+		t.Fatalf("walkthrough: %+v", session.Walkthrough)
+	}
 	for i, name := range []string{"creator", "tester", "reviewer"} {
 		if calls[i].Load() != []int32{1, 1, 3}[i] || session.Workflow.Stages[i].Model.Model != name || session.Workflow.Stages[i].Status != "completed" {
 			t.Fatalf("stage %d: %+v, calls=%d", i, session.Workflow.Stages[i], calls[i].Load())

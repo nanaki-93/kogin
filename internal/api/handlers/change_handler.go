@@ -246,3 +246,17 @@ func (h *ChangeHandler) ReviewFile(w http.ResponseWriter, r *http.Request) {
 	value, err := h.service.ReviewChangeFile(r.Context(), r.PathValue("sessionID"), request)
 	respondWorkflow(w, value, err)
 }
+
+// Walkthrough explains the task's proposal file by file again.
+func (h *ChangeHandler) Walkthrough(w http.ResponseWriter, r *http.Request) {
+	var request app.ChangeWalkthroughRequest
+	if !decodeWorkflowBody(w, r, &request) {
+		return
+	}
+	value, err := h.service.ExplainChange(r.Context(), r.PathValue("sessionID"), request)
+	if err != nil {
+		writeWorkflowError(w, "the walkthrough could not be written", err)
+		return
+	}
+	api.WriteJSON(w, http.StatusOK, value)
+}

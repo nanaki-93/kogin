@@ -185,8 +185,13 @@ func fakePi(args fakeCLIArgs) int {
 			"content": []map[string]any{{"type": "text", "text": text}}, "usage": map[string]any{"input": 1000, "output": 50, "totalTokens": 1050}}}
 	}
 	if slices.Contains(args, "--no-tools") {
-		recordFakeReview("pi")
 		emitJSON(map[string]any{"type": "agent_start"})
+		if fakeWalkthroughRequest(string(prompt), args) {
+			emitJSON(assistant("stop", fakeWalkthrough, ""))
+			emitJSON(map[string]any{"type": "agent_end", "willRetry": false})
+			return 0
+		}
+		recordFakeReview("pi")
 		// A reviewer.limit file makes the next review reach the plan's limit.
 		if os.Remove(filepath.Join(os.Getenv(fakeCLIDirEnv), "reviewer.limit")) == nil {
 			emitJSON(assistant("error", "", "You have hit your ChatGPT usage limit (plus plan). Try again in ~60 min."))
@@ -262,10 +267,15 @@ func fakeClaude(args fakeCLIArgs) int {
 	}
 	configFile := args.value("--mcp-config")
 	if configFile == "" {
-		recordFakeReview("claude")
+		reply := fakeReview
+		if fakeWalkthroughRequest(string(system), nil) {
+			reply = fakeWalkthrough
+		} else {
+			recordFakeReview("claude")
+		}
 		emitJSON(init)
-		emitJSON(assistant(map[string]any{"type": "text", "text": fakeReview}))
-		emitJSON(map[string]any{"type": "result", "subtype": "success", "is_error": false, "num_turns": 1, "result": fakeReview, "usage": usage})
+		emitJSON(assistant(map[string]any{"type": "text", "text": reply}))
+		emitJSON(map[string]any{"type": "result", "subtype": "success", "is_error": false, "num_turns": 1, "result": reply, "usage": usage})
 		return 0
 	}
 	if args.value("--allowedTools") != "mcp__kogin" {
@@ -343,9 +353,14 @@ func fakeAgy(args fakeCLIArgs) int {
 	}
 	_, system, _ := strings.Cut(string(agent), "# System Prompt\n")
 	if strings.Contains(string(agent), "inheritMcp: false") {
-		recordFakeReview("agy")
+		reply := fakeReview
+		if fakeWalkthroughRequest(string(agent), nil) {
+			reply = fakeWalkthrough
+		} else {
+			recordFakeReview("agy")
+		}
 		emitJSON(init)
-		emitJSON(result("SUCCESS", fakeReview, ""))
+		emitJSON(result("SUCCESS", reply, ""))
 		return 0
 	}
 	var servers struct {
@@ -394,4 +409,9 @@ func fakeAgy(args fakeCLIArgs) int {
 	}
 	emitJSON(result("SUCCESS", "", ""))
 	return 0
+}
+
+// fakeWalkthroughRequest tells the review's walkthrough from the reviews.
+func fakeWalkthroughRequest(prompt string, args []string) bool {
+	return strings.Contains(prompt+strings.Join(args, " "), "You explain a code change")
 }

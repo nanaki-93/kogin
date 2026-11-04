@@ -101,6 +101,29 @@ test('compares the split and unified diff layouts', async ({ page }) => {
   await expect(page.getByRole('button', { name: /unified view/i })).toBeVisible();
 });
 
+test('beside the diff, each hunk says why it changed and opens its line', async ({ page, daemon }) => {
+  await page.goto('/#/tasks/chg-1/files');
+  const notes = page.getByRole('complementary', { name: 'Why it changed' });
+  await expect(notes).toContainText('Rejects nested asset names before the embedded read.');
+  await expect(notes.locator('code').first()).toHaveText('ServeAsset');
+  // The walkthrough's line replaces the agent's own summary of the file.
+  await expect(page.getByText('Rejects nested names.')).toBeHidden();
+  await notes.getByRole('button', { name: 'L42' }).click();
+  await expect(page).toHaveURL(/line=42/);
+  await expect(page.locator('tr.is-focus')).toContainText('strings.Contains(name, "/")');
+  // A file without notes says so; asking again writes them for this version.
+  await page.keyboard.press('j');
+  await expect(notes).toContainText('No notes for this file.');
+  await notes.getByRole('button', { name: 'Explain again' }).click();
+  // The review model is remote: the diff leaves only once allowed.
+  await page.getByRole('alertdialog', { name: 'Send code to a remote model?' }).getByRole('button', { name: 'Send request' }).click();
+  await expect(notes).toContainText('Explained internal/api/handlers/webui_test.go.');
+  expect(daemon.mutations('/walkthrough')[0].body).toMatchObject({ project_id: 'p1', revision: 3, hash: 'sha256:9f2c1a7be4', confirm_remote_provider: true });
+  // The notes fold away and stay folded.
+  await page.getByRole('button', { name: 'Hide why it changed' }).click();
+  await expect(notes).toBeHidden();
+});
+
 test('overrides the reviewers with a reason, then accepts with notes', async ({ page, daemon }) => {
   daemon.sessions.set('chg-1', rejectedTask());
   await page.goto('/#/tasks/chg-1');

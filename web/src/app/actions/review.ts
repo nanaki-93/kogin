@@ -9,7 +9,7 @@ import { plural } from '@/lib/util';
 import { changePath, type ActionContext } from './context';
 
 export function reviewActions(context: ActionContext) {
-  const { confirm, toast, guarded, fail, setSession, refreshAll } = context;
+  const { confirm, toast, guarded, fail, setSession, refreshAll, confirmRemote } = context;
 
   // ---------------------------------------------------------------- review
 
@@ -49,6 +49,22 @@ export function reviewActions(context: ActionContext) {
         }
       }),
     );
+  }
+
+  /**
+   * Writes the proposal's walkthrough again with its review model. It is
+   * not guarded: the call can take a minute and other actions go on.
+   */
+  async function explainChange(session: LoadedSession): Promise<boolean> {
+    const consent = await confirmRemote(session.workflow?.stages?.[2]?.model?.scope || 'analyze', 'Explaining the change');
+    if (!consent.ok) return false;
+    try {
+      setSession(await api.post<ChangeSession>(changePath(session, '/walkthrough'), { ...changeIdentity(session), confirm_remote_provider: consent.remote }), session);
+      return true;
+    } catch (err) {
+      fail('The change could not be explained', err);
+      return false;
+    }
   }
 
   async function runChecks(session: LoadedSession) {
@@ -132,5 +148,5 @@ export function reviewActions(context: ActionContext) {
     return Boolean(result);
   }
 
-  return { markViewed, runChecks, addComment, deleteComment, overrideReview, reject, accept };
+  return { markViewed, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept };
 }

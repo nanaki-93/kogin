@@ -27,21 +27,23 @@ type ChangeEdit = archgate.ChangeEdit
 // ChangeSession is private project-local history, unlike source-free findings
 // and audits. Restored check/review evidence is cleared before reuse.
 type ChangeSession struct {
-	Plan                *ChangePlan             `json:"plan,omitempty"`
-	ReviewedFiles       []string                `json:"reviewed_files,omitempty"`
-	FileReviewHash      string                  `json:"file_review_hash,omitempty"`
-	LastReviewedChanges []ChangeEdit            `json:"last_reviewed_changes,omitempty"`
-	LastReviewedHash    string                  `json:"last_reviewed_hash,omitempty"`
-	ReviewDiff          []ChangeEdit            `json:"review_diff,omitempty"`
-	SchemaVersion       int                     `json:"schema_version"`
-	ID                  string                  `json:"id"`
-	ProjectID           string                  `json:"project_id"`
-	ProjectRevision     string                  `json:"project_revision"`
-	Kind                string                  `json:"kind"`
-	Title               string                  `json:"title"`
-	AcceptanceCriteria  []string                `json:"acceptance_criteria"`
-	FindingTargets      []project.FindingTarget `json:"finding_targets,omitempty"`
-	Issues              []ChangeIssue           `json:"issues,omitempty"`
+	Plan                *ChangePlan  `json:"plan,omitempty"`
+	ReviewedFiles       []string     `json:"reviewed_files,omitempty"`
+	FileReviewHash      string       `json:"file_review_hash,omitempty"`
+	LastReviewedChanges []ChangeEdit `json:"last_reviewed_changes,omitempty"`
+	LastReviewedHash    string       `json:"last_reviewed_hash,omitempty"`
+	ReviewDiff          []ChangeEdit `json:"review_diff,omitempty"`
+	// Walkthrough explains the proposal file by file for its reviewer.
+	Walkthrough        *ChangeWalkthrough      `json:"walkthrough,omitempty"`
+	SchemaVersion      int                     `json:"schema_version"`
+	ID                 string                  `json:"id"`
+	ProjectID          string                  `json:"project_id"`
+	ProjectRevision    string                  `json:"project_revision"`
+	Kind               string                  `json:"kind"`
+	Title              string                  `json:"title"`
+	AcceptanceCriteria []string                `json:"acceptance_criteria"`
+	FindingTargets     []project.FindingTarget `json:"finding_targets,omitempty"`
+	Issues             []ChangeIssue           `json:"issues,omitempty"`
 	// DismissedTargets are the linked issues a step found do not hold: merging
 	// the task dismisses them.
 	DismissedTargets []project.FindingTarget `json:"dismissed_targets,omitempty"`

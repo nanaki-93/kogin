@@ -25,13 +25,13 @@ func TestFileAnalysisEvaluationAdapterPreservesPromptAndProvider(t *testing.T) {
 		remote           bool
 		promptDigest     string
 	}{
-		{"http://127.0.0.1:1234/v1", "http://127.0.0.1:1234", false, "a6f15a45d04adda4b74759d64439c2fac1c8883b6b3c87ece1e7920b0b46e728"},
-		{"http://localhost:1234/v1", "http://localhost:1234", false, "9de40a4ab860009fa71123bd3b6ebcb256d15d0dcbf88885e3dfea57843567b7"},
-		{"http://[::1]:1234/v1", "http://[::1]:1234", false, "6660bcd1b3c8fd4e94ae873a252a31b97cee73f08fbbaabb03485b2fb32cc228"},
-		{"http://127.25.0.1/v1", "http://127.25.0.1", false, "e9ecd68a1b03e5fc0fa88b32ddd069742d179ff47bc8398f19b4e0883e7fb300"},
-		{"https://user:credential@example.com/private-path?token=secret#private-fragment", "https://example.com", true, "af848a375e33f3fad084f47ae2b8565f53c0f12a7a7fe1b70fc3df4e9721ea77"},
-		{"http://localhost.example/v1", "http://localhost.example", true, "98e383181460944696f9924a94b29044949a6939f8a5e9aa3f524376cfe216fe"},
-		{"invalid endpoint", "", true, "80c081d0e9486a89408cfac6f0b4eeb7dc6c305403e83a1043ac52026205e756"},
+		{"http://127.0.0.1:1234/v1", "http://127.0.0.1:1234", false, "e0c19871895e34f11702db2783c26645622694f20e81eec3765885cd4d199354"},
+		{"http://localhost:1234/v1", "http://localhost:1234", false, "197cf61ddd85c55d46c64f67007f683e136118e1e01d54fe2943e44e09eac26e"},
+		{"http://[::1]:1234/v1", "http://[::1]:1234", false, "884a1b1a0ce3bdbaf90287f349b201f27c35d4912087243a4a0ccb06fe41f585"},
+		{"http://127.25.0.1/v1", "http://127.25.0.1", false, "c93642ef21415a932f39bdcf67928511775864415aa6e6f207e7b5e08d7344a9"},
+		{"https://user:credential@example.com/private-path?token=secret#private-fragment", "https://example.com", true, "7d6174dd60cc74dbb4027ce5fd1ccddd23849c1b6f460ffa4ad0627966ed1212"},
+		{"http://localhost.example/v1", "http://localhost.example", true, "d0346d3dd12a93620f3672c712d8e98d3370b46cf13e28e05bb2cc23f6ca8736"},
+		{"invalid endpoint", "", true, "ae611ff72c92d420414696d2b8e83899e51760262296544e67e751175bb64e21"},
 	} {
 		t.Run(test.endpoint, func(t *testing.T) {
 			profile := config.ModelProfile{Scope: config.BugModelScope, Model: "fixture-model", APIBaseURL: test.endpoint, APIKey: "private-api-key", ContextMaxTokens: 16384}
@@ -51,7 +51,7 @@ func TestFileAnalysisEvaluationAdapterPreservesPromptAndProvider(t *testing.T) {
 			got, err := app.PrepareFileAnalysisEvaluation(source, analysis, index, target, profile)
 			digest := fmt.Sprintf("%x", sha256.Sum256([]byte(got)))
 			if err != nil || digest != test.promptDigest {
-				t.Fatalf("evaluation prompt differs from reviewed v18 bytes: digest=%s err=%v", digest, err)
+				t.Fatalf("evaluation prompt differs from reviewed v19 bytes: digest=%s err=%v", digest, err)
 			}
 		})
 	}

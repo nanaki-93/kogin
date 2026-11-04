@@ -123,6 +123,7 @@ untrusted networks.
 | POST | `/api/projects/current/changes/{sessionID}/workflow/cancel` | Cancel the identified workflow without applying source. |
 | POST | `/api/projects/current/changes/{sessionID}/workflow/input` | Respond to the exact durable review request with current proposal identity. |
 | POST | `/api/projects/current/changes/{sessionID}/review-file` | Record inspection of a changed file for the current hash. |
+| POST | `/api/projects/current/changes/{sessionID}/walkthrough` | Write the proposal's walkthrough again (one model request). |
 | POST | `/api/projects/current/changes/{sessionID}/comments` | Add a reviewer comment on one line of the current proposal. |
 | POST | `/api/projects/current/changes/{sessionID}/comments/delete` | Delete an open line comment. |
 | POST | `/api/projects/current/changes/{sessionID}/review` | Record diff review for the current checked hash. |
@@ -1051,6 +1052,16 @@ leaves the line out. Reviews stored with text findings read as items whose
 title is the text's first sentence and whose detail is the text. A missing, failed or
 canceled reviewer prevents aggregate approval. Parallel cancellation caused by a failed
 reviewer remains a failed run rather than appearing as a user cancellation.
+
+After the reviewers, the review stage makes one more request with the review
+model: the `walkthrough` of the reviewed proposal (`proposal_hash`). For each
+changed file it has a `summary` (what the file's change does) and up to eight
+`notes`, one per meaningful hunk: `what` changed and `why`, at the `line` where
+the hunk starts in the proposed content (the model quotes the line and the
+daemon finds it). It is advisory and never counts as review evidence; a failed
+request leaves `status: failed` with its `reason` and the review goes on.
+`POST …/walkthrough` with `ChangeIdentity` (and `confirm_remote_provider` for a
+remote review model) writes it again for the current version.
 
 The testing agent may change only captured test
 paths; its edits merge with the implementation. A tool-using testing agent

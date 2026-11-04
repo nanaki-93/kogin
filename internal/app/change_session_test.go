@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -138,10 +139,20 @@ func openChangeFixture(t *testing.T, service *Service, paths ...string) *ChangeS
 	return session
 }
 
+// fakeWalkthrough is the walkthrough fake providers write: it names no file
+// of the change, so it is stored as failed.
+const fakeWalkthrough = `{"files":[]}`
+
 func changeProvider(t *testing.T, response func() string) *httptest.Server {
 	t.Helper()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: response()}}}})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		content := fakeWalkthrough
+		// The review's walkthrough has a reply of its own, so the scripted
+		// replies stay the reviewers'.
+		if body, _ := io.ReadAll(r.Body); !strings.Contains(string(body), `"change_walkthrough"`) {
+			content = response()
+		}
+		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: content}}}})
 	}))
 	t.Cleanup(server.Close)
 	return server

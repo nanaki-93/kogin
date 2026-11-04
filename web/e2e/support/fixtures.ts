@@ -64,6 +64,10 @@ export function reviewTask(): ChangeSession {
     ],
     reviewed_files: [],
     file_review_hash: 'sha256:9f2c1a7be4',
+    walkthrough: {
+      proposal_hash: 'sha256:9f2c1a7be4', status: 'ready', at: ago(5),
+      files: [{ path: 'internal/api/handlers/webui.go', summary: 'Rejects nested asset names before the embedded read.', notes: [{ line: 42, what: '`ServeAsset` refuses names with a slash', why: 'A nested name reached `fs.ReadFile` and returned 500.' }] }],
+    },
     messages: [],
     checks: [
       { name: 'go vet', required: true, state: 'passed', command: ['go', 'vet', './...'], duration_ms: 4200 },

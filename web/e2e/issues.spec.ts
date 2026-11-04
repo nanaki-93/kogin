@@ -43,7 +43,7 @@ test('issues label where each finding comes from', async ({ page }) => {
   await expect(table.getByRole('row', { name: /ignores cancellation/ })).toContainText('AI suggestion');
 });
 
-test("an issue reads as a four-line brief above its actions, the analysis' own words folded below", async ({ page }) => {
+test('an issue reads as a four-line brief above its actions', async ({ page }) => {
   await page.goto('/#/issues?id=f1');
   const detail = page.getByRole('complementary', { name: 'Issue detail' });
   await expect(detail.getByRole('term')).toHaveText(['Problem', 'Impact', 'Fix', 'Verify']);
@@ -52,9 +52,8 @@ test("an issue reads as a four-line brief above its actions, the analysis' own w
   const brief = await detail.getByRole('term').last().boundingBox();
   const fix = await detail.getByRole('button', { name: /Fix with agents/ }).boundingBox();
   expect(brief!.y).toBeLessThan(fix!.y);
-  await expect(detail.getByText('Remediation:')).toBeHidden();
-  await detail.getByText('Full analysis').click();
-  await expect(detail.getByText('Remediation:')).toBeVisible();
+  // The analysis' own words say no more than the brief, so nothing is folded below it.
+  await expect(detail.getByText('Full analysis')).toHaveCount(0);
 });
 
 test('issues are triaged from the keyboard, filtered by kind and fixed in a linked task', async ({ page, daemon }) => {

@@ -182,6 +182,18 @@ paths:
         '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeSession'}}}}
         '400': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+  /api/projects/current/changes/{sessionID}/walkthrough:
+    parameters:
+      - {$ref: '#/components/parameters/WorktreePath'}
+      - {in: path, name: sessionID, required: true, schema: {type: string}}
+    post:
+      tags: [Chat]
+      description: Write the proposal's walkthrough again with the model that reviews the task (one request). Stores and returns the task with `walkthrough`; a failed call is a walkthrough with status failed and its reason. No checks or source writes.
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeWalkthroughRequest'}}}}
+      responses:
+        '200': {description: Current guarded result, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeSession'}}}}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/changes/{sessionID}/review:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -2314,6 +2326,40 @@ components:
           required: [path]
           properties:
             path: {type: string}
+    ChangeWalkthroughRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ChangeIdentity'}
+        - type: object
+          properties:
+            confirm_remote_provider: {type: boolean}
+    ChangeWalkthrough:
+      type: object
+      required: [proposal_hash, status, at]
+      description: Advisory explanation of one proposal version, file by file; never review evidence.
+      properties:
+        proposal_hash: {type: string, description: The proposal it explains; a different hash than the task's means it is out of date.}
+        status: {type: string, enum: [ready, failed]}
+        reason: {type: string, description: Why it could not be written.}
+        at: {type: string, format: date-time}
+        files:
+          type: array
+          maxItems: 40
+          items:
+            type: object
+            required: [path]
+            properties:
+              path: {type: string}
+              summary: {type: string, maxLength: 640, description: What the file's change does (at most 160 characters).}
+              notes:
+                type: array
+                maxItems: 8
+                items:
+                  type: object
+                  required: [what]
+                  properties:
+                    line: {type: integer, minimum: 1, description: The hunk's first line in the proposed content; absent when the model's quote was not found.}
+                    what: {type: string, description: What changed (at most 120 characters).}
+                    why: {type: string, description: Why (at most 160 characters).}
     ChangeTarget:
       type: object
       properties:
@@ -2708,6 +2754,7 @@ components:
         last_reviewed_hash: {type: string}
         last_reviewed_changes: {type: array, items: {$ref: '#/components/schemas/ChangeEdit'}}
         review_diff: {type: array, items: {$ref: '#/components/schemas/ChangeEdit'}, description: Differences from the last completely reviewed proposal to the current proposal.}
+        walkthrough: {$ref: '#/components/schemas/ChangeWalkthrough'}
         targets: {type: array, items: {$ref: '#/components/schemas/ChangeTarget'}}
         changes: {type: array, items: {$ref: '#/components/schemas/ChangeEdit'}}
         messages:

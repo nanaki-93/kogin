@@ -241,6 +241,7 @@ func newProjectHTTPMux(application *app.Service, projectManager *project.Manager
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/review", changeHandler.Review)
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/review-override", changeHandler.OverrideReview)
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/review-file", changeHandler.ReviewFile)
+	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/walkthrough", changeHandler.Walkthrough)
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/comments", changeHandler.Comment)
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/comments/delete", changeHandler.DeleteComment)
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/apply", changeHandler.Apply)

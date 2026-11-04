@@ -61,7 +61,8 @@ func TestAgentWorkflowStreamingOutputIsOptIn(t *testing.T) {
 			t.Fatalf("final output: %+v %v", artifact, err)
 		}
 	}
-	if outputs != 5 {
+	// Creation, testing, three reviewers and the walkthrough.
+	if outputs != 6 {
 		t.Fatalf("unexpected model invocation count: %d", outputs)
 	}
 	// The provider-neutral compatibility type is still used by ordinary callers.

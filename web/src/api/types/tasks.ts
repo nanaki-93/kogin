@@ -112,6 +112,8 @@ export interface ChangeSession extends ProjectIdentity {
   changes: FileChange[];
   pinned_tests?: FileChange[];
   review_diff?: FileChange[];
+  /** What each file's change does and why, hunk by hunk, for its reviewer. */
+  walkthrough?: ChangeWalkthrough;
   messages: ChangeMessage[];
   checks: Check[];
   reviewed_hash?: string;
@@ -247,4 +249,26 @@ export interface ChangeMutationResult extends ProjectIdentity {
   hash: string;
   warnings: string[];
   commit?: ChangeCommit;
+}
+
+/** The explanation of one version of a proposal, written after its review; advice, never evidence. */
+export interface ChangeWalkthrough {
+  proposal_hash: string;
+  status: 'ready' | 'failed';
+  reason?: string;
+  at: string;
+  files?: WalkthroughFile[];
+}
+
+export interface WalkthroughFile {
+  path: string;
+  summary?: string;
+  notes?: WalkthroughNote[];
+}
+
+/** One hunk: where it starts in the proposed file, what changed and why. */
+export interface WalkthroughNote {
+  line?: number;
+  what: string;
+  why?: string;
 }

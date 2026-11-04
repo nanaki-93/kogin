@@ -158,6 +158,8 @@ func (s *Service) reviewWorkflowProposal(ctx context.Context, job *changeWorkflo
 	if err != nil {
 		return err
 	}
+	// After the reviewers, so it never takes their share of the run's calls.
+	walkthrough := s.explainReviewedProposal(ctx, job.root, session, runtime)
 	s.changesMu.Lock()
 	defer s.changesMu.Unlock()
 	current, err := s.loadChangeGraphSnapshot(ctx, job, input.Snapshot)
@@ -172,6 +174,9 @@ func (s *Service) reviewWorkflowProposal(ctx context.Context, job *changeWorkflo
 		return fmt.Errorf("specialist join disagrees with the stored verdicts")
 	}
 	current.Workflow.Review = review
+	if walkthrough.ProposalHash == current.Hash {
+		current.Walkthrough = walkthrough
+	}
 	return storeChangeSession(job.root, current)
 }
 

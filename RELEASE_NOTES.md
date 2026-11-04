@@ -29,6 +29,19 @@ are listed here as they land.
   - `make install-desktop` removes Kasuri.app and Mini-Orca.app.
   The repository is now `github.com/nanaki-93/kogin` (the old URLs redirect),
   and the Go module path is `github.com/nanaki-93/kogin/v2`.
+- **Shorter, more technical model output.** Every prompt shares one writing
+  rule: one short sentence per field, exact names in backticks, no hedging,
+  no restating. The coding and testing agents end with at most three bullets;
+  Ask leads with the answer.
+- **Issues in four lines:** Problem, Impact, Fix and Verify, above the
+  issue's actions, and the same lines in the task drafted from it, instead of
+  the analysis' paragraphs. File analysis (`file-analysis-v19`), Security
+  (`security-file-v5`) and Performance (`performance-file-v8`) write those
+  lines; issues found before read theirs from what was stored.
+- **Why it changed, beside the diff:** after the reviewers, the review model
+  explains the reviewed version file by file: what each file's change does
+  and, per hunk, what changed and why, at its line (one more request per
+  review). **Explain changes** writes it again.
 - **Docs, shorter and linked to the code:** the overview (prompt
   `project-analysis-v8`) is terse: purpose in one or two sentences,
   architecture as one `path: role` line per main part, shown as a list,

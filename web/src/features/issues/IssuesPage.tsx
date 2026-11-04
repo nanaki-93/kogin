@@ -233,9 +233,11 @@ function FullAnalysis({ finding }: { finding: Finding }) {
       </div>
     );
   }
+  // Folded words that only repeat the brief are left out.
   const brief = finding.brief;
-  const more = !brief || finding.message.trim() !== brief.problem.trim() || lines.length > 0;
-  if (!more) return null;
+  const full = finding.message.length + lines.reduce((sum, line) => sum + line.replace(EVIDENCE_LINE, '$2').length, 0);
+  const briefed = brief ? Object.values(brief).join('').length : 0;
+  if (!brief || full <= briefed + 40) return null;
   return (
     <details className="issue-more">
       <summary className="xs muted">Full analysis</summary>

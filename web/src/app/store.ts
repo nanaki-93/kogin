@@ -31,6 +31,8 @@ export interface UIState {
   darkPalette: DarkPalette;
   diffLayout: DiffLayout;
   wrapLines: boolean;
+  /** Whether the Files tab shows the walkthrough's notes beside the diff. */
+  changeNotes: boolean;
   /** Whether merging a worktree also removes it and its branch; one choice for every merge. */
   removeWorktreeOnMerge: boolean;
 }
@@ -69,6 +71,7 @@ let state: UIState = {
   darkPalette: 'kogin',
   diffLayout: 'unified',
   wrapLines: false,
+  changeNotes: true,
   removeWorktreeOnMerge: true,
   ...pick(loadPrefs()),
 };
@@ -79,6 +82,7 @@ function pick(prefs: Partial<UIState>): Partial<UIState> {
   if (DARK_PALETTES.some(palette => palette.id === prefs.darkPalette)) out.darkPalette = prefs.darkPalette;
   if (prefs.diffLayout === 'split' || prefs.diffLayout === 'unified') out.diffLayout = prefs.diffLayout;
   if (typeof prefs.wrapLines === 'boolean') out.wrapLines = prefs.wrapLines;
+  if (typeof prefs.changeNotes === 'boolean') out.changeNotes = prefs.changeNotes;
   if (typeof prefs.sidebarCollapsed === 'boolean') out.sidebarCollapsed = prefs.sidebarCollapsed;
   if (typeof prefs.removeWorktreeOnMerge === 'boolean') out.removeWorktreeOnMerge = prefs.removeWorktreeOnMerge;
   return out;
@@ -93,7 +97,7 @@ export function getUI(): UIState {
 export function setUI(patch: Partial<UIState>): void {
   state = { ...state, ...patch };
   try {
-    localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: state.theme, darkPalette: state.darkPalette, diffLayout: state.diffLayout, wrapLines: state.wrapLines, sidebarCollapsed: state.sidebarCollapsed, removeWorktreeOnMerge: state.removeWorktreeOnMerge }));
+    localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: state.theme, darkPalette: state.darkPalette, diffLayout: state.diffLayout, wrapLines: state.wrapLines, changeNotes: state.changeNotes, sidebarCollapsed: state.sidebarCollapsed, removeWorktreeOnMerge: state.removeWorktreeOnMerge }));
   } catch {
     // Preferences are a convenience; the UI works without storage.
   }

@@ -161,6 +161,15 @@ every guard when the action arrives.
 - **View files.** Each changed file is marked viewed at the current proposal
   hash (`v` marks it and moves to the next unviewed file). "Since last review"
   shows only what changed since the last complete review.
+- **Why it changed.** Beside the diff (below it on a narrow window), the
+  review model's walkthrough of the file: one line on what its change does,
+  then a note per hunk, what changed and why, whose `L42` shows that line in
+  the diff. It replaces the agent's own line on the file. It is written after
+  the reviewers on the version they reviewed; an older one says it is for an
+  earlier version. **Explain changes** (or the refresh button) writes it again
+  for this version, asking first when the review model is remote. The panel
+  button in the file header hides it, and the choice is kept. The notes are
+  advice, never review evidence.
 - **Line comments.** Any line of a changed file takes a comment (the gutter
   `+`); a comment writes nothing and changes no review state. Open comments
   can be deleted, show on their file in the tree, and go to the agents as one
@@ -350,7 +359,11 @@ every guard when the action arrives.
   file's conventional test in its language, the kind and “done when” criteria);
   nothing starts until the user does. An issue without a file, such as a
   project-wide suggestion, drafts no files, so the composer asks for them; a
-  long title is shortened to its first sentence (the description keeps it whole).
+  long title is shortened to its first sentence. An issue reads as four short
+  lines, **Problem**, **Impact**, **Fix** and **Verify** (backticked names as
+  code), above its actions; the analysis' own words fold under **Full
+  analysis** only when they say more, and a tool's output shows as is. The
+  drafted task carries the same lines and where the issue is.
   **Issues in** splits **Code** (the default; every issue except
   low-severity ones in test files) from **Test quality** (every issue in a
   test file, with its count). Low-severity test issues are left out of the
