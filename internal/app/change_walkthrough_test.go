@@ -25,9 +25,9 @@ func TestAWalkthroughPlacesEachNoteAtItsLineInTheChangedFiles(t *testing.T) {
 	session := walkthroughSession()
 	reply := `{"files":[
 	 {"path":"./cmd/master.go","summary":"Loads the salt from .pwd-salt instead of a fresh one.","notes":[
-	  {"quote":"func readKeySalt() ([]byte, error) { return nil, nil }","what":"Adds ` + "`readKeySalt`" + `","why":"One place reads the salt file."},
-	  {"quote":"\tsalt, err := readKeySalt()","what":"` + "`generateKey`" + ` reads the saved salt","why":"The key must be the same after a restart."},
-	  {"quote":"not in the file","what":"Something unplaced","why":""}]},
+	  {"quote":"func readKeySalt() ([]byte, error) { return nil, nil }","goal":0,"problem":"` + "`generateKey`" + ` needs one place that reads the salt file.","how":"Adds ` + "`readKeySalt`" + `."},
+	  {"quote":"\tsalt, err := readKeySalt()","goal":1,"problem":"Each run derived a new key, so the vault could not be opened again.","how":"` + "`generateKey`" + ` reads the saved salt."},
+	  {"quote":"not in the file","goal":7,"problem":"Something unplaced","how":""}]},
 	 {"path":"cmd/old.go","summary":"Removed: its helper moved.","notes":[]},
 	 {"path":"internal/elsewhere.go","summary":"Not part of the change.","notes":[]}]}`
 	files, err := parseWalkthrough(reply, session)
@@ -38,7 +38,9 @@ func TestAWalkthroughPlacesEachNoteAtItsLineInTheChangedFiles(t *testing.T) {
 		t.Fatalf("files = %+v", files)
 	}
 	notes := files[0].Notes
-	if len(notes) != 3 || notes[0].Line != 4 || notes[1].Line != 8 || notes[2].Line != 0 || notes[0].What != "`generateKey` reads the saved salt" {
+	// In line order, each with the goal it serves; a goal the task does not
+	// have is no goal.
+	if len(notes) != 3 || notes[0].Line != 4 || notes[0].Goal != 1 || notes[0].How != "`generateKey` reads the saved salt." || notes[1].Line != 8 || notes[1].Goal != 0 || notes[2].Line != 0 || notes[2].Goal != 0 {
 		t.Fatalf("notes = %+v", notes)
 	}
 }
@@ -71,7 +73,7 @@ func TestTheReviewStageExplainsTheProposalAndAReviewerCanAskAgain(t *testing.T) 
 		output := workflowApproval
 		if strings.Contains(string(body), `"change_walkthrough"`) {
 			explained.Add(1)
-			output = `{"files":[{"path":"new.go","summary":"Adds ` + "`Helper`" + `.","notes":[{"quote":"func Helper() int { return 2 }","what":"Adds ` + "`Helper`" + ` returning 2","why":"The task asks for it."}]},{"path":"new_test.go","summary":"Pins ` + "`Helper`" + `.","notes":[]}]}`
+			output = `{"files":[{"path":"new.go","summary":"Adds ` + "`Helper`" + `.","notes":[{"quote":"func Helper() int { return 2 }","goal":1,"problem":"Nothing returned two.","how":"Adds ` + "`Helper`" + `."}]},{"path":"new_test.go","summary":"Pins ` + "`Helper`" + `.","notes":[]}]}`
 		}
 		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: output}}}})
 	})
@@ -91,5 +93,32 @@ func TestTheReviewStageExplainsTheProposalAndAReviewerCanAskAgain(t *testing.T) 
 	stale.Hash = "other"
 	if _, err := s.ExplainChange(t.Context(), reviewed.ID, ChangeWalkthroughRequest{ChangeIdentity: stale}); err == nil || explained.Load() != 2 {
 		t.Fatal("a walkthrough of a version the reviewer did not see was written")
+	}
+}
+
+func TestAWalkthroughAsksWhatEachHunkFixesAgainstTheTasksIssues(t *testing.T) {
+	session := walkthroughSession()
+	session.Issues = []ChangeIssue{
+		{Title: "Salt discarded", Detail: "(line 4, in generateKey)\nProblem: `generateKey` drops its salt, so the key cannot be derived again.\nFix: Save it.", Status: IssueFixed},
+		{Title: "Exit status 0 on mismatch", Detail: "(line 9)\nProblem: A wrong password exits 0.", Status: IssueDoesNotHold},
+	}
+	prompt := walkthroughMessages(session)
+	for _, want := range []string{"1. Salt discarded: `generateKey` drops its salt, so the key cannot be derived again.", "2. Exit status 0 on mismatch: A wrong password exits 0. (does not hold; not part of the change)", "what am I fixing here"} {
+		if !strings.Contains(prompt[0].Content+prompt[1].Content, want) {
+			t.Fatalf("prompt lacks %q:\n%s", want, prompt[1].Content)
+		}
+	}
+	// A task without issues names its criteria and the request as asked.
+	session.Issues = nil
+	session.Messages = []ChangeMessage{{Role: "user", Content: "Keep the salt across runs."}}
+	if prompt := walkthroughMessages(session)[1].Content; !strings.Contains(prompt, "As asked:\nKeep the salt across runs.") || !strings.Contains(prompt, "1. The salt survives a restart") {
+		t.Fatalf("prompt = %s", prompt)
+	}
+}
+
+func TestWalkthroughsWrittenBeforeGoalsStillRead(t *testing.T) {
+	var note WalkthroughNote
+	if err := json.Unmarshal([]byte(`{"line":3,"what":"Adds `+"`Helper`"+`.","why":"The task asks for it."}`), &note); err != nil || note.Problem != "The task asks for it." || note.How != "Adds `Helper`." || note.Line != 3 {
+		t.Fatalf("note = %+v, %v", note, err)
 	}
 }

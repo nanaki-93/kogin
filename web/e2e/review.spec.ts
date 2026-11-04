@@ -101,11 +101,15 @@ test('compares the split and unified diff layouts', async ({ page }) => {
   await expect(page.getByRole('button', { name: /unified view/i })).toBeVisible();
 });
 
-test('beside the diff, each hunk says why it changed and opens its line', async ({ page, daemon }) => {
+test('beside the diff, each hunk says what it fixes and opens its line', async ({ page, daemon }) => {
   await page.goto('/#/tasks/chg-1/files');
-  const notes = page.getByRole('complementary', { name: 'Why it changed' });
-  await expect(notes).toContainText('Rejects nested asset names before the embedded read.');
-  await expect(notes.locator('code').first()).toHaveText('ServeAsset');
+  const notes = page.getByRole('complementary', { name: 'What it fixes' });
+  await expect(notes).toContainText('Nested asset paths no longer reach the embedded read.');
+  // The note names the goal it serves, the wrong behavior it removes, then how.
+  await expect(notes).toContainText('Criterion 1 · Nested asset paths return 404');
+  await expect(notes).toContainText('A nested name reached fs.ReadFile and returned 500 instead of 404.');
+  await expect(notes).toContainText('How: ServeAsset refuses names with a slash.');
+  await expect(notes.locator('code').first()).toHaveText('fs.ReadFile');
   // The walkthrough's line replaces the agent's own summary of the file.
   await expect(page.getByText('Rejects nested names.')).toBeHidden();
   await notes.getByRole('button', { name: 'L42' }).click();
@@ -120,7 +124,7 @@ test('beside the diff, each hunk says why it changed and opens its line', async 
   await expect(notes).toContainText('Explained internal/api/handlers/webui_test.go.');
   expect(daemon.mutations('/walkthrough')[0].body).toMatchObject({ project_id: 'p1', revision: 3, hash: 'sha256:9f2c1a7be4', confirm_remote_provider: true });
   // The notes fold away and stay folded.
-  await page.getByRole('button', { name: 'Hide why it changed' }).click();
+  await page.getByRole('button', { name: 'Hide what it fixes' }).click();
   await expect(notes).toBeHidden();
 });
 

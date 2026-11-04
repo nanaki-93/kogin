@@ -112,7 +112,7 @@ export interface ChangeSession extends ProjectIdentity {
   changes: FileChange[];
   pinned_tests?: FileChange[];
   review_diff?: FileChange[];
-  /** What each file's change does and why, hunk by hunk, for its reviewer. */
+  /** What each file's change fixes, hunk by hunk, for its reviewer. */
   walkthrough?: ChangeWalkthrough;
   messages: ChangeMessage[];
   checks: Check[];
@@ -266,9 +266,14 @@ export interface WalkthroughFile {
   notes?: WalkthroughNote[];
 }
 
-/** One hunk: where it starts in the proposed file, what changed and why. */
+/**
+ * One hunk: where it starts in the proposed file, the goal it serves (the
+ * 1-based issue, or criterion when the task has none; 0 = a change another
+ * hunk needs), the wrong behavior it removes and, in a few words, how.
+ */
 export interface WalkthroughNote {
   line?: number;
-  what: string;
-  why?: string;
+  goal?: number;
+  problem: string;
+  how?: string;
 }

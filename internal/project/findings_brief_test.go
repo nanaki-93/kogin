@@ -16,18 +16,15 @@ func TestABriefIsReadFromTheFindingsLabeledEvidence(t *testing.T) {
 	}
 }
 
-func TestABriefFallsBackToTheFindingsOwnInsightAndTaskSpec(t *testing.T) {
-	own := &EngineeringInsight{Mechanism: "The test never checks the partial state.", WhyItMattersHere: "A no-op restore passes.", TransferableLesson: "Assert the value inside the subtest."}
-	finding := UnifiedFinding{Message: "The test never checks the partial state.", EngineeringInsight: own,
-		TaskSpec: &BugTaskSpec{AcceptanceCriteria: []string{"The subtest asserts `nameValue`"}, TestCandidate: &TestCandidateSpec{Path: "cmd/x_test.go", Name: "TestX"}}}
+func TestABriefNeverReadsAStoredInsight(t *testing.T) {
+	// File analysis lent a risk the insight of a suggestion about another
+	// function; its lines must not become this issue's impact or fix.
+	lent := &EngineeringInsight{Mechanism: "`savePassword` returns normally on a mismatch.", WhyItMattersHere: "`writeFileAtomic` does not sync the parent directory.", TransferableLesson: "Sync the directory after the rename."}
+	finding := UnifiedFinding{Message: "`savePassword` returns normally on a mismatch.", EngineeringInsight: lent,
+		TaskSpec: &BugTaskSpec{AcceptanceCriteria: []string{"A mismatch exits non-zero"}, TestCandidate: &TestCandidateSpec{Path: "cmd/x_test.go", Name: "TestX"}}}
 	brief := BriefOf(finding)
-	if brief.Impact != "A no-op restore passes." || brief.Fix != "Assert the value inside the subtest." || brief.Verify != "`TestX` in cmd/x_test.go fails before the fix and passes after it." {
+	if brief.Impact != "" || brief.Fix != "A mismatch exits non-zero" || brief.Verify != "`TestX` in cmd/x_test.go fails before the fix and passes after it." {
 		t.Fatalf("brief = %+v", brief)
-	}
-	// The file's general insight lent to a risk explains something else.
-	finding.EngineeringInsight = &EngineeringInsight{Mechanism: "Something about another function.", WhyItMattersHere: "Unrelated."}
-	if brief := BriefOf(finding); brief.Impact != "" || brief.Fix != "The subtest asserts `nameValue`" {
-		t.Fatalf("borrowed insight was used: %+v", brief)
 	}
 }
 

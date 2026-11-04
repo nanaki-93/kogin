@@ -145,7 +145,7 @@
   overflow: auto;
 }
 
-/* Why it changed: the walkthrough's notes beside the diff. */
+/* What it fixes: the walkthrough's notes beside the diff. */
 .change-notes {
   display: flex;
   flex-direction: column;
@@ -188,6 +188,10 @@
 .change-note-line {
   flex: 0 0 34px;
   text-align: right;
+}
+
+.change-note-goal {
+  color: var(--accent-text);
 }
 
 .change-note-body {

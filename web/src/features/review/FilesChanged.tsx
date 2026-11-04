@@ -141,7 +141,7 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
             <DiffCounts lines={current.diff?.lines ?? []} />
             <span className="spacer" />
             <IconButton icon={WrapText} label="Wrap lines" size="sm" active={wrap} onClick={() => setUI({ wrapLines: !wrap })} />
-            <IconButton icon={PanelRight} label={notes ? 'Hide why it changed' : 'Show why it changed'} size="sm" active={notes} onClick={() => setUI({ changeNotes: !notes })} />
+            <IconButton icon={PanelRight} label={notes ? 'Hide what it fixes' : 'Show what it fixes'} size="sm" active={notes} onClick={() => setUI({ changeNotes: !notes })} />
             <IconButton icon={layout === 'split' ? Rows3 : Columns2} label={layout === 'split' ? 'Unified view (s)' : 'Split view (s)'} size="sm" onClick={() => setUI({ diffLayout: layout === 'split' ? 'unified' : 'split' })} />
             {isFileReviewed(session, current.path) ? (
               <span className="badge badge-success">

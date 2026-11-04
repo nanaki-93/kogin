@@ -161,15 +161,17 @@ every guard when the action arrives.
 - **View files.** Each changed file is marked viewed at the current proposal
   hash (`v` marks it and moves to the next unviewed file). "Since last review"
   shows only what changed since the last complete review.
-- **Why it changed.** Beside the diff (below it on a narrow window), the
-  review model's walkthrough of the file: one line on what its change does,
-  then a note per hunk, what changed and why, whose `L42` shows that line in
-  the diff. It replaces the agent's own line on the file. It is written after
-  the reviewers on the version they reviewed; an older one says it is for an
-  earlier version. **Explain changes** (or the refresh button) writes it again
-  for this version, asking first when the review model is remote. The panel
-  button in the file header hides it, and the choice is kept. The notes are
-  advice, never review evidence.
+- **What it fixes.** Beside the diff (below it on a narrow window), the
+  review model's walkthrough of the file: one line on what its change fixes,
+  then a note per hunk with the issue it serves ("Issue 2 · …", or the
+  criterion when the task has no issues; "Needed by the change" for a helper
+  or fixture), the wrong behavior it removes, and **How** in a few words. Its
+  `L42` shows that line in the diff. It replaces the agent's own line on the
+  file. It is written after the reviewers on the version they reviewed; an
+  older one says it is for an earlier version. **Explain changes** (or the
+  refresh button) writes it again for this version, asking first when the
+  review model is remote. The panel button in the file header hides it, and
+  the choice is kept. The notes are advice, never review evidence.
 - **Line comments.** Any line of a changed file takes a comment (the gutter
   `+`); a comment writes nothing and changes no review state. Open comments
   can be deleted, show on their file in the tree, and go to the agents as one

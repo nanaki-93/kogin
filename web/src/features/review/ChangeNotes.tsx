@@ -1,10 +1,11 @@
-// The walkthrough beside a file's diff: what the file's change does and,
-// hunk by hunk, what changed and why. A note opens its line in the diff.
+// The walkthrough beside a file's diff: what the file's change fixes and,
+// hunk by hunk, the issue it serves, the wrong behavior it removes and how.
+// A note opens its line in the diff.
 // The review model wrote it; it is advice, never review evidence.
 
 import { useState } from 'react';
 import { RefreshCw, Sparkles } from 'lucide-react';
-import type { LoadedSession, WalkthroughFile } from '@/api/types';
+import type { LoadedSession, WalkthroughFile, WalkthroughNote } from '@/api/types';
 import { useActions } from '@/app/actions';
 import { workflowActive } from '@/lib/readiness';
 import { Badge, Button, IconButton, Spinner } from '@/components/ui';
@@ -44,15 +45,15 @@ export function ChangeNotes({ session, path, onLine }: { session: LoadedSession;
     body = (
       <>
         {walkthrough.proposal_hash !== session.hash ? <p className="xs tone-warning">For an earlier version of the change.</p> : null}
-        {file ? <FileNotes file={file} onLine={onLine} /> : <p className="xs muted">No notes for this file.</p>}
+        {file ? <FileNotes file={file} goal={note => goalLabel(session, note)} onLine={onLine} /> : <p className="xs muted">No notes for this file.</p>}
       </>
     );
   }
 
   return (
-    <aside className="change-notes" aria-label="Why it changed">
+    <aside className="change-notes" aria-label="What it fixes">
       <div className="change-notes-head">
-        <span className="strong small grow">Why it changed</span>
+        <span className="strong small grow">What it fixes</span>
         <Badge tone="accent" icon={Sparkles} title="Written by the review model from the diff. Check the code before relying on it.">AI</Badge>
         {walkthrough ? again : null}
       </div>
@@ -61,7 +62,16 @@ export function ChangeNotes({ session, path, onLine }: { session: LoadedSession;
   );
 }
 
-function FileNotes({ file, onLine }: { file: WalkthroughFile; onLine: (line: number) => void }) {
+/** What a note serves: "Issue 2 · Salt discarded", "Criterion 1" or a change another hunk needs. */
+export function goalLabel(session: Pick<LoadedSession, 'issues' | 'acceptance_criteria'>, note: WalkthroughNote): string {
+  const n = note.goal ?? 0;
+  if (n <= 0) return 'Needed by the change';
+  const issue = session.issues?.at(n - 1);
+  if (session.issues?.length) return issue ? `Issue ${n} · ${issue.title}` : `Issue ${n}`;
+  return session.acceptance_criteria.at(n - 1) ? `Criterion ${n} · ${session.acceptance_criteria.at(n - 1)}` : `Criterion ${n}`;
+}
+
+function FileNotes({ file, goal, onLine }: { file: WalkthroughFile; goal: (note: WalkthroughNote) => string; onLine: (line: number) => void }) {
   return (
     <>
       {file.summary ? <p className="change-notes-summary small"><DocText text={file.summary} /></p> : null}
@@ -74,8 +84,9 @@ function FileNotes({ file, onLine }: { file: WalkthroughFile; onLine: (line: num
               </button>
             ) : <span className="mono xs faint change-note-line">·</span>}
             <div className="change-note-body">
-              <div className="small"><DocText text={note.what} /></div>
-              {note.why ? <div className="xs muted"><DocText text={note.why} /></div> : null}
+              <div className={note.goal ? 'xs change-note-goal truncate' : 'xs faint truncate'} title={goal(note)}>{goal(note)}</div>
+              <div className="small"><DocText text={note.problem} /></div>
+              {note.how ? <div className="xs muted">How: <DocText text={note.how} /></div> : null}
             </div>
           </li>
         ))}

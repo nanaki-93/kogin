@@ -1054,11 +1054,16 @@ canceled reviewer prevents aggregate approval. Parallel cancellation caused by a
 reviewer remains a failed run rather than appearing as a user cancellation.
 
 After the reviewers, the review stage makes one more request with the review
-model: the `walkthrough` of the reviewed proposal (`proposal_hash`). For each
-changed file it has a `summary` (what the file's change does) and up to eight
-`notes`, one per meaningful hunk: `what` changed and `why`, at the `line` where
-the hunk starts in the proposed content (the model quotes the line and the
-daemon finds it). It is advisory and never counts as review evidence; a failed
+model: the `walkthrough` of the reviewed proposal (`proposal_hash`). It says
+what the change fixes, not what the code does: the model gets the task's
+issues (title and problem, and how each step ended), or its criteria and
+request when it has none. For each changed file it has a `summary` (what the
+file's change fixes) and up to eight `notes`, one per meaningful hunk: the
+`goal` it serves (the 1-based issue, else criterion; 0 or absent = a change
+another hunk needs), the `problem` it removes and `how` in a few words, at
+the `line` where the hunk starts in the proposed content (the model quotes the
+line and the daemon finds it). Notes stored as `what`/`why` read as
+`how`/`problem`. It is advisory and never counts as review evidence; a failed
 request leaves `status: failed` with its `reason` and the review goes on.
 `POST …/walkthrough` with `ChangeIdentity` (and `confirm_remote_provider` for a
 remote review model) writes it again for the current version.

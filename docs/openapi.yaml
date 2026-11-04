@@ -2349,17 +2349,18 @@ components:
             required: [path]
             properties:
               path: {type: string}
-              summary: {type: string, maxLength: 640, description: What the file's change does (at most 160 characters).}
+              summary: {type: string, maxLength: 640, description: What the file's change fixes (at most 160 characters).}
               notes:
                 type: array
                 maxItems: 8
                 items:
                   type: object
-                  required: [what]
+                  required: [problem]
                   properties:
                     line: {type: integer, minimum: 1, description: The hunk's first line in the proposed content; absent when the model's quote was not found.}
-                    what: {type: string, description: What changed (at most 120 characters).}
-                    why: {type: string, description: Why (at most 160 characters).}
+                    goal: {type: integer, minimum: 0, description: The 1-based issue it serves, or criterion when the task has no issues; 0 or absent = a change another hunk needs.}
+                    problem: {type: string, description: The wrong behavior it removes, or why it is needed (at most 160 characters).}
+                    how: {type: string, description: The change in a few words (at most 100 characters).}
     ChangeTarget:
       type: object
       properties:

@@ -37,11 +37,13 @@ are listed here as they land.
   issue's actions, and the same lines in the task drafted from it, instead of
   the analysis' paragraphs. File analysis (`file-analysis-v19`), Security
   (`security-file-v5`) and Performance (`performance-file-v8`) write those
-  lines; issues found before read theirs from what was stored.
-- **Why it changed, beside the diff:** after the reviewers, the review model
-  explains the reviewed version file by file: what each file's change does
-  and, per hunk, what changed and why, at its line (one more request per
-  review). **Explain changes** writes it again.
+  lines; issues found before read theirs from what was stored (never from a
+  stored insight, which older analyses could lend from another problem).
+- **What it fixes, beside the diff:** after the reviewers, the review model
+  explains the reviewed version file by file: what each file's change fixes
+  and, per hunk, the issue it serves, the wrong behavior it removes and how,
+  at its line (one more request per review). **Explain changes** writes it
+  again.
 - **Docs, shorter and linked to the code:** the overview (prompt
   `project-analysis-v8`) is terse: purpose in one or two sentences,
   architecture as one `path: role` line per main part, shown as a list,

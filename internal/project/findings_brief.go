@@ -13,7 +13,10 @@ const maxBriefLine = 200
 // FindingBrief is an issue in four short lines: what is wrong, what it
 // costs, the change that fixes it and how to see that it is fixed. It is
 // read from the finding's message, labeled evidence, own insight and task
-// specification, so findings stored before it existed have one too.
+// specification, so findings stored before it existed have one too. A
+// stored insight is not read: file analysis paired risks with suggestions
+// by position and lent them the file's insight, so an issue's insight can
+// explain a different problem.
 type FindingBrief struct {
 	Problem string `json:"problem"`
 	Impact  string `json:"impact,omitempty"`
@@ -32,16 +35,9 @@ var (
 // BriefOf reads a finding's brief.
 func BriefOf(finding UnifiedFinding) FindingBrief {
 	labeled := evidenceLabels(finding.Evidence)
-	own := ownInsight(finding)
 	brief := FindingBrief{Problem: briefLine(finding.Message)}
 	brief.Impact = briefLine(firstLabeled(labeled, briefImpactLabels))
-	if brief.Impact == "" && own != nil {
-		brief.Impact = briefLine(firstNonEmpty(own.WhyItMattersHere, own.TradeoffOrFailureMode))
-	}
 	brief.Fix = briefLine(firstLabeled(labeled, briefFixLabels))
-	if brief.Fix == "" && own != nil {
-		brief.Fix = briefLine(own.TransferableLesson)
-	}
 	if brief.Fix == "" && finding.TaskSpec != nil && len(finding.TaskSpec.AcceptanceCriteria) > 0 {
 		brief.Fix = briefLine(finding.TaskSpec.AcceptanceCriteria[0])
 	}
@@ -90,28 +86,8 @@ func firstLabeled(labeled map[string]string, labels []string) string {
 	return ""
 }
 
-// ownInsight is the finding's insight when it was written for this finding:
-// an older file analysis lent the file's general insight to risks without
-// one, and that one explains something else.
-func ownInsight(finding UnifiedFinding) *EngineeringInsight {
-	insight := finding.EngineeringInsight
-	if insight == nil || briefLine(insight.Mechanism) != briefLine(finding.Message) {
-		return nil
-	}
-	return insight
-}
-
 func briefLine(text string) string {
 	return textutil.FirstSentence(text, maxBriefLine)
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 // EvidenceIsLabeled reports whether evidence is only labeled lines, which
