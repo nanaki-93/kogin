@@ -295,7 +295,7 @@ pre.output {
   border-radius: 6px;
   background: var(--bg-sunken);
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--text-code);
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;

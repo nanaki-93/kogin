@@ -4,7 +4,8 @@
     "kanji": "こぎん",
     "font": {
       "wordmark": "JetBrains Mono Bold, uppercase, letter-spacing 0.08em",
-      "text": "Inter"
+      "text": "system-ui (SF Pro on macOS)",
+      "code": "ui-monospace (SF Mono on macOS)"
     }
   },
   "dark": {
@@ -18,7 +19,7 @@
     "text": "#EEEAF8",
     "text2": "#C9C2DD",
     "muted": "#A79FC2",
-    "faint": "#6E6491",
+    "faint": "#9187B8",
     "emerald": "#34D399",
     "emeraldStrong": "#22C08A",
     "emeraldText": "#7FE5BE",
@@ -39,7 +40,7 @@
     "text": "#160F2B",
     "text2": "#3B3355",
     "muted": "#625A78",
-    "faint": "#9A93AE",
+    "faint": "#78718E",
     "emerald": "#0F7A4B",
     "emeraldStrong": "#0B6A40",
     "emeraldThread": "#14955C",

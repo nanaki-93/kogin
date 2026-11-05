@@ -161,6 +161,11 @@ modifier (`usePageKeys` and `useShortcuts` own those rules).
   token from the document and the guarded proposal identity; failures show the
   daemon's user message. In development the Vite proxy adds the token from the
   daemon's token file.
+- Type: the system font and its monospace (`--font`, `--mono`; SF Pro and SF
+  Mono on macOS), no bundled font files. Every font size comes from the scale
+  in `tokens.css` (`--text-xs` 12 px up to `--text-2xl`, `--text-code` for code
+  and paths); no size is set by hand and nothing is smaller than `--text-xs`.
+  `--faint` text keeps at least 4.5:1 on its palette's background.
 - Shared pieces live in `components/` (primitives in `ui.tsx`, domain pieces in
   `domain.tsx`); a page does not grow its own copy of a list group, status badge
   or key handler.

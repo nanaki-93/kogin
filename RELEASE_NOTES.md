@@ -55,6 +55,15 @@ are listed here as they land.
   agents fail can be counted. Behavior changes accepted in earlier tasks are
   given to the next tasks' agents and reviewers, so a second name for the
   same flag is caught.
+- **System fonts, a size larger, brighter faint text:** the interface uses
+  the system font and its monospace (SF Pro and SF Mono on macOS, so the
+  desktop app reads like a Mac app); the Inter and JetBrains Mono files are no
+  longer bundled. Every text is one step larger (12 · 13 · 14 px for small,
+  secondary and body text, 12.5 px for code and paths), nothing is smaller
+  than 12 px, and the sizes that were set by hand (file paths, line numbers,
+  badges, key hints) follow the same scale. The faintest text (timestamps,
+  hints, line numbers) is brighter in every palette, at least 4.5:1 on its
+  background.
 - **Branches says why nothing merges:** a merge needs a clean main checkout,
   so one stray file there (say a folder another app saved) hid every Merge
   button with a message about tasks not being committed. The daemon now names

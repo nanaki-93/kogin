@@ -131,8 +131,15 @@ func TestWebUIStylesheetFontsAreServed(t *testing.T) {
 			fonts++
 		}
 	}
+	// The UI uses the system's fonts and bundles none; a font it does bundle
+	// is still served with its type.
 	if fonts == 0 {
-		t.Fatal("stylesheet references no bundled fonts")
+		bundled := webUIMux(newWebUIHandler(fstest.MapFS{"face-1.woff2": {Data: []byte("wOF2")}}, "test-write-token"))
+		res := httptest.NewRecorder()
+		bundled.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/ui/assets/face-1.woff2", nil))
+		if res.Code != http.StatusOK || res.Header().Get("Content-Type") != "font/woff2" {
+			t.Fatalf("bundled font = %d %q", res.Code, res.Header().Get("Content-Type"))
+		}
 	}
 }
 

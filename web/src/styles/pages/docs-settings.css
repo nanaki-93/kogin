@@ -68,7 +68,7 @@
 
 .docs-link.mono {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-code);
 }
 
 .docs-group-head {
@@ -214,13 +214,13 @@
 
 .graph-label {
   fill: var(--text);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
 .graph-meta {
   fill: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 
 .graph-edge {

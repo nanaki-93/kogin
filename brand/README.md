@@ -56,7 +56,7 @@ Emerald is for **actions** (primary buttons, "needs you", success). Violet is fo
 | Chrome / sidebar | `#120C24` |
 | Surface · surface 2 · surface 3 | `#1B1433` · `#221A3D` · `#2A2148` |
 | Lines | `#2F2650` |
-| Text · secondary · muted · faint | `#EEEAF8` · `#C9C2DD` · `#A79FC2` · `#6E6491` |
+| Text · secondary · muted · faint | `#EEEAF8` · `#C9C2DD` · `#A79FC2` · `#9187B8` |
 | Emerald (thread, primary button with `#160F2B` text) | `#34D399` |
 | Violet (thread, active page, focus) | `#9B7BFF` |
 
@@ -67,7 +67,7 @@ Emerald is for **actions** (primary buttons, "needs you", success). Violet is fo
 | Background · paper | `#FFFFFF` · `#F7F5FC` |
 | Chrome / sidebar | `#EFECF6` |
 | Lines | `#E4DFF0` |
-| Text · secondary · muted · faint | `#160F2B` · `#3B3355` · `#625A78` · `#9A93AE` |
+| Text · secondary · muted · faint | `#160F2B` · `#3B3355` · `#625A78` · `#78718E` |
 | Deep emerald (thread) | `#14955C` |
 | Action green (primary button with white text) | `#0F7A4B` |
 | Deep violet (thread, active page, focus) | `#4B2FB8` |
@@ -76,7 +76,7 @@ Emerald is for **actions** (primary buttons, "needs you", success). Violet is fo
 
 - **Wordmark:** JetBrains Mono Bold, uppercase, letter-spacing 0.08em. The SVGs
   already contain it as outlines.
-- **Interface text:** Inter. **Code:** JetBrains Mono. (Both are already the Web UI's fonts.)
+- **Interface text:** the system font (SF Pro on macOS). **Code:** the system monospace (SF Mono on macOS). The Web UI ships no font files.
 - **Japanese:** こぎん in Zen Kaku Gothic New, when it appears next to the name.
 
 ## Regenerating

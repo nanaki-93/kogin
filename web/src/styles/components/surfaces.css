@@ -323,7 +323,7 @@ mark {
 .tooltip .kbd {
   height: 16px;
   min-width: 16px;
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 
 .menu {

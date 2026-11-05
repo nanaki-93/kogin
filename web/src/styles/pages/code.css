@@ -98,7 +98,7 @@
   border-radius: 999px;
   background: var(--warning-soft);
   color: var(--warning);
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 600;
   line-height: 15px;
   text-align: center;
@@ -230,7 +230,7 @@
   position: relative;
   min-width: max-content;
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: var(--text-code);
 }
 
 .code-line {
@@ -268,7 +268,7 @@
   padding-right: 14px;
   background: var(--bg);
   color: var(--faint);
-  font-size: 11px;
+  font-size: var(--text-xs);
   user-select: none;
   cursor: pointer;
 }

@@ -84,7 +84,7 @@
   display: block;
   overflow: hidden;
   color: var(--faint);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   text-overflow: ellipsis;
 }
 
@@ -92,7 +92,7 @@
   display: inline-flex;
   gap: 4px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
 }
 
 .add { color: var(--success); }
@@ -186,7 +186,7 @@
   align-items: center;
   gap: 6px;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 
 .diff-blocks {
@@ -209,7 +209,7 @@
   border-collapse: collapse;
   table-layout: fixed;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-code);
   line-height: 20px;
 }
 
@@ -226,7 +226,7 @@
   color: var(--faint);
   text-align: right;
   user-select: none;
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 
 .diff .code {

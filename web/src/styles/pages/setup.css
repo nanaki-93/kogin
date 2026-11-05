@@ -207,7 +207,7 @@
   padding: 4px 8px;
   border-left: 2px solid var(--border-strong);
   background: var(--bg-sunken);
-  font-size: 12px;
+  font-size: var(--text-code);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

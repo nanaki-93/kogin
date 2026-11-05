@@ -19,7 +19,7 @@
   --text: #eeeaf8;
   --text-2: #c9c2dd;
   --muted: #a79fc2;
-  --faint: #6e6491;
+  --faint: #9187b8;
   /* Emerald is for actions: primary buttons, what needs you, success. */
   --accent: #34d399;
   --accent-strong: #22c08a;
@@ -86,7 +86,7 @@
   --text: #ececef;
   --text-2: #b8bbc3;
   --muted: #8a8f99;
-  --faint: #5f646e;
+  --faint: #797e88;
   --accent: #7f86ff;
   --accent-strong: #6d74f7;
   --accent-soft: rgba(127, 134, 255, 0.14);
@@ -105,7 +105,7 @@
   --text: #ededed;
   --text-2: #bdbdbd;
   --muted: #8c8c8c;
-  --faint: #5e5e5e;
+  --faint: #7f7f7f;
   --accent: #e6e6e6;
   --accent-strong: #ffffff;
   --accent-soft: rgba(255, 255, 255, 0.1);
@@ -124,7 +124,7 @@
   --text: #e3eef6;
   --text-2: #b2c4d2;
   --muted: #7f97aa;
-  --faint: #566c7e;
+  --faint: #6c8395;
   --accent: #3fc1e8;
   --accent-strong: #2aaed6;
   --accent-soft: rgba(63, 193, 232, 0.14);
@@ -143,7 +143,7 @@
   --text: #e4efe8;
   --text-2: #b4c6ba;
   --muted: #82988a;
-  --faint: #57695d;
+  --faint: #708477;
   --accent: #52c98a;
   --accent-strong: #3fb878;
   --accent-soft: rgba(82, 201, 138, 0.14);
@@ -162,7 +162,7 @@
   --text: #f0e8f5;
   --text-2: #c6b8d1;
   --muted: #9786a6;
-  --faint: #6a5b78;
+  --faint: #887897;
   --accent: #d17ce8;
   --accent-strong: #c066da;
   --accent-soft: rgba(209, 124, 232, 0.15);
@@ -181,7 +181,7 @@
   --text: #f3ebe4;
   --text-2: #cdbfb2;
   --muted: #a08f80;
-  --faint: #736356;
+  --faint: #8c7b6d;
   --accent: #f08a4b;
   --accent-strong: #e07535;
   --accent-soft: rgba(240, 138, 75, 0.15);
@@ -200,7 +200,7 @@
   --text: #f2f2f2;
   --text-2: #c4c4c4;
   --muted: #8f8f8f;
-  --faint: #626262;
+  --faint: #767676;
   --accent: #8b93ff;
   --accent-strong: #7880fb;
   --accent-soft: rgba(139, 147, 255, 0.16);
@@ -229,7 +229,7 @@
   --text: #160f2b;
   --text-2: #3b3355;
   --muted: #625a78;
-  --faint: #9a93ae;
+  --faint: #78718e;
   --accent: #0f7a4b;
   --accent-strong: #0b6a40;
   --accent-soft: rgba(15, 122, 75, 0.1);
@@ -272,14 +272,19 @@
 }
 
 :root {
-  --font: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-md: 13px;
-  --text-lg: 15px;
-  --text-xl: 18px;
-  --text-2xl: 22px;
+  /* The system's own faces: SF Pro and SF Mono on macOS, so the desktop app
+     reads like a Mac app; Segoe UI and Consolas on Windows. */
+  --font: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  /* One scale for every text; nothing is smaller than --text-xs. */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 19px;
+  --text-2xl: 24px;
+  /* Code lines, file paths and other monospace text. */
+  --text-code: 12.5px;
   --radius-sm: 5px;
   --radius: 7px;
   --radius-lg: 12px;
