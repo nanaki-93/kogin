@@ -179,7 +179,10 @@ func (run *taskToolRun) serve(specs []toolSpec) []toolserver.Tool {
 				if err := run.admit(name); err != nil {
 					return "", err
 				}
-				return call(ctx, arguments)
+				seq := run.s.startActivity(run.session, run.role, name, arguments)
+				result, err := call(ctx, arguments)
+				run.s.endActivity(run.session, seq, err)
+				return result, err
 			}})
 	}
 	return tools

@@ -395,3 +395,158 @@
   gap: 8px;
   height: 26px;
 }
+
+/* Focus review: one hunk at a time, its note beside it. */
+.hunk-review {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.hunk-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 16px;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+  background: var(--bg-sunken);
+}
+
+.hunk-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hunk-count .grow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hunk-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.hunk-dot {
+  width: 16px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: var(--surface-3);
+  cursor: pointer;
+}
+
+.hunk-dot.is-file {
+  margin-left: 6px;
+}
+
+.hunk-dot.is-right {
+  background: var(--accent);
+}
+
+.hunk-dot.is-current {
+  background: var(--nav-accent);
+  box-shadow: 0 0 0 2px var(--nav-accent-soft);
+}
+
+.hunk-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hunk-notes .hunk-note .small {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.hunk-notes .hunk-note .xs {
+  font-size: var(--text-sm);
+}
+
+.hunk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.hunk-keys {
+  line-height: 1.8;
+}
+
+.hunk-code {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* The review bar: what is left, and the last step. */
+.review-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border-strong);
+  background: var(--surface);
+}
+
+.review-dots {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
+.review-dot {
+  width: 18px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: var(--surface-3);
+  cursor: pointer;
+}
+
+.review-dot.is-viewed {
+  background: var(--accent);
+}
+
+.review-dot.is-current {
+  box-shadow: 0 0 0 2px var(--nav-accent);
+}
+
+.review-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .hunk-review {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .hunk-pane {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}

@@ -20,6 +20,8 @@ type Event struct {
 	Status     string                  `json:"status,omitempty"`
 	Usage      *agentstate.BudgetUsage `json:"usage,omitempty"`
 	Cost       *AgentCostEstimate      `json:"cost,omitempty"`
+	// Activity is a tool call an agent made, on "activity" events.
+	Activity *AgentActivity `json:"activity,omitempty"`
 	// WorktreePath is the worktree a task's event comes from, set when the
 	// event is told to the active project's listeners.
 	WorktreePath string `json:"worktree_path,omitempty"`
@@ -87,7 +89,7 @@ func (s *Service) publishEvent(event Event) {
 	if s.events != nil {
 		s.events.publish(event)
 	}
-	if s.owner != nil && event.Kind == "workflow" {
+	if s.owner != nil && (event.Kind == "workflow" || event.Kind == "activity") {
 		forwarded := event
 		forwarded.WorktreePath = s.manager.Root()
 		s.owner.publishEvent(forwarded)

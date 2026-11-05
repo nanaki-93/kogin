@@ -480,3 +480,61 @@
   color: var(--text);
   box-shadow: var(--shadow-sm);
 }
+
+/* Compact filters: "Status Open ▾", and a chip for each filter that is on. */
+.filter-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+.filter-menu:hover,
+.filter-menu[data-state='open'] {
+  background: var(--surface-2);
+}
+
+.filter-menu svg {
+  color: var(--muted);
+}
+
+.menu-check {
+  display: inline-grid;
+  width: 14px;
+  place-items: center;
+  color: var(--nav-accent-text);
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 4px 0 10px;
+  border-radius: 999px;
+  background: var(--nav-accent-soft);
+  color: var(--nav-accent-text);
+  font-size: var(--text-sm);
+}
+
+.filter-chip button {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+}
+
+.filter-chip button:hover {
+  background: var(--active);
+}

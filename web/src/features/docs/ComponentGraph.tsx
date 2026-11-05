@@ -1,9 +1,9 @@
 // The components diagram: each component of the project and the imports
-// between them, laid out from the code (importers above what they import).
+// between them, laid out from the code (importers before what they import).
 
 import { useMemo, useState } from 'react';
 import type { DocsComponent, DocsGraph } from '@/api/types';
-import { NODE_HEIGHT, NODE_WIDTH, layoutGraph } from '@/lib/graphLayout';
+import { NODE_HEIGHT, NODE_WIDTH, layoutGraph, type Layout, type LayoutNode } from '@/lib/graphLayout';
 import { cx } from '@/components/ui';
 import { componentLabel } from '@/lib/docs';
 
@@ -27,20 +27,9 @@ export function ComponentGraph({ components, graph, onOpen }: { components: Docs
           const from = position.get(edge.from);
           const to = position.get(edge.to);
           if (!from || !to) return null;
-          // An edge that skips rows leaves and enters on the right and bows
-          // out, so it does not run through the nodes between.
-          const span = Math.abs(to.rank - from.rank);
-          const side = span > 1 ? NODE_WIDTH * 0.8 : NODE_WIDTH / 2;
-          const bow = span > 1 ? 36 + 24 * (span - 1) : 0;
-          const x1 = from.x + side;
-          const x2 = to.x + side;
-          const downward = to.y > from.y;
-          const y1 = downward ? from.y + NODE_HEIGHT : from.y;
-          const y2 = downward ? to.y : to.y + NODE_HEIGHT;
-          const bend = (y2 - y1) / 2 || 40;
           const active = hover === edge.from || hover === edge.to;
           return (
-            <path key={`${edge.from}>${edge.to}`} d={`M ${x1} ${y1} C ${x1 + bow} ${y1 + bend}, ${x2 + bow} ${y2 - bend}, ${x2} ${y2}`} className={cx('graph-edge', active && 'is-active', hover && !active && 'is-dim')}
+            <path key={`${edge.from}>${edge.to}`} d={edgePath(from, to, layout.direction)} className={cx('graph-edge', active && 'is-active', hover && !active && 'is-dim')}
               strokeWidth={1 + (2 * edge.weight) / heaviest} markerEnd="url(#graph-arrow)">
               <title>{`${edge.from} imports ${edge.to} (${edge.weight} ${edge.weight === 1 ? 'import' : 'imports'})`}</title>
             </path>
@@ -67,4 +56,32 @@ export function ComponentGraph({ components, graph, onOpen }: { components: Docs
       </figcaption>
     </figure>
   );
+}
+
+/**
+ * An edge from a component to one it imports. An edge that skips layers
+ * leaves and enters off-center and bows out (right of rows, below columns),
+ * so it does not run through the nodes between.
+ */
+function edgePath(from: LayoutNode, to: LayoutNode, direction: Layout['direction']): string {
+  const span = Math.abs(to.rank - from.rank);
+  const bow = span > 1 ? 36 + 24 * (span - 1) : 0;
+  if (direction === 'right') {
+    const side = span > 1 ? NODE_HEIGHT * 0.8 : NODE_HEIGHT / 2;
+    const forward = to.x > from.x;
+    const x1 = forward ? from.x + NODE_WIDTH : from.x;
+    const x2 = forward ? to.x : to.x + NODE_WIDTH;
+    const y1 = from.y + side;
+    const y2 = to.y + side;
+    const bend = (x2 - x1) / 2 || 40;
+    return `M ${x1} ${y1} C ${x1 + bend} ${y1 + bow}, ${x2 - bend} ${y2 + bow}, ${x2} ${y2}`;
+  }
+  const side = span > 1 ? NODE_WIDTH * 0.8 : NODE_WIDTH / 2;
+  const downward = to.y > from.y;
+  const x1 = from.x + side;
+  const x2 = to.x + side;
+  const y1 = downward ? from.y + NODE_HEIGHT : from.y;
+  const y2 = downward ? to.y : to.y + NODE_HEIGHT;
+  const bend = (y2 - y1) / 2 || 40;
+  return `M ${x1} ${y1} C ${x1 + bow} ${y1 + bend}, ${x2 + bow} ${y2 - bend}, ${x2} ${y2}`;
 }

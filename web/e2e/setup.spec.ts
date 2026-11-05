@@ -23,7 +23,7 @@ test('a project without configuration opens setup and saves it step by step', as
 
   await page.getByLabel('Reviews').selectOption('code');
   await page.getByLabel('Model calls').fill('30');
-  await page.getByLabel('Analysis request (seconds)').fill('600');
+  await page.getByLabel('Analysis request').fill('10m');
   await page.getByRole('button', { name: 'Save and continue' }).click();
   await expect(page.getByText('Project configuration saved.')).toBeVisible();
   const [saved] = daemon.mutations('/setup');
@@ -95,8 +95,9 @@ test('time limits are changed from Models & agents without rerunning setup', asy
   daemon.serveSetup('configured');
   await page.goto('/#/settings/models');
   const limits = page.getByRole('region', { name: 'Time limits' });
-  const analysis = limits.getByLabel('Analysis request (seconds)');
-  await expect(analysis).toHaveValue('120');
+  // Limits read and type as durations; plain seconds still work.
+  const analysis = limits.getByLabel('Analysis request');
+  await expect(analysis).toHaveValue('2m');
   await expect(limits).toContainText('Now 2m 0s.');
   await analysis.fill('0');
   await expect(limits).toContainText('At least 1 second.');
@@ -106,6 +107,6 @@ test('time limits are changed from Models & agents without rerunning setup', asy
   await expect(page.getByText('Time limits saved.')).toBeVisible();
   expect(daemon.mutations('/setup/timeouts')[0].body).toMatchObject({ project_id: 'p1', timeouts: { analysis_seconds: 900, import_seconds: 300 } });
   expect(daemon.mutations('/setup')).toHaveLength(0);
-  await expect(analysis).toHaveValue('900');
+  await expect(analysis).toHaveValue('15m');
   await expect(limits.getByRole('button', { name: 'Save time limits' })).toBeDisabled();
 });

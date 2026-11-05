@@ -234,6 +234,7 @@ func newProjectHTTPMux(application *app.Service, projectManager *project.Manager
 	mux.HandleFunc("POST /api/projects/current/quarantine/delete", changeHandler.DeleteQuarantined)
 	mux.HandleFunc("GET /api/projects/current/changes/{sessionID}", changeHandler.Get)
 	mux.HandleFunc("GET /api/projects/current/changes/{sessionID}/rules", changeHandler.Rules)
+	mux.HandleFunc("GET /api/projects/current/changes/{sessionID}/activity", changeHandler.Activity)
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/messages", changeHandler.Message)
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/checks", changeHandler.Checks)
 	mux.HandleFunc("POST /api/projects/current/changes/{sessionID}/workflow", changeHandler.StartWorkflow)

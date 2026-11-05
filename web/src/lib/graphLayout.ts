@@ -1,5 +1,6 @@
-// A layered layout for the components diagram: importers above what they
-// import, nodes in a row ordered to keep edges short. Small graphs only (the
+// A layered layout for the components diagram: importers above (or, for a
+// long chain, left of) what they import, nodes in a layer ordered to keep
+// edges short. Small graphs only (the
 // docs show at most 16 components), so the simple passes are enough.
 
 export interface LayoutEdge {
@@ -19,6 +20,8 @@ export interface Layout {
   nodes: LayoutNode[];
   width: number;
   height: number;
+  /** 'down': ranks are rows, importers on top; 'right': ranks are columns, importers on the left. */
+  direction: 'down' | 'right';
 }
 
 export const NODE_WIDTH = 156;
@@ -26,6 +29,8 @@ export const NODE_HEIGHT = 46;
 const GAP_X = 28;
 const GAP_Y = 64;
 const MARGIN = 12;
+const GAP_COLUMN = 56;
+const GAP_IN_COLUMN = 16;
 
 /**
  * Lays nodes out in rows: a node's row is one below the lowest row of the
@@ -42,6 +47,9 @@ export function layoutGraph(ids: string[], edges: LayoutEdge[]): Layout {
   for (const id of ids) if (!connected.has(id)) rank.set(id, bottom);
   const rows = orderRows(ids, rank, acyclic);
   const widest = Math.max(1, ...rows.map(row => row.length));
+  // A long, narrow graph (a chain of layers) reads left to right, so it fits
+  // the page's width instead of running down it.
+  if (rows.length > widest + 1) return columns(rows, widest);
   // Room on the right for edges that bow around the rows they skip.
   const width = MARGIN * 2 + widest * NODE_WIDTH + (widest - 1) * GAP_X + 48;
   const nodes: LayoutNode[] = [];
@@ -50,7 +58,19 @@ export function layoutGraph(ids: string[], edges: LayoutEdge[]): Layout {
     const left = (width - rowWidth) / 2;
     row.forEach((id, i) => nodes.push({ id, rank: r, x: left + i * (NODE_WIDTH + GAP_X), y: MARGIN + r * (NODE_HEIGHT + GAP_Y) }));
   });
-  return { nodes, width, height: MARGIN * 2 + rows.length * NODE_HEIGHT + Math.max(0, rows.length - 1) * GAP_Y };
+  return { nodes, width, height: MARGIN * 2 + rows.length * NODE_HEIGHT + Math.max(0, rows.length - 1) * GAP_Y, direction: 'down' };
+}
+
+/** The layers as columns, each centered, with room below for edges that skip columns. */
+function columns(rows: string[][], tallest: number): Layout {
+  const height = MARGIN * 2 + tallest * NODE_HEIGHT + (tallest - 1) * GAP_IN_COLUMN + 48;
+  const nodes: LayoutNode[] = [];
+  rows.forEach((row, r) => {
+    const columnHeight = row.length * NODE_HEIGHT + (row.length - 1) * GAP_IN_COLUMN;
+    const top = (height - 48 - columnHeight) / 2;
+    row.forEach((id, i) => nodes.push({ id, rank: r, x: MARGIN + r * (NODE_WIDTH + GAP_COLUMN), y: top + i * (NODE_HEIGHT + GAP_IN_COLUMN) }));
+  });
+  return { nodes, width: MARGIN * 2 + rows.length * NODE_WIDTH + (rows.length - 1) * GAP_COLUMN, height, direction: 'right' };
 }
 
 /** The edges with each cycle broken: an edge back to a node on the search path is reversed. */

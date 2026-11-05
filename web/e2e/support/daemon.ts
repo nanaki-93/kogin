@@ -271,6 +271,7 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/findings$/, () => this.findings()],
     [/^\/api\/projects\/current\/rules$/, () => ({ ...data.project, test_patterns: ['*_test.go', '*.test.ts', '**/tests/**'], guides: ['AGENTS.md'], problems: [] })],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/rules$/, () => ({ session_id: 'chg-1', revision: 3, files: [], problems: [] })],
+    [/^\/api\/projects\/current\/changes\/([^/]+)\/activity$/, () => ({ entries: [] })],
     [/^\/api\/projects\/current\/overview$/, () => ({ ...data.overview, analysis_run: this.run ?? data.overview.analysis_run, docs_refresh: this.docsRefresh })],
     [/^\/api\/projects\/current\/agent-settings$/, () => this.settings],
     [/^\/api\/projects\/current\/setup$/, () => this.setup],
@@ -292,6 +293,7 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/changes\/([^/]+)\/comments\/delete$/, (body, m) => this.update(m[1], body, s => ({ ...s, comments: (s.comments ?? []).filter(c => c.id !== body.id || c.sent_revision) }))],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/messages$/, (body, m) => this.update(m[1], body, s => reviseSession(s, body))],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/workflow$/, (body, m) => this.update(m[1], body, s => startRun(s, body))],
+    [/^\/api\/projects\/current\/changes\/([^/]+)\/workflow\/cancel$/, (body, m) => this.cancelRun(m[1], String(body.workflow_id))],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/apply$/, (body, m) => this.apply(m[1], body)],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/delete$/, (body, m) => this.deleteTask(m[1], body)],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/close$/, (body, m) => this.closeTask(m[1], body)],
@@ -431,6 +433,15 @@ export class FakeDaemon {
   }
 
   /** Applies a guarded update: the request must name the current revision and hash. */
+  /** Stops a task's running agents, like the daemon's cancel. */
+  private cancelRun(id: string, workflow: string): ChangeSession {
+    const session = this.sessions.get(decodeURIComponent(id));
+    if (!session?.workflow || session.workflow.id !== workflow) throw new Error('That run is not the current one.');
+    const updated = { ...session, workflow: { ...session.workflow, status: 'canceled', reason: 'Stopped by you.' } };
+    this.sessions.set(session.id, updated);
+    return updated;
+  }
+
   private update(id: string, body: Record<string, unknown>, next: (session: ChangeSession) => ChangeSession): ChangeSession {
     const session = this.sessions.get(decodeURIComponent(id));
     if (!session) throw new Error('Task not found.');

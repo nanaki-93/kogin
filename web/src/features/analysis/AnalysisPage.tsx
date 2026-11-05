@@ -129,6 +129,13 @@ function MoreRuns({ choices, disabled }: { choices: { label: string; detail: str
   );
 }
 
+/** What a finished run found, in one line. */
+export function runResult(files: number, findings: number, failed: number): string {
+  if (!files) return 'This run had no files to analyze.';
+  const found = findings ? `Found ${plural(findings, 'issue')} in ${plural(files, 'file')}` : `No issues in ${plural(files, 'file')}`;
+  return failed ? `${found}; ${plural(failed, 'stage')} failed and can be retried.` : `${found}.`;
+}
+
 function RunDashboard({ run, coverage }: { run: AnalysisRunSummary; coverage?: Record<string, number> }) {
   const progress = runProgress(run);
   const failures = failureGroups(run);
@@ -141,13 +148,23 @@ function RunDashboard({ run, coverage }: { run: AnalysisRunSummary; coverage?: R
       {run.reason ? <Callout tone={statusTone(run.status) === 'danger' ? 'danger' : 'warning'} icon={AlertTriangle} title={run.reason} /> : null}
       <section className="card" aria-label="Progress">
         <div className="card-body stack">
-          <div className="row">
-            <span className="strong">{progress.percent}%</span>
-            <span className="small muted">{progress.done} of {plural(progress.total, 'stage')} finished</span>
-            <span className="spacer" />
-            {active ? <span className="row small tone-info"><Loader2 size={13} className="spin" aria-hidden />{plural(progress.running, 'stage')} running</span> : null}
-          </div>
-          <Progress value={progress.percent} tone={progress.failed ? 'warning' : active ? 'accent' : 'success'} label="Analysis progress" />
+          {active ? (
+            <>
+              <div className="row">
+                <span className="strong">{progress.percent}%</span>
+                <span className="small muted">{progress.done} of {plural(progress.total, 'stage')} finished</span>
+                <span className="spacer" />
+                <span className="row small tone-info"><Loader2 size={13} className="spin" aria-hidden />{plural(progress.running, 'stage')} running</span>
+              </div>
+              <Progress value={progress.percent} tone={progress.failed ? 'warning' : 'accent'} label="Analysis progress" />
+            </>
+          ) : (
+            // A finished run says what it found, not how far it got.
+            <div className="run-result">
+              <span className="run-result-title">{runResult(files.length, findings, progress.failed)}</span>
+              {coverage?.stale ? <span className="small muted">{plural(coverage.stale, 'file')} changed since and {coverage.stale === 1 ? 'is' : 'are'} stale: Analyze changes reads only {coverage.stale === 1 ? 'it' : 'them'} again.</span> : null}
+            </div>
+          )}
           {kept ? <p className="xs muted">This run analyzed {plural(files.length - kept, 'file')} again; the other {plural(kept, 'file')} keep their saved results, so the dashboard covers the whole project.</p> : null}
           <div className="stat-row">
             <Stat value={files.length} label={files.length === 1 ? 'file' : 'files'} />

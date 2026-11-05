@@ -61,30 +61,32 @@ type modelOutput = agentruntime.Result
 type Service struct {
 	// global is the daemon's configuration; configured is what the active
 	// project runs with (global with the project's own file applied).
-	global                          *config.Config
-	configured                      atomic.Pointer[configuration]
-	worktreesMu                     sync.Mutex
-	worktrees                       map[string]*Service
-	owner                           *Service       // The service that opened this worktree's; nil for the active project.
-	resumeMu                        sync.Mutex     // One pass over the waiting tasks at a time.
-	resumeWG                        sync.WaitGroup // The passes still running.
-	manager                         *project.Manager
-	projectMaps                     projectMapCache
-	unusedCodes                     unusedCodeCache
-	docsRefreshMu                   sync.Mutex // One docs refresh at a time.
-	docsJob                         docsRefreshJob
-	discoverPiModels                func(context.Context, string) ([]llm.PiModel, error)
-	discoverAgyModels               func(context.Context, string) ([]llm.AgyModel, error)
-	discoverClaudeModels            func(context.Context, string) ([]llm.ClaudeModel, error)
-	jobLifecycleMu                  sync.Mutex
-	changesMu                       sync.Mutex
-	changeAuthority                 map[string]string
-	changeWorkflow                  changeWorkflowController
-	analysisRun                     *analysisRunController
-	writeAnalysisRun                func(string, []byte, os.FileMode) error
-	executionTrust                  *executionTrustStore
-	checkBaselines                  checkBaselines
-	events                          *eventBroker
+	global               *config.Config
+	configured           atomic.Pointer[configuration]
+	worktreesMu          sync.Mutex
+	worktrees            map[string]*Service
+	owner                *Service       // The service that opened this worktree's; nil for the active project.
+	resumeMu             sync.Mutex     // One pass over the waiting tasks at a time.
+	resumeWG             sync.WaitGroup // The passes still running.
+	manager              *project.Manager
+	projectMaps          projectMapCache
+	unusedCodes          unusedCodeCache
+	docsRefreshMu        sync.Mutex // One docs refresh at a time.
+	docsJob              docsRefreshJob
+	discoverPiModels     func(context.Context, string) ([]llm.PiModel, error)
+	discoverAgyModels    func(context.Context, string) ([]llm.AgyModel, error)
+	discoverClaudeModels func(context.Context, string) ([]llm.ClaudeModel, error)
+	jobLifecycleMu       sync.Mutex
+	changesMu            sync.Mutex
+	changeAuthority      map[string]string
+	changeWorkflow       changeWorkflowController
+	analysisRun          *analysisRunController
+	writeAnalysisRun     func(string, []byte, os.FileMode) error
+	executionTrust       *executionTrustStore
+	checkBaselines       checkBaselines
+	events               *eventBroker
+	// activity is the latest tool calls of each task's running agents.
+	activity                        activityLog
 	buildDeclarationContext         func(string, project.FunctionContextOptions) (string, project.ContextManifest, error)
 	loadSecurityFileReport          func(string, project.SecurityReportInput) (*project.SecurityFileReport, error)
 	beforeSecurityReviewPublication func()

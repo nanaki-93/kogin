@@ -375,3 +375,245 @@
 .rail-section .btn {
   width: 100%;
 }
+
+/* Agents at work: the live tool calls of a running task, with Stop. */
+.live-run {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--info) 40%, var(--border));
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.live-run-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.live-pulse {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--info);
+  box-shadow: 0 0 0 4px var(--info-soft);
+}
+
+.live-pulse.is-stopping {
+  background: var(--warning);
+  box-shadow: 0 0 0 4px var(--warning-soft);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .live-pulse:not(.is-stopping) {
+    animation: live-pulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes live-pulse {
+  50% { box-shadow: 0 0 0 7px transparent; }
+}
+
+.live-target {
+  min-width: 0;
+  color: var(--info);
+}
+
+.live-meter {
+  display: flex;
+  flex: none;
+  gap: 14px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.live-run-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(200px, 1fr);
+}
+
+.live-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 14px;
+  list-style: none;
+  border-right: 1px solid var(--border);
+}
+
+.live-step {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.live-step.is-running {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.live-time {
+  flex: none;
+  width: 40px;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.live-icon {
+  flex: none;
+  align-self: center;
+}
+
+.live-what {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  min-width: 0;
+}
+
+.live-what code {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--info);
+  font-family: var(--mono);
+  font-size: var(--text-code);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-detail {
+  flex-basis: 100%;
+  font-weight: 400;
+}
+
+.live-files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 14px;
+}
+
+.live-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--text-code);
+}
+
+.live-empty {
+  padding: 10px 14px;
+}
+
+@media (max-width: 1100px) {
+  .live-run-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .live-steps {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/* Inbox: the one thing to do next. */
+.next-up {
+  --tone: var(--accent);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--tone) 45%, var(--border));
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tone) 14%, transparent), transparent 70%);
+}
+
+.next-up.tone-danger { --tone: var(--danger); }
+.next-up.tone-warning { --tone: var(--warning); }
+.next-up.tone-info { --tone: var(--info); }
+
+.next-up-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tone) 18%, transparent);
+  color: var(--tone);
+}
+
+.next-up-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.next-up-eyebrow {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.next-up-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.next-up-detail {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.next-up-actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .next-up {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .next-up-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
+
+.composer-blocker {
+  min-width: 0;
+  color: var(--warning);
+}
+
+/* The scope the agents need before they can start. */
+.scope.is-missing {
+  padding: 8px;
+  margin: -8px;
+  border-radius: var(--radius);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning) 55%, transparent);
+}
+
+.composer-where {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}

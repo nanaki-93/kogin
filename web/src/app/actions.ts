@@ -25,10 +25,10 @@ export function useActions() {
   const { createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, deleteTasks, closeTask } = taskActions(context, { removeEmptyWorktrees, discardAbandonedWorktrees });
   const { markViewed, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept } = reviewActions(context);
   const { setTrust, reindex, openProject, deleteSetAside } = projectActions(context);
-  const { fixIssue, fixIssues, triageFinding } = issueActions(context);
+  const { fixIssue, fixIssues, issueTaskDraft, triageFinding } = issueActions(context);
   const { runAnalysis, controlAnalysis } = analysisActions(context);
   const { saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, controlAgentSettings } = setupActions(context);
   const { refreshDocs, askCodebase } = docsActions(context);
 
-  return { guarded, createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, markViewed, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept, setTrust, reindex, openProject, deleteSetAside, fixIssue, fixIssues, triageFinding, deleteTasks, closeTask, saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, runAnalysis, controlAnalysis, controlAgentSettings, previewMerge, merge, removeWorktree, discardWorktree, abortMerge, refreshDocs, askCodebase };
+  return { guarded, createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, markViewed, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept, setTrust, reindex, openProject, deleteSetAside, fixIssue, fixIssues, issueTaskDraft, triageFinding, deleteTasks, closeTask, saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, runAnalysis, controlAnalysis, controlAgentSettings, previewMerge, merge, removeWorktree, discardWorktree, abortMerge, refreshDocs, askCodebase };
 }

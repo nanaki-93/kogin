@@ -33,3 +33,13 @@ describe('graph layout', () => {
     expect(x('y') < x('x')).toBe(true);
   });
 });
+
+describe('a long chain', () => {
+  it('reads left to right and fits wider than tall', () => {
+    const layout = layoutGraph(['a', 'b', 'c', 'd'], [{ from: 'a', to: 'b', weight: 1 }, { from: 'b', to: 'c', weight: 1 }, { from: 'c', to: 'd', weight: 1 }]);
+    expect(layout.direction).toBe('right');
+    const x = (id: string) => layout.nodes.find(n => n.id === id)!.x;
+    expect(x('a') < x('b') && x('b') < x('c') && x('c') < x('d')).toBe(true);
+    expect(layout.width).toBeGreaterThan(layout.height);
+  });
+});

@@ -1,35 +1,50 @@
 // Time limits: how long a model request or check may take before it stops.
 // Settings saves them on their own; setup saves them with the models.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Clock } from 'lucide-react';
 import type { ProjectSetup, SetupTimeouts } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
-import { TIMEOUTS, MAX_TIMEOUT_SECONDS, timeoutErrors } from '@/lib/setup';
+import { TIMEOUTS, timeoutErrors } from '@/lib/setup';
 import { formatDuration } from '@/lib/analysis';
+import { formatDurationInput, parseDuration } from '@/lib/duration';
 import { Button, Field, Input } from '@/components/ui';
 
-/** One number field per time limit, in seconds. */
+/** One field per time limit, typed as a duration ("2m", "1h 30m") or in seconds. */
 export function TimeoutFields({ id, timeouts, onChange }: { id: string; timeouts: SetupTimeouts; onChange: (timeouts: SetupTimeouts) => void }) {
   const errors = timeoutErrors(timeouts);
   return (
     <div className="limit-grid">
       {TIMEOUTS.map(({ key, label, hint }) => (
-        <Field key={key} label={`${label} (seconds)`} htmlFor={`${id}-${key}`} error={errors[key]} hint={`${hint} Now ${formatDuration(timeouts[key])}.`}>
-          <Input
-            id={`${id}-${key}`}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={MAX_TIMEOUT_SECONDS}
-            step={1}
-            value={Number.isNaN(timeouts[key]) ? '' : String(timeouts[key])}
-            invalid={Boolean(errors[key])}
-            onChange={e => onChange({ ...timeouts, [key]: e.target.value === '' ? Number.NaN : Number(e.target.value) })}
-          />
+        <Field key={key} label={label} htmlFor={`${id}-${key}`} error={errors[key] ? `${errors[key]} Type it as 2m, 1h 30m or seconds.` : undefined} hint={`${hint} Now ${formatDuration(timeouts[key])}.`}>
+          <DurationInput id={`${id}-${key}`} seconds={timeouts[key]} invalid={Boolean(errors[key])} onChange={seconds => onChange({ ...timeouts, [key]: seconds })} />
         </Field>
       ))}
     </div>
+  );
+}
+
+/** A duration field: keeps what is typed, reports the seconds it means (NaN while it means none). */
+function DurationInput({ id, seconds, invalid, onChange }: { id: string; seconds: number; invalid: boolean; onChange: (seconds: number) => void }) {
+  const [text, setText] = useState(() => (Number.isNaN(seconds) ? '' : formatDurationInput(seconds)));
+  useEffect(() => {
+    if (!Number.isNaN(seconds) && parseDuration(text) !== seconds) setText(formatDurationInput(seconds));
+  }, [seconds]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Input
+      id={id}
+      inputMode="text"
+      placeholder="2m"
+      value={text}
+      invalid={invalid}
+      onChange={e => {
+        setText(e.target.value);
+        onChange(parseDuration(e.target.value));
+      }}
+      onBlur={() => {
+        if (!Number.isNaN(parseDuration(text))) setText(formatDurationInput(parseDuration(text)));
+      }}
+    />
   );
 }
 

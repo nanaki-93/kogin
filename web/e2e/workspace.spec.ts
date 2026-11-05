@@ -90,7 +90,9 @@ test('a task in its own worktree does not switch the workspace pages', async ({ 
   await expect(page).toHaveURL(/#\/issues$/);
   // The main checkout's issues, where the one the task fixes is now in progress.
   await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(3);
-  await expect(page.getByRole('radiogroup', { name: 'Status' }).getByRole('radio', { name: /In progress/ })).toContainText('1');
+  await page.getByRole('button', { name: /^Status:/ }).click();
+  await expect(page.getByRole('menuitemradio', { name: /In progress/ })).toContainText('1');
+  await page.keyboard.press('Escape');
   await page.getByRole('navigation', { name: 'Workspace' }).getByRole('link', { name: /Tasks/ }).click();
   await expect(page).toHaveURL(/#\/tasks$/);
   await page.getByRole('listitem').filter({ hasText: 'Fix: Request body read without a size limit' }).click();
@@ -345,7 +347,7 @@ test('set-aside files are announced, explained with their remedy and deleted', a
     skipped: [{ kind: 'task', file: '.kogin/changes/change-9f.json', reason: 'written by a newer Kogin', remedy: 'Upgrade Kogin to use it, or move it away.' }],
   });
   await page.goto('/#/');
-  await page.getByRole('button', { name: 'Review' }).click();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
   await expect(page).toHaveURL(/#\/settings\/project/);
   const list = page.getByRole('region', { name: 'Set-aside files' });
   await expect(list).toContainText('.kogin/agents/ab12/journal.json');

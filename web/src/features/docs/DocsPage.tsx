@@ -3,7 +3,7 @@
 // from the code and what a model wrote stay marked apart.
 
 import { useState, type ReactNode } from 'react';
-import { BookOpen, Boxes, ChevronRight, Compass, Layers, Library, MessageCircleQuestion, RefreshCw, Route as RouteIcon, Terminal, Wrench } from 'lucide-react';
+import { BookOpen, Boxes, ChevronRight, Compass, Layers, Library, Map as MapIcon, MessageCircleQuestion, RefreshCw, Route as RouteIcon, Terminal, Wrench } from 'lucide-react';
 import { useOverview, useProject } from '@/api/hooks';
 import type { DocsRefresh, ProjectDocs } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
@@ -17,6 +17,7 @@ import { ArchitecturePage, DependenciesPage, OverviewPage, StartPage } from './G
 import { ComponentPage, ComponentsIndex } from './ComponentPage';
 import { DocRefsProvider } from './DocText';
 import { SidebarPanel } from '@/layout/SidebarPanel';
+import { ProjectMap } from './ProjectMap';
 import { ChangeGuideIndex, ChangeGuidePage, WalkthroughPage, WalkthroughsIndex } from './WalkthroughPage';
 
 export function DocsPage({ section }: { section: string }) {
@@ -31,8 +32,10 @@ export function DocsPage({ section }: { section: string }) {
     <div className="docs">
       <DocsNav docs={docs} current={current} />
       <div className="docs-body page-scroll">
-        <div className="page-inner page-narrow">
-          {current === 'ask' ? (
+        <div className={current === 'map' ? 'page-inner' : 'page-inner page-narrow'}>
+          {current === 'map' ? (
+            <ProjectMap />
+          ) : current === 'ask' ? (
             <AskPanel project={project} worktreePath={worktreePath} />
           ) : isLoading ? (
             <Skeleton lines={10} />
@@ -96,6 +99,7 @@ function DocsNav({ docs, current }: { docs: ProjectDocs | undefined; current: Do
         <NavLink to="/docs/overview" icon={Compass} active={current === 'overview'}>Overview</NavLink>
         <NavLink to="/docs/start" icon={Terminal} active={current === 'start'} count={docs?.commands?.length}>Get started</NavLink>
         <NavLink to="/docs/architecture" icon={Layers} active={current === 'architecture'}>Architecture</NavLink>
+        <NavLink to="/docs/map" icon={MapIcon} active={current === 'map'}>Project map</NavLink>
         <NavGroup title="How it works" icon={RouteIcon} to="/docs/flows" active={current === 'flows' && !n} count={walkthroughs.length}>
           {walkthroughs.map((walkthrough, index) => (
             <NavLink key={index} to="/docs/flows" params={{ n: String(index + 1) }} active={current === 'flows' && n === index + 1} nested>{walkthrough.title}</NavLink>

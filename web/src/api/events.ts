@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
-import type { DaemonEvent } from './types';
+import type { AgentActivity, ChangeActivity, DaemonEvent } from './types';
 import { useFeedback } from '@/components/overlays';
 import { costLabel, usageLabel } from '@/lib/usage';
 
@@ -24,10 +24,28 @@ const INVALIDATES: Record<string, string[][]> = {
 };
 
 export function applyEvent(client: QueryClient, event: DaemonEvent): void {
+  if (event.kind === 'activity') {
+    // Only a log the page has loaded is extended; a task opened later loads the whole log.
+    if (event.session_id && event.activity && client.getQueryData(['activity', event.session_id])) client.setQueryData<ChangeActivity>(['activity', event.session_id], old => withActivity(old, event.activity!, event.workflow_id));
+    return;
+  }
   for (const key of INVALIDATES[event.kind] ?? []) {
     const scoped = key[0] === 'session' && event.kind === 'workflow' && event.session_id ? ['session', event.session_id] : key;
     void client.invalidateQueries({ queryKey: scoped });
   }
+}
+
+/**
+ * The activity log with a call added or updated: a call is told when it
+ * starts and again when it ends (by its sequence number); a call from
+ * another workflow starts a new log.
+ */
+export function withActivity(log: ChangeActivity | undefined, entry: AgentActivity, workflow?: string): ChangeActivity {
+  const fresh = !log || (workflow !== undefined && workflow !== log.workflow_id);
+  const entries = fresh ? [] : log.entries;
+  const known = entries.findIndex(item => item.seq === entry.seq);
+  const next = known >= 0 ? entries.map((item, index) => (index === known ? entry : item)) : [...entries, entry].slice(-80);
+  return { workflow_id: fresh ? workflow : log.workflow_id, entries: next };
 }
 
 const FINISHED: Record<string, { message: string; tone: 'success' | 'warning' | 'danger' | 'info' }> = {

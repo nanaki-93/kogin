@@ -4,7 +4,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { api, query, withWorktree } from './client';
 import type {
-  AgentSettings, AnalysisFileSelection, AvailableModels, ProjectSetup, ChangeHistoryEntry, ChangeRules, ChangeSession, DaemonStatus, DocsComponentFiles, ExecutionTrust, FileInfo, FileSummary,
+  AgentSettings, AnalysisFileSelection, ChangeActivity, AvailableModels, ProjectSetup, ChangeHistoryEntry, ChangeRules, ChangeSession, DaemonStatus, DocsComponentFiles, ExecutionTrust, FileInfo, FileSummary,
   FindingsResponse, GitWorkspace, LoadedSession, ModelsCurrent, Overview, Project, ProjectIndex, ProjectRules, QuarantineReport, TaskEntry, UsageReport,
 } from './types';
 import { useCheckout } from '@/app/checkout';
@@ -32,6 +32,7 @@ export const keys = {
   quarantine: (wt: string) => ['quarantine', wt] as const,
   rules: (wt: string) => ['rules', wt] as const,
   changeRules: (id: string) => ['changeRules', id] as const,
+  activity: (id: string) => ['activity', id] as const,
 };
 
 /** The project's test file patterns and the AGENTS.md files that declare rules. */
@@ -227,6 +228,16 @@ export function useSession(id: string | undefined, worktreePath: string, live: b
     queryFn: () => fetchSession(id!, worktreePath),
     enabled: Boolean(id),
     refetchInterval: query => (live || query.state.data?.workflow?.status === 'running' || query.state.data?.workflow?.status === 'canceling' ? 2500 : false),
+  });
+}
+
+/** What the task's agents do with their tools, kept current by "activity" events while they run. */
+export function useActivity(session: LoadedSession, live: boolean) {
+  return useQuery({
+    queryKey: keys.activity(session.id),
+    queryFn: () => api.get<ChangeActivity>(withWorktree('/api/projects/current/changes/' + encodeURIComponent(session.id) + '/activity' + query({ project_id: session.checkout.project_id, project_revision: session.checkout.project_revision }), session.checkout.worktreePath)),
+    enabled: live,
+    refetchInterval: live ? 15_000 : false,
   });
 }
 

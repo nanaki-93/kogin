@@ -55,6 +55,27 @@ are listed here as they land.
   agents fail can be counted. Behavior changes accepted in earlier tasks are
   given to the next tasks' agents and reviewers, so a second name for the
   same flag is caught.
+- **Review one hunk at a time:** Files changed opens each hunk beside its
+  note, with **Looks right** (`a`) and **Comment** (`m`); once every hunk of a
+  file looks right the file is marked viewed. **Whole file** (`f`) keeps the
+  full diff. A review bar under the diff shows files viewed, checks, the
+  reviewers and what still blocks **Accept & commit**.
+- **Agents at work:** a running task shows what the agent does now, its last
+  tool calls (from Kogin's own tools, as they happen; a failed call says why),
+  the files it changed so far, time and spend, and **Stop**. New:
+  `GET …/changes/{id}/activity` and `activity` events.
+- **Project map** (Docs): the project as nested blocks sized by lines,
+  colored by open issues, analysis freshness, tasks or language; click to zoom
+  into a folder, hover for details.
+- **A task from a sentence:** `>` in the command palette drafts a task from
+  what you type, linked to the open issue it describes; start the agents or
+  edit it first.
+- **Next up** on the Inbox; **compact filters** on Issues (one row of menus
+  and chips); time limits typed as durations (`2m`, `1h 30m`); a finished
+  analysis says what it found; the architecture graph lays a long chain out
+  left to right; task titles read whole in lists (the reason goes below); the
+  revise box stays docked at the bottom of a long conversation; the review
+  gate shows Accept only once it can run.
 - **One sidebar:** Docs, Settings, Code and a review's Files changed no longer
   open a second column beside the sidebar. The sidebar drills in: it shows
   the page's own list (the docs pages, the settings sections, the file tree,

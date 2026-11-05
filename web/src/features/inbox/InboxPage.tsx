@@ -14,6 +14,7 @@ import { QuarantineNotice } from '@/features/settings/Quarantine';
 import { AgentSettingsNotice } from '@/features/settings/AgentSettingsNotice';
 import { TaskRow } from '@/features/tasks/TaskListPage';
 import { OpenProject } from '@/features/settings/OpenProject';
+import { NextUp } from './NextUp';
 
 export function InboxPage() {
   const main = useMainProject();
@@ -88,6 +89,7 @@ export function InboxPage() {
           </EmptyState>
         ) : null}
 
+        {!isLoading && (!nothing || topIssues.length) ? <NextUp needs={needs} failed={failed} toMerge={toMerge} issues={topIssues} project={main.data} /> : null}
         <div className="inbox-grid">
           <div className="stack-lg">
             {needs.length ? (

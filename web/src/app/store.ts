@@ -20,6 +20,7 @@ export const DARK_PALETTES = [
 
 export type DarkPalette = (typeof DARK_PALETTES)[number]['id'];
 export type DiffLayout = 'unified' | 'split';
+export type ReviewMode = 'hunks' | 'file';
 
 export interface UIState {
   paletteOpen: boolean;
@@ -30,6 +31,8 @@ export interface UIState {
   theme: Theme;
   darkPalette: DarkPalette;
   diffLayout: DiffLayout;
+  /** Files changed shows one hunk at a time with its note, or whole files. */
+  reviewMode: ReviewMode;
   wrapLines: boolean;
   /** Whether the Files tab shows the walkthrough's notes beside the diff. */
   changeNotes: boolean;
@@ -70,6 +73,7 @@ let state: UIState = {
   theme: 'system',
   darkPalette: 'kogin',
   diffLayout: 'unified',
+  reviewMode: 'hunks',
   wrapLines: false,
   changeNotes: true,
   removeWorktreeOnMerge: true,
@@ -81,6 +85,7 @@ function pick(prefs: Partial<UIState>): Partial<UIState> {
   if (prefs.theme === 'dark' || prefs.theme === 'light' || prefs.theme === 'system') out.theme = prefs.theme;
   if (DARK_PALETTES.some(palette => palette.id === prefs.darkPalette)) out.darkPalette = prefs.darkPalette;
   if (prefs.diffLayout === 'split' || prefs.diffLayout === 'unified') out.diffLayout = prefs.diffLayout;
+  if (prefs.reviewMode === 'hunks' || prefs.reviewMode === 'file') out.reviewMode = prefs.reviewMode;
   if (typeof prefs.wrapLines === 'boolean') out.wrapLines = prefs.wrapLines;
   if (typeof prefs.changeNotes === 'boolean') out.changeNotes = prefs.changeNotes;
   if (typeof prefs.sidebarCollapsed === 'boolean') out.sidebarCollapsed = prefs.sidebarCollapsed;
@@ -97,7 +102,7 @@ export function getUI(): UIState {
 export function setUI(patch: Partial<UIState>): void {
   state = { ...state, ...patch };
   try {
-    localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: state.theme, darkPalette: state.darkPalette, diffLayout: state.diffLayout, wrapLines: state.wrapLines, changeNotes: state.changeNotes, sidebarCollapsed: state.sidebarCollapsed, removeWorktreeOnMerge: state.removeWorktreeOnMerge }));
+    localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: state.theme, darkPalette: state.darkPalette, diffLayout: state.diffLayout, reviewMode: state.reviewMode, wrapLines: state.wrapLines, changeNotes: state.changeNotes, sidebarCollapsed: state.sidebarCollapsed, removeWorktreeOnMerge: state.removeWorktreeOnMerge }));
   } catch {
     // Preferences are a convenience; the UI works without storage.
   }

@@ -4,6 +4,7 @@ import { api, query, withWorktree } from '@/api/client';
 import type { Finding, IssueTaskDraft, Project } from '@/api/types';
 import { openNewTask } from '@/app/store';
 import type { ActionContext } from './context';
+import type { DraftTask } from './tasks';
 
 export function issueActions(context: ActionContext) {
   const { client, toast, guarded, fail } = context;
@@ -14,12 +15,19 @@ export function issueActions(context: ActionContext) {
    * the task marks the issue fixed.
    */
   async function fixIssue(project: Project | undefined, worktreePath: string, finding: Finding) {
-    if (!project) return;
+    const draft = await issueTaskDraft(project, worktreePath, finding);
+    if (draft) openNewTask(draft);
+  }
+
+  /** The task the daemon drafts for an issue, ready for the composer or to start; null when it could not. */
+  async function issueTaskDraft(project: Project | undefined, worktreePath: string, finding: Finding): Promise<Omit<DraftTask, 'start'> | null> {
+    if (!project) return null;
     try {
       const draft = await api.get<IssueTaskDraft>(withWorktree(`/api/projects/current/findings/${encodeURIComponent(finding.id)}/task` + query({ project_revision: project.project_revision }), worktreePath));
-      openNewTask({ findingTargets: draft.finding_targets?.length ? draft.finding_targets : undefined, issues: draft.issues?.length ? draft.issues : undefined, title: draft.title, kind: draft.kind, description: draft.description, paths: draft.paths, criteria: draft.acceptance_criteria });
+      return { findingTargets: draft.finding_targets?.length ? draft.finding_targets : undefined, issues: draft.issues?.length ? draft.issues : undefined, title: draft.title, kind: draft.kind, description: draft.description, paths: draft.paths, criteria: draft.acceptance_criteria };
     } catch (err) {
       fail('Could not draft a task for this issue', err);
+      return null;
     }
   }
 
@@ -53,5 +61,5 @@ export function issueActions(context: ActionContext) {
     });
   }
 
-  return { fixIssue, fixIssues, triageFinding };
+  return { fixIssue, fixIssues, issueTaskDraft, triageFinding };
 }

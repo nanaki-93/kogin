@@ -9,7 +9,8 @@ test('reviews the files, then accepts and commits in one step', async ({ page, d
   const gate = page.getByRole('complementary', { name: 'Review gate' });
   const header = page.locator('header.task-header');
   await expect(gate.getByText('0 of 3')).toBeVisible();
-  await expect(gate.getByRole('button', { name: 'Accept & commit' })).toBeDisabled();
+  // Accept is offered once it can run; until then the header names the next step.
+  await expect(gate.getByRole('button', { name: 'Accept & commit' })).toHaveCount(0);
   await expect(header.getByText('Needs review')).toBeVisible();
   // An optional check failure is a warning, not a blocker.
   await expect(gate.getByText('1 optional failed')).toBeVisible();
@@ -121,19 +122,47 @@ test('compares the split and unified diff layouts', async ({ page }) => {
   await expect(page.getByRole('button', { name: /unified view/i })).toBeVisible();
 });
 
-test('each hunk sits under the note that says what it fixes', async ({ page, daemon }) => {
+test('the review reads one hunk at a time beside its note, and marks a file viewed once every hunk is right', async ({ page, daemon }) => {
   await page.goto('/#/tasks/chg-1/files');
   const notes = page.getByRole('region', { name: 'What it fixes' });
-  const diff = page.getByRole('region', { name: /Diff of internal\/api\/handlers\/webui.go/ });
-  // Over the diff, one line on what the file's change fixes; it replaces the agent's own.
+  const pane = page.getByRole('complementary', { name: 'This hunk' });
+  // Over the review, one line on what the file's change fixes; it replaces the agent's own.
   await expect(notes).toContainText('Nested asset paths no longer reach the embedded read.');
   await expect(page.getByText('Rejects nested names.')).toBeHidden();
-  // The hunk's note sits right above it: the goal it serves, the wrong behavior it removes, then how.
+  // Beside the hunk, its note: the goal it serves, the wrong behavior it removes, then how.
+  await expect(pane).toContainText('Hunk 1 of 3');
+  await expect(pane).toContainText('Criterion 1 · Nested asset paths return 404');
+  await expect(pane).toContainText('A nested name reached fs.ReadFile and returned 500 instead of 404.');
+  await expect(pane).toContainText('How: ServeAsset refuses names with a slash.');
+  await expect(page.locator('.hunk-code')).toContainText('strings.Contains(name, "/")');
+  // The review bar says what is left before Accept.
+  const bar = page.getByRole('region', { name: 'Review progress' });
+  await expect(bar).toContainText('0 of 3 viewed');
+  await expect(bar).toContainText('Accept & commit · 3 files left');
+
+  // A: the hunk is right; the file's only hunk, so the file is viewed and the next hunk opens.
+  await page.keyboard.press('a');
+  await expect.poll(() => daemon.mutations('/review-file').map(request => request.body?.path)).toEqual(['internal/api/handlers/webui.go']);
+  await expect(pane).toContainText('Hunk 2 of 3');
+  await expect(page.locator('.diff-file-head, .fc-diff-head')).toContainText('webui_test.go');
+  await expect(pane).toContainText('No notes for this file.');
+  // ← goes back; C opens a comment on the hunk's first changed line.
+  await page.keyboard.press('ArrowLeft');
+  await expect(pane).toContainText('Hunk 1 of 3');
+  await page.keyboard.press('m');
+  await expect(page.locator('.hunk-code').getByRole('textbox')).toBeVisible();
+});
+
+test('the whole file shows each hunk under its note, and the notes fold away', async ({ page, daemon }) => {
+  await page.goto('/#/tasks/chg-1/files');
+  await expect(page.getByRole('complementary', { name: 'This hunk' })).toBeVisible();
+  await page.keyboard.press('f');
+  await expect(page.getByRole('radio', { name: 'Whole file' })).toBeChecked();
+  const notes = page.getByRole('region', { name: 'What it fixes' });
+  const diff = page.getByRole('region', { name: /Diff of internal\/api\/handlers\/webui.go/ });
   const note = diff.locator('tr.diff-note');
   await expect(note).toHaveCount(1);
   await expect(note).toContainText('Criterion 1 · Nested asset paths return 404');
-  await expect(note).toContainText('A nested name reached fs.ReadFile and returned 500 instead of 404.');
-  await expect(note).toContainText('How: ServeAsset refuses names with a slash.');
   await expect(note.locator('code').first()).toHaveText('fs.ReadFile');
   // It heads its hunk: the context leading in, then the replaced line, removed half first.
   await expect(note.locator('xpath=following-sibling::tr[1]')).toContainText('name := trim(r)');
@@ -195,7 +224,7 @@ test('checks from an earlier project tree must run again before Accept', async (
   const gate = page.getByRole('complementary', { name: 'Review gate' });
   await expect(gate.getByText('Outdated')).toBeVisible();
   await expect(gate.getByText('The project changed since checks ran. Run them again before you accept.')).toBeVisible();
-  await expect(gate.getByRole('button', { name: 'Accept & commit' })).toBeDisabled();
+  await expect(gate.getByRole('button', { name: 'Accept & commit' })).toHaveCount(0);
   await page.getByRole('tab', { name: /checks/i }).click();
   await expect(page.getByText('These checks ran on an earlier version of the project')).toBeVisible();
 });
@@ -400,7 +429,7 @@ test('a run paused at a plan limit says when it can continue and resumes where i
   daemon.sessions.set('chg-1', pausedTask());
   await page.goto('/#/tasks/chg-1');
   const run = page.getByRole('region', { name: 'Agent run' });
-  await expect(run.getByText(/^Paused until the Claude plan's limit resets at /)).toBeVisible();
+  await expect(run.getByText(/^Paused until the Claude plan's limit resets (at|on) /)).toBeVisible();
   await expect(run.getByText('Nothing was lost: resume when the limit resets').first()).toBeVisible();
   await expect(page.locator('header.task-header').getByText('Paused')).toBeVisible();
 

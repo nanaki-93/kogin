@@ -30,7 +30,19 @@ every guard when the action arrives.
   and a run whose proposal writes another file fails naming it. **Save
   draft** stores it without model work. The composer has no kind picker: a
   new task is a feature, and a task drafted from an issue keeps its issue's
-  kind (fix, security, performance). Repairs are always on (up to two).
+  kind (fix, security, performance). Repairs are always on (up to two). When
+  the agents cannot start yet, the reason stands beside **Start agents**, and
+  an empty scope is outlined once the task has a title.
+- **A task from a sentence.** In the command palette, `>` and a sentence
+  ("> retry loop in the llm client ignores cancellation") draft a task from
+  the words: the open issue it describes (with its file, test file and
+  criteria, through the issue's own draft), the files it names, a title.
+  **Start agents on it** creates the task and starts the run; **Edit it first**
+  opens the composer. Nothing runs before one is chosen, and the remote-model
+  confirmation still applies.
+- **Next up.** The Inbox opens with the one thing to do now: a review that is
+  ready, then a run that failed or went stale, a branch ready to merge, and
+  the worst open issue. `Enter` starts it; **Skip** (`s`) shows the next.
 - **Own worktree.** Every task gets its own branch (`orca/<title>-<suffix>`)
   and worktree from the main checkout's HEAD, so several tasks run and commit
   in parallel; the task then opens in that checkout. It is made from the main
@@ -158,6 +170,25 @@ every guard when the action arrives.
 
 ## Review and accept
 
+- **Review by hunks.** Files changed opens one hunk at a time (**Hunks**, the
+  default; **Whole file**, or `f`, shows each file's whole diff). Beside the
+  hunk: its place ("Hunk 2 of 7", a dot per hunk, the file's hunks grouped),
+  the walkthrough's note for it, **Looks right** (`a`) and **Comment** (`m`, on
+  the hunk's first changed line). `←`/`→` (or `j`/`k`) move between hunks
+  across files. Once every hunk of a file looks right, the file is marked
+  viewed. The hunks you called right are kept per task version in this browser;
+  a new version starts over, like the files viewed.
+- **Review bar.** Under the diff in both views: files viewed (a dot per file,
+  click to open it), the checks and the reviewers' verdict, **Next unviewed**,
+  and **Accept & commit**, which says what still blocks it ("2 files left",
+  "checks first") until it can run. On the Files tab the header's next step
+  is **Next unviewed file**; the review gate offers Accept only once it can run.
+- **Agents at work.** While agents run, the Conversation opens with what the
+  agent does now ("Creation agent is editing …"), its last tool calls (read,
+  search, edit, checks; a failed call says why), the files it changed so far,
+  the time, the calls and the stage's spend, and **Stop**. The calls come from
+  Kogin's own tools as the agent makes them; the log covers the latest run
+  since the daemon started.
 - **View files.** Each changed file is marked viewed at the current proposal
   hash (`v` marks it and moves to the next unviewed file). "Since last review"
   shows only what changed since the last complete review.
@@ -311,6 +342,12 @@ every guard when the action arrives.
   Analysis writes findings and the docs, never source. A dispatch
   window covers up to 64 files and 30 minutes; a run that reaches either pauses
   and resumes from the dashboard.
+- **Project map.** Docs → Project map: every folder and file as a block sized
+  by its lines, folders nested while they have room (three levels), colored by
+  **Open issues** (the worst severity), **Analysis** (fresh, stale, failed,
+  running, missing), **Tasks** (how many tasks changed it) or **Language**.
+  Hovering a block names its lines, issues, analysis and tasks; a folder opens
+  (zooms) on click, a file opens in Code; the trail and `Backspace` go up.
 - **Docs.** A guide to the project, laid out like a docs site: a nav with
   Overview, Get started, Architecture, How it works (one page per
   walkthrough), Where to change (one page per usual change: the files and

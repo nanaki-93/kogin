@@ -264,6 +264,15 @@ func (h *ChangeHandler) Walkthrough(w http.ResponseWriter, r *http.Request) {
 
 // Failures counts how the project's agent runs failed in the last days
 // (?days=, 7 by default), by stage and category.
+// Activity is what the task's agents did with their tools in the latest run.
+func (h *ChangeHandler) Activity(w http.ResponseWriter, r *http.Request) {
+	if !guardedWorkflowRead(w, r, h.manager) {
+		return
+	}
+	value, err := h.service.ChangeActivity(r.PathValue("sessionID"))
+	respondWorkflow(w, value, err)
+}
+
 func (h *ChangeHandler) Failures(w http.ResponseWriter, r *http.Request) {
 	if !guardedWorkflowRead(w, r, h.manager) {
 		return

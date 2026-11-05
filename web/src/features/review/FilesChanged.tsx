@@ -1,6 +1,7 @@
-// "Files changed": a file tree with review state beside the selected file's
-// diff, like a pull request, each hunk under the note on what it fixes. `v`
-// marks the file viewed and moves to the next.
+// "Files changed": the changed files in the sidebar, and the review: one
+// hunk at a time beside its note (Hunks), or each file's whole diff with the
+// notes above its hunks (Whole file). `v` marks the file viewed and moves on;
+// the review bar under it says what is left before Accept & commit.
 
 import { useMemo } from 'react';
 import { Check, Columns2, FileDiff, ListTree, MessageSquare, MessageSquareText, Rows3, WrapText } from 'lucide-react';
@@ -13,6 +14,8 @@ import { effectiveEdits, isFileReviewed, nextUnreviewedPath, proposalReadiness, 
 import { navigate, setParam, useRoute } from '@/lib/router';
 import { basename, dirname, languageOf } from '@/lib/util';
 import { Button, EmptyState, IconButton, Kbd, Progress, Segmented, cx } from '@/components/ui';
+import { HunkReview } from './HunkReview';
+import { ReviewBar } from './ReviewBar';
 import { FileIcon } from '@/components/domain';
 import { ChangeNotes, placeNotes, walkthroughFile } from './ChangeNotes';
 import { DiffView } from './DiffView';
@@ -24,6 +27,9 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
   const layout = useUI(s => s.diffLayout);
   const wrap = useUI(s => s.wrapLines);
   const notes = useUI(s => s.changeNotes);
+  const mode = useUI(s => s.reviewMode);
+  // One hunk at a time always reads with its note.
+  const showNotes = notes || mode === 'hunks';
   const since = route.params.get('since') === '1' && Boolean(session.last_reviewed_hash);
   const edits = useMemo(() => effectiveEdits(session, since), [session, since]);
   const current = edits.find(edit => edit.path === route.params.get('file')) ?? edits[0];
@@ -31,7 +37,8 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
   const ready = proposalReadiness(session);
   const actions = useActions();
   const busy = useBusy();
-  const canMark = ready.editable && !since && Boolean(current) && !isFileReviewed(session, current.path) && (session.changes ?? []).some(edit => edit.path === current?.path);
+  const canMarkFile = (path: string) => ready.editable && !since && !isFileReviewed(session, path) && (session.changes ?? []).some(edit => edit.path === path);
+  const canMark = Boolean(current) && canMarkFile(current.path);
   const canComment = ready.editable && !since && !workflowActive(session) && (session.changes ?? []).some(edit => edit.path === current?.path);
   const fileComments = useFileComments(session, current?.path ?? '', canComment);
   const commentCounts = useMemo(() => {
@@ -42,11 +49,15 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
 
   // A line from a reviewer's finding belongs to the file it came with.
   const focusLine = current && route.params.get('file') === current.path ? Number(route.params.get('line')) || undefined : undefined;
-  const select = (path: string) => navigate(route.path, { ...Object.fromEntries(route.params.entries()), file: path, line: undefined }, { replace: true });
+  const select = (path: string) => navigate(route.path, { ...Object.fromEntries(route.params.entries()), file: path, line: undefined, hunk: undefined }, { replace: true });
+  const nextUnviewed = () => {
+    const next = current ? nextUnreviewedPath(session, edits, current.path) : '';
+    if (next) select(next);
+  };
   // The walkthrough's line on a file says what the agent's own summary would.
   const explained = session.walkthrough?.proposal_hash === session.hash && Boolean(current && walkthroughFile(session, current.path)?.summary);
   const lines = current?.diff?.lines;
-  const hunkNotes = useMemo(() => (notes && current && lines ? placeNotes(session, walkthroughFile(session, current.path), lines) : { placed: [], unplaced: [] }), [notes, session, current, lines]);
+  const hunkNotes = useMemo(() => (showNotes && current && lines ? placeNotes(session, walkthroughFile(session, current.path), lines) : { placed: [], unplaced: [] }), [showNotes, session, current, lines]);
 
   async function markViewed() {
     if (!current || !canMark) return;
@@ -62,6 +73,7 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
     else if ((key === 'j' || key === ']') && index < edits.length - 1) select(edits[index + 1].path);
     else if ((key === 'k' || key === '[') && index > 0) select(edits[index - 1].path);
     else if (key === 's') setUI({ diffLayout: layout === 'split' ? 'unified' : 'split' });
+    else if (key === 'f') setUI({ reviewMode: mode === 'hunks' ? 'file' : 'hunks' });
     else return false;
     return true;
   });
@@ -130,7 +142,7 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
           })}
         </ul>
         <div className="fc-tree-foot xs faint">
-          <Kbd>j</Kbd>/<Kbd>k</Kbd> files · <Kbd>v</Kbd> viewed · <Kbd>s</Kbd> split
+          {mode === 'hunks' ? <><Kbd>v</Kbd> file viewed · <Kbd>f</Kbd> whole file</> : <><Kbd>j</Kbd>/<Kbd>k</Kbd> files · <Kbd>v</Kbd> viewed · <Kbd>f</Kbd> hunks</>}
         </div>
       </aside>
       </SidebarPanel>
@@ -145,8 +157,9 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
             <FileStatus change={current} />
             <DiffCounts lines={current.diff?.lines ?? []} />
             <span className="spacer" />
+            <Segmented label="Review by" value={mode} onChange={value => setUI({ reviewMode: value })} options={[{ value: 'hunks', label: 'Hunks' }, { value: 'file', label: 'Whole file' }]} />
             <IconButton icon={WrapText} label="Wrap lines" size="sm" active={wrap} onClick={() => setUI({ wrapLines: !wrap })} />
-            <IconButton icon={MessageSquareText} label={notes ? 'Hide what it fixes' : 'Show what it fixes'} size="sm" active={notes} onClick={() => setUI({ changeNotes: !notes })} />
+            {mode === 'file' ? <IconButton icon={MessageSquareText} label={notes ? 'Hide what it fixes' : 'Show what it fixes'} size="sm" active={notes} onClick={() => setUI({ changeNotes: !notes })} /> : null}
             <IconButton icon={layout === 'split' ? Rows3 : Columns2} label={layout === 'split' ? 'Unified view (s)' : 'Split view (s)'} size="sm" onClick={() => setUI({ diffLayout: layout === 'split' ? 'unified' : 'split' })} />
             {isFileReviewed(session, current.path) ? (
               <span className="badge badge-success">
@@ -158,17 +171,22 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
               </Button>
             )}
           </div>
-          {notes ? <ChangeNotes session={session} path={current.path} unplaced={hunkNotes.unplaced} /> : null}
-          {current.summary && !(notes && explained) ? <div className="fc-summary small">{current.summary}</div> : null}
+          {showNotes ? <ChangeNotes session={session} path={current.path} unplaced={hunkNotes.unplaced} /> : null}
+          {current.summary && !(showNotes && explained) ? <div className="fc-summary small">{current.summary}</div> : null}
           {current.criteria?.length ? (
             <div className="fc-criteria xs">
               <span className="muted">The agent says this file addresses:</span>{' '}
               {current.criteria.map(n => session.acceptance_criteria[n - 1]).filter(Boolean).join(' · ')}
             </div>
           ) : null}
-          <div className="fc-diff-body">
-            <DiffView key={current.path + session.hash + layout} lines={current.diff?.lines ?? []} language={languageOf(current.path)} layout={layout} wrap={wrap} anchorPrefix={`d-${current.path}`} comments={since ? undefined : fileComments} focus={focusLine} notes={hunkNotes.placed} />
-          </div>
+          {mode === 'hunks' ? (
+            <HunkReview session={session} edits={edits} layout={layout} wrap={wrap} comments={since ? undefined : fileComments} focus={focusLine} canMark={canMarkFile} />
+          ) : (
+            <div className="fc-diff-body">
+              <DiffView key={current.path + session.hash + layout} lines={current.diff?.lines ?? []} language={languageOf(current.path)} layout={layout} wrap={wrap} anchorPrefix={`d-${current.path}`} comments={since ? undefined : fileComments} focus={focusLine} notes={hunkNotes.placed} />
+            </div>
+          )}
+          {since ? null : <ReviewBar session={session} current={current.path} onNext={nextUnviewed} onSelect={select} />}
         </section>
       ) : null}
     </div>

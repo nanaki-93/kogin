@@ -93,6 +93,7 @@ untrusted networks.
 | GET | `/api/projects/current/quarantine` | List records set aside because they were unreadable, and records skipped because a newer Kogin wrote them, with the remedy. |
 | POST | `/api/projects/current/quarantine/delete` | Delete a set-aside file (`quarantined_as` as listed, with the project identity) and its record; answers with the records left. 404 when the file is not listed as set aside. |
 | GET | `/api/projects/current/usage` | Total agent model calls, tokens and estimated cost per task in the checkout, plus work not tied to a task. |
+| GET | `/api/projects/current/changes/{sessionID}/activity` | The tool calls the task's agents made in its latest workflow since the daemon started (at most 80, oldest first), for the live view of a running task. In memory only. |
 | GET | `/api/projects/current/history/failures` | How the project's agent runs failed in the last `days` (7 by default, at most 365), by stage and failure category, from the task history. |
 | GET | `/api/projects/current/setup` | The project's configuration as setup edits it: `state` (`needed`, `skipped`, `configured`, `invalid`), the project and daemon files, models (secrets as `api_key_set`), roles and budget. |
 | POST | `/api/projects/current/setup` | Write the project's `.kogin/config.yaml` and apply it live; 409 while work runs. |
@@ -820,7 +821,7 @@ the record they replaced: a skipped newer record, a live record or any other
 path is refused with `404`, and a stale project identity with `409`.
 
 Each `update` event of `/api/projects/current/events` carries a JSON `Event`:
-`kind` (`workflow`, `project_index`, `analysis`, `findings`, `docs`,
+`kind` (`workflow`, `activity`, `project_index`, `analysis`, `findings`, `docs`,
 `configuration`, `agent_settings` or `agent_run`) and, for workflows, `session_id`,
 `workflow_id`, the task `title`, the `stage` that moved (`create`, `test`,
 `review`, `human_review`; empty when the run ended), the workflow `status`, and
@@ -829,6 +830,12 @@ Analysis events name the run in `workflow_id` and carry its `status` (an
 analysis run status), so a client can tell when a run ends. Workflow events of a
 task in its own worktree are also published on the active project's stream,
 which is the one clients listen to, with the worktree in `worktree_path`.
+An `activity` event is one tool call of a task's agent, told when it starts
+(`status: running`, with the `workflow_id`) and again when it returns (`done`
+or `failed`, with a one-line `detail`): `activity` carries `seq` (the same in
+both), `at`, `role` (`coder` or `tester`), `tool`, and `target`, what the call
+names (a path, a pattern or a command, at most 160 characters). Activity
+events of a worktree's task are forwarded like workflow events.
 
 A workflow charges what its budget spent to the stage that was running, across
 attempts: each stage of `workflow.stages` has `usage` and, on read, a `cost`

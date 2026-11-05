@@ -74,7 +74,8 @@ describe('App', () => {
     const gate = await screen.findByRole('complementary', { name: 'Review gate' });
     expect(within(gate).getByText('Files viewed')).toBeInTheDocument();
     expect(within(gate).getByText('1 of 2')).toBeInTheDocument();
-    expect(within(gate).getByRole('button', { name: 'Accept & commit' })).toBeDisabled();
+    // Until it can run, Accept is not offered beside the gate; the header names the next step.
+    expect(within(gate).queryByRole('button', { name: 'Accept & commit' })).toBeNull();
   });
 
   it('offers to open a project when none is active, without refetching in a loop', async () => {

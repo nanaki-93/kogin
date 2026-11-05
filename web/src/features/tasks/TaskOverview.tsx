@@ -20,11 +20,13 @@ import { ReanalyzeTask } from './ReanalyzeTask';
 import { MainChanged } from './RetakeTask';
 import { RunAgents } from './RunAgents';
 import { ReviewItems } from './ReviewItems';
+import { LiveRun } from './LiveRun';
 
 export function TaskOverview({ session }: { session: LoadedSession }) {
   return (
     <div className="page-inner stack-lg">
       <MainChanged session={session} />
+      {workflowActive(session) && session.workflow ? <LiveRun session={session} /> : null}
       <Brief session={session} />
       <CodeRules session={session} />
       {session.workflow ? <AgentRun session={session} /> : null}

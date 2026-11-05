@@ -110,7 +110,7 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
       <div className="composer-body">
         <Textarea ref={titleRef} className="composer-title" rows={1} placeholder="What should change?" value={draft.title} onChange={e => update({ title: e.target.value.replace(/\n/g, ' ') })} aria-label="Task title" maxLength={200} />
         <Textarea className="composer-desc" rows={4} placeholder="Add context: the bug you see, the behavior you want, constraints the agents must respect…" value={draft.description} onChange={e => update({ description: e.target.value })} aria-label="Description" />
-        <ScopePicker files={files.map(f => f.path)} selected={draft.paths} known={known} onAdd={addPath} onRemove={path => update({ paths: draft.paths.filter(p => p !== path) })} />
+        <ScopePicker files={files.map(f => f.path)} selected={draft.paths} known={known} onAdd={addPath} onRemove={path => update({ paths: draft.paths.filter(p => p !== path) })} missing={!draft.paths.length && Boolean(draft.title.trim())} />
         <CriteriaEditor criteria={draft.criteria} onChange={criteria => update({ criteria })} />
         {steps ? (
           <p className="xs muted" role="note">
@@ -121,15 +121,15 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
           <div className="composer-error" role="alert">
             {error}
           </div>
-        ) : startBlocker ? (
-          <p className="xs muted" role="status">
-            {startBlocker}
-          </p>
         ) : null}
       </div>
       <div className="composer-foot">
-        <span className="check-label" title="A new branch and worktree from the main checkout's HEAD, so this task runs beside the others; merge it from Branches">
-          <GitBranch size={13} aria-hidden /> In a new worktree · agents repair failing checks (up to 2 tries)
+        <span className="composer-where">
+          {/* Why the agents cannot start stands where the button is, not under the form. */}
+          {startBlocker ? <span className="composer-blocker small" role="status">{startBlocker}</span> : null}
+          <span className="check-label" title="A new branch and worktree from the main checkout's HEAD, so this task runs beside the others; merge it from Branches">
+            <GitBranch size={13} aria-hidden /> In a new worktree · agents repair failing checks (up to 2 tries)
+          </span>
         </span>
         <span className="spacer" />
         <Button variant="ghost" icon={Save} onClick={() => void submit('draft')} disabled={Boolean(busy) || Boolean(worktreeBlocker)}>
@@ -147,7 +147,7 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
   );
 }
 
-function ScopePicker({ files, selected, known, onAdd, onRemove }: { files: string[]; selected: string[]; known: Set<string>; onAdd: (path: string) => void; onRemove: (path: string) => void }) {
+function ScopePicker({ files, selected, known, onAdd, onRemove, missing }: { files: string[]; selected: string[]; known: Set<string>; onAdd: (path: string) => void; onRemove: (path: string) => void; missing?: boolean }) {
   const [q, setQ] = useState('');
   const [cursor, setCursor] = useState(0);
   const results = useMemo(() => (q.trim() ? rankItems(files.filter(f => !selected.includes(f)), q, f => f, 8) : []), [files, q, selected]);
@@ -167,7 +167,7 @@ function ScopePicker({ files, selected, known, onAdd, onRemove }: { files: strin
   }
 
   return (
-    <div className="scope">
+    <div className={cx('scope', missing && 'is-missing')}>
       <div className="scope-head">
         <span className="field-label">Files agents may change</span>
         <span className="xs faint">{plural(selected.length, 'file')} of {MAX_TASK_PATHS}</span>

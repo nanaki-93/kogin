@@ -1,7 +1,7 @@
 // Issues from analysis and scans: a filterable table with a detail pane and
 // one-click "fix with agents".
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { usePageKeys } from '@/app/shortcuts';
 import { CircleAlert, ExternalLink, ListTodo, Search, Wrench, XCircle, RotateCcw } from 'lucide-react';
 import { useFindings, useIndex, useProject, useTasks } from '@/api/hooks';
@@ -16,6 +16,7 @@ import { taskFixingIssue } from '@/lib/workflow';
 import { Badge, Button, Callout, EmptyState, Input, Segmented, Skeleton, cx } from '@/components/ui';
 import { SeverityBadge, isInProgressFinding, isOpenFinding, isTestNitpick, isUnresolvedFinding, sourceLabel } from '@/components/domain';
 import { openTask } from '@/features/tasks/TaskListPage';
+import { FilterChip, FilterMenu } from '@/components/FilterMenu';
 import { DocText } from '@/features/docs/DocText';
 
 type StatusFilter = 'open' | 'in_progress' | 'dismissed' | 'all';
@@ -45,6 +46,7 @@ export function IssuesPage() {
   const view: View = route.params.get('view') === 'list' ? 'list' : 'file';
   const scope: Scope = route.params.get('scope') === 'tests' ? 'tests' : 'code';
   const [q, setQ] = useState('');
+  const search = useRef<HTMLInputElement>(null);
 
   const list = useMemo(() => {
     const filtered = all.filter(f => inScope(f, scope) && hasStatus(f, status)).filter(f => severity === 'all' || (f.severity || '').toLowerCase() === severity).filter(f => !category || f.category === category);
@@ -77,6 +79,7 @@ export function IssuesPage() {
     if (key === 'j' || key === 'ArrowDown') select(ordered[Math.min(index + 1, ordered.length - 1)]);
     else if (key === 'k' || key === 'ArrowUp') select(ordered[Math.max(index - 1, 0)]);
     else if (key === 'Escape' && selected) setParam('id', undefined);
+    else if (key === '/') search.current?.focus();
     else if (key === 'f' && selected && isOpenFinding(selected)) void actions.fixIssue(project, worktreePath, selected);
     else if (key === 'f' && fixing) openTask(fixing);
     else if (key === 'x' && selected && project && !busy) void actions.triageFinding(project, worktreePath, selected, isUnresolvedFinding(selected) ? 'dismissed' : 'open');
@@ -105,29 +108,19 @@ export function IssuesPage() {
           </div>
         </div>
         <div className="toolbar">
-          <Segmented label="Issues in" value={scope} onChange={v => setParam('scope', v === 'code' ? undefined : v)} options={[{ value: 'code', label: 'Code' }, { value: 'tests', label: 'Test quality', count: testIssues || undefined }]} />
-          <Segmented label="Status" value={status} onChange={v => setParam('status', v === 'open' ? undefined : v)} options={[{ value: 'open', label: 'Open' }, { value: 'in_progress', label: 'In progress', count: inProgress }, { value: 'dismissed', label: 'Dismissed' }, { value: 'all', label: 'All' }]} />
-          <div className="chips">
-            {['all', 'critical', 'high', 'medium', 'low'].map(s => (
-              <button key={s} type="button" className={cx('chip', 'chip-toggle', severity === s && 'is-on')} onClick={() => setParam('severity', s === 'all' ? undefined : s)}>
-                {s === 'all' ? 'All severities' : s}
-                {s !== 'all' && counts[s] ? <span className="count">{counts[s]}</span> : null}
-              </button>
-            ))}
-          </div>
+          <Input ref={search} icon={Search} placeholder="Filter issues…  /" value={q} onChange={e => setQ(e.target.value)} aria-label="Filter issues" className="toolbar-search" />
+          <FilterMenu label="Status" value={status} onChange={v => setParam('status', v === 'open' ? undefined : v)} options={[{ value: 'open', label: 'Open' }, { value: 'in_progress', label: 'In progress', count: inProgress }, { value: 'dismissed', label: 'Dismissed' }, { value: 'all', label: 'All' }]} />
+          <FilterMenu label="Severity" value={severity} onChange={v => setParam('severity', v === 'all' ? undefined : v)} options={[{ value: 'all', label: 'Any' }, ...['critical', 'high', 'medium', 'low'].map(s => ({ value: s, label: s[0].toUpperCase() + s.slice(1), count: counts[s] }))]} />
           {categories.length > 1 || category ? (
-            <div className="chips" role="group" aria-label="Category">
-              {['', ...categories].map(c => (
-                <button key={c || 'all'} type="button" className={cx('chip', 'chip-toggle', category === c && 'is-on')} onClick={() => setParam('category', c || undefined)}>
-                  {c ? CATEGORY_LABELS[c] ?? c : 'All kinds'}
-                  {c && categoryCounts[c] ? <span className="count">{categoryCounts[c]}</span> : null}
-                </button>
-              ))}
-            </div>
+            <FilterMenu label="Kind" value={category} onChange={v => setParam('category', v || undefined)} options={[{ value: '', label: 'Any' }, ...categories.map(c => ({ value: c, label: CATEGORY_LABELS[c] ?? c, count: categoryCounts[c] }))]} />
           ) : null}
+          <FilterMenu label="In" value={scope} onChange={v => setParam('scope', v === 'code' ? undefined : v)} options={[{ value: 'code', label: 'Code' }, { value: 'tests', label: 'Test quality', count: testIssues || undefined }]} />
+          {status !== 'open' ? <FilterChip label={`Status: ${STATUS_LABELS[status]}`} onClear={() => setParam('status', undefined)} /> : null}
+          {severity !== 'all' ? <FilterChip label={`Severity: ${severity}`} onClear={() => setParam('severity', undefined)} /> : null}
+          {category ? <FilterChip label={`Kind: ${CATEGORY_LABELS[category] ?? category}`} onClear={() => setParam('category', undefined)} /> : null}
+          {scope !== 'code' ? <FilterChip label="In: test quality" onClear={() => setParam('scope', undefined)} /> : null}
           <span className="spacer" />
           <Segmented label="Group issues" value={view} onChange={v => setParam('view', v === 'file' ? undefined : v)} options={[{ value: 'file', label: 'By file' }, { value: 'list', label: 'By severity' }]} />
-          <Input icon={Search} placeholder="Filter issues…" value={q} onChange={e => setQ(e.target.value)} aria-label="Filter issues" className="toolbar-search" />
         </div>
         {isLoading ? (
           <Skeleton lines={8} />
@@ -252,6 +245,7 @@ function FullAnalysis({ finding }: { finding: Finding }) {
 
 const ANALYSIS_LABELS: Record<string, string> = { file: 'file analysis', security: 'Security', performance: 'Performance', project: 'project analysis' };
 
+const STATUS_LABELS: Record<StatusFilter, string> = { open: 'open', in_progress: 'in progress', dismissed: 'dismissed', all: 'all' };
 const CATEGORY_LABELS: Record<string, string> = { bugs: 'Bugs', bug: 'Bugs', performance: 'Performance', security: 'Security', maintainability: 'Maintainability' };
 
 function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => void }) {

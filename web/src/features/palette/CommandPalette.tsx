@@ -1,5 +1,5 @@
-// ⌘K: jump to any file, task, issue or page, or run a command. ⌘P opens it
-// in file mode.
+// ⌘K: jump to any file, task, issue or page, or run a command; "> sentence"
+// drafts a task from it. ⌘P opens it in file mode.
 
 import { useMemo, useState } from 'react';
 import { Command } from 'cmdk';
@@ -15,6 +15,7 @@ import { basename, dirname } from '@/lib/util';
 import { taskStatus } from '@/lib/readiness';
 import { FileIcon, isInProgressFinding, isUnresolvedFinding, StatusGlyph } from '@/components/domain';
 import { Highlight, Kbd } from '@/components/ui';
+import { AskTask } from './AskTask';
 
 export function CommandPalette() {
   const open = useUI(s => s.paletteOpen);
@@ -77,13 +78,16 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
     ...DARK_PALETTES.filter(option => option.id !== palette || theme === 'light').map(option => ({ id: `palette-${option.id}`, label: `Dark theme: ${option.label}`, icon: PaletteIcon, keys: '', run: () => setUI({ theme: 'dark', darkPalette: option.id }) })),
   ];
   const commandHits = mode === 'files' ? [] : rankItems(commands, search, c => c.label, 20);
+  // "> …" asks for a task instead of searching.
+  const asking = mode === 'all' && search.trimStart().startsWith('>');
 
   return (
     <Command label="Command palette" shouldFilter={false} loop>
-      <Command.Input value={search} onValueChange={setSearch} placeholder={mode === 'files' ? 'Go to file…' : 'Search files, tasks, issues, commands…'} className="palette-input" autoFocus />
+      <Command.Input value={search} onValueChange={setSearch} placeholder={mode === 'files' ? 'Go to file…' : 'Search files, tasks, issues, commands, or > describe a task…'} className="palette-input" autoFocus />
       <Command.List className="palette-list">
         <Command.Empty className="palette-empty">No results.</Command.Empty>
-        {commandHits.length && (search.trim() || mode === 'commands') ? (
+        {asking ? <AskTask text={search} close={close} /> : null}
+        {!asking && commandHits.length && (search.trim() || mode === 'commands') ? (
           <Command.Group heading="Commands">
             {commandHits.map(({ item, positions }) => (
               <Command.Item key={item.id} value={`cmd-${item.id}`} onSelect={run(item.run)} className="palette-item">
@@ -94,7 +98,7 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
             ))}
           </Command.Group>
         ) : null}
-        {taskHits.length ? (
+        {!asking && taskHits.length ? (
           <Command.Group heading="Tasks">
             {taskHits.map(({ item, positions }) => (
               <Command.Item key={item.id} value={`task-${item.id}`} onSelect={run(() => navigate(`/tasks/${item.id}`, { wt: item.worktreePath || undefined }))} className="palette-item">
@@ -105,7 +109,7 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
             ))}
           </Command.Group>
         ) : null}
-        {fileHits.length && (search.trim() || mode === 'files') ? (
+        {!asking && fileHits.length && (search.trim() || mode === 'files') ? (
           <Command.Group heading="Files">
             {fileHits.map(({ item, positions }) => {
               const base = item.path.lastIndexOf('/') + 1;
@@ -121,7 +125,7 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
             })}
           </Command.Group>
         ) : null}
-        {issueHits.length ? (
+        {!asking && issueHits.length ? (
           <Command.Group heading="Issues">
             {issueHits.map(({ item, positions }) => (
               <Command.Item key={item.id} value={`issue-${item.id}`} onSelect={run(() => navigate('/issues', { id: item.id, status: isInProgressFinding(item) ? 'in_progress' : undefined }))} className="palette-item">
@@ -132,7 +136,7 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
             ))}
           </Command.Group>
         ) : null}
-        {mode === 'all' && search.trim().split(/\s+/).length >= 3 ? (
+        {!asking && mode === 'all' && search.trim().split(/\s+/).length >= 3 ? (
           <Command.Group heading="Ask">
             <Command.Item value="ask-question" onSelect={run(() => navigate('/docs/ask', { q: search.trim() }))} className="palette-item">
               <MessageCircleQuestion size={15} aria-hidden />

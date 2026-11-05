@@ -107,3 +107,39 @@
   height: 28px;
   font-size: var(--text-sm);
 }
+
+/* "> sentence": the task the palette would start. */
+.ask-task {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 4px;
+}
+
+.ask-task-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.ask-task-card svg {
+  vertical-align: -1px;
+}
+
+.ask-task-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ask-task-file {
+  padding: 1px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-2);
+  font-size: var(--text-xs);
+}

@@ -27,8 +27,27 @@ export interface DaemonEvent {
   status?: string;
   usage?: BudgetUsage;
   cost?: CostEstimate;
+  /** A tool call an agent made, on "activity" events. */
+  activity?: AgentActivity;
   /** The worktree a task's event comes from. */
   worktree_path?: string;
+}
+
+/** One tool call a task's agent made; running until it returns. */
+export interface AgentActivity {
+  seq: number;
+  at: string;
+  role: 'coder' | 'tester' | string;
+  tool: string;
+  target?: string;
+  status: 'running' | 'done' | 'failed' | string;
+  detail?: string;
+}
+
+/** A task's tool calls in its latest workflow since the daemon started, oldest first. */
+export interface ChangeActivity {
+  workflow_id?: string;
+  entries: AgentActivity[];
 }
 
 export interface DaemonStatus {

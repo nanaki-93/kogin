@@ -67,7 +67,10 @@ test('issues are triaged from the keyboard, filtered by kind and fixed in a link
   await page.keyboard.press('Escape');
   await expect(detail).toHaveCount(0);
 
-  await page.getByRole('group', { name: 'Category' }).getByRole('button', { name: /Security/ }).click();
+  // Filters are compact menus that show their value.
+  await page.getByRole('button', { name: /^Kind:/ }).click();
+  await page.getByRole('menuitemradio', { name: /Security/ }).click();
+  await expect(page.getByRole('button', { name: 'Clear Kind: Security' })).toBeVisible();
   await expect(page).toHaveURL(/category=security/);
   await expect(page.getByRole('table', { name: 'Issues' }).getByRole('row')).toHaveCount(3);
   await page.keyboard.press('j');
@@ -91,8 +94,8 @@ test('an issue a task is fixing leaves the open issues, links to its task and re
   const table = page.getByRole('table', { name: 'Issues' });
   await expect(table.getByRole('row')).toHaveCount(3);
   await expect(table).not.toContainText('Request body read without a size limit');
-  const status = page.getByRole('radiogroup', { name: 'Status' });
-  await status.getByRole('radio', { name: /In progress/ }).click();
+  await page.getByRole('button', { name: /^Status:/ }).click();
+  await page.getByRole('menuitemradio', { name: /In progress/ }).click();
   await expect(page).toHaveURL(/status=in_progress/);
   await expect(table.getByRole('row')).toHaveCount(3);
   await expect(table).toContainText('In progress · security');
@@ -141,9 +144,10 @@ test("low-severity issues in test files are kept apart under Test quality, and a
   await expect(table.getByRole('row', { name: /Test nitpick/ })).toHaveCount(0);
   await expect(table.getByRole('row', { name: /Test never fails/ })).toHaveCount(1);
   await expect(page.getByRole('rowgroup', { name: 'cmd/master_test.go' }).getByRole('button', { name: /together/ })).toHaveCount(0);
-  const scope = page.getByRole('radiogroup', { name: 'Issues in' });
-  await expect(scope.getByRole('radio', { name: /Test quality/ })).toContainText('3');
-  await scope.getByRole('radio', { name: /Test quality/ }).click();
+  await page.getByRole('button', { name: /^In:/ }).click();
+  const testQuality = page.getByRole('menuitemradio', { name: /Test quality/ });
+  await expect(testQuality).toContainText('3');
+  await testQuality.click();
   await expect(page).toHaveURL(/scope=tests/);
   await expect(table.getByRole('row', { name: /Test nitpick|Test never fails/ })).toHaveCount(3);
   await expect(table.getByRole('row', { name: /PBKDF2/ })).toHaveCount(0);

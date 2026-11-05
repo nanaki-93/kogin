@@ -131,11 +131,13 @@ export function TaskRow({ task, positions = [], active, onHover, compact }: { ta
       }}
     >
       <StatusGlyph status={status.status} />
-      <span className="list-title truncate">
-        <Highlight text={task.title || task.id} positions={positions.filter(p => p < (task.title || '').length)} />
+      {/* The title reads whole; why a run ended goes on the line below it. */}
+      <span className="list-main">
+        <span className="list-title truncate">
+          <Highlight text={task.title || task.id} positions={positions.filter(p => p < (task.title || '').length)} />
+        </span>
+        {!compact ? <RowDetail task={task} detail={status.detail} /> : null}
       </span>
-      {!compact ? <RowDetail task={task} detail={status.detail} /> : null}
-      <span className="spacer" />
       {task.worktreePath ? (
         <span className="chip" title={task.worktreePath}>
           <GitBranch size={12} aria-hidden />

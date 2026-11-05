@@ -12,7 +12,7 @@ import type { LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { navigate, useRoute } from '@/lib/router';
 import { openWorkspace } from '@/app/checkout';
-import { canOverrideReview, checkSummary, effectiveEdits, proposalReadiness, reviewProgress, sessionStatusEntry, workflowActive } from '@/lib/readiness';
+import { canOverrideReview, checkSummary, effectiveEdits, nextUnreviewedPath, proposalReadiness, reviewProgress, sessionStatusEntry, workflowActive } from '@/lib/readiness';
 import { activeOverride, agentRunLabel, agentsFinished, reviewVerdict } from '@/lib/workflow';
 import { basename, plural, shortHash, timeAgo } from '@/lib/util';
 import { Badge, Button, Callout, EmptyState, IconButton, Skeleton, cx } from '@/components/ui';
@@ -131,6 +131,7 @@ function offersRunBesidePrimary(session: LoadedSession): boolean {
 
 /** The single most useful next step, as a button, on every tab. */
 function PrimaryAction({ session }: { session: LoadedSession }) {
+  const route = useRoute();
   const actions = useActions();
   const busy = useBusy();
   const trust = useTrust().data;
@@ -148,12 +149,15 @@ function PrimaryAction({ session }: { session: LoadedSession }) {
       return <RunAgents session={session} variant="primary" />;
     case 'stale':
       return <ReanalyzeTask session={session} />;
-    case 'review':
+    case 'review': {
+      // On the files, the next step is the next file nobody viewed yet.
+      const next = route.path.endsWith('/files') ? nextUnreviewedPath(session, session.changes ?? [], route.params.get('file') ?? '') : '';
       return (
-        <Button variant="primary" icon={FileDiff} onClick={() => navigate(`/tasks/${session.id}/files`)}>
-          Review files
+        <Button variant="primary" icon={FileDiff} onClick={() => navigate(`/tasks/${session.id}/files`, next ? { ...Object.fromEntries(route.params.entries()), file: next, hunk: undefined, line: undefined } : {})}>
+          {next ? 'Next unviewed file' : 'Review files'}
         </Button>
       );
+    }
     case 'checks':
       return (
         <Button variant="primary" icon={FlaskConical} onClick={() => void actions.runChecks(session)} disabled={!trust?.trusted || Boolean(busy)}>
@@ -275,7 +279,8 @@ function ApplyBox({ session }: { session: LoadedSession }) {
   if (!ready.editable) return null;
   return (
     <section className="rail-section">
-      <AcceptTask session={session} />
+      {/* The header carries the next step; the rail repeats Accept only once it can run. */}
+      {ready.canAccept ? <AcceptTask session={session} /> : null}
       {input?.status === 'waiting' ? (
         <Button variant="ghost" icon={ThumbsDown} onClick={() => void actions.reject(session)} disabled={Boolean(busy)}>
           Reject proposal

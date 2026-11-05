@@ -87,6 +87,8 @@ export function formatKeys(keys: string): string[] {
       .replace('Escape', 'Esc')
       .replace('ArrowUp', '↑')
       .replace('ArrowDown', '↓')
+      .replace('ArrowRight', '→')
+      .replace('ArrowLeft', '←')
       .replace('Enter', '↵'),
   );
 }

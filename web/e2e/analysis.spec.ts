@@ -13,7 +13,8 @@ test('the dashboard explains a failed run and retries only what failed', async (
   await expect(page.getByRole('heading', { name: 'Analysis' })).toBeVisible();
 
   const progress = page.getByRole('region', { name: 'Progress' });
-  await expect(progress).toContainText('16 of 16 stages finished');
+  // A finished run says what it found.
+  await expect(progress).toContainText('Found 3 issues in 4 files; 6 stages failed and can be retried.');
   await expect(progress).toContainText('6stages failed');
 
   const failures = page.getByRole('region', { name: 'Why stages failed' });

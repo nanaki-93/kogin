@@ -194,10 +194,16 @@
   font-weight: 500;
 }
 
-/* A long reason gives way before the title does. */
+/* A task row: the title on its own line, the reason under it. */
+.list-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding-block: 4px;
+}
+
 .list-reason {
-  flex-shrink: 100;
-  max-width: 38%;
   color: var(--muted);
   font-size: var(--text-xs);
 }
