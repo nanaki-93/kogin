@@ -7,6 +7,27 @@ Kogin was called Mini-Orca until v6 (and Kasuri for part of v6 development); the
 Version 6 starts from the stable v5.0.0 tag on the `v6` branch. Its changes
 are listed here as they land.
 
+- **A finish line instead of an endless list.** A project profile (Settings →
+  Profile) says what the project is: personal, team, open source or
+  enterprise, its purpose and shape, the platforms it runs on, a security
+  level (basic trusts you, your machine and a GUI's own frontend and backend)
+  and the finish line, the lowest severity that still counts. Analysis prompts
+  read it, and the issue list applies it at once: issues below the finish
+  line, AI notes on test files, issues in files that only build for other
+  platforms, and new issues on code that had not changed since its last
+  analysis are listed under **Counts** but not counted. Test files are no
+  longer analyzed (the profile can turn it back on); tests are judged by
+  running them.
+- **Tests stay in proportion.** A required **test budget** check fails a new
+  test file not named after a source file once its directory has two test
+  files per source file, and tests that grow by more than max(120, 4 × the
+  changed code lines). The testing agent writes the fewest tests that prove the
+  change, in the test file of the code it touches.
+- **Health** (`g l`): the finish line, found vs fixed per day with a
+  converging/not converging verdict, tests with Go coverage by package, the
+  test-to-code ratio and spread test files, repeated code, code nothing calls,
+  functions over budget, and small tasks that improve them.
+
 - **Mini-Orca is now Kogin** (こぎん刺し, *kogin-zashi*: geometric patterns
   stitched on woven cloth by counting its threads one by one). During v6
   development it was briefly called Kasuri. New name, woven logo, app icon and

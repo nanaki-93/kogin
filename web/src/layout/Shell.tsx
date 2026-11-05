@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import * as Menu from '@radix-ui/react-dropdown-menu';
 import {
-  Activity, AlertTriangle, Bot, BookOpen, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Code2, FolderOpen, GitBranch, GitMerge, Inbox, Keyboard, ListTodo, PanelLeft, Plus, Search, Settings, ShieldCheck, ShieldOff, Sparkles,
+  Activity, AlertTriangle, Bot, BookOpen, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Code2, FolderOpen, GitBranch, GitMerge, HeartPulse, Inbox, Keyboard, ListTodo, PanelLeft, Plus, Search, Settings, ShieldCheck, ShieldOff, Sparkles,
 } from 'lucide-react';
 import { useRoute, navigate } from '@/lib/router';
 import { useFindings, useGitWorkspace, useMainProject, useModels, useOverview, useProject, useSession, useStatus, useTasks, useTrust } from '@/api/hooks';
@@ -66,6 +66,7 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
       { path: '/code', label: 'Code', icon: Code2, keys: 'g c' },
       { path: '/issues', label: 'Issues', icon: CircleAlert, count: openIssues || undefined, keys: 'g i' },
       { path: '/analysis', label: 'Analysis', icon: Activity, count: analyzing ? 1 : undefined, tone: 'info', keys: 'g a' },
+      { path: '/health', label: 'Health', icon: HeartPulse, keys: 'g l' },
       { path: '/docs', label: 'Docs', icon: BookOpen, keys: 'g d' },
       { path: '/git', label: 'Branches', icon: GitMerge, count: toMerge || undefined, tone: 'warning', keys: 'g b' },
     ],

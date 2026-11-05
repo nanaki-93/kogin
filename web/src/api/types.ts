@@ -7,6 +7,7 @@ export type * from './types/analysis';
 export type * from './types/daemon';
 export type * from './types/docs';
 export type * from './types/git';
+export type * from './types/health';
 export type * from './types/issues';
 export type * from './types/models';
 export type * from './types/project';

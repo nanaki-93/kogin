@@ -69,6 +69,16 @@ export interface Finding {
   test?: boolean;
   /** The issue in four short lines, read from its message and evidence. */
   brief?: FindingBrief;
+  /** Why the project profile leaves the issue out of the work: listed, not counted. */
+  out_of_scope?: FindingScope;
+}
+
+/** test: in a test file; platform: only builds for platforms the project skips; unchanged: a second look at code analyzed before; below_finish_line: less severe than the finish line. */
+export type FindingScopeReason = 'test' | 'platform' | 'unchanged' | 'below_finish_line';
+
+export interface FindingScope {
+  reason: FindingScopeReason;
+  detail: string;
 }
 
 /** What is wrong, what it costs, the fix and how to see it fixed. */

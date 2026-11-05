@@ -5,16 +5,17 @@ import (
 	"sort"
 
 	"github.com/nanaki-93/kogin/v2/internal/project"
+	"github.com/nanaki-93/kogin/v2/internal/project/rules"
 )
 
+// analysisTestFileExclusion: tests are judged by running them, not reviewed;
+// the project profile can turn their review on.
+const analysisTestFileExclusion = "Test file: judged by running it. Turn on test file analysis in the project profile to review it."
+
 func (s *Service) planAnalysisFiles(ctx context.Context, root string, analysis project.Analysis, indexedFiles []project.IndexFile, policy *project.ContextPolicy, request AnalysisPreviewRequest, preview *AnalysisRunPreview) error {
-	excludedPaths, err := loadAnalysisSelection(root)
+	exclusions, err := newAnalysisExclusions(root, policy)
 	if err != nil {
 		return err
-	}
-	ignored := make(map[string]bool, len(excludedPaths))
-	for _, path := range excludedPaths {
-		ignored[path] = true
 	}
 	files := append([]project.IndexFile(nil), indexedFiles...)
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
@@ -25,10 +26,7 @@ func (s *Service) planAnalysisFiles(ctx context.Context, root string, analysis p
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		reason := analysisFileExclusion(file, policy)
-		if reason == "" && ignored[file.Path] {
-			reason = analysisSelectionExclusion
-		}
+		reason := exclusions.reason(file)
 		if reason == "Excluded by source policy." {
 			continue
 		}
@@ -54,6 +52,41 @@ func (s *Service) planAnalysisFiles(ctx context.Context, root string, analysis p
 		preview.Files = append(preview.Files, planned)
 	}
 	return nil
+}
+
+// analysisExclusions decide which indexed files a run leaves out: by source
+// policy, by the user's file selection, and test files unless the project
+// profile has them analyzed.
+type analysisExclusions struct {
+	policy    *project.ContextPolicy
+	ignored   map[string]bool
+	skipTests bool
+	resolver  *rules.Resolver
+}
+
+func newAnalysisExclusions(root string, policy *project.ContextPolicy) (*analysisExclusions, error) {
+	excludedPaths, err := loadAnalysisSelection(root)
+	if err != nil {
+		return nil, err
+	}
+	ignored := make(map[string]bool, len(excludedPaths))
+	for _, path := range excludedPaths {
+		ignored[path] = true
+	}
+	return &analysisExclusions{policy: policy, ignored: ignored, skipTests: !profileFor(root).AnalyzeTests, resolver: rules.NewResolver(root)}, nil
+}
+
+// reason says why the run leaves file out; empty when it analyzes it.
+func (e *analysisExclusions) reason(file project.IndexFile) string {
+	switch reason := analysisFileExclusion(file, e.policy); {
+	case reason != "":
+		return reason
+	case e.ignored[file.Path]:
+		return analysisSelectionExclusion
+	case e.skipTests && e.resolver.IsTestFile(file.Path):
+		return analysisTestFileExclusion
+	}
+	return ""
 }
 
 func collectAnalysisInventoryExclusions(ctx context.Context, root string, files []project.IndexFile, policy *project.ContextPolicy, preview *AnalysisRunPreview) error {

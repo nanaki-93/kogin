@@ -40,7 +40,7 @@ test('each action has one home: analysis runs from its page, a new task from the
   await page.goto('/#/settings/analysis');
   await expect(page).toHaveURL(/#\/analysis$/);
   await page.goto('/#/settings');
-  await expect(page.getByRole('navigation', { name: 'Settings sections' }).getByRole('link')).toHaveText(['Project', 'Trust', 'Models & agents', 'Usage', 'Appearance']);
+  await expect(page.getByRole('navigation', { name: 'Settings sections' }).getByRole('link')).toHaveText(['Project', 'Profile', 'Trust', 'Models & agents', 'Usage', 'Appearance']);
   await expect(page.getByRole('button', { name: 'Reindex files' })).toHaveCount(0);
 });
 

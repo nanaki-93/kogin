@@ -13,6 +13,7 @@ import { analysisActions } from './actions/analysis';
 import { setupActions } from './actions/setup';
 import { gitActions } from './actions/git';
 import { docsActions } from './actions/docs';
+import { healthActions } from './actions/health';
 
 export { useBusy, usePendingRevision, type PendingRevision } from './actions/busy';
 export type { AnalysisOptions } from './actions/analysis';
@@ -29,6 +30,7 @@ export function useActions() {
   const { runAnalysis, controlAnalysis } = analysisActions(context);
   const { saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, controlAgentSettings } = setupActions(context);
   const { refreshDocs, askCodebase } = docsActions(context);
+  const { saveProfile, runHealthTests, startHealthTask } = healthActions(context);
 
-  return { guarded, createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, markViewed, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept, setTrust, reindex, openProject, deleteSetAside, fixIssue, fixIssues, issueTaskDraft, triageFinding, deleteTasks, closeTask, saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, runAnalysis, controlAnalysis, controlAgentSettings, previewMerge, merge, removeWorktree, discardWorktree, abortMerge, refreshDocs, askCodebase };
+  return { guarded, createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, markViewed, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept, setTrust, reindex, openProject, deleteSetAside, fixIssue, fixIssues, issueTaskDraft, triageFinding, deleteTasks, closeTask, saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, runAnalysis, controlAnalysis, controlAgentSettings, previewMerge, merge, removeWorktree, discardWorktree, abortMerge, refreshDocs, askCodebase, saveProfile, runHealthTests, startHealthTask };
 }

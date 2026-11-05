@@ -156,6 +156,7 @@ func (s *Service) requestFileAnalysis(ctx context.Context, prepared preparedFile
 		return nil, err
 	}
 	prompt += unusedCodeBrief(unusedByPath(s.unusedCode(index))[prepared.indexedFile.Path])
+	prompt += profileFor(prepared.root).analysisBrief()
 	if prepared.instructions.Text != "" {
 		prompt += "\n\n" + project.InstructionPromptGuidance + prepared.instructions.Text
 	}

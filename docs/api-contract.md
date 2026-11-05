@@ -86,6 +86,10 @@ untrusted networks.
 | POST | `/api/projects/current/analysis/run/control` | Pause, resume or cancel the exact run generation. |
 | GET | `/api/projects/current/findings` | List source-free verified findings and AI suggestions with provenance, filters, and freshness: the semantic, Performance and Security AI stages' suggestions (`ai`, `originating_analysis` `file`, `performance` or `security`), security rule matches (`security_rules`), and what each analysis run's checks report: parser diagnostics (`parser`), lint diagnostics (`lint`), failing tests (`test`), the project's semgrep rules (`semgrep`), files over their code budgets (`rules`) and code nothing calls (`unused`: one finding per file, rule `unused-code`, category `maintainability`, whose fix is to delete it; AI and security-rule findings inside those functions are left out). `vet` marks go vet failures of the retired Go scan; lint closes them. `location` has the path, lines and `symbol`, the function around the first line when the file still has the content the finding was made from. `status` is `in_progress` while a live task links the finding (a draft, or a task applied in its own worktree and not merged yet) and `open` again once no task does; merging marks it `fixed`. AI suggestions from different passes about the same issue in one file (their words overlap) are one finding, the most severe, with the others in `also_reported` (`analysis`, `title`, `severity`, `line`); one with a triage of its own is never merged away. A new suggestion that repeats a dismissed one of the same file (dismissed by the user or by a task that found it does not hold) is recorded `dismissed`, with that one in `seen_before` (`id`, `title`), and can be reopened; a dismissed finding a later report leaves out stays dismissed instead of retiring. `test` marks a finding in a test file. |
 | GET | `/api/projects/current/rules` | Test file patterns (conventions plus AGENTS.md `test_files`), the indexed AGENTS.md files and any rules block that could not be read. |
+| GET | `/api/projects/current/profile` | The project profile (kind, purpose, shape, platforms, security level, finish line, test analysis); the default with `saved: false` until one is saved. |
+| POST | `/api/projects/current/profile` | Save the profile (`project_revision`, `profile`); unknown values return 400, a stale revision 409. |
+| GET | `/api/projects/current/health` | The project's health: finish line, code and test size, the latest test run, code nothing calls, repeated code, functions over budget, the found/fixed trend and drafted tasks. |
+| POST | `/api/projects/current/health/tests` | Run the project's tests in a copy of the project (Go modules with coverage) in the background; 202, 403 without execution trust, 409 while a run is going. |
 | PATCH | `/api/projects/current/findings/{findingID}` | Record an explicit user triage status for one finding. |
 | GET | `/api/projects/current/findings/{findingID}/task` | Draft the task that fixes one issue for the composer: kind, title, description, the file and its conventional test in any language, criteria and the linked finding. Nothing is saved. |
 | GET | `/api/projects/current/findings/task` | Draft one task that fixes several open issues of one file (`id` repeated, one to five): the file and its conventional test, every issue in line order with its line, function, message and evidence, their criteria once each, links to all of them, and each as one of `issues` (fixed one at a time in the task's worktree). 400 when the issues are not all open or not in one file; 409 when one is no longer listed. Nothing is saved. |
@@ -628,6 +632,64 @@ Finding IDs intentionally exclude category as well as revision/hash, so adding
 or correcting a category preserves existing dismissed/fixed triage for unchanged
 evidence. Typed Security triage/verification and Performance hypotheses are retained;
 results do not merge unrelated producers merely because line/title text matches.
+
+### Project profile and health
+
+A project profile says what the project is for, so analysis judges it against
+its own goal. `GET /api/projects/current/profile` returns `kind` (`personal`,
+`team`, `open_source`, `enterprise`), `purpose` (one sentence, at most 240
+characters), `shape` (`cli`, `gui_backend`, `web_service`, `library`,
+`other`), `platforms` (`macos`, `linux`, `windows`; empty is every platform),
+`security` (`basic`, `standard`, `strict`), `finish_line` (`critical`,
+`high`, `medium`, `low`: the lowest severity that still counts as work),
+`analyze_tests` and `saved`. Without a saved profile the default is a team
+project at the standard level with the finish line at medium. Empty fields
+take the kind's defaults (personal: basic; enterprise: strict; otherwise
+standard; finish line medium). `POST` saves `.kogin/profile.json` (schema
+version `1`); an unreadable file is reported on `GET` and analysis uses the
+default until it is saved again.
+
+A saved profile is added to the file, performance and security analysis
+prompts (`PROJECT_PROFILE`): the project, its purpose, which threats its
+security level covers (basic trusts the user, their machine and config, and a
+`gui_backend` project's own frontend and backend; it leaves out attackers that
+already run code as the user and wiping secrets from memory) and that issues on
+platforms it does not run on are not reported. Like AGENTS.md guidance, the
+profile is project input, not part of a saved report's identity: saving it
+keeps the reports already made.
+
+Listing applies the profile at once. Each finding may carry `out_of_scope`
+(`reason`, `detail`): `platform` for a Go file whose name or `//go:build`
+line builds for none of the profile's platforms; `test` for an AI finding in a
+test file unless `analyze_tests`; `unchanged` for an open AI finding below
+high severity whose lines (by `git blame`) are all older than the file's
+previous analysis, which did not report it, a second look at unchanged code
+rather than a problem a change introduced; `below_finish_line` for a severity
+under the finish line. Failing tests are never out of scope. Out-of-scope
+findings stay listed; the Web UI leaves them out of counts and **Fix N
+together**. A run plans test files as excluded (`Test file: judged by running
+it…`) unless `analyze_tests`.
+
+`GET /api/projects/current/health?project_revision=…` measures the main
+checkout without a model: `finish_line` (open counted issues by severity,
+out-of-scope counts by reason, `tests_pass` when the latest test run is of
+this revision, `done` when nothing counted is open and the tests pass),
+`code` (source and test files and lines; `test_dirs`, directories with more
+than two test files per source file), `tests` (the latest run: `current`,
+`passed`, `coverage` of Go statements, `packages`, `commands` with the end of
+a failed command's output), `tests_running`, `unused` (functions nothing
+calls), `duplication` (blocks of six or more meaningful lines repeated across
+source files, the repeated share, and the same share in tests), `complexity`
+(functions over their AGENTS.md budgets), `trend` (14 UTC days of issues
+first reported and fixed by a merged task's commit, the last seven days'
+totals and `verdict`: `converging`, `growing`, `steady` or `quiet`) and
+`tasks`: drafts (`IssueTask`) for deleting unused code, merging a repeated
+block, gathering a source file's spread test files (at most eight per task),
+splitting a function over budget and testing a package under 40% coverage.
+Nothing is saved until a task is created from a draft.
+`POST /api/projects/current/health/tests` runs, in a copy of the project,
+`go test -cover -coverprofile ./...` for each Go module and each other
+subproject's test command, and stores the run in `.kogin/health/tests.json`.
 
 ### Analysis file selection
 

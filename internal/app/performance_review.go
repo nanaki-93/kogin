@@ -66,6 +66,7 @@ func (s *Service) requestPerformanceReview(ctx context.Context, snapshot perform
 		return modelOutput{}, err
 	}
 	schema := performanceReviewResponseSchema(snapshot)
+	prompt += profileFor(snapshot.root).analysisBrief()
 	if snapshot.instructions.Text != "" {
 		prompt += "\n\n" + project.InstructionPromptGuidance + snapshot.instructions.Text
 	}

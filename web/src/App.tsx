@@ -19,6 +19,7 @@ import { TaskPage } from '@/features/tasks/TaskPage';
 import { NewTaskDialog } from '@/features/tasks/NewTaskDialog';
 import { CodePage } from '@/features/code/CodePage';
 import { IssuesPage } from '@/features/issues/IssuesPage';
+import { HealthPage } from '@/features/health/HealthPage';
 import { AnalysisPage } from '@/features/analysis/AnalysisPage';
 import { SetupPage } from '@/features/setup/SetupPage';
 import { DocsPage } from '@/features/docs/DocsPage';
@@ -69,6 +70,7 @@ function Workspace() {
       { keys: 'g i', label: 'Issues', group: 'Go to', run: () => openWorkspace('/issues') },
       { keys: 'g a', label: 'Analysis', group: 'Go to', run: () => openWorkspace('/analysis') },
       { keys: 'g d', label: 'Docs', group: 'Go to', run: () => openWorkspace('/docs') },
+      { keys: 'g l', label: 'Health', group: 'Go to', run: () => openWorkspace('/health') },
       { keys: 'g b', label: 'Branches', group: 'Go to', run: () => openWorkspace('/git') },
       { keys: 'g s', label: 'Settings', group: 'Go to', run: () => openWorkspace('/settings') },
     ],
@@ -124,6 +126,8 @@ function Page() {
       return <IssuesPage />;
     case 'analysis':
       return <AnalysisPage />;
+    case 'health':
+      return <HealthPage />;
     case 'setup':
       return <SetupPage />;
     case 'docs':

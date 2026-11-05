@@ -3,7 +3,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { usePageKeys } from '@/app/shortcuts';
-import { CircleAlert, ExternalLink, ListTodo, Search, Wrench, XCircle, RotateCcw } from 'lucide-react';
+import { CircleAlert, ExternalLink, Flag, ListTodo, Search, Wrench, XCircle, RotateCcw } from 'lucide-react';
 import { useFindings, useIndex, useProject, useTasks } from '@/api/hooks';
 import type { Finding, FindingBrief, TaskEntry } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
@@ -14,18 +14,26 @@ import { severityRank } from '@/lib/util';
 import { MAX_ISSUES_PER_TASK, groupByFile, type FileIssues } from '@/lib/issues';
 import { taskFixingIssue } from '@/lib/workflow';
 import { Badge, Button, Callout, EmptyState, Input, Segmented, Skeleton, cx } from '@/components/ui';
-import { SeverityBadge, isInProgressFinding, isOpenFinding, isTestNitpick, isUnresolvedFinding, sourceLabel } from '@/components/domain';
+import { SCOPE_LABELS, SeverityBadge, isInProgressFinding, isOpenFinding, isOutOfScope, isUnresolvedFinding, sourceLabel } from '@/components/domain';
 import { openTask } from '@/features/tasks/TaskListPage';
 import { FilterChip, FilterMenu } from '@/components/FilterMenu';
 import { DocText } from '@/features/docs/DocText';
 
 type StatusFilter = 'open' | 'in_progress' | 'dismissed' | 'all';
 type View = 'file' | 'list';
-/** The code's issues (without low-severity test nitpicks), or every issue in a test file. */
-type Scope = 'code' | 'tests';
+/** The issues that count as work, those below the finish line, or those the profile leaves out (tests, other platforms, second looks at unchanged code). */
+type Scope = 'code' | 'below' | 'out';
 
 function inScope(finding: Finding, scope: Scope): boolean {
-  return scope === 'tests' ? Boolean(finding.test) : !isTestNitpick(finding);
+  const reason = finding.out_of_scope?.reason;
+  if (scope === 'below') return reason === 'below_finish_line';
+  if (scope === 'out') return Boolean(reason) && reason !== 'below_finish_line';
+  return !reason;
+}
+
+function scopeParam(value: string | null): Scope {
+  if (value === 'below' || value === 'out') return value;
+  return value === 'tests' ? 'out' : 'code';
 }
 
 /** Open issues have no task yet; in progress, a task is fixing them; dismissed covers fixed and retired too. */
@@ -44,7 +52,7 @@ export function IssuesPage() {
   const category = route.params.get('category') ?? '';
   const selectedId = route.params.get('id') ?? '';
   const view: View = route.params.get('view') === 'list' ? 'list' : 'file';
-  const scope: Scope = route.params.get('scope') === 'tests' ? 'tests' : 'code';
+  const scope = scopeParam(route.params.get('scope'));
   const [q, setQ] = useState('');
   const search = useRef<HTMLInputElement>(null);
 
@@ -62,7 +70,10 @@ export function IssuesPage() {
     for (const f of all.filter(f => isOpenFinding(f) && inScope(f, scope))) if (f.category) c[f.category] = (c[f.category] ?? 0) + 1;
     return c;
   }, [all, scope]);
-  const testIssues = useMemo(() => all.filter(f => f.test && isOpenFinding(f)).length, [all]);
+  const scopeCounts = useMemo(() => {
+    const open = all.filter(isOpenFinding);
+    return { below: open.filter(f => inScope(f, 'below')).length, out: open.filter(f => inScope(f, 'out')).length };
+  }, [all]);
   const categories = Object.keys(categoryCounts).sort();
   const project = useProject().data;
   const { worktreePath } = useCheckout();
@@ -114,11 +125,11 @@ export function IssuesPage() {
           {categories.length > 1 || category ? (
             <FilterMenu label="Kind" value={category} onChange={v => setParam('category', v || undefined)} options={[{ value: '', label: 'Any' }, ...categories.map(c => ({ value: c, label: CATEGORY_LABELS[c] ?? c, count: categoryCounts[c] }))]} />
           ) : null}
-          <FilterMenu label="In" value={scope} onChange={v => setParam('scope', v === 'code' ? undefined : v)} options={[{ value: 'code', label: 'Code' }, { value: 'tests', label: 'Test quality', count: testIssues || undefined }]} />
+          <FilterMenu label="Counts" value={scope} onChange={v => setParam('scope', v === 'code' ? undefined : v)} options={[{ value: 'code', label: 'Work' }, { value: 'below', label: 'Below the finish line', count: scopeCounts.below || undefined }, { value: 'out', label: 'Out of scope', count: scopeCounts.out || undefined }]} />
           {status !== 'open' ? <FilterChip label={`Status: ${STATUS_LABELS[status]}`} onClear={() => setParam('status', undefined)} /> : null}
           {severity !== 'all' ? <FilterChip label={`Severity: ${severity}`} onClear={() => setParam('severity', undefined)} /> : null}
           {category ? <FilterChip label={`Kind: ${CATEGORY_LABELS[category] ?? category}`} onClear={() => setParam('category', undefined)} /> : null}
-          {scope !== 'code' ? <FilterChip label="In: test quality" onClear={() => setParam('scope', undefined)} /> : null}
+          {scope !== 'code' ? <FilterChip label={scope === 'below' ? 'Below the finish line' : 'Out of scope'} onClear={() => setParam('scope', undefined)} /> : null}
           <span className="spacer" />
           <Segmented label="Group issues" value={view} onChange={v => setParam('view', v === 'file' ? undefined : v)} options={[{ value: 'file', label: 'By file' }, { value: 'list', label: 'By severity' }]} />
         </div>
@@ -126,7 +137,7 @@ export function IssuesPage() {
           <Skeleton lines={8} />
         ) : !list.length ? (
           <EmptyState icon={CircleAlert} title={all.length ? (status === 'in_progress' ? 'No issue is being fixed' : 'No issues match') : 'No issues yet'}>
-            {all.length ? (status === 'in_progress' ? 'Fix an open issue with agents; it shows here while its task is under way.' : scope === 'code' && testIssues ? 'Try another filter. Low-severity issues in test files are under Test quality.' : 'Try another filter.') : 'Run a project analysis to find bugs, performance and security issues.'}
+            {all.length ? (status === 'in_progress' ? 'Fix an open issue with agents; it shows here while its task is under way.' : scope === 'code' && scopeCounts.below + scopeCounts.out ? 'Nothing left at or above the finish line. Issues the project profile does not count are under Counts.' : 'Try another filter.') : 'Run a project analysis to find bugs, performance and security issues.'}
           </EmptyState>
         ) : (
           <table className="table" aria-label="Issues">
@@ -165,7 +176,7 @@ function IssueRow({ finding: f, selected, inFile }: { finding: Finding; selected
       <td><SeverityBadge severity={f.severity} /></td>
       <td>
         <div className="truncate strong-row">{f.title}</div>
-        {f.category || isInProgressFinding(f) ? <div className="xs faint">{[isInProgressFinding(f) ? 'In progress' : '', f.category].filter(Boolean).join(' · ')}</div> : null}
+        {f.category || isInProgressFinding(f) || f.out_of_scope ? <div className="xs faint">{[isInProgressFinding(f) ? 'In progress' : '', f.category, f.out_of_scope ? SCOPE_LABELS[f.out_of_scope.reason] : ''].filter(Boolean).join(' · ')}</div> : null}
       </td>
       <td className="mono xs truncate" title={[f.location?.path, f.location?.symbol].filter(Boolean).join(' · ')}>{where}{f.location?.symbol ? <span className="faint">{where ? ' · ' : ''}{f.location.symbol}</span> : null}</td>
       <td className="xs muted">{sourceLabel(f)}</td>
@@ -175,8 +186,8 @@ function IssueRow({ finding: f, selected, inFile }: { finding: Finding; selected
 
 /** A file's heading in the grouped list: the file, its issues and fixing its open ones in one task. */
 function FileGroupHead({ group, onFix }: { group: FileIssues; onFix: (open: Finding[]) => void }) {
-  // Low-severity test nitpicks are fixed one at a time, if at all.
-  const open = group.findings.filter(f => isOpenFinding(f) && !isTestNitpick(f));
+  // Issues out of the work are fixed one at a time, if at all.
+  const open = group.findings.filter(f => isOpenFinding(f) && !isOutOfScope(f));
   const chosen = open.slice(0, MAX_ISSUES_PER_TASK);
   return (
     <div className="group-head">
@@ -279,6 +290,11 @@ function IssueDetail({ finding, onClose }: { finding: Finding; onClose: () => vo
       ) : null}
       {finding.location?.symbol ? <div className="mono xs faint">in {finding.location.symbol}</div> : null}
       {finding.brief ? <Brief brief={finding.brief} /> : <p className="prose small">{finding.message}</p>}
+      {finding.out_of_scope && isUnresolvedFinding(finding) ? (
+        <Callout tone="neutral" icon={Flag} title={`Not counted: ${SCOPE_LABELS[finding.out_of_scope.reason]?.toLowerCase() ?? finding.out_of_scope.reason}`}>
+          {finding.out_of_scope.detail} You can still fix it. <button type="button" className="link-btn" onClick={() => navigate('/settings/profile')}>Project profile</button>
+        </Callout>
+      ) : null}
       {finding.seen_before ? (
         <Callout tone="neutral" icon={RotateCcw} title="Dismissed before">
           This repeats “{finding.seen_before.title}”, which was dismissed, so it was dismissed too. Reopen it if it is a different issue.

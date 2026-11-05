@@ -1,8 +1,8 @@
-// Settings: project, trust, models and agents, usage, appearance. Analysis
+// Settings: project, profile, trust, models and agents, usage, appearance. Analysis
 // has its own page; /settings/analysis leads there.
 
 import { useEffect } from 'react';
-import { Bot, Coins, Wrench, FolderOpen, Monitor, Moon, Palette, ShieldCheck, Sparkles, Sun } from 'lucide-react';
+import { Bot, Coins, Wrench, FolderOpen, Monitor, Moon, Palette, ShieldCheck, Sparkles, Sun, Target } from 'lucide-react';
 import { useModels, useSetup, useProject, useStatus, useTrust, useUsage } from '@/api/hooks';
 import type { UsageTotal } from '@/api/types';
 import { costCaveat, costLabel, formatTokens } from '@/lib/usage';
@@ -17,10 +17,12 @@ import { QuarantineList } from './Quarantine';
 import { AgentRoles } from './AgentRoles';
 import { ConfigSource } from './ConfigSource';
 import { TimeLimits } from './TimeLimits';
+import { ProfileSettings } from './ProfileSettings';
 import { SidebarPanel } from '@/layout/SidebarPanel';
 
 const SECTIONS = [
   { id: 'project', label: 'Project', icon: FolderOpen },
+  { id: 'profile', label: 'Profile', icon: Target },
   { id: 'trust', label: 'Trust', icon: ShieldCheck },
   { id: 'models', label: 'Models & agents', icon: Bot },
   { id: 'usage', label: 'Usage', icon: Coins },
@@ -60,6 +62,8 @@ function SettingsSection({ id }: { id: string }) {
   switch (id) {
     case 'project':
       return <ProjectSettings />;
+    case 'profile':
+      return <ProfileSettings />;
     case 'trust':
       return <TrustSettings />;
     case 'models':

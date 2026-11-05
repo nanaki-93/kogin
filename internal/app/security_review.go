@@ -47,6 +47,7 @@ func (s *Service) executeSecurityReview(ctx context.Context, snapshot securityRe
 	if err != nil {
 		return modelOutput{}, nil, err
 	}
+	prompt += profileFor(snapshot.root).analysisBrief()
 	if snapshot.instructions.Text != "" {
 		prompt += "\n\n" + project.InstructionPromptGuidance + snapshot.instructions.Text
 	}

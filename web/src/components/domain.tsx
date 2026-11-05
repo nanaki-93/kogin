@@ -87,15 +87,23 @@ export function isOpenFinding(finding: Finding): boolean {
   return isUnresolvedFinding(finding) && !isInProgressFinding(finding);
 }
 
-/** A low-severity issue in a test file: Test quality, not counted with the code's issues or fixed together. */
-export function isTestNitpick(finding: Finding): boolean {
-  return Boolean(finding.test) && ['low', 'info', ''].includes((finding.severity || '').toLowerCase());
+/** An issue the project profile leaves out of the work (see FindingScope): listed, but not counted or fixed together. */
+export function isOutOfScope(finding: Finding): boolean {
+  return Boolean(finding.out_of_scope);
 }
 
-/** An open issue counted with the project's: not a test nitpick. */
+/** An open issue counted with the project's: one the profile keeps in the work. */
 export function isCountedOpenFinding(finding: Finding): boolean {
-  return isOpenFinding(finding) && !isTestNitpick(finding);
+  return isOpenFinding(finding) && !isOutOfScope(finding);
 }
+
+/** Why an issue is out of the work, in a few words. */
+export const SCOPE_LABELS: Record<string, string> = {
+  test: 'In a test file',
+  platform: 'Other platform',
+  unchanged: 'Second look at unchanged code',
+  below_finish_line: 'Below the finish line',
+};
 
 export function FileIcon({ path, size = 14 }: { path: string; size?: number }) {
   const ext = path.slice(path.lastIndexOf('.') + 1).toLowerCase();

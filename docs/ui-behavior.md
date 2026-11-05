@@ -413,10 +413,13 @@ every guard when the action arrives.
   code), above its actions; the analysis' own words fold under **Full
   analysis** only when they say more, and a tool's output shows as is. The
   drafted task carries the same lines and where the issue is.
-  **Issues in** splits **Code** (the default; every issue except
-  low-severity ones in test files) from **Test quality** (every issue in a
-  test file, with its count). Low-severity test issues are left out of the
-  open-issue counts (navigation and Inbox) and of **Fix N together**. An issue
+  **Counts** splits **Work** (the default: the issues the project profile
+  counts) from **Below the finish line** and **Out of scope** (AI issues in
+  test files, files that only build for platforms the project skips, and
+  second looks at code that had not changed since its last analysis), each
+  with its count. Issues out of the work are left out of the open-issue counts
+  (navigation and Inbox) and of **Fix N together**; their detail says why they
+  are not counted and links to the profile, and they can still be fixed. An issue
   other analysis passes also reported lists them under **Also reported**; one
   that repeats a dismissed issue is shown dismissed, saying which one, and can
   be reopened.
@@ -472,3 +475,28 @@ every guard when the action arrives.
   Failures that already happened before the merge do not fail it. A failure
   never undoes the merge: the card says to fix it in a new task or revert the
   merge commit.
+
+## Health
+
+Health (`g l`) answers whether the project is fit for its goal and whether
+fixing converges, measured from the main checkout without a model.
+**Finish line** says how many counted issues are left (by severity), whether
+the tests pass on this version, and what is not counted, each linking to that
+filter of Issues; it reads **Done for its goal** when nothing counted is open
+and the tests pass. **Found and fixed** draws 14 days of issues first reported
+and fixed (paired bars, a tooltip per day, a table view) with the week's
+verdict: Converging, Not converging, Steady or Quiet. **Tests** shows the
+latest run (Run tests, with execution trust, runs them in a copy with Go
+coverage), coverage by package, code and test lines with their ratio, and the
+directories whose tests are spread over many files. **Code** shows the
+repeated share of the code and of the tests, the repeated blocks, functions
+nothing calls and functions over budget. **Improve the health** lists small
+tasks drafted from these (delete unused code, merge a repeated block, gather a
+file's spread tests, split a complex function, test a package with low
+coverage); **Draft task** opens one in the composer.
+
+Settings → **Profile** edits the project profile: kind (a kind brings its
+security level unless one was chosen), purpose, shape, the platforms it runs
+on, the security level (with what it covers), the finish line and whether test
+files are analyzed. Saving applies it to the issue list at once; the analysis
+reads it from the files it analyzes next.

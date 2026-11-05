@@ -132,27 +132,31 @@ test('an issue without a file opens a composer that says what Start agents needs
   await expect(dialog.getByRole('status')).toHaveCount(0);
 });
 
-test("low-severity issues in test files are kept apart under Test quality, and an issue says what else reported it", async ({ page, daemon }) => {
+test("issues the profile does not count are kept apart under Counts, and an issue says why and what else reported it", async ({ page, daemon }) => {
   const base = { ...data.findings[0], source: 'ai', evidence: undefined, location: { path: 'cmd/master_test.go', start_line: 10 } };
-  const nitpicks = [1, 2].map(n => ({ ...base, id: `t${n}`, severity: 'low', test: true, title: `Test nitpick ${n}`, message: `Nitpick ${n}.`, location: { path: 'cmd/master_test.go', start_line: 10 * n } }));
-  const testBug = { ...base, id: 't3', severity: 'medium', test: true, title: 'Test never fails', message: 'The assertion is inverted.', location: { path: 'cmd/master_test.go', start_line: 40 } };
+  const tests = { reason: 'test' as const, detail: 'Tests are judged by running them.' };
+  const nitpicks = [1, 2].map(n => ({ ...base, id: `t${n}`, severity: 'low', test: true, title: `Test nitpick ${n}`, message: `Nitpick ${n}.`, location: { path: 'cmd/master_test.go', start_line: 10 * n }, out_of_scope: tests }));
+  const testBug = { ...base, id: 't3', severity: 'medium', test: true, title: 'Test never fails', message: 'The assertion is inverted.', location: { path: 'cmd/master_test.go', start_line: 40 }, out_of_scope: tests };
+  const below = { ...base, id: 'b1', severity: 'low', title: 'Help text missing', message: 'addCmd has no Short.', location: { path: 'cmd/add.go', start_line: 12 }, out_of_scope: { reason: 'below_finish_line' as const, detail: 'Less severe than the project’s finish line (medium).' } };
   const merged = { ...base, id: 'm1', severity: 'high', title: 'Recorded PBKDF2 iterations ignored', message: 'deriveKey always uses the constant.', location: { path: 'cmd/master.go', start_line: 461 }, also_reported: [{ analysis: 'security', title: 'Recorded KDF iterations ignored', severity: 'medium', line: 256 }] };
   const repeat = { ...base, id: 'r1', severity: 'medium', status: 'dismissed', title: 'Active key wiped by deferred clear', message: 'SetMasterKey may keep the slice.', location: { path: 'cmd/master.go' }, seen_before: { id: 'old', title: 'Derived key zeroed after handoff' } };
-  daemon.serve('/api/projects/current/findings', () => ({ ...data.project, findings: [...data.findings, ...nitpicks, testBug, merged, repeat] }));
+  daemon.serve('/api/projects/current/findings', () => ({ ...data.project, findings: [...data.findings, ...nitpicks, testBug, below, merged, repeat] }));
   await page.goto('/#/issues');
   const table = page.getByRole('table', { name: 'Issues' });
-  await expect(table.getByRole('row', { name: /Test nitpick/ })).toHaveCount(0);
-  await expect(table.getByRole('row', { name: /Test never fails/ })).toHaveCount(1);
-  await expect(page.getByRole('rowgroup', { name: 'cmd/master_test.go' }).getByRole('button', { name: /together/ })).toHaveCount(0);
-  await page.getByRole('button', { name: /^In:/ }).click();
-  const testQuality = page.getByRole('menuitemradio', { name: /Test quality/ });
-  await expect(testQuality).toContainText('3');
-  await testQuality.click();
-  await expect(page).toHaveURL(/scope=tests/);
+  await expect(table.getByRole('row', { name: /Test nitpick|Test never fails|Help text missing/ })).toHaveCount(0);
+  await expect(table.getByRole('row', { name: /PBKDF2/ })).toHaveCount(1);
+  await page.getByRole('button', { name: /^Counts:/ }).click();
+  await expect(page.getByRole('menuitemradio', { name: /Below the finish line/ })).toContainText('1');
+  const outOfScope = page.getByRole('menuitemradio', { name: /Out of scope/ });
+  await expect(outOfScope).toContainText('3');
+  await outOfScope.click();
+  await expect(page).toHaveURL(/scope=out/);
   await expect(table.getByRole('row', { name: /Test nitpick|Test never fails/ })).toHaveCount(3);
   await expect(table.getByRole('row', { name: /PBKDF2/ })).toHaveCount(0);
-  // Nitpicks are fixed one at a time, if at all.
+  // Issues out of the work are fixed one at a time, if at all.
   await expect(page.getByRole('rowgroup', { name: 'cmd/master_test.go' }).getByRole('button', { name: /together/ })).toHaveCount(0);
+  await table.getByRole('row', { name: /Test never fails/ }).click();
+  await expect(page.getByRole('complementary', { name: 'Issue detail' })).toContainText('Not counted: in a test file');
 
   await page.goto('/#/issues?id=m1');
   const detail = page.getByRole('complementary', { name: 'Issue detail' });

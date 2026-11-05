@@ -4,7 +4,7 @@
 // mutation must carry the Web UI header and the current proposal identity.
 
 import { test as base, expect, type Page, type Route } from '@playwright/test';
-import type { ChangeHistoryEntry, ChangeSession, DaemonEvent, DocsRefresh, Finding, GitWorktree, ProjectSetup, QuarantineReport } from '../../src/api/types';
+import type { ChangeHistoryEntry, ChangeSession, DaemonEvent, DocsRefresh, Finding, GitWorktree, ProjectHealth, ProjectProfile, ProjectSetup, QuarantineReport } from '../../src/api/types';
 import * as data from './fixtures';
 import { approveSession, overrideReview, reviseSession, startRun } from './review';
 
@@ -34,6 +34,26 @@ export class FakeDaemon {
   private settings = data.agentSettings(0, null, null);
   private setup = data.projectSetup('configured');
   private selection = data.analysisSelection([]);
+  private profile: ProjectProfile = data.defaultProfile();
+  private health: ProjectHealth = data.health();
+  /** GETs of the health left until a started test run finishes. */
+  private testsRunning = 0;
+
+  /** Saves a profile like the daemon: the kind's security level fills an empty one. */
+  private saveProfile(body: Record<string, unknown>): ProjectProfile {
+    const draft = body.profile as Partial<ProjectProfile>;
+    if (draft.kind && !['personal', 'team', 'open_source', 'enterprise'].includes(draft.kind)) throw new Error('kind must be one of personal, team, open_source, enterprise');
+    this.profile = { ...this.profile, ...draft, security: draft.security || (draft.kind === 'personal' ? 'basic' : 'standard'), saved: true };
+    return this.profile;
+  }
+
+  /** The health; a started test run reports running for one read, then its result. */
+  private currentHealth(): ProjectHealth {
+    if (this.testsRunning > 0 && --this.testsRunning === 0) {
+      this.health = { ...this.health, tests_running: false, tests: data.healthTests(), finish_line: { ...this.health.finish_line, tests_pass: true } };
+    }
+    return { ...this.health, profile: this.profile, tests_running: this.testsRunning > 0 };
+  }
 
   /** Marks the agent overrides as saved for an earlier model configuration. */
   staleSettings(): void {
@@ -274,6 +294,8 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/changes\/([^/]+)\/activity$/, () => ({ entries: [] })],
     [/^\/api\/projects\/current\/overview$/, () => ({ ...data.overview, analysis_run: this.run ?? data.overview.analysis_run, docs_refresh: this.docsRefresh })],
     [/^\/api\/projects\/current\/agent-settings$/, () => this.settings],
+    [/^\/api\/projects\/current\/profile$/, () => this.profile],
+    [/^\/api\/projects\/current\/health$/, () => this.currentHealth()],
     [/^\/api\/projects\/current\/setup$/, () => this.setup],
     [/^\/api\/projects\/current\/analysis\/selection$/, () => this.selection],
     [/^\/api\/projects\/current\/usage$/, () => data.usage(this.sessions.get('chg-1')!)],
@@ -302,6 +324,8 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/quarantine\/delete$/, body => this.deleteSetAside(body)],
     [/^\/api\/projects\/current\/agent-settings\/control$/, body => this.controlSettings(body)],
     [/^\/api\/projects\/current\/setup$/, body => this.saveSetup(body)],
+    [/^\/api\/projects\/current\/profile$/, body => this.saveProfile(body)],
+    [/^\/api\/projects\/current\/health\/tests$/, () => ((this.testsRunning = 2), { started: true })],
     [/^\/api\/projects\/current\/setup\/timeouts$/, body => (this.setup = { ...this.setup, state: 'configured', timeouts: body.timeouts as ProjectSetup['timeouts'] })],
     [/^\/api\/projects\/current\/setup\/skip$/, () => (this.setup = { ...this.setup, state: 'skipped' })],
     [/^\/api\/projects\/current\/setup\/test-model$/, body => ((body.model as { model?: string }).model ? { ok: true, model: (body.model as { model: string }).model, latency_ms: 840 } : { ok: false, latency_ms: 0, reason: 'The model provider could not be reached.' })],

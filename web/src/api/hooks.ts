@@ -5,7 +5,7 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { api, query, withWorktree } from './client';
 import type {
   AgentSettings, AnalysisFileSelection, ChangeActivity, AvailableModels, ProjectSetup, ChangeHistoryEntry, ChangeRules, ChangeSession, DaemonStatus, DocsComponentFiles, ExecutionTrust, FileInfo, FileSummary,
-  FindingsResponse, GitWorkspace, LoadedSession, ModelsCurrent, Overview, Project, ProjectIndex, ProjectRules, QuarantineReport, TaskEntry, UsageReport,
+  FindingsResponse, GitWorkspace, LoadedSession, ModelsCurrent, Overview, Project, ProjectHealth, ProjectIndex, ProjectProfile, ProjectRules, QuarantineReport, TaskEntry, UsageReport,
 } from './types';
 import { useCheckout } from '@/app/checkout';
 
@@ -33,6 +33,8 @@ export const keys = {
   rules: (wt: string) => ['rules', wt] as const,
   changeRules: (id: string) => ['changeRules', id] as const,
   activity: (id: string) => ['activity', id] as const,
+  profile: ['profile'] as const,
+  health: ['health'] as const,
 };
 
 /** The project's test file patterns and the AGENTS.md files that declare rules. */
@@ -248,6 +250,27 @@ export function useFindings() {
     queryKey: [...keys.findings(worktreePath), project?.project_revision],
     queryFn: () => api.get<FindingsResponse>(withWorktree('/api/projects/current/findings' + query({ project_revision: project!.project_revision }), worktreePath)),
     enabled: Boolean(project),
+  });
+}
+
+/** The main checkout's project profile (the default until one is saved). */
+export function useProfile() {
+  const main = useMainProject().data;
+  return useQuery({
+    queryKey: [...keys.profile, main?.project_revision],
+    queryFn: () => api.get<ProjectProfile>('/api/projects/current/profile'),
+    enabled: Boolean(main),
+  });
+}
+
+/** The main checkout's health; polled while its tests run. */
+export function useHealth() {
+  const main = useMainProject().data;
+  return useQuery({
+    queryKey: [...keys.health, main?.project_revision],
+    queryFn: () => api.get<ProjectHealth>('/api/projects/current/health' + query({ project_revision: main!.project_revision })),
+    enabled: Boolean(main),
+    refetchInterval: q => (q.state.data?.tests_running ? 2_000 : false),
   });
 }
 

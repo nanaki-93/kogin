@@ -96,6 +96,16 @@ type UnifiedFinding struct {
 	Test bool `json:"test,omitempty"`
 	// Brief is set on listing: the issue in four short lines (see BriefOf).
 	Brief *FindingBrief `json:"brief,omitempty"`
+	// OutOfScope is set on listing when the project profile leaves the
+	// issue out of the work: listed, but not counted.
+	OutOfScope *FindingScope `json:"out_of_scope,omitempty"`
+}
+
+// FindingScope says why an issue does not count as work for this project.
+type FindingScope struct {
+	// Reason is test, platform, unchanged or below_finish_line.
+	Reason string `json:"reason"`
+	Detail string `json:"detail"`
 }
 
 // FindingInput is the active deterministic state used to assess freshness.

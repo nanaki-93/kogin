@@ -782,6 +782,58 @@ paths:
                   issues: {type: array, minItems: 2, maxItems: 5, items: {$ref: '#/components/schemas/ChangeIssue'}, description: Each linked issue as a step of its own; absent for one issue.}
         '400': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+  /api/projects/current/profile:
+    get:
+      tags: [Project]
+      summary: The project profile, or the default until one is saved
+      responses:
+        '200': {description: The profile, content: {application/json: {schema: {$ref: '#/components/schemas/ProjectProfile'}}}}
+        '404': {$ref: '#/components/responses/Error'}
+    post:
+      tags: [Project]
+      summary: Save the project profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_revision, profile]
+              additionalProperties: false
+              properties:
+                project_revision: {type: string}
+                profile: {$ref: '#/components/schemas/ProjectProfile'}
+      responses:
+        '200': {description: The saved profile, content: {application/json: {schema: {$ref: '#/components/schemas/ProjectProfile'}}}}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /api/projects/current/health:
+    parameters:
+      - {in: query, name: project_revision, required: true, schema: {type: string}}
+    get:
+      tags: [Project]
+      summary: The project's health against its profile
+      responses:
+        '200': {description: The health, content: {application/json: {schema: {$ref: '#/components/schemas/ProjectHealth'}}}}
+        '409': {$ref: '#/components/responses/Error'}
+  /api/projects/current/health/tests:
+    post:
+      tags: [Project]
+      summary: Run the project's tests with coverage in the background
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_revision]
+              additionalProperties: false
+              properties:
+                project_revision: {type: string}
+      responses:
+        '202': {description: Started; the health reports tests_running, then the run}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
   /api/projects/current/rules:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -1625,6 +1677,80 @@ components:
             id: {type: string}
             title: {type: string}
         test: {type: boolean, description: 'Set when the finding is in a test file (by naming convention or the project''s AGENTS.md test_files); derived on listing.'}
+        out_of_scope:
+          type: object
+          description: Set on listing when the project profile leaves the finding out of the work; it stays listed but is not counted.
+          required: [reason, detail]
+          properties:
+            reason: {type: string, enum: [test, platform, unchanged, below_finish_line]}
+            detail: {type: string}
+    ProjectProfile:
+      type: object
+      required: [kind, purpose, shape, platforms, security, finish_line, analyze_tests, saved]
+      properties:
+        kind: {type: string, enum: [personal, team, open_source, enterprise]}
+        purpose: {type: string, maxLength: 240}
+        shape: {type: string, enum: [cli, gui_backend, web_service, library, other]}
+        platforms: {type: array, items: {type: string, enum: [macos, linux, windows]}, description: Empty is every platform.}
+        security: {type: string, enum: [basic, standard, strict]}
+        finish_line: {type: string, enum: [critical, high, medium, low], description: The lowest severity that still counts as work.}
+        analyze_tests: {type: boolean}
+        saved: {type: boolean, description: False while the project uses the default profile; ignored on save.}
+    ProjectHealth:
+      type: object
+      description: Measured from the code, its tests and the issue history without a model. See docs/api-contract.md, Project profile and health.
+      required: [profile, finish_line, code, tests, tests_running, unused, duplication, complexity, trend, tasks]
+      properties:
+        profile: {$ref: '#/components/schemas/ProjectProfile'}
+        finish_line:
+          type: object
+          required: [severity, open, by_severity, out_of_scope, tests_pass, done]
+          properties:
+            severity: {type: string}
+            open: {type: integer}
+            by_severity: {type: object, additionalProperties: {type: integer}}
+            out_of_scope: {type: object, additionalProperties: {type: integer}}
+            tests_pass: {type: boolean, nullable: true}
+            done: {type: boolean}
+        code:
+          type: object
+          properties:
+            source_files: {type: integer}
+            source_lines: {type: integer}
+            test_files: {type: integer}
+            test_lines: {type: integer}
+            test_dirs: {type: array, items: {type: object, properties: {dir: {type: string}, source_files: {type: integer}, test_files: {type: integer}, test_lines: {type: integer}}}}
+        tests:
+          type: object
+          nullable: true
+          properties:
+            revision: {type: string}
+            current: {type: boolean}
+            ran_at: {type: string, format: date-time}
+            duration_ms: {type: integer}
+            passed: {type: boolean}
+            coverage: {type: number, nullable: true}
+            packages: {type: array, items: {type: object, properties: {name: {type: string}, passed: {type: boolean}, no_tests: {type: boolean}, coverage: {type: number, nullable: true}}}}
+            commands: {type: array, items: {type: object, properties: {dir: {type: string}, command: {type: array, items: {type: string}}, state: {type: string}, output: {type: string}, duration_ms: {type: integer}}}}
+        tests_running: {type: boolean}
+        unused: {type: array, items: {type: object, properties: {path: {type: string}, function: {type: string}, start_line: {type: integer}, test_only: {type: boolean}}}}
+        duplication:
+          type: object
+          properties:
+            repeated_lines: {type: integer}
+            total_lines: {type: integer}
+            test_repeated_lines: {type: integer}
+            test_total_lines: {type: integer}
+            groups: {type: array, items: {type: object, properties: {lines: {type: integer}, preview: {type: string}, places: {type: array, items: {type: object, properties: {path: {type: string}, start_line: {type: integer}, end_line: {type: integer}}}}}}}
+        complexity: {type: array, items: {type: object, properties: {path: {type: string}, function: {type: string}, start_line: {type: integer}, complexity: {type: integer}, lines: {type: integer}, budget: {type: integer}, line_budget: {type: integer}}}}
+        trend:
+          type: object
+          properties:
+            days: {type: array, items: {type: object, properties: {date: {type: string, format: date}, found: {type: integer}, fixed: {type: integer}}}}
+            found_7: {type: integer}
+            fixed_7: {type: integer}
+            verdict: {type: string, enum: [converging, growing, steady, quiet]}
+        tasks: {type: array, items: {type: object, properties: {id: {type: string}, kind: {type: string, enum: [unused, duplication, tests, complexity, coverage]}, title: {type: string}, why: {type: string}, draft: {type: object, description: An IssueTask draft for the composer.}}}}
     EngineeringInsight:
       type: object
       required: [mechanism, why_it_matters_here]

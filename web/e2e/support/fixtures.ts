@@ -3,7 +3,7 @@
 // finding sources), so the UI is exercised with what it really receives.
 
 import type {
-  AgentSettings, AnalysisFileSelection, AnalysisRunFile, ProjectSetup, AnalysisRunSummary, AnalysisStageProgress, AvailableModels, BudgetUsage, ChangeHistoryEntry, ChangeSession, CostEstimate, FileChange, Finding, GitWorkspace, Model, ModelsCurrent, Overview, Project, ReviewProgress, UsageReport, WorkflowPhase,
+  AgentSettings, AnalysisFileSelection, AnalysisRunFile, ProjectSetup, AnalysisRunSummary, AnalysisStageProgress, AvailableModels, BudgetUsage, ChangeHistoryEntry, ChangeSession, CostEstimate, FileChange, Finding, GitWorkspace, HealthTestRun, Model, ModelsCurrent, Overview, Project, ProjectHealth, ProjectProfile, ReviewProgress, UsageReport, WorkflowPhase,
 } from '../../src/api/types';
 
 const now = Date.parse('2026-10-27T10:00:00Z');
@@ -428,5 +428,37 @@ export function analysisSelection(excluded: string[]): AnalysisFileSelection {
       { path: 'vendor/lib/b.go', reason: '' },
       { path: 'assets/logo.png', reason: 'Not a supported text source file.' },
     ],
+  };
+}
+
+export function defaultProfile(): ProjectProfile {
+  return { kind: 'team', purpose: '', shape: 'other', platforms: [], security: 'standard', finish_line: 'medium', analyze_tests: false, saved: false };
+}
+
+/** A project where analyses outpace fixes: spread tests, code nothing calls, a growing trend. */
+export function health(): ProjectHealth {
+  const days = Array.from({ length: 14 }, (_, i) => ({ date: new Date(Date.UTC(2026, 9, 24 + i)).toISOString().slice(0, 10), found: i > 6 ? 40 + i : i, fixed: i > 9 ? 12 : 0 }));
+  return {
+    profile: defaultProfile(),
+    finish_line: { severity: 'medium', open: 5, by_severity: { medium: 5 }, out_of_scope: { test: 123, unchanged: 23, platform: 8, below_finish_line: 7 }, tests_pass: null, done: false },
+    code: { source_files: 19, source_lines: 2870, test_files: 83, test_lines: 9490, test_dirs: [{ dir: 'cmd', source_files: 10, test_files: 54, test_lines: 5777 }] },
+    tests: null,
+    tests_running: false,
+    unused: [{ path: 'cmd/clipboard_clear.go', function: 'clearClipboardAfter', start_line: 95, test_only: true }],
+    duplication: { repeated_lines: 0, total_lines: 1835, groups: [], test_repeated_lines: 282, test_total_lines: 6842 },
+    complexity: [],
+    trend: { days, found_7: 310, fixed_7: 109, verdict: 'growing' },
+    tasks: [
+      { id: 'unused', kind: 'unused', title: 'Delete code nothing calls (1 function)', why: 'Code that never runs still has to be read, analyzed and kept compiling.', draft: { kind: 'fix', title: 'Delete code nothing calls (1 function)', description: 'Nothing calls these functions.', paths: ['cmd/clipboard_clear.go'], acceptance_criteria: ['The listed functions are deleted'] } },
+      { id: 'tests:cmd/master.go', kind: 'tests', title: 'Gather 8 of the 12 test files of master.go into master_test.go', why: 'Tests spread over many files get copied instead of extended.', draft: { kind: 'fix', title: 'Gather 8 of the 12 test files of master.go into master_test.go', description: 'Move the tests into master_test.go.', paths: ['cmd/master_test.go', 'cmd/master_kdf_test.go'], acceptance_criteria: ['The tests of master.go are in master_test.go only'] } },
+    ],
+  };
+}
+
+export function healthTests(): HealthTestRun {
+  return {
+    revision: 'r42', current: true, ran_at: new Date().toISOString(), duration_ms: 32_000, passed: true, coverage: 85.2,
+    packages: [{ name: 'internal/utils', passed: true, coverage: 85.2 }, { name: 'internal/model', passed: true, coverage: 100 }],
+    commands: [{ dir: '', command: ['go', 'test', '-cover', '-coverprofile=coverage.out', './...'], state: 'passed', duration_ms: 32_000 }],
   };
 }

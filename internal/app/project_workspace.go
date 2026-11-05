@@ -201,10 +201,12 @@ func (s *Service) listFindings(analysis *project.Analysis, index *project.Projec
 	}
 	s.reportFindingProgress(s.manager.Root(), input.ProjectID, findings)
 	resolver := rules.NewResolver(s.manager.Root())
+	scoper := newFindingScoper(s.manager.Root(), s.activeProfile(), findings, input.FileHashes, findingLineAges)
 	result := make([]project.UnifiedFinding, 0, len(findings))
 	for _, finding := range findings {
 		if matchesFindingFilter(finding, filter) {
 			finding.Test = finding.Location.Path != "" && resolver.IsTestFile(finding.Location.Path)
+			finding.OutOfScope = scoper.scope(finding)
 			brief := project.BriefOf(finding)
 			finding.Brief = &brief
 			result = append(result, finding)
