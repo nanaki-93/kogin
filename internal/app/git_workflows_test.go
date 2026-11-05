@@ -250,7 +250,7 @@ func TestPassiveGitStatusDoesNotExecuteFilters(t *testing.T) {
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Fatal("passive status executed filter")
 	}
-	if gitops.StatusDirty("?? .kogin/index.json\x00?? .worktrees/fix-1/\x00") {
+	if len(gitops.StatusChanges("?? .kogin/index.json\x00?? .worktrees/fix-1/\x00")) > 0 {
 		t.Fatal("private metadata or worktree paths marked repository dirty")
 	}
 }

@@ -9,12 +9,26 @@ import (
 	"testing"
 )
 
-func TestStatusDirtyIgnoresPrivateMetadataAndWorktrees(t *testing.T) {
-	if StatusDirty("?? .kogin/index.json\x00?? .worktrees/fix-1/\x00") {
+func TestStatusChangesIgnoresPrivateMetadataAndWorktrees(t *testing.T) {
+	if len(StatusChanges("?? .kogin/index.json\x00?? .worktrees/fix-1/\x00")) > 0 {
 		t.Fatal("private metadata or worktree paths marked repository dirty")
 	}
-	if !StatusDirty(" M main.go\x00") {
+	if len(StatusChanges(" M main.go\x00")) == 0 {
 		t.Fatal("modified tracked file should mark repository dirty")
+	}
+}
+
+func TestStatusChangesNameWhatBlocksAMerge(t *testing.T) {
+	status := "?? .kogin/kogin.db\x00?? Claude outputs/\x00R  new.go\x00old.go\x00 M main.go\x00"
+	got := StatusChanges(status)
+	want := []string{"Claude outputs/", "new.go", "main.go"}
+	if len(got) != len(want) {
+		t.Fatalf("StatusChanges = %q, want %q", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("StatusChanges = %q, want %q", got, want)
+		}
 	}
 }
 

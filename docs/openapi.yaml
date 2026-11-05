@@ -2907,6 +2907,7 @@ components:
             root: {type: string}
             at_root: {type: boolean}
             dirty: {type: boolean}
+            dirty_paths: {type: array, items: {type: string}, maxItems: 5, description: First uncommitted paths when dirty}
             merge_head: {type: string}
             operation: {type: string}
             conflicts: {type: array, items: {type: string}}
@@ -2995,6 +2996,7 @@ components:
                       lock_reason: {type: string, description: "Kogin locks a task's worktree while agents run there; a lock it left behind is released when this list is read."}
                       prunable: {type: boolean}
                       dirty: {type: boolean, description: Omitted when status cannot be read}
+                      dirty_paths: {type: array, items: {type: string}, maxItems: 5, description: First uncommitted paths when dirty}
                       mergeable: {type: boolean, description: Clean local branches with shared history and incoming commits; excludes current or locked or prunable worktrees and in-progress Git operations. Does not predict conflicts.}
                       integration: {type: string, enum: [current, merged, up_to_date, behind, unrelated], description: Passive ancestry comparison against the selected destination; merged includes equal HEADs and does not imply task verification or cleanup eligibility. Omitted if unavailable.}
                       overlap_paths: {type: array, items: {type: string}, description: Committed paths changed on both branches since their merge base; advisory overlap rather than predicted conflicts.}

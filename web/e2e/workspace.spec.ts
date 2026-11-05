@@ -222,6 +222,18 @@ test('branches explain why a worktree cannot be merged yet', async ({ page }) =>
   await expect(detail.getByText('1 overlapping file')).toBeVisible();
 });
 
+test('uncommitted changes in the main checkout say why no branch merges', async ({ page, daemon }) => {
+  daemon.mainChanges = ['Claude outputs/'];
+  await page.goto('/#/git');
+  await expect(page.getByText('No branch merges until these are committed, stashed or moved: Claude outputs/.')).toBeVisible();
+  const row = page.getByRole('listitem').filter({ hasText: 'mo/chg-7' });
+  await expect(row).toContainText('main has changes');
+  await row.click();
+  const detail = page.getByRole('complementary', { name: 'Worktree' });
+  await expect(detail.getByRole('button', { name: /merge into/i })).toHaveCount(0);
+  await expect(detail).toContainText('main has uncommitted changes, so nothing can merge into it. Commit, stash or move them, then merge: Claude outputs/.');
+});
+
 test('a merge keeps or removes the worktree as Branches says, for every merge', async ({ page, daemon }) => {
   await page.goto('/#/git');
   const removeOnMerge = page.getByRole('checkbox', { name: 'Delete the worktree and its branch after merging' });

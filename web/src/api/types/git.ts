@@ -29,6 +29,8 @@ export interface GitWorktree extends GitIdentity {
   locked?: boolean;
   prunable?: boolean;
   dirty?: boolean;
+  /** The first uncommitted paths, when dirty. */
+  dirty_paths?: string[];
   mergeable?: boolean;
   integration?: string;
   overlap_paths?: string[];
@@ -47,6 +49,8 @@ export interface GitWorkspace extends GitIdentity, ProjectIdentity {
   available: boolean;
   root: string;
   dirty: boolean;
+  /** The first uncommitted paths of the main checkout; a merge waits for them. */
+  dirty_paths?: string[];
   merge_head?: string;
   operation?: string;
   conflicts: string[];

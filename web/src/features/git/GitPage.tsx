@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, FlaskConical, GitBranch, GitCommitHorizontal, GitMerge, ShieldOff, Trash2, X } from 'lucide-react';
 import { useGitWorkspace, useMainProject, useTrust } from '@/api/hooks';
-import type { GitWorktree, MergePreview } from '@/api/types';
+import type { GitWorkspace, GitWorktree, MergePreview } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { navigate, setParam, useRoute } from '@/lib/router';
 import { parseGitDiff } from '@/lib/diff';
@@ -64,6 +64,7 @@ export function GitPage() {
               <span className="mono xs faint">{shortHash(git.head)}</span>
               {git.dirty ? <Badge tone="warning">uncommitted changes</Badge> : null}
             </div>
+            {git.dirty ? <p className="card-body small muted">No branch merges until these are committed, stashed or moved: {changedPaths(git)}.</p> : null}
           </div>
           <div className="list-group-head">Worktrees <span className="count">{trees.length}</span></div>
           {!trees.length ? (
@@ -75,7 +76,7 @@ export function GitPage() {
                   <GitBranch size={14} className={tree.mergeable ? 'tone-warning' : 'faint'} aria-hidden />
                   <span className="list-title truncate">{tree.branch || basename(tree.path)}</span>
                   <span className="spacer" />
-                  <IntegrationBadge tree={tree} />
+                  <IntegrationBadge tree={tree} git={git} />
                   <span className="xs muted">{plural(worktreeTasks(tree).length, 'task')}</span>
                 </button>
               ))}
@@ -131,24 +132,34 @@ function MergeChecksCard() {
  * is also true of a new worktree with no commits yet; `up_to_date` means the
  * worktree is ahead.
  */
-function integrationInfo(tree: GitWorktree): { label: string; tone: Tone } {
+function integrationInfo(tree: GitWorktree, git: GitWorkspace): { label: string; tone: Tone } {
   if (tree.error) return { label: 'Unavailable', tone: 'danger' };
   if (tree.dirty) return { label: 'Uncommitted changes', tone: 'warning' };
   if (tree.integration === 'merged') return (tree.completed ?? []).length ? { label: 'Merged', tone: 'success' } : { label: 'No new commits', tone: 'neutral' };
   if (tree.integration === 'unrelated') return { label: 'Unrelated history', tone: 'danger' };
+  if (git.dirty) return { label: `${git.branch} has changes`, tone: 'warning' };
   if (tree.integration === 'behind') return { label: (tree.overlap_paths ?? []).length ? plural(tree.overlap_paths!.length, 'overlapping file') : 'Main moved ahead', tone: 'warning' };
   if (tree.mergeable) return { label: 'Ready to merge', tone: 'accent' };
   return { label: 'Work in progress', tone: 'neutral' };
 }
 
-function IntegrationBadge({ tree }: { tree: GitWorktree }) {
-  const info = integrationInfo(tree);
+function IntegrationBadge({ tree, git }: { tree: GitWorktree; git: GitWorkspace }) {
+  const info = integrationInfo(tree, git);
   return <Badge tone={info.tone}>{info.label}</Badge>;
 }
 
-function notMergeableReason(tree: GitWorktree): string {
-  if (tree.dirty) return 'Commit or discard the uncommitted changes in this worktree before merging.';
+/** "a.go, notes/ and 2 more": the uncommitted paths a checkout reports. */
+function changedPaths(checkout: { dirty_paths?: string[] }): string {
+  const paths = checkout.dirty_paths ?? [];
+  if (!paths.length) return 'its uncommitted changes';
+  return paths.join(', ');
+}
+
+function notMergeableReason(tree: GitWorktree, git: GitWorkspace): string {
+  if (tree.dirty) return `Commit or discard the uncommitted changes in this worktree before merging: ${changedPaths(tree)}.`;
   if (tree.integration === 'merged') return (tree.completed ?? []).length ? 'This branch is already part of the main branch.' : 'This branch has no commits that the main branch lacks yet.';
+  // The daemon merges only into a clean main checkout, so a stray file there hides Merge.
+  if (git.dirty) return `${git.branch} has uncommitted changes, so nothing can merge into it. Commit, stash or move them, then merge: ${changedPaths(git)}.`;
   if (!worktreeTasks(tree).length) return 'No task is left on this branch to merge. Discard it with its work, or merge it with Git.';
   return 'Merge becomes available when the tasks on this branch are applied and committed.';
 }
@@ -188,7 +199,7 @@ function WorktreeDetail({ tree, trusted }: { tree: GitWorktree; trusted: boolean
       <div className="detail-head">
         <GitBranch size={15} aria-hidden />
         <span className="strong">{tree.branch || basename(tree.path)}</span>
-        <IntegrationBadge tree={tree} />
+        <IntegrationBadge tree={tree} git={git} />
         <span className="spacer" />
         {/* A branch with no task left can still be merged; when that is not wanted (say its merge
             conflicted and was aborted) it is discarded with its work. */}
@@ -208,7 +219,7 @@ function WorktreeDetail({ tree, trusted }: { tree: GitWorktree; trusted: boolean
         ) : null}
       </div>
       <div className="xs faint mono truncate">{tree.path}</div>
-      {!tree.mergeable ? <p className="small muted">{notMergeableReason(tree)}</p> : null}
+      {!tree.mergeable ? <p className="small muted">{notMergeableReason(tree, git)}</p> : null}
       {tree.mergeable && discardable ? <p className="small muted">No task is left on this branch. Merge its commits into {git.branch}, or discard it with its work.</p> : null}
       {git.merge_head && discardable ? <p className="small muted">Abort or finish the merge in progress to discard this worktree.</p> : null}
       {!trusted && (tree.mergeable || worktreeRemovable(tree) || discardable) ? <Callout tone="warning" icon={ShieldOff} title={tree.mergeable ? 'Merging needs trust' : 'Removing needs trust'}>Git can run repository filters and merge drivers. Allow checks in Settings first.</Callout> : null}

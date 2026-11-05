@@ -407,6 +407,10 @@ every guard when the action arrives.
 
 - A worktree can merge only when every task on it is applied and committed and
   the main checkout is clean; otherwise the page says which condition is missing.
+  Uncommitted changes in the main checkout (any untracked file outside
+  `.kogin/` and `.worktrees/` counts) are named on its card and on every
+  worktree ("main has changes"), since no branch merges until they are
+  committed, stashed or moved.
   A worktree whose commits the main branch already has reads **No new commits**
   (none yet) or **Merged**.
 - **Delete the worktree and its branch after merging** (on by default, kept per

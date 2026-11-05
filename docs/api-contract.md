@@ -1354,7 +1354,9 @@ when reading progress, restoring history or configuring the workflow.
 Workspace reads require current `project_id` and `project_revision`.
 `available: false` represents a non-Git directory; a detached branch or unborn
 HEAD stays distinguishable from read failures. Worktree status failures have an
-`error` and omit `dirty`; unknown status is never treated as clean. Lists are
+`error` and omit `dirty`; unknown status is never treated as clean. A dirty
+checkout (the main one or a worktree) names its first five uncommitted paths in
+`dirty_paths` (untracked `.kogin/` and `.worktrees/` never count). Lists are
 bounded to 100 worktrees. Completed entries are applied, committed change history.
 Each worktree has `mergeable`, computed against the current branch: both checkouts
 must be clean local branches without an operation in progress, the source must be

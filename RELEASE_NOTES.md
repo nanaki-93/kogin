@@ -55,6 +55,11 @@ are listed here as they land.
   agents fail can be counted. Behavior changes accepted in earlier tasks are
   given to the next tasks' agents and reviewers, so a second name for the
   same flag is caught.
+- **Branches says why nothing merges:** a merge needs a clean main checkout,
+  so one stray file there (say a folder another app saved) hid every Merge
+  button with a message about tasks not being committed. The daemon now names
+  the first uncommitted paths (`dirty_paths`), and Branches says that the main
+  checkout has changes, which ones, and to commit, stash or move them.
 - **What it fixes, hunk by hunk:** after the reviewers, the review model
   explains the reviewed version file by file (one more request per review):
   one line over the file's diff on what its change fixes, and above each hunk

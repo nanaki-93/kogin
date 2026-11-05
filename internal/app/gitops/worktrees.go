@@ -101,6 +101,7 @@ type GitWorktree struct {
 	LockReason   string               `json:"lock_reason,omitempty"`
 	Prunable     bool                 `json:"prunable"`
 	Dirty        *bool                `json:"dirty,omitempty"`
+	DirtyPaths   []string             `json:"dirty_paths,omitempty"`
 	Mergeable    bool                 `json:"mergeable"`
 	Integration  string               `json:"integration,omitempty"`
 	OverlapPaths []string             `json:"overlap_paths,omitempty"`
@@ -174,7 +175,7 @@ func PopulateWorktree(ctx context.Context, target *GitRepository, tree *GitWorkt
 		tree.Error = "Worktree changed; refresh Git status."
 		return
 	}
-	tree.Dirty = &repository.Dirty
+	tree.Dirty, tree.DirtyPaths = &repository.Dirty, repository.DirtyPaths
 	if err := InspectIntegration(ctx, target, tree); err != nil {
 		tree.Integration, tree.OverlapPaths = "", nil
 		tree.Error = "Integration status unavailable: " + err.Error()

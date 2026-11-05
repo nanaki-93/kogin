@@ -130,8 +130,12 @@ export class FakeDaemon {
   /** The Git workspace with each created worktree's tasks, like the daemon reads them. */
   private gitWorkspace() {
     const worktrees = this.worktrees.map(tree => (tree.current || !this.created.has(tree.path) ? tree : { ...tree, sessions: this.tasks(tree.path) }));
-    return { ...data.gitWorkspace(), worktrees };
+    const dirty = this.mainChanges.length > 0;
+    return { ...data.gitWorkspace(), worktrees: dirty ? worktrees.map(tree => ({ ...tree, mergeable: false })) : worktrees, dirty, ...(dirty ? { dirty_paths: this.mainChanges } : {}) };
   }
+
+  /** Uncommitted paths in the main checkout: like the daemon, no worktree merges then. */
+  mainChanges: string[] = [];
 
   private readonly created = new Set<string>();
 

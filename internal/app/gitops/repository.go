@@ -25,6 +25,7 @@ type GitRepository struct {
 	Root            string   `json:"root"`
 	AtRoot          bool     `json:"at_root"`
 	Dirty           bool     `json:"dirty"`
+	DirtyPaths      []string `json:"dirty_paths,omitempty"`
 	MergeHead       string   `json:"merge_head,omitempty"`
 	Operation       string   `json:"operation,omitempty"`
 	Conflicts       []string `json:"conflicts"`
@@ -63,7 +64,9 @@ func ReadRepository(ctx context.Context, root string) (*GitRepository, error) {
 	if err != nil {
 		return nil, err
 	}
-	repository.Dirty = StatusDirty(status)
+	changes := StatusChanges(status)
+	repository.Dirty = len(changes) > 0
+	repository.DirtyPaths = changes[:min(len(changes), maxDirtyPaths)]
 	unmerged, err := Read(ctx, root, "diff", "--name-only", "--diff-filter=U", "-z")
 	if err != nil {
 		return nil, err
@@ -101,15 +104,30 @@ func readGitOperation(ctx context.Context, root string, repository *GitRepositor
 	return nil
 }
 
-func StatusDirty(status string) bool {
-	for _, entry := range strings.Split(status, "\x00") {
-		// Untracked private workflow metadata and worktrees are not user source changes.
-		if entry == "" || strings.HasPrefix(entry, "?? .kogin/") || strings.HasPrefix(entry, "?? .worktrees/") {
+// maxDirtyPaths is how many uncommitted paths a repository names, enough to
+// say what blocks a merge.
+const maxDirtyPaths = 5
+
+// StatusChanges lists the paths `git status --porcelain=v1 -z` reports as the
+// user's changes. Untracked private workflow metadata and worktrees are not
+// user source changes; a rename or copy names its new path.
+func StatusChanges(status string) []string {
+	fields := strings.Split(status, "\x00")
+	paths := []string{}
+	for index := 0; index < len(fields); index++ {
+		entry := fields[index]
+		if len(entry) < 4 {
 			continue
 		}
-		return true
+		if strings.ContainsAny(entry[:2], "RC") {
+			index++ // the original path follows as its own field
+		}
+		if strings.HasPrefix(entry, "?? .kogin/") || strings.HasPrefix(entry, "?? .worktrees/") {
+			continue
+		}
+		paths = append(paths, entry[3:])
 	}
-	return false
+	return paths
 }
 
 func ExitCode(err error, code int) bool {
