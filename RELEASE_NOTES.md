@@ -55,11 +55,12 @@ are listed here as they land.
   agents fail can be counted. Behavior changes accepted in earlier tasks are
   given to the next tasks' agents and reviewers, so a second name for the
   same flag is caught.
-- **What it fixes, beside the diff:** after the reviewers, the review model
-  explains the reviewed version file by file: what each file's change fixes
-  and, per hunk, the issue it serves, the wrong behavior it removes and how,
-  at its line (one more request per review). **Explain changes** writes it
-  again.
+- **What it fixes, hunk by hunk:** after the reviewers, the review model
+  explains the reviewed version file by file (one more request per review):
+  one line over the file's diff on what its change fixes, and above each hunk
+  a note with the issue it serves, the wrong behavior it removes and how, so
+  a hunk is read together with its note instead of beside the whole file.
+  **Explain changes** writes it again.
 - **Docs, shorter and linked to the code:** the overview (prompt
   `project-analysis-v8`) is terse: purpose in one or two sentences,
   architecture as one `path: role` line per main part, shown as a list,

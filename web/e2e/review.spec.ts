@@ -121,20 +121,23 @@ test('compares the split and unified diff layouts', async ({ page }) => {
   await expect(page.getByRole('button', { name: /unified view/i })).toBeVisible();
 });
 
-test('beside the diff, each hunk says what it fixes and opens its line', async ({ page, daemon }) => {
+test('each hunk sits under the note that says what it fixes', async ({ page, daemon }) => {
   await page.goto('/#/tasks/chg-1/files');
-  const notes = page.getByRole('complementary', { name: 'What it fixes' });
+  const notes = page.getByRole('region', { name: 'What it fixes' });
+  const diff = page.getByRole('region', { name: /Diff of internal\/api\/handlers\/webui.go/ });
+  // Over the diff, one line on what the file's change fixes; it replaces the agent's own.
   await expect(notes).toContainText('Nested asset paths no longer reach the embedded read.');
-  // The note names the goal it serves, the wrong behavior it removes, then how.
-  await expect(notes).toContainText('Criterion 1 · Nested asset paths return 404');
-  await expect(notes).toContainText('A nested name reached fs.ReadFile and returned 500 instead of 404.');
-  await expect(notes).toContainText('How: ServeAsset refuses names with a slash.');
-  await expect(notes.locator('code').first()).toHaveText('fs.ReadFile');
-  // The walkthrough's line replaces the agent's own summary of the file.
   await expect(page.getByText('Rejects nested names.')).toBeHidden();
-  await notes.getByRole('button', { name: 'L42' }).click();
-  await expect(page).toHaveURL(/line=42/);
-  await expect(page.locator('tr.is-focus')).toContainText('strings.Contains(name, "/")');
+  // The hunk's note sits right above it: the goal it serves, the wrong behavior it removes, then how.
+  const note = diff.locator('tr.diff-note');
+  await expect(note).toHaveCount(1);
+  await expect(note).toContainText('Criterion 1 · Nested asset paths return 404');
+  await expect(note).toContainText('A nested name reached fs.ReadFile and returned 500 instead of 404.');
+  await expect(note).toContainText('How: ServeAsset refuses names with a slash.');
+  await expect(note.locator('code').first()).toHaveText('fs.ReadFile');
+  // It heads its hunk: the context leading in, then the replaced line, removed half first.
+  await expect(note.locator('xpath=following-sibling::tr[1]')).toContainText('name := trim(r)');
+  await expect(note.locator('xpath=following-sibling::tr[2]')).toContainText('if name == "" {');
   // A file without notes says so; asking again writes them for this version.
   await page.keyboard.press('j');
   await expect(notes).toContainText('No notes for this file.');
@@ -144,8 +147,11 @@ test('beside the diff, each hunk says what it fixes and opens its line', async (
   await expect(notes).toContainText('Explained internal/api/handlers/webui_test.go.');
   expect(daemon.mutations('/walkthrough')[0].body).toMatchObject({ project_id: 'p1', revision: 3, hash: 'sha256:9f2c1a7be4', confirm_remote_provider: true });
   // The notes fold away and stay folded.
+  await page.keyboard.press('k');
   await page.getByRole('button', { name: 'Hide what it fixes' }).click();
   await expect(notes).toBeHidden();
+  await expect(page.locator('tr.diff-note')).toHaveCount(0);
+  await expect(page.getByText('Rejects nested names.')).toBeVisible();
 });
 
 test('overrides the reviewers with a reason, then accepts with notes', async ({ page, daemon }) => {

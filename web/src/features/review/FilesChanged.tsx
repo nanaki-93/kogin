@@ -1,8 +1,9 @@
 // "Files changed": a file tree with review state beside the selected file's
-// diff, like a pull request. `v` marks the file viewed and moves to the next.
+// diff, like a pull request, each hunk under the note on what it fixes. `v`
+// marks the file viewed and moves to the next.
 
 import { useMemo } from 'react';
-import { Check, Columns2, FileDiff, ListTree, MessageSquare, PanelRight, Rows3, WrapText } from 'lucide-react';
+import { Check, Columns2, FileDiff, ListTree, MessageSquare, MessageSquareText, Rows3, WrapText } from 'lucide-react';
 import type { FileChange, LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { setUI, useUI } from '@/app/store';
@@ -13,7 +14,7 @@ import { navigate, setParam, useRoute } from '@/lib/router';
 import { basename, dirname, languageOf } from '@/lib/util';
 import { Button, EmptyState, IconButton, Kbd, Progress, Segmented, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
-import { ChangeNotes } from './ChangeNotes';
+import { ChangeNotes, placeNotes, walkthroughFile } from './ChangeNotes';
 import { DiffView } from './DiffView';
 import { SendComments, useFileComments } from './LineComments';
 
@@ -41,9 +42,10 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
   // A line from a reviewer's finding belongs to the file it came with.
   const focusLine = current && route.params.get('file') === current.path ? Number(route.params.get('line')) || undefined : undefined;
   const select = (path: string) => navigate(route.path, { ...Object.fromEntries(route.params.entries()), file: path, line: undefined }, { replace: true });
-  const showLine = (path: string, line: number) => navigate(route.path, { ...Object.fromEntries(route.params.entries()), file: path, line: String(line) }, { replace: true });
   // The walkthrough's line on a file says what the agent's own summary would.
-  const explained = session.walkthrough?.status === 'ready' && session.walkthrough.proposal_hash === session.hash && session.walkthrough.files?.some(file => file.path === current?.path && file.summary);
+  const explained = session.walkthrough?.proposal_hash === session.hash && Boolean(current && walkthroughFile(session, current.path)?.summary);
+  const lines = current?.diff?.lines;
+  const hunkNotes = useMemo(() => (notes && current && lines ? placeNotes(session, walkthroughFile(session, current.path), lines) : { placed: [], unplaced: [] }), [notes, session, current, lines]);
 
   async function markViewed() {
     if (!current || !canMark) return;
@@ -141,7 +143,7 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
             <DiffCounts lines={current.diff?.lines ?? []} />
             <span className="spacer" />
             <IconButton icon={WrapText} label="Wrap lines" size="sm" active={wrap} onClick={() => setUI({ wrapLines: !wrap })} />
-            <IconButton icon={PanelRight} label={notes ? 'Hide what it fixes' : 'Show what it fixes'} size="sm" active={notes} onClick={() => setUI({ changeNotes: !notes })} />
+            <IconButton icon={MessageSquareText} label={notes ? 'Hide what it fixes' : 'Show what it fixes'} size="sm" active={notes} onClick={() => setUI({ changeNotes: !notes })} />
             <IconButton icon={layout === 'split' ? Rows3 : Columns2} label={layout === 'split' ? 'Unified view (s)' : 'Split view (s)'} size="sm" onClick={() => setUI({ diffLayout: layout === 'split' ? 'unified' : 'split' })} />
             {isFileReviewed(session, current.path) ? (
               <span className="badge badge-success">
@@ -153,6 +155,7 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
               </Button>
             )}
           </div>
+          {notes ? <ChangeNotes session={session} path={current.path} unplaced={hunkNotes.unplaced} /> : null}
           {current.summary && !(notes && explained) ? <div className="fc-summary small">{current.summary}</div> : null}
           {current.criteria?.length ? (
             <div className="fc-criteria xs">
@@ -160,11 +163,8 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
               {current.criteria.map(n => session.acceptance_criteria[n - 1]).filter(Boolean).join(' · ')}
             </div>
           ) : null}
-          <div className="fc-diff-main">
-            <div className="fc-diff-body">
-              <DiffView key={current.path + session.hash + layout} lines={current.diff?.lines ?? []} language={languageOf(current.path)} layout={layout} wrap={wrap} anchorPrefix={`d-${current.path}`} comments={since ? undefined : fileComments} focus={focusLine} />
-            </div>
-            {notes ? <ChangeNotes session={session} path={current.path} onLine={line => showLine(current.path, line)} /> : null}
+          <div className="fc-diff-body">
+            <DiffView key={current.path + session.hash + layout} lines={current.diff?.lines ?? []} language={languageOf(current.path)} layout={layout} wrap={wrap} anchorPrefix={`d-${current.path}`} comments={since ? undefined : fileComments} focus={focusLine} notes={hunkNotes.placed} />
           </div>
         </section>
       ) : null}

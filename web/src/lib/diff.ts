@@ -65,6 +65,32 @@ export function hunkStarts(lines: DiffLine[]): number[] {
   return starts;
 }
 
+/**
+ * Where a note on a hunk goes: the index of its line (a line of the new file)
+ * moved back to the start of the run of changes it is in, so a replaced
+ * line's removed half stays under its note. -1 when the diff lacks the line.
+ */
+export function noteStart(lines: DiffLine[], line: number): number {
+  const index = lines.findIndex(entry => (entry.kind === 'added' || entry.kind === 'context') && entry.new_line === line);
+  if (index < 0) return -1;
+  let start = index;
+  while (start > 0 && isChange(lines[start]) && isChange(lines[start - 1])) start--;
+  return start;
+}
+
+/**
+ * The row a hunk note heads: its start moved up over at most `context`
+ * unchanged lines that lead into it, staying in its visible segment and
+ * below the change before it.
+ */
+export function noteHead(lines: DiffLine[], segments: Segment[], start: number, context = 3): number {
+  const segment = segments.find(entry => entry.type === 'lines' && start >= entry.start && start < entry.end);
+  const top = Math.max(segment?.start ?? start, start - context);
+  let head = start;
+  while (head > top && !isChange(lines[head - 1]) && lines[head - 1]?.kind !== 'hunk') head--;
+  return head;
+}
+
 export interface SplitRow {
   left: DiffLine | null;
   right: DiffLine | null;

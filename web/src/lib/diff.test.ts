@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DiffLine } from '@/api/types';
-import { anchorKey, buildSegments, diffStats, hunkStarts, lineAnchor, parseGitDiff, splitRows } from './diff';
+import { anchorKey, buildSegments, diffStats, hunkStarts, lineAnchor, noteHead, noteStart, parseGitDiff, splitRows } from './diff';
 
 const ctx = (n: number): DiffLine => ({ kind: 'context', old_line: n, new_line: n, text: 'line ' + n });
 
@@ -22,6 +22,23 @@ describe('diff shaping', () => {
       { type: 'lines', start: 7, end: 15 },
       { type: 'gap', start: 15, end: 22, count: 7 },
     ]);
+  });
+
+  it('puts a hunk note where its run of changes starts', () => {
+    // The added line 11 replaces old 11: the note goes above the removed half.
+    expect(noteStart(lines, 11)).toBe(10);
+    // A context line (the line kept beside a removal) holds its own note.
+    expect(noteStart(lines, 4)).toBe(3);
+    // A line the diff does not have has no place.
+    expect(noteStart(lines, 99)).toBe(-1);
+  });
+
+  it('heads a hunk with its note, above the context that leads into it', () => {
+    const segments = buildSegments(lines, 3);
+    expect(noteHead(lines, segments, 10)).toBe(7);
+    // Never into collapsed lines, nor above the change before it.
+    expect(noteHead(lines, [{ type: 'lines', start: 9, end: 15 }], 10)).toBe(9);
+    expect(noteHead(lines, segments, 13)).toBe(12);
   });
 
   it('anchors comments to the old side of removed lines and the new side otherwise', () => {

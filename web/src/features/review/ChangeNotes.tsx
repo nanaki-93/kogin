@@ -1,17 +1,41 @@
-// The walkthrough beside a file's diff: what the file's change fixes and,
-// hunk by hunk, the issue it serves, the wrong behavior it removes and how.
-// A note opens its line in the diff.
-// The review model wrote it; it is advice, never review evidence.
+// What the change fixes, read hunk by hunk: a line over the file's diff on
+// what its change fixes, and above each hunk the issue it serves, the wrong
+// behavior it removes and how. The review model wrote it; it is advice, never
+// review evidence.
 
 import { useState } from 'react';
 import { RefreshCw, Sparkles } from 'lucide-react';
-import type { LoadedSession, WalkthroughFile, WalkthroughNote } from '@/api/types';
+import type { DiffLine, LoadedSession, WalkthroughFile, WalkthroughNote } from '@/api/types';
 import { useActions } from '@/app/actions';
+import { noteStart } from '@/lib/diff';
 import { workflowActive } from '@/lib/readiness';
 import { Badge, Button, IconButton, Spinner } from '@/components/ui';
 import { DocText } from '@/features/docs/DocText';
+import type { DiffNote } from './DiffView';
 
-export function ChangeNotes({ session, path, onLine }: { session: LoadedSession; path: string; onLine: (line: number) => void }) {
+/** The walkthrough's entry for a file, if the change was explained. */
+export function walkthroughFile(session: LoadedSession, path: string): WalkthroughFile | undefined {
+  const walkthrough = session.walkthrough;
+  if (walkthrough?.status !== 'ready') return undefined;
+  return walkthrough.files?.find(file => file.path === path);
+}
+
+/**
+ * Splits a file's notes into those shown above their hunk and those whose
+ * line the diff lacks (no line, or a line the diff does not show).
+ */
+export function placeNotes(session: LoadedSession, file: WalkthroughFile | undefined, lines: DiffLine[]): { placed: DiffNote[]; unplaced: WalkthroughNote[] } {
+  const placed: DiffNote[] = [];
+  const unplaced: WalkthroughNote[] = [];
+  for (const note of file?.notes ?? []) {
+    if (note.line && noteStart(lines, note.line) >= 0) placed.push({ line: note.line, content: <HunkNote note={note} goal={goalLabel(session, note)} /> });
+    else unplaced.push(note);
+  }
+  return { placed, unplaced };
+}
+
+/** Over the diff: what the file's change fixes, and asking for the notes. */
+export function ChangeNotes({ session, path, unplaced }: { session: LoadedSession; path: string; unplaced: WalkthroughNote[] }) {
   const actions = useActions();
   const [pending, setPending] = useState(false);
   const walkthrough = session.walkthrough;
@@ -24,41 +48,51 @@ export function ChangeNotes({ session, path, onLine }: { session: LoadedSession;
       setPending(false);
     }
   };
-  const again = !running && !pending ? <IconButton icon={RefreshCw} label="Explain again" size="sm" onClick={() => void explain()} /> : null;
+  const again = walkthrough && !running && !pending ? <IconButton icon={RefreshCw} label="Explain again" size="sm" onClick={() => void explain()} /> : null;
 
   let body;
   if (pending) {
     body = <div className="xs muted row"><Spinner size={12} label="Explaining" /> Explaining the change…</div>;
   } else if (!walkthrough) {
     body = running
-      ? <p className="xs muted">Notes come with the review.</p>
+      ? <span className="xs muted">Notes come with the review.</span>
       : <Button size="sm" icon={Sparkles} onClick={() => void explain()}>Explain changes</Button>;
   } else if (walkthrough.status === 'failed') {
     body = (
-      <div className="stack">
-        <p className="xs tone-danger">Not explained{walkthrough.reason ? `: ${walkthrough.reason}` : '.'}</p>
+      <div className="row">
+        <span className="xs tone-danger">Not explained{walkthrough.reason ? `: ${walkthrough.reason}` : '.'}</span>
         {!running ? <Button size="sm" icon={RefreshCw} onClick={() => void explain()}>Try again</Button> : null}
       </div>
     );
   } else {
-    const file = walkthrough.files?.find(entry => entry.path === path);
+    const file = walkthroughFile(session, path);
     body = (
       <>
         {walkthrough.proposal_hash !== session.hash ? <p className="xs tone-warning">For an earlier version of the change.</p> : null}
-        {file ? <FileNotes file={file} goal={note => goalLabel(session, note)} onLine={onLine} /> : <p className="xs muted">No notes for this file.</p>}
+        {file?.summary ? <p className="change-notes-summary small"><DocText text={file.summary} /></p> : null}
+        {!file?.notes?.length ? <p className="xs muted">No notes for this file.</p> : null}
+        {unplaced.map((note, index) => <HunkNote key={index} note={note} goal={goalLabel(session, note)} />)}
       </>
     );
   }
 
   return (
-    <aside className="change-notes" aria-label="What it fixes">
-      <div className="change-notes-head">
-        <span className="strong small grow">What it fixes</span>
-        <Badge tone="accent" icon={Sparkles} title="Written by the review model from the diff. Check the code before relying on it.">AI</Badge>
-        {walkthrough ? again : null}
-      </div>
-      {body}
-    </aside>
+    <section className="change-notes" aria-label="What it fixes">
+      <div className="change-notes-body">{body}</div>
+      <Badge tone="accent" icon={Sparkles} title="Written by the review model from the diff. Check the code before relying on it.">AI</Badge>
+      {again}
+    </section>
+  );
+}
+
+/** One hunk's note: the goal it serves, the wrong behavior it removes, how. */
+export function HunkNote({ note, goal }: { note: WalkthroughNote; goal: string }) {
+  return (
+    <div className="hunk-note">
+      <div className={note.goal ? 'xs hunk-note-goal truncate' : 'xs faint truncate'} title={goal}>{goal}</div>
+      <div className="small"><DocText text={note.problem} /></div>
+      {note.how ? <div className="xs muted">How: <DocText text={note.how} /></div> : null}
+    </div>
   );
 }
 
@@ -69,28 +103,4 @@ export function goalLabel(session: Pick<LoadedSession, 'issues' | 'acceptance_cr
   const issue = session.issues?.at(n - 1);
   if (session.issues?.length) return issue ? `Issue ${n} · ${issue.title}` : `Issue ${n}`;
   return session.acceptance_criteria.at(n - 1) ? `Criterion ${n} · ${session.acceptance_criteria.at(n - 1)}` : `Criterion ${n}`;
-}
-
-function FileNotes({ file, goal, onLine }: { file: WalkthroughFile; goal: (note: WalkthroughNote) => string; onLine: (line: number) => void }) {
-  return (
-    <>
-      {file.summary ? <p className="change-notes-summary small"><DocText text={file.summary} /></p> : null}
-      <ol className="change-notes-list">
-        {(file.notes ?? []).map((note, index) => (
-          <li key={index}>
-            {note.line ? (
-              <button type="button" className="link-btn mono xs change-note-line" onClick={() => onLine(note.line!)} title={`Show line ${note.line} in the diff`}>
-                L{note.line}
-              </button>
-            ) : <span className="mono xs faint change-note-line">·</span>}
-            <div className="change-note-body">
-              <div className={note.goal ? 'xs change-note-goal truncate' : 'xs faint truncate'} title={goal(note)}>{goal(note)}</div>
-              <div className="small"><DocText text={note.problem} /></div>
-              {note.how ? <div className="xs muted">How: <DocText text={note.how} /></div> : null}
-            </div>
-          </li>
-        ))}
-      </ol>
-    </>
-  );
 }

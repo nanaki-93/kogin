@@ -166,17 +166,19 @@ every guard when the action arrives.
   shows them ("N behavior changes", To accept / Accepted), and **Accept &
   commit** lists them with "I accept these behavior changes", which must be
   ticked before it commits.
-- **What it fixes.** Beside the diff (below it on a narrow window), the
-  review model's walkthrough of the file: one line on what its change fixes,
-  then a note per hunk with the issue it serves ("Issue 2 · …", or the
-  criterion when the task has no issues; "Needed by the change" for a helper
-  or fixture), the wrong behavior it removes, and **How** in a few words. Its
-  `L42` shows that line in the diff. It replaces the agent's own line on the
-  file. It is written after the reviewers on the version they reviewed; an
-  older one says it is for an earlier version. **Explain changes** (or the
-  refresh button) writes it again for this version, asking first when the
-  review model is remote. The panel button in the file header hides it, and
-  the choice is kept. The notes are advice, never review evidence.
+- **What it fixes.** The review model's walkthrough reads with the diff,
+  hunk by hunk: over the diff, one line on what the file's change fixes (it
+  replaces the agent's own line on the file); above each hunk, heading the
+  context that leads into it, a note with the issue it serves ("Issue 2 · …",
+  or the criterion when the task has no issues; "Needed by the change" for a
+  helper or fixture), the wrong behavior it removes, and **How** in a few
+  words. A noted hunk stays visible even inside unchanged code; a note whose
+  line the diff lacks is listed under the file's line. It is written after the
+  reviewers on the version they reviewed; an older one says it is for an
+  earlier version. **Explain changes** (or the refresh button) writes it again
+  for this version, asking first when the review model is remote. The notes
+  button in the file header hides them, and the choice is kept. The notes are
+  advice, never review evidence.
 - **Line comments.** Any line of a changed file takes a comment (the gutter
   `+`); a comment writes nothing and changes no review state. Open comments
   can be deleted, show on their file in the tree, and go to the agents as one

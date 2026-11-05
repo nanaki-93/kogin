@@ -1,10 +1,11 @@
 // A GitHub-style file diff: unified or split, collapsed unchanged regions that
-// expand on click, syntax highlighting, line numbers and line comments.
+// expand on click, syntax highlighting, line numbers, line comments and, above
+// each hunk, the note that says what it fixes.
 
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ChevronsUpDown, Plus } from 'lucide-react';
 import type { DiffLine } from '@/api/types';
-import { anchorKey, buildSegments, lineAnchor, splitRows, type LineAnchor, type Segment } from '@/lib/diff';
+import { anchorKey, buildSegments, lineAnchor, noteHead, noteStart, splitRows, type LineAnchor, type Segment } from '@/lib/diff';
 import { escapeHtml, highlightLine } from '@/lib/highlight';
 import { cx } from '@/components/ui';
 import type { DiffLayout } from '@/app/store';
@@ -18,26 +19,51 @@ export interface DiffComments {
   onAdd?: (anchor: LineAnchor) => void;
 }
 
+/** A note shown above the hunk that starts at `line` of the new file. */
+export interface DiffNote {
+  line: number;
+  content: ReactNode;
+}
+
 /**
+ * `notes` sit above the hunks they are about and keep them visible; the
+ * caller shows the ones whose line the diff lacks.
  * `focus` is a line of the new file to show and mark, such as the one a
  * reviewer's finding is about; it stays visible and scrolls into view.
  */
-export function DiffView({ lines, language, layout, wrap, anchorPrefix, comments, focus }: { lines: DiffLine[]; language: string; layout: DiffLayout; wrap: boolean; anchorPrefix: string; comments?: DiffComments; focus?: number }) {
+export function DiffView({ lines, language, layout, wrap, anchorPrefix, comments, focus, notes }: { lines: DiffLine[]; language: string; layout: DiffLayout; wrap: boolean; anchorPrefix: string; comments?: DiffComments; focus?: number; notes?: DiffNote[] }) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const table = useRef<HTMLTableElement>(null);
   const focused = useMemo(() => (focus ? lines.find(line => line.kind !== 'removed' && line.new_line === focus) : undefined), [lines, focus]);
+  const noted = useMemo(() => {
+    const at = new Map<number, ReactNode[]>();
+    for (const note of notes ?? []) {
+      const start = noteStart(lines, note.line);
+      if (start >= 0) at.set(start, [...(at.get(start) ?? []), note.content]);
+    }
+    return at;
+  }, [lines, notes]);
   const pinned = useMemo(() => {
-    const indexes = new Set<number>();
+    const indexes = new Set<number>(noted.keys());
     lines.forEach((line, index) => {
       const anchor = lineAnchor(line);
       if ((anchor && comments?.anchored.has(anchorKey(anchor))) || line === focused) indexes.add(index);
     });
     return indexes;
-  }, [lines, comments?.anchored, focused]);
+  }, [lines, comments?.anchored, focused, noted]);
   useEffect(() => {
     if (focused) table.current?.querySelector('.is-focus')?.scrollIntoView({ block: 'center' });
   }, [focused, layout]);
   const segments = useMemo(() => buildSegments(lines, 3, expanded, pinned), [lines, expanded, pinned]);
+  // A note heads its hunk: above the context that leads into the change.
+  const heads = useMemo(() => {
+    const at = new Map<number, ReactNode[]>();
+    for (const [start, content] of noted) {
+      const head = noteHead(lines, segments, start, 3);
+      at.set(head, [...(at.get(head) ?? []), ...content]);
+    }
+    return at;
+  }, [lines, segments, noted]);
   const html = useMemo(() => lines.map(line => (line.kind === 'hunk' ? escapeHtml(line.text) : highlightLine(line.text, language))), [lines, language]);
   const position = useMemo(() => new Map(lines.map((line, index) => [line, index])), [lines]);
   const expand = (segment: Segment) => setExpanded(set => new Set(set).add(segment.start));
@@ -79,6 +105,7 @@ export function DiffView({ lines, language, layout, wrap, anchorPrefix, comments
                 const right = row.right && row.right.kind !== 'removed' ? lineAnchor(row.right) : null;
                 return (
                   <Fragment key={row.index}>
+                    <NoteRow notes={heads.get(row.index)} columns={columns} />
                     <tr id={`${anchorPrefix}-${row.index}`} className={cx('diff-row', row.right === focused && focused && 'is-focus')}>
                       <td className={cx('ln', row.left && side(row.left, 'left'))}>
                         <LineNumber value={row.left?.old_line} anchor={left} comments={comments} />
@@ -102,6 +129,7 @@ export function DiffView({ lines, language, layout, wrap, anchorPrefix, comments
                 const anchor = lineAnchor(line);
                 return (
                   <Fragment key={index}>
+                    <NoteRow notes={heads.get(index)} columns={columns} />
                     <tr id={`${anchorPrefix}-${index}`} className={cx('diff-row', `row-${kind}`, line === focused && 'is-focus')}>
                       <td className="ln">{line.kind === 'added' ? '' : line.old_line || ''}</td>
                       <td className="ln">
@@ -132,6 +160,19 @@ function LineNumber({ value, anchor, comments }: { value?: number; anchor: LineA
       </button>
       {value || ''}
     </span>
+  );
+}
+
+function NoteRow({ notes, columns }: { notes?: ReactNode[]; columns: number }) {
+  if (!notes?.length) return null;
+  return (
+    <tr className="diff-note">
+      <td colSpan={columns}>
+        {notes.map((note, index) => (
+          <Fragment key={index}>{note}</Fragment>
+        ))}
+      </td>
+    </tr>
   );
 }
 
