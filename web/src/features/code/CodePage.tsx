@@ -19,6 +19,7 @@ import { FileIcon, SeverityBadge, isUnresolvedFinding } from '@/components/domai
 import { useFeedback } from '@/components/overlays';
 import { FileStages } from '@/features/analysis/FileStages';
 import { FileAbout } from './FileAbout';
+import { SidebarPanel } from '@/layout/SidebarPanel';
 
 const tabsByCheckout = new Map<string, string[]>();
 
@@ -114,14 +115,15 @@ function FileTree({ selected }: { selected: string }) {
     return next;
   });
 
+  const tools = (
+    <>
+      <IconButton icon={ListCollapse} label="Collapse folders" size="sm" onClick={() => setExpanded(new Set())} />
+      {project ? <IconButton icon={RefreshCw} label="Reindex files" size="sm" onClick={() => void actions.reindex(project, worktreePath)} /> : null}
+    </>
+  );
   return (
+    <SidebarPanel title="Code" actions={tools}>
     <aside className="tree-panel" aria-label="Project files">
-      <div className="panel-head">
-        <span className="panel-title">{project?.name ?? 'Project'}</span>
-        <span className="spacer" />
-        <IconButton icon={ListCollapse} label="Collapse folders" size="sm" onClick={() => setExpanded(new Set())} />
-        {project ? <IconButton icon={RefreshCw} label="Reindex files" size="sm" onClick={() => void actions.reindex(project, worktreePath)} /> : null}
-      </div>
       <div className="panel-search">
         <Input icon={Search} placeholder={`Filter ${plural(files.length, 'file')}…`} value={filter} onChange={e => setFilter(e.target.value)} aria-label="Filter files" />
       </div>
@@ -169,6 +171,7 @@ function FileTree({ selected }: { selected: string }) {
         )}
       </div>
     </aside>
+    </SidebarPanel>
   );
 }
 

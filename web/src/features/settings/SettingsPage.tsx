@@ -17,6 +17,7 @@ import { QuarantineList } from './Quarantine';
 import { AgentRoles } from './AgentRoles';
 import { ConfigSource } from './ConfigSource';
 import { TimeLimits } from './TimeLimits';
+import { SidebarPanel } from '@/layout/SidebarPanel';
 
 const SECTIONS = [
   { id: 'project', label: 'Project', icon: FolderOpen },
@@ -34,9 +35,9 @@ export function SettingsPage({ section }: { section: string }) {
   }, [section]);
   return (
     <div className="docs">
+      <SidebarPanel title="Settings">
       <nav className="docs-nav" aria-label="Settings sections">
         <div className="docs-nav-scroll settings-nav">
-          <div className="panel-title">Settings</div>
           {SECTIONS.map(s => (
             <a key={s.id} href={`#/settings/${s.id}`} className={cx('docs-link', s.id === current && 'is-active')} onClick={e => { e.preventDefault(); navigate(`/settings/${s.id}`); }}>
               <s.icon size={14} aria-hidden />
@@ -45,6 +46,7 @@ export function SettingsPage({ section }: { section: string }) {
           ))}
         </div>
       </nav>
+      </SidebarPanel>
       <div className="docs-body page-scroll">
         <div className="page-inner page-narrow stack-lg">
           <SettingsSection id={current} />

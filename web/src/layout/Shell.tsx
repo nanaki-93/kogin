@@ -1,10 +1,10 @@
 // The application frame: sidebar navigation, top bar with project and
 // checkout, the routed page, and a status bar for live state.
 
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import * as Menu from '@radix-ui/react-dropdown-menu';
 import {
-  Activity, AlertTriangle, Bot, BookOpen, ChevronDown, CircleAlert, Code2, FolderOpen, GitBranch, GitMerge, Inbox, Keyboard, ListTodo, PanelLeft, Plus, Search, Settings, ShieldCheck, ShieldOff, Sparkles,
+  Activity, AlertTriangle, Bot, BookOpen, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Code2, FolderOpen, GitBranch, GitMerge, Inbox, Keyboard, ListTodo, PanelLeft, Plus, Search, Settings, ShieldCheck, ShieldOff, Sparkles,
 } from 'lucide-react';
 import { useRoute, navigate } from '@/lib/router';
 import { useFindings, useGitWorkspace, useMainProject, useModels, useOverview, useProject, useSession, useStatus, useTasks, useTrust } from '@/api/hooks';
@@ -20,6 +20,7 @@ import { Dot, IconButton, Kbd, Spinner, Tip, cx } from '@/components/ui';
 import { BrandMark } from '@/components/BrandMark';
 import { formatKeys } from '@/app/shortcuts';
 import { isCountedOpenFinding } from '@/components/domain';
+import { SidebarSlotContext } from './SidebarPanel';
 
 interface NavItem {
   path: string;
@@ -73,9 +74,25 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
 
   const active = (path: string) => (path === '/' ? route.path === '/' : route.path === path || route.path.startsWith(path + '/'));
 
+  // A page with its own list puts it in the sidebar; ‹ Workspace peeks at the pages.
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const [panel, setPanel] = useState<string | null>(null);
+  const [peek, setPeek] = useState(false);
+  useEffect(() => setPeek(false), [route.path]);
+  const claim = useCallback((title: string) => {
+    setPanel(title);
+    return () => setPanel(current => (current === title ? null : current));
+  }, []);
+  const sidebarSlot = useMemo(() => ({ slot, claim }), [slot, claim]);
+  const drilled = Boolean(panel) && !peek;
+  // While peeking, the current page's item returns to its list instead of reloading the page.
+  const open = (path: string) => (panel && peek && active(path) ? setPeek(false) : openWorkspace(path));
+
   return (
-    <div className={cx('shell', collapsed && 'is-collapsed')}>
+    <SidebarSlotContext.Provider value={sidebarSlot}>
+    <div className={cx('shell', collapsed && 'is-collapsed', panel && 'has-panel', drilled && 'is-drilled')}>
       <aside className="sidebar" aria-label="Primary">
+        <div className="sidebar-top">
         <div className="sidebar-brand">
           <BrandMark size={18} />
           <span className="sidebar-brand-name sidebar-label">KOGIN</span>
@@ -86,11 +103,22 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
           <span className="sidebar-label">New task</span>
           <Kbd>C</Kbd>
         </button>
+        {panel ? (
+          drilled ? (
+            <button type="button" className="sidebar-back" onClick={() => setPeek(true)} aria-label="Show the workspace pages">
+              <ChevronLeft size={15} aria-hidden /> Workspace
+            </button>
+          ) : (
+            <button type="button" className="sidebar-back" onClick={() => setPeek(false)} aria-label={`Back to ${panel}`}>
+              <span className="grow truncate">{panel}</span> <ChevronRight size={15} aria-hidden />
+            </button>
+          )
+        ) : null}
         <div className="nav-section" aria-hidden>Workspace</div>
         <nav className="nav" aria-label="Workspace">
           {items.map(item => (
             <Tip key={item.path} label={<span className="row">{item.label} <span className="row">{formatKeys(item.keys).map(k => <Kbd key={k}>{k}</Kbd>)}</span></span>} side="right">
-              <a href={`#${item.path}`} className={cx('nav-item', active(item.path) && 'is-active')} aria-current={active(item.path) ? 'page' : undefined} onClick={event => { event.preventDefault(); openWorkspace(item.path); }}>
+              <a href={`#${item.path}`} className={cx('nav-item', active(item.path) && 'is-active')} aria-current={active(item.path) ? 'page' : undefined} onClick={event => { event.preventDefault(); open(item.path); }}>
                 <item.icon size={16} aria-hidden />
                 <span className="sidebar-label">{item.label}</span>
                 {item.count ? <span className={cx('nav-count', item.tone && `nav-count-${item.tone}`)}>{item.count}</span> : null}
@@ -98,9 +126,11 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
             </Tip>
           ))}
         </nav>
-        <div className="spacer" />
+        </div>
+        <div className="sidebar-panel" ref={setSlot} />
+        <div className="sidebar-bottom">
         <nav className="nav" aria-label="Preferences">
-          <a href="#/settings" className={cx('nav-item', active('/settings') && 'is-active')} onClick={event => { event.preventDefault(); openWorkspace('/settings'); }}>
+          <a href="#/settings" className={cx('nav-item', active('/settings') && 'is-active')} onClick={event => { event.preventDefault(); open('/settings'); }}>
             <Settings size={16} aria-hidden />
             <span className="sidebar-label">Settings</span>
           </a>
@@ -109,6 +139,7 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
             <span className="sidebar-label">Collapse</span>
           </button>
         </nav>
+        </div>
       </aside>
       <div className="main">
         <TopBar />
@@ -116,6 +147,7 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
         <StatusBar connection={connection} running={running} />
       </div>
     </div>
+    </SidebarSlotContext.Provider>
   );
 }
 

@@ -1,8 +1,9 @@
 /* ---------------------------------------------------------------- files changed & diff */
 
+/* The changed files list lives in the sidebar (SidebarPanel). */
 .files-changed {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   height: 100%;
   min-height: 0;
 }

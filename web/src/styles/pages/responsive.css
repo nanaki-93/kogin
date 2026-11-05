@@ -43,13 +43,43 @@
     display: none;
   }
 
-  .files-changed,
-  .ide {
-    grid-template-columns: 220px minmax(0, 1fr);
+  /* The sidebar is icons here; a page's list stands beside them. */
+  .shell.has-panel {
+    --sidebar: 276px;
   }
 
-  .docs {
-    grid-template-columns: 200px minmax(0, 1fr);
+  .has-panel .sidebar {
+    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-areas: 'top panel' '. panel' 'bottom panel';
+    column-gap: 8px;
+  }
+
+  .has-panel .sidebar-panel {
+    display: flex;
+    padding-left: 8px;
+    border-left: 1px solid var(--border);
+  }
+
+  .sidebar-back {
+    display: none;
+  }
+
+  .shell.is-drilled .sidebar-top .nav-section {
+    display: block;
+    visibility: hidden;
+    height: 0;
+    margin: 8px 0 0;
+  }
+
+  .shell.is-drilled .sidebar-top .nav {
+    display: flex;
+  }
+
+  .has-panel .nav-item,
+  .has-panel .sidebar-new,
+  .has-panel .sidebar-brand {
+    justify-content: center;
+    padding: 0;
   }
 
   .component-row,

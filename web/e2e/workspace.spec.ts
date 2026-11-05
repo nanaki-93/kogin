@@ -472,3 +472,32 @@ test('a task shows its files against the code rules, and a budget issue opens a 
   expect(created.acceptance_criteria[0]).toContain('splitting it into cohesive sibling files');
   expect(created.paths).toContain('internal/api/handlers/webui.go');
 });
+
+test('a page with its own list drills the sidebar in; Workspace shows the pages again', async ({ page }) => {
+  await page.goto('/#/docs/architecture');
+  const sidebar = page.getByRole('complementary', { name: 'Primary' });
+  const workspace = sidebar.getByRole('navigation', { name: 'Workspace' });
+  // The docs navigation takes the sidebar's place.
+  await expect(sidebar.getByRole('navigation', { name: 'Docs' })).toBeVisible();
+  await expect(workspace).toBeHidden();
+  // ‹ Workspace peeks at the pages; the current page's item returns to its list.
+  await sidebar.getByRole('button', { name: 'Show the workspace pages' }).click();
+  await expect(workspace).toBeVisible();
+  await expect(sidebar.getByRole('navigation', { name: 'Docs' })).toBeHidden();
+  await workspace.getByRole('link', { name: 'Docs' }).click();
+  await expect(sidebar.getByRole('navigation', { name: 'Docs' })).toBeVisible();
+  await expect(page).toHaveURL(/#\/docs\/architecture/);
+  // A page without a list keeps the workspace pages.
+  await sidebar.getByRole('button', { name: 'Show the workspace pages' }).click();
+  await workspace.getByRole('link', { name: 'Tasks' }).click();
+  await expect(workspace).toBeVisible();
+  await expect(sidebar.getByRole('button', { name: 'Show the workspace pages' })).toHaveCount(0);
+  // A review's changed files drill in too; folded to icons, the list stands beside them.
+  await page.goto('/#/tasks/chg-1/files');
+  await expect(sidebar.getByRole('complementary', { name: 'Changed files' })).toBeVisible();
+  await expect(workspace).toBeHidden();
+  await sidebar.getByRole('button', { name: 'Collapse sidebar' }).click();
+  await expect(workspace).toBeVisible();
+  await expect(sidebar.getByRole('complementary', { name: 'Changed files' })).toBeVisible();
+  await sidebar.getByRole('button', { name: 'Expand sidebar' }).click();
+});

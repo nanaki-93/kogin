@@ -16,6 +16,7 @@ import { AskPanel, handQuestion } from './AskPanel';
 import { ArchitecturePage, DependenciesPage, OverviewPage, StartPage } from './GuidePages';
 import { ComponentPage, ComponentsIndex } from './ComponentPage';
 import { DocRefsProvider } from './DocText';
+import { SidebarPanel } from '@/layout/SidebarPanel';
 import { ChangeGuideIndex, ChangeGuidePage, WalkthroughPage, WalkthroughsIndex } from './WalkthroughPage';
 
 export function DocsPage({ section }: { section: string }) {
@@ -86,6 +87,7 @@ function DocsNav({ docs, current }: { docs: ProjectDocs | undefined; current: Do
   const components = docs?.components ?? [];
 
   return (
+    <SidebarPanel title="Docs">
     <nav className="docs-nav" aria-label="Docs">
       <form className="docs-ask" role="search" onSubmit={e => { e.preventDefault(); const text = question.trim(); if (text) { handQuestion(text); navigate('/docs/ask', { q: text }); } setQuestion(''); }}>
         <Input icon={MessageCircleQuestion} placeholder="Ask the code…" value={question} onChange={e => setQuestion(e.target.value)} aria-label="Ask the code a question" />
@@ -124,6 +126,7 @@ function DocsNav({ docs, current }: { docs: ProjectDocs | undefined; current: Do
         ) : null}
       </div>
     </nav>
+    </SidebarPanel>
   );
 }
 

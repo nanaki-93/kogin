@@ -85,6 +85,13 @@ blocker.
 
 - **Sidebar** — project switcher, New task, the workspaces with counts,
   Settings and collapse. Collapsed, it keeps icons with tooltips.
+- **One sidebar.** A page with its own list (the Docs navigation, Settings
+  sections, the Code file tree, a review's changed files) renders it with
+  `SidebarPanel`: the sidebar drills in, showing the list in place of the
+  workspace pages, and **‹ Workspace** shows the pages again (the current
+  page's item, or **<list> ›**, returns to the list). Collapsed or on a narrow
+  window, the list stands beside the icons. A page never adds a second
+  navigation column of its own.
 - **Top bar** — breadcrumbs that start with the checkout menu (main checkout
   or an agent worktree; every page then shows that checkout) followed by the
   page and, on a task, the task title; then the command palette trigger

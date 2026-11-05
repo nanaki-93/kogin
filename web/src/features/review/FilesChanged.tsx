@@ -17,6 +17,7 @@ import { FileIcon } from '@/components/domain';
 import { ChangeNotes, placeNotes, walkthroughFile } from './ChangeNotes';
 import { DiffView } from './DiffView';
 import { SendComments, useFileComments } from './LineComments';
+import { SidebarPanel } from '@/layout/SidebarPanel';
 
 export function FilesChanged({ session }: { session: LoadedSession }) {
   const route = useRoute();
@@ -75,6 +76,7 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
 
   return (
     <div className="files-changed">
+      <SidebarPanel title="Changed files">
       <aside className="fc-tree" aria-label="Changed files">
         <div className="fc-tree-head">
           <div className="row">
@@ -131,6 +133,7 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
           <Kbd>j</Kbd>/<Kbd>k</Kbd> files · <Kbd>v</Kbd> viewed · <Kbd>s</Kbd> split
         </div>
       </aside>
+      </SidebarPanel>
       {current ? (
         <section className="fc-diff" aria-label={`Diff of ${current.path}`}>
           <div className="fc-diff-head">

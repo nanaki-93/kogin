@@ -12,12 +12,127 @@
 }
 
 .sidebar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'top' 'panel' 'bottom';
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 8px 8px;
+  background: var(--chrome);
+}
+
+.sidebar-top,
+.sidebar-bottom {
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
-  padding: 10px 8px 8px;
-  background: var(--chrome);
+}
+
+.sidebar-top { grid-area: top; }
+.sidebar-bottom { grid-area: bottom; }
+
+/* A page's own list drills the sidebar in: it replaces the workspace pages,
+   and ‹ Workspace shows them again. */
+.sidebar-panel {
+  display: none;
+  grid-area: panel;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.shell.is-drilled {
+  --sidebar: 272px;
+}
+
+.is-drilled .sidebar-panel {
+  display: flex;
+}
+
+.is-drilled .sidebar-top .nav-section,
+.is-drilled .sidebar-top .nav {
+  display: none;
+}
+
+.sidebar-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  margin-top: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-align: left;
+}
+
+.sidebar-back:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.sidebar-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 0 4px 0 8px;
+}
+
+.sidebar-panel-title {
+  flex: 1;
+  color: var(--text);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.sidebar-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* The lists keep their own markup; in the sidebar they lose their column frame. */
+.sidebar-panel > :not(.sidebar-panel-head) {
+  flex: 1;
+  min-height: 0;
+  border: 0;
+  background: none;
+}
+
+/* Folded to icons, the sidebar keeps the page's list beside the icons. */
+.shell.is-collapsed.has-panel {
+  --sidebar: 312px;
+}
+
+.is-collapsed.has-panel .sidebar {
+  grid-template-columns: 40px minmax(0, 1fr);
+  grid-template-areas: 'top panel' '. panel' 'bottom panel';
+  column-gap: 8px;
+}
+
+.is-collapsed.has-panel .sidebar-panel {
+  display: flex;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+
+.is-collapsed .sidebar-back {
+  display: none;
+}
+
+.is-collapsed .sidebar-top .nav-section {
+  display: block;
+}
+
+.is-collapsed .sidebar-top .nav {
+  display: flex;
 }
 
 .sidebar-brand {

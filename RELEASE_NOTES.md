@@ -55,6 +55,12 @@ are listed here as they land.
   agents fail can be counted. Behavior changes accepted in earlier tasks are
   given to the next tasks' agents and reviewers, so a second name for the
   same flag is caught.
+- **One sidebar:** Docs, Settings, Code and a review's Files changed no longer
+  open a second column beside the sidebar. The sidebar drills in: it shows
+  the page's own list (the docs pages, the settings sections, the file tree,
+  the changed files) in place of the workspace pages, and **‹ Workspace**
+  shows the pages again without leaving the page. With the sidebar collapsed
+  (or on a narrow window) the list stands beside the icons.
 - **System fonts, a size larger, brighter faint text:** the interface uses
   the system font and its monospace (SF Pro and SF Mono on macOS, so the
   desktop app reads like a Mac app); the Inter and JetBrains Mono files are no
