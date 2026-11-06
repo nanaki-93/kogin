@@ -684,7 +684,9 @@ source files, the repeated share, and the same share in tests), `complexity`
 first reported and fixed by a merged task's commit, the last seven days'
 totals and `verdict`: `converging`, `growing`, `steady` or `quiet`) and
 `tasks`: drafts (`IssueTask`) for deleting unused code, merging a repeated
-block, gathering a source file's spread test files (at most eight per task),
+block, gathering a source file's spread test files (at most eight per task)
+into as few files as its file line budget allows (its companion test, then
+`x_<behavior>_test.go` files, each at most nine tenths of the budget),
 splitting a function over budget and testing a package under 40% coverage.
 Nothing is saved until a task is created from a draft.
 `POST /api/projects/current/health/tests` runs, in a copy of the project,

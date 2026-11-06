@@ -492,8 +492,8 @@ directories whose tests are spread over many files. **Code** shows the
 repeated share of the code and of the tests, the repeated blocks, functions
 nothing calls and functions over budget. **Improve the health** lists small
 tasks drafted from these (delete unused code, merge a repeated block, gather a
-file's spread tests, split a complex function, test a package with low
-coverage); **Draft task** opens one in the composer.
+file's spread tests into as few files as the file line budget allows, split a
+complex function, test a package with low coverage); **Draft task** opens one in the composer.
 
 Settings → **Profile** edits the project profile: kind (a kind brings its
 security level unless one was chosen), purpose, shape, the platforms it runs

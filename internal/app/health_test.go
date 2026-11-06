@@ -117,7 +117,7 @@ func TestHealthDraftsGatherTasksForTestsSpreadOverManyFiles(t *testing.T) {
 	root := t.TempDir()
 	sources := []healthSource{{path: "cmd/add.go"}, {path: "cmd/add_name.go"}, {path: "cmd/get.go"}}
 	for _, test := range []string{"cmd/add_test.go", "cmd/add_boundary_test.go", "cmd/add_rollback_test.go", "cmd/add_name_test.go", "cmd/add_name_limit_test.go", "cmd/get_test.go"} {
-		sources = append(sources, healthSource{path: test, test: true, lines: 10})
+		sources = append(sources, healthSource{path: test, test: true, lines: 10, fileLines: 300})
 	}
 	for _, source := range sources {
 		writeTestFile(t, root, source.path, "package cmd\n")
@@ -130,8 +130,40 @@ func TestHealthDraftsGatherTasksForTestsSpreadOverManyFiles(t *testing.T) {
 	if len(groups) != 1 || groups[0].source != "cmd/add.go" || strings.Join(groups[0].tests, ",") != "cmd/add_boundary_test.go,cmd/add_rollback_test.go,cmd/add_test.go" {
 		t.Fatalf("groups = %+v", groups)
 	}
-	task := testGatherTask(groups[0])
+	task := testGatherTask(root, groups[0])
 	if task.Title != "Gather the 3 test files of add.go into add_test.go" || task.Draft.Paths[0] != "cmd/add_test.go" || len(task.Draft.Paths) != 3 || task.Draft.Kind != "fix" {
 		t.Fatalf("task = %+v", task)
+	}
+	// With a file budget of 800 lines, 900 lines of tests need two files of at most 720.
+	writeTestFile(t, root, "AGENTS.md", "# Rules\n\n- Max file lines: 800\n")
+	task = testGatherTask(root, groups[0])
+	if task.Title != "Gather the 3 test files of add.go into 2 files" || !strings.Contains(task.Draft.Description, "hold 900 lines, more than one file's budget of 800 lines") ||
+		!strings.Contains(task.Draft.Description, "at most 2 files of at most 720 lines each: cmd/add_test.go first, then add_<behavior>_test.go") || task.Draft.AcceptanceCriteria[0] != "The tests of add.go are in at most 2 files, each at most 720 lines" {
+		t.Fatalf("budgeted task = %+v", task)
+	}
+	if gatheredFiles(720, 800) != 1 || gatheredFiles(721, 800) != 2 || gatheredFiles(5000, 0) != 1 {
+		t.Fatal("gatheredFiles")
+	}
+}
+
+func TestTestBudgetAllowsGatheringTestsAndAnOverflowFileNextToAFullOne(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "AGENTS.md", "# Rules\n\n- Max file lines: 100\n")
+	writeTestFile(t, root, "cmd/add.go", "package cmd\n")
+	for _, name := range []string{"add_test.go", "add_a_test.go", "add_b_test.go", "add_c_test.go"} {
+		writeTestFile(t, root, "cmd/"+name, "package cmd\n")
+	}
+	added := ChangeEdit{Path: "cmd/add_rollback_test.go", Status: EditAdded, Content: "package cmd\n"}
+	targets := []ChangeTarget{{Path: "cmd/add_rollback_test.go", Test: true}, {Path: "cmd/add_a_test.go", Exists: true, Test: true}, {Path: "cmd/add_b_test.go", Exists: true, Test: true}}
+	if check := testBudgetCheck(root, targets[:1], []ChangeEdit{added}); check.State != CheckFailed || !strings.Contains(check.Output, "add its tests to cmd/add_test.go") {
+		t.Fatalf("a fifth test file for one source file fails while add_test.go has room: %+v", check)
+	}
+	gather := []ChangeEdit{added, {Path: "cmd/add_a_test.go", Status: "deleted"}, {Path: "cmd/add_b_test.go", Status: "deleted"}}
+	if check := testBudgetCheck(root, targets, gather); check.State != CheckPassed {
+		t.Fatalf("gathering two files into one passes: %+v", check)
+	}
+	full := ChangeEdit{Path: "cmd/add_test.go", Content: "package cmd\n" + strings.Repeat("// case\n", 92)}
+	if check := testBudgetCheck(root, append(targets[:1:1], ChangeTarget{Path: "cmd/add_test.go", Exists: true, Content: "package cmd\n", Test: true}), []ChangeEdit{full, {Path: added.Path, Status: EditAdded, Content: "package cmd\n"}}); check.State != CheckPassed {
+		t.Fatalf("a new add_<behavior>_test.go next to a full add_test.go passes: %+v", check)
 	}
 }

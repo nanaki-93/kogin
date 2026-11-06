@@ -28,7 +28,8 @@ const (
 
 // testBudgetCheck fails a change that adds a test file not named after a
 // source file to a directory that already has two test files per source
-// file, or whose tests grow by more than max(120, 4 × changed code lines).
+// file (see newTestFileProblem for when it may), or whose tests grow by
+// more than max(120, 4 × changed code lines).
 // nil when the change has no test edits.
 func testBudgetCheck(root string, targets []ChangeTarget, edits []ChangeEdit) *CheckResult {
 	resolver := rules.NewResolver(root)
@@ -70,39 +71,106 @@ func testBudgetCheck(root string, targets []ChangeTarget, edits []ChangeEdit) *C
 }
 
 // newTestFileProblem explains why a new test file should not exist; empty
-// when it may. A test file named after a source file may always be added;
-// another may while its directory keeps at most two test files per source
-// file, so tests stay where a reader looks for them.
+// when it may. A test file named after a source file may always be added,
+// and so may another: while its directory keeps at most two test files per
+// source file, when the change removes at least as many test files there as
+// it adds (gathering spread tests), or when the test file it extends is
+// near its line budget (x_<behavior>_test.go next to a full x_test.go).
 func newTestFileProblem(root, file string, resolver *rules.Resolver, targets []ChangeTarget, edits []ChangeEdit) string {
 	stem := testStem(file)
 	dir := path.Dir(file)
 	if slices.Contains(sharedTestStems, stem) || sourceWithStemExists(root, dir, stem, resolver, edits) {
 		return ""
 	}
-	// root may hold the change already (a worktree): files it adds are not
-	// the directory's existing tests.
-	added := func(test string) bool {
-		return slices.ContainsFunc(targets, func(target ChangeTarget) bool { return target.Path == test && !target.Exists })
-	}
-	existing := slices.DeleteFunc(testFilesIn(root, dir, resolver), added)
-	tests := len(existing)
-	for _, edit := range edits {
-		if !edit.Deleted() && path.Dir(edit.Path) == dir && resolver.IsTestFile(edit.Path) && !slices.Contains(existing, edit.Path) {
-			tests++
-		}
-	}
+	tests, added, removed := testFilesAfter(root, dir, resolver, targets, edits)
 	sources := sourceFilesIn(root, dir, resolver)
-	if len(existing) == 0 || tests <= max(2, 2*sources) {
+	if tests <= max(2, 2*sources) || removed >= added {
 		return ""
 	}
-	home := existing[0]
+	home := ownerTestFile(root, dir, stem, resolver)
+	if home != "" && nearLineBudget(root, home, resolver, edits) {
+		return ""
+	}
+	if home == "" {
+		home = changedCompanionTest(root, edits)
+	}
+	return fmt.Sprintf("%s would make %d test files for %d source files in %s, and it is not named after a source file; add its tests to %s, the test file of the code this change touches (a second file only once that one is near its line budget).", file, tests, sources, dir, home)
+}
+
+// testFilesAfter counts dir's test files as the change leaves them, and the
+// test files it adds and removes there. root may hold the change already (a
+// worktree) or not (the main checkout).
+func testFilesAfter(root, dir string, resolver *rules.Resolver, targets []ChangeTarget, edits []ChangeEdit) (int, int, int) {
+	existed := map[string]bool{}
+	for _, target := range targets {
+		existed[target.Path] = target.Exists
+	}
+	tests := map[string]bool{}
+	for _, test := range testFilesIn(root, dir, resolver) {
+		tests[test] = true
+	}
+	added, removed := 0, 0
 	for _, edit := range edits {
-		if candidate := rules.CompanionTest(root, edit.Path); candidate != "" && slices.Contains(existing, candidate) {
-			home = candidate
-			break
+		if path.Dir(edit.Path) != dir || !resolver.IsTestFile(edit.Path) {
+			continue
+		}
+		if edit.Deleted() {
+			delete(tests, edit.Path)
+			removed++
+		} else if !existed[edit.Path] && edit.OldPath == "" {
+			tests[edit.Path] = true
+			added++
 		}
 	}
-	return fmt.Sprintf("%s would make %d test files for %d source files in %s, and it is not named after a source file; add its tests to %s, the test file of the code this change touches.", file, tests, sources, dir, home)
+	return len(tests), added, removed
+}
+
+func changedCompanionTest(root string, edits []ChangeEdit) string {
+	for _, edit := range edits {
+		if candidate := rules.CompanionTest(root, edit.Path); candidate != "" {
+			return candidate
+		}
+	}
+	return ""
+}
+
+// ownerTestFile is the companion test of the source file a test file's
+// name extends (add_test.go for add_rollback_test.go); empty when none.
+func ownerTestFile(root, dir, stem string, resolver *rules.Resolver) string {
+	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(dir)))
+	if err != nil {
+		return ""
+	}
+	owner, best := "", ""
+	for _, entry := range entries {
+		file := path.Join(dir, entry.Name())
+		if !entry.Type().IsRegular() || resolver.IsTestFile(file) || !hasSourceExtension(file) {
+			continue
+		}
+		if source := testStem(file); strings.HasPrefix(stem, source+"_") && len(source) > len(best) {
+			best, owner = source, file
+		}
+	}
+	if owner == "" {
+		return ""
+	}
+	return rules.CompanionTest(root, owner)
+}
+
+// nearLineBudget reports a file, as the change leaves it, within a tenth
+// of its file line budget or over it.
+func nearLineBudget(root, file string, resolver *rules.Resolver, edits []ChangeEdit) bool {
+	budget := resolver.For(file).Budgets.FileLines
+	if budget <= 0 {
+		return false
+	}
+	content := ""
+	if index := slices.IndexFunc(edits, func(edit ChangeEdit) bool { return edit.Path == file }); index >= 0 {
+		content = edits[index].Content
+	} else if data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(file))); err == nil {
+		content = string(data)
+	}
+	return fileLineCount(content) >= budget-budget/10
 }
 
 func sourceFilesIn(root, dir string, resolver *rules.Resolver) int {
@@ -189,6 +257,18 @@ func changedLines(file, before, after string) int {
 		}
 	}
 	return count
+}
+
+// fileLineCount counts a file's lines as file line budgets do.
+func fileLineCount(content string) int {
+	if content == "" {
+		return 0
+	}
+	lines := strings.Count(content, "\n")
+	if !strings.HasSuffix(content, "\n") {
+		lines++
+	}
+	return lines
 }
 
 // codeLineCount counts a file's non-blank lines.

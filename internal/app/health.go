@@ -160,8 +160,10 @@ func (s *Service) ProjectHealth(ctx context.Context) (*ProjectHealth, error) {
 type healthSource struct {
 	path    string
 	content string
-	lines   int
-	test    bool
+	// lines counts non-blank lines; fileLines every line, as file budgets do.
+	lines     int
+	fileLines int
+	test      bool
 }
 
 func healthSources(ctx context.Context, root string, index *project.ProjectIndex) ([]healthSource, error) {
@@ -182,7 +184,7 @@ func healthSources(ctx context.Context, root string, index *project.ProjectIndex
 		if err != nil || info.Binary {
 			continue
 		}
-		sources = append(sources, healthSource{path: file.Path, content: info.Content, lines: codeLineCount(info.Content), test: resolver.IsTestFile(file.Path)})
+		sources = append(sources, healthSource{path: file.Path, content: info.Content, lines: codeLineCount(info.Content), fileLines: fileLineCount(info.Content), test: resolver.IsTestFile(file.Path)})
 	}
 	return sources, nil
 }
@@ -316,7 +318,7 @@ func healthTasks(root string, health *ProjectHealth, sources []healthSource, fin
 		if i == 3 {
 			break
 		}
-		tasks = append(tasks, testGatherTask(group))
+		tasks = append(tasks, testGatherTask(root, group))
 	}
 	for i, fn := range health.Complexity {
 		if i == 3 {
@@ -378,7 +380,8 @@ func duplicationTask(root string, group dupes.Group) HealthTask {
 type spreadTests struct {
 	source, companion string
 	tests             []string
-	lines             int
+	// fileLines are each test file's lines, as file budgets count them.
+	fileLines map[string]int
 }
 
 // spreadTestGroups finds, in the directories with too many test files, the
@@ -387,7 +390,7 @@ func spreadTestGroups(root string, dirs []HealthTestDir, sources []healthSource)
 	lines := map[string]int{}
 	byDir := map[string][]healthSource{}
 	for _, source := range sources {
-		lines[source.path] = source.lines
+		lines[source.path] = source.fileLines
 		byDir[path.Dir(source.path)] = append(byDir[path.Dir(source.path)], source)
 	}
 	var groups []spreadTests
@@ -398,7 +401,7 @@ func spreadTestGroups(root string, dirs []HealthTestDir, sources []healthSource)
 			if !source.test {
 				stem := testStem(source.path)
 				stems = append(stems, stem)
-				owners[stem] = &spreadTests{source: source.path, companion: rules.CompanionTest(root, source.path)}
+				owners[stem] = &spreadTests{source: source.path, companion: rules.CompanionTest(root, source.path), fileLines: map[string]int{}}
 			}
 		}
 		// Longest stems first, so add_name.go owns add_name_limit_test.go.
@@ -411,7 +414,7 @@ func spreadTestGroups(root string, dirs []HealthTestDir, sources []healthSource)
 			for _, owner := range stems {
 				if stem == owner || strings.HasPrefix(stem, owner+"_") {
 					owners[owner].tests = append(owners[owner].tests, source.path)
-					owners[owner].lines += lines[source.path]
+					owners[owner].fileLines[source.path] = lines[source.path]
 					break
 				}
 			}
@@ -432,7 +435,11 @@ func spreadTestGroups(root string, dirs []HealthTestDir, sources []healthSource)
 	return groups
 }
 
-func testGatherTask(group spreadTests) HealthTask {
+// testGatherTask drafts gathering one source file's spread tests into as
+// few files as its file line budget allows: its companion test, then
+// x_<behavior>_test.go files for what does not fit, each with room left
+// for the next fixes' tests.
+func testGatherTask(root string, group spreadTests) HealthTask {
 	home := group.companion
 	if home == "" {
 		home = strings.TrimSuffix(group.source, path.Ext(group.source)) + "_test" + path.Ext(group.source)
@@ -448,15 +455,59 @@ func testGatherTask(group spreadTests) HealthTask {
 			paths = append(paths, test)
 		}
 	}
-	title := fmt.Sprintf("Gather the %d test files of %s into %s", len(group.tests), path.Base(group.source), path.Base(home))
-	if len(paths) < len(group.tests) {
-		title = fmt.Sprintf("Gather %d of the %d test files of %s into %s", len(paths), len(group.tests), path.Base(group.source), path.Base(home))
+	lines := 0
+	for _, test := range paths {
+		lines += group.fileLines[test]
 	}
-	draft := IssueTask{Kind: "fix", Title: title, Paths: append([]string{}, paths...),
-		Description: fmt.Sprintf("The tests of %s are spread over %d files (%d lines). Move the tests of %s into %s (rename one of these files to it when it does not exist), merge cases that check the same behavior into one table test, delete tests that repeat another, and delete the emptied files. Do not change code that is not a test.",
-			group.source, len(group.tests), group.lines, strings.Join(quoted(paths), ", "), home),
-		AcceptanceCriteria: []string{fmt.Sprintf("The tests of %s are in %s only", path.Base(group.source), path.Base(home)), "Every behavior tested before is still tested once", "All tests pass"}}
+	budget := rules.NewResolver(root).For(home).Budgets.FileLines
+	files := gatheredFiles(lines, budget)
+	stem := strings.TrimSuffix(path.Base(home), "_test"+path.Ext(home))
+	into := path.Base(home)
+	if files > 1 {
+		into = fmt.Sprintf("%d files", files)
+	}
+	title := fmt.Sprintf("Gather the %d test files of %s into %s", len(group.tests), path.Base(group.source), into)
+	if len(paths) < len(group.tests) {
+		title = fmt.Sprintf("Gather %d of the %d test files of %s into %s", len(paths), len(group.tests), path.Base(group.source), into)
+	}
+	description := fmt.Sprintf("The tests of %s are spread over %d files (%d lines). Move the tests of %s into %s (rename one of these files to it when it does not exist)", group.source, len(group.tests), group.totalLines(), strings.Join(quoted(paths), ", "), home)
+	criteria := []string{fmt.Sprintf("The tests of %s are in %s only", path.Base(group.source), path.Base(home))}
+	if files > 1 {
+		description = fmt.Sprintf("The tests of %s are spread over %d files (%d lines). %s hold %d lines, more than one file's budget of %d lines. Gather them into at most %d files of at most %d lines each: %s first, then %s_<behavior>_test.go for each further group of related behaviors (for example %s_rollback_test.go), named for what its tests check, never for an issue",
+			group.source, len(group.tests), group.totalLines(), strings.Join(quoted(paths), ", "), lines, budget, files, gatherFileLines(budget), home, stem, stem)
+		criteria = []string{fmt.Sprintf("The tests of %s are in at most %d files, each at most %d lines", path.Base(group.source), files, gatherFileLines(budget))}
+	}
+	description += ". Merge cases that check the same behavior into one table test, delete tests that repeat another (fewer files when that makes room), and delete the emptied files. Do not change code that is not a test."
+	if budget > 0 && files == 1 {
+		criteria = append(criteria, fmt.Sprintf("%s is at most %d lines", path.Base(home), gatherFileLines(budget)))
+	}
+	draft := IssueTask{Kind: "fix", Title: title, Paths: append([]string{}, paths...), Description: description,
+		AcceptanceCriteria: append(criteria, "Every behavior tested before is still tested once", "All tests pass")}
 	return HealthTask{ID: "tests:" + group.source, Kind: "tests", Title: title, Why: "Tests spread over many files get copied instead of extended, and every copy is more to analyze and keep passing.", Draft: draft}
+}
+
+func (g spreadTests) totalLines() int {
+	total := 0
+	for _, lines := range g.fileLines {
+		total += lines
+	}
+	return total
+}
+
+// gatherFileLines is how long a gathered test file may be: its budget less
+// a tenth, so the next fixes' tests still fit; 0 without a budget.
+func gatherFileLines(budget int) int {
+	return budget - budget/10
+}
+
+// gatheredFiles is how many files lines of tests need under a file budget
+// (one without a budget).
+func gatheredFiles(lines, budget int) int {
+	limit := gatherFileLines(budget)
+	if limit <= 0 {
+		return 1
+	}
+	return max(1, (lines+limit-1)/limit)
 }
 
 func complexityTask(root string, fn HealthComplexity) HealthTask {

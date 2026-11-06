@@ -21,12 +21,17 @@ are listed here as they land.
 - **Tests stay in proportion.** A required **test budget** check fails a new
   test file not named after a source file once its directory has two test
   files per source file, and tests that grow by more than max(120, 4 × the
-  changed code lines). The testing agent writes the fewest tests that prove the
-  change, in the test file of the code it touches.
+  changed code lines). A new test file is still allowed when the change
+  removes as many test files as it adds, or next to a test file near its line
+  budget (`x_<behavior>_test.go`). The testing agent writes the fewest tests
+  that prove the change, in the test file of the code it touches.
 - **Health** (`g l`): the finish line, found vs fixed per day with a
   converging/not converging verdict, tests with Go coverage by package, the
   test-to-code ratio and spread test files, repeated code, code nothing calls,
-  functions over budget, and small tasks that improve them.
+  functions over budget, and small tasks that improve them. A task gathering a
+  file's spread tests respects the file line budget: when they do not fit in
+  `x_test.go`, it asks for at most N files of at most nine tenths of the
+  budget each.
 
 - **Mini-Orca is now Kogin** (こぎん刺し, *kogin-zashi*: geometric patterns
   stitched on woven cloth by counting its threads one by one). During v6
