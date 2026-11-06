@@ -173,9 +173,12 @@ every guard when the action arrives.
 - **Review by hunks.** Files changed opens one hunk at a time (**Hunks**, the
   default; **Whole file**, or `f`, shows each file's whole diff). Beside the
   hunk: its place ("Hunk 2 of 7", a dot per hunk, the file's hunks grouped),
-  the walkthrough's note for it, **Looks right** (`a`) and **Comment** (`m`, on
-  the hunk's first changed line). `←`/`→` (or `j`/`k`) move between hunks
-  across files. Once every hunk of a file looks right, the file is marked
+  what the file's change is for (the walkthrough's summary, or the agent's
+  when there is none, with Explain changes), the walkthrough's note for the
+  hunk, **Looks right** (`a`) and **Comment** (`m`, on the hunk's first
+  changed line). The notes stay beside the code unless the review itself is
+  under 640px wide, then they go above it. `←`/`→` (or `j`/`k`) move between
+  hunks across files. Once every hunk of a file looks right, the file is marked
   viewed. The hunks you called right are kept per task version in this browser;
   a new version starts over, like the files viewed.
 - **Review bar.** Under the diff in both views: files viewed (a dot per file,

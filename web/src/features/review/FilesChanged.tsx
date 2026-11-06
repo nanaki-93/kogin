@@ -171,8 +171,8 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
               </Button>
             )}
           </div>
-          {showNotes ? <ChangeNotes session={session} path={current.path} unplaced={hunkNotes.unplaced} /> : null}
-          {current.summary && !(showNotes && explained) ? <div className="fc-summary small">{current.summary}</div> : null}
+          {mode === 'file' && notes ? <ChangeNotes session={session} path={current.path} unplaced={hunkNotes.unplaced} /> : null}
+          {mode === 'file' && current.summary && !(notes && explained) ? <div className="fc-summary small">{current.summary}</div> : null}
           {current.criteria?.length ? (
             <div className="fc-criteria xs">
               <span className="muted">The agent says this file addresses:</span>{' '}

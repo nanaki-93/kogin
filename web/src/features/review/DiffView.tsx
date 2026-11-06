@@ -110,11 +110,11 @@ export function DiffView({ lines, language, layout, wrap, anchorPrefix, comments
                       <td className={cx('ln', row.left && side(row.left, 'left'))}>
                         <LineNumber value={row.left?.old_line} anchor={left} comments={comments} />
                       </td>
-                      <td className={cx('code', row.left ? side(row.left, 'left') : 'empty')} dangerouslySetInnerHTML={{ __html: row.left ? cell(row.left, html[position.get(row.left) ?? -1]) : '' }} />
+                      <td className={cx('code', row.left ? side(row.left, 'left') : 'diff-blank')} dangerouslySetInnerHTML={{ __html: row.left ? cell(row.left, html[position.get(row.left) ?? -1]) : '' }} />
                       <td className={cx('ln', row.right && side(row.right, 'right'))}>
                         <LineNumber value={row.right?.new_line} anchor={right} comments={comments} />
                       </td>
-                      <td className={cx('code', row.right ? side(row.right, 'right') : 'empty')} dangerouslySetInnerHTML={{ __html: row.right ? cell(row.right, html[position.get(row.right) ?? -1]) : '' }} />
+                      <td className={cx('code', row.right ? side(row.right, 'right') : 'diff-blank')} dangerouslySetInnerHTML={{ __html: row.right ? cell(row.right, html[position.get(row.right) ?? -1]) : '' }} />
                     </tr>
                     <Annotation anchors={[left, right]} comments={comments} columns={columns} />
                   </Fragment>

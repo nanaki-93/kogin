@@ -120,14 +120,20 @@ test('compares the split and unified diff layouts', async ({ page }) => {
   await expect(diff).toContainText('strings.Contains(name, "/")');
   await page.keyboard.press('s');
   await expect(page.getByRole('button', { name: /unified view/i })).toBeVisible();
+  // A line with nothing across from it (a new file here) is as tall as any other row.
+  await page.goto('/#/tasks/chg-1/files?file=internal/api/handlers/mime.go');
+  const added = page.getByRole('region', { name: /Diff of internal\/api\/handlers\/mime.go/ });
+  await expect(added.locator('td.diff-blank').first()).toBeAttached();
+  const heights = await added.locator('table.diff-split tr.diff-row').evaluateAll(trs => trs.map(tr => Math.round(tr.getBoundingClientRect().height)));
+  expect(heights.length).toBeGreaterThan(0);
+  expect(Math.max(...heights)).toBeLessThan(30);
 });
 
-test('the review reads one hunk at a time beside its note, and marks a file viewed once every hunk is right', async ({ page, daemon }) => {
+test('the review reads one hunk at a time beside the notes of its file and hunk, and marks a file viewed once every hunk is right', async ({ page, daemon }) => {
   await page.goto('/#/tasks/chg-1/files');
-  const notes = page.getByRole('region', { name: 'What it fixes' });
   const pane = page.getByRole('complementary', { name: 'This hunk' });
-  // Over the review, one line on what the file's change fixes; it replaces the agent's own.
-  await expect(notes).toContainText('Nested asset paths no longer reach the embedded read.');
+  // Beside the code, one line on what the file's change fixes; it replaces the agent's own.
+  await expect(pane.getByRole('region', { name: 'What it fixes' })).toContainText('Nested asset paths no longer reach the embedded read.');
   await expect(page.getByText('Rejects nested names.')).toBeHidden();
   // Beside the hunk, its note: the goal it serves, the wrong behavior it removes, then how.
   await expect(pane).toContainText('Hunk 1 of 3');

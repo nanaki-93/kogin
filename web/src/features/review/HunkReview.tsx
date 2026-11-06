@@ -1,5 +1,5 @@
-// Focus review: the change one hunk at a time, the note on what it fixes
-// beside it. A marks the hunk right and moves on; once every hunk of a file
+// Focus review: the change one hunk at a time, what the file's change is
+// for and the note on what the hunk fixes beside it. A marks the hunk right and moves on; once every hunk of a file
 // is right the file is marked viewed. M comments on the hunk's first changed
 // line (M); ← → (or j k) move between hunks across files.
 
@@ -15,7 +15,7 @@ import { isFileReviewed } from '@/lib/readiness';
 import { navigate, useRoute } from '@/lib/router';
 import { languageOf } from '@/lib/util';
 import { Button, IconButton, Kbd, cx } from '@/components/ui';
-import { goalLabel, HunkNote, walkthroughFile } from './ChangeNotes';
+import { ChangeNotes, goalLabel, HunkNote, placeNotes, walkthroughFile } from './ChangeNotes';
 import { DiffView, type DiffComments } from './DiffView';
 
 export function HunkReview({ session, edits, layout, wrap, comments, focus, canMark }: {
@@ -78,6 +78,8 @@ export function HunkReview({ session, edits, layout, wrap, comments, focus, canM
     return at >= hunk.start && at < hunk.end;
   });
   const done = all.filter(right).length;
+  const explained = session.walkthrough?.proposal_hash === session.hash && Boolean(file?.summary);
+  const summary = edits.find(edit => edit.path === hunk.path)?.summary;
 
   return (
     <div className="hunk-review">
@@ -95,12 +97,16 @@ export function HunkReview({ session, edits, layout, wrap, comments, focus, canM
             <button key={hunkKey(h)} type="button" tabIndex={-1} className={cx('hunk-dot', right(h) && 'is-right', i === index && 'is-current', h.path !== all[i - 1]?.path && i > 0 && 'is-file')} title={`${h.path} · hunk ${h.n + 1}`} onClick={() => go(i)} />
           ))}
         </div>
-        <div className="hunk-notes">
+        <div className="hunk-file-notes">
+          <ChangeNotes session={session} path={hunk.path} unplaced={placeNotes(session, file, lines).unplaced} />
+          {summary && !explained ? <p className="xs muted">{summary}</p> : null}
+        </div>
+        <div className="hunk-notes" aria-label="What this hunk fixes">
           {notes.length ? (
             notes.map((note, i) => <HunkNote key={i} note={note} goal={goalLabel(session, note)} />)
-          ) : (
-            <p className="small muted">{file ? 'No note for this hunk.' : session.walkthrough ? 'No notes for this file.' : 'No notes yet: Explain changes writes one for each hunk.'}</p>
-          )}
+          ) : file ? (
+            <p className="small muted">No note for this hunk.</p>
+          ) : null}
         </div>
         <div className="hunk-actions">
           <Button variant={right(hunk) ? 'secondary' : 'primary'} icon={Check} onClick={() => void looksRight()} kbd="A">

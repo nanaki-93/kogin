@@ -7,6 +7,13 @@ Kogin was called Mini-Orca until v6 (and Kasuri for part of v6 development); the
 Version 6 starts from the stable v5.0.0 tag on the `v6` branch. Its changes
 are listed here as they land.
 
+- **Review fixes.** The split diff no longer stretches a line that has nothing
+  across from it (an added or removed line) to several times its height. In
+  the hunk review, what the file's change is for sits beside the code with the
+  hunk's note instead of in a bar above it, and the notes stay beside the code
+  until the review area itself is narrow, not whenever the window is under
+  1100px.
+
 - **Faster analysis.** A project analysis runs up to `max_concurrent_calls`
   files at once (default 4, at most 8) instead of one model call at a time;
   each file's stages still run in order. **Retry** after an interrupted or
