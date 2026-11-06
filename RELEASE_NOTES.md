@@ -7,6 +7,18 @@ Kogin was called Mini-Orca until v6 (and Kasuri for part of v6 development); the
 Version 6 starts from the stable v5.0.0 tag on the `v6` branch. Its changes
 are listed here as they land.
 
+- **Analysis no longer stops when resumed.** With files analyzed side by
+  side, the lanes competed for the agent journal's file lock and, once the
+  journal had grown to tens of megabytes, a write could wait past the lock's
+  five-second timeout: the run stopped with "Analysis stopped before the stage
+  completed", and every stage cut off in another lane lost an attempt, so after
+  two such stops Resume ended at once with "The stage exhausted its total
+  attempt allowance". Writers in one daemon now take turns instead of timing
+  out, a stage stopped by another lane gets its attempt back, and the journal
+  drops finished analysis and docs calls past 128 sessions (53 MB on
+  pwd-manager, now under 10 MB). Stages already marked exhausted need
+  **Retry**.
+
 - **Review fixes.** The split diff no longer stretches a line that has nothing
   across from it (an added or removed line) to several times its height. In
   the hunk review, what the file's change is for sits beside the code with the

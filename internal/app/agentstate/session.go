@@ -87,6 +87,7 @@ func (s *Store) CreateSession(ctx context.Context, key Key, state State) (*Sessi
 		if _, exists := db.Sessions[key.key()]; exists {
 			return fmt.Errorf("agent session already exists")
 		}
+		pruneFinishedRuns(db)
 		record := &Session{Key: key, State: State{}, Events: []Event{}, Updated: time.Now().UTC()}
 		applyState(db, record, state)
 		db.Sessions[key.key()] = record

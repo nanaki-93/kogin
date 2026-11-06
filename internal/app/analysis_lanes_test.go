@@ -113,3 +113,23 @@ func TestAnalysisRetryReusesSavedReportsOfStagesTheRunNeverReached(t *testing.T)
 		}
 	}
 }
+
+// A stage cut off because another lane stopped the run gets its attempt
+// back: two such interruptions must not leave it exhausted.
+func TestAnalysisStageStoppedByAnotherLaneKeepsItsAttempt(t *testing.T) {
+	server, _ := analysisResponseServer(t, emptyAnalysisReply)
+	s, _ := newSemanticAnalysisServiceWithHelper(t, server.URL, 0)
+	startAndCompleteAnalysis(t, s, analysisRunPreviewFor(t, s, AnalysisRunLimits{100, 30, 2}, nil))
+	c := s.analysisRun
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.run.Status = AnalysisRunInterrupted
+	stage := &c.run.Files[0].Stages[1]
+	stage.Status, stage.Attempts, stage.FindingCount, stage.ReportID, stage.Cached = AnalysisStageRunning, 2, nil, "", false
+	if s.recordAnalysisStageLocked(context.Background(), c.run.Identity, 0, 1, analysisFileStageResult{}, nil) {
+		t.Fatal("recorded a result into a stopped run")
+	}
+	if stage.Status != AnalysisStageInterrupted || stage.Attempts != 1 {
+		t.Fatalf("stage = %s with %d attempts", stage.Status, stage.Attempts)
+	}
+}

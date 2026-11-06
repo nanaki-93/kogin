@@ -70,9 +70,13 @@ func (s *Service) recordAnalysisStageLocked(ctx context.Context, identity Analys
 	}
 	if c.run.Status == AnalysisRunStale || c.run.Status == AnalysisRunCanceled || c.run.Status == AnalysisRunCanceling || c.run.Status == AnalysisRunInterrupted {
 		// Another lane stopped the run while this stage ran: it settles
-		// unfinished, so a resume or retry picks it up.
+		// unfinished, so a resume or retry picks it up, and gets back the
+		// attempt it was cut off in. That attempt did not fail; counting it
+		// would leave a stage exhausted after two interruptions it had no
+		// part in.
 		if current := &c.run.Files[fileIndex].Stages[stageIndex]; current.Status == AnalysisStageRunning {
 			current.Status, current.Reason = AnalysisStageInterrupted, "Analysis stopped before the stage completed."
+			current.Attempts = max(0, current.Attempts-1)
 			if c.run.Status == AnalysisRunCanceled || c.run.Status == AnalysisRunCanceling {
 				current.Status, current.Reason = AnalysisStageCanceled, "Analysis canceled by the user."
 			}

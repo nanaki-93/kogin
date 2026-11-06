@@ -628,7 +628,12 @@ must be saved before a successful result is published. A persistence failure sto
 the shared run. Session app/user namespaces stay inside that checkout, temporary
 state is not persisted, and partial streaming previews are not durable events.
 Each journal is bounded to 64 MiB, 4096 sessions, 8192 invocations and 2048 budget
-records. Corrupt, oversized or unknown-version data is preserved and rejected.
+records. Once it holds more than 128 sessions, finished invocations that belong
+to no task and wait for no input, together with their sessions, are dropped
+oldest first (only those finished more than ten minutes ago) until 64 remain;
+budgets, traces and progress events stay. Writers in one daemon take turns on
+the journal; the five-second lock timeout applies only to waiting for another
+process. Corrupt, oversized or unknown-version data is preserved and rejected.
 Opening a project reads records passively; it never resumes unfinished invocations
 or grants source-write, remote-provider, or execution consent.
 

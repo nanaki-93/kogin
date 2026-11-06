@@ -62,6 +62,11 @@ func (history *artifactHistory) validate() error {
 
 func (s *Store) withArtifacts(ctx context.Context, action func(context.Context, *artifactCatalog) error) (err error) {
 	parent := ctx
+	release, err := s.enterJournal(parent)
+	if err != nil {
+		return err
+	}
+	defer release()
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	lock, err := s.lock(ctx)

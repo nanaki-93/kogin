@@ -155,6 +155,11 @@ func (s *Store) mutateContext(ctx context.Context, authorize func() error, chang
 		return err
 	}
 	parent := ctx
+	release, err := s.enterJournal(parent)
+	if err != nil {
+		return err
+	}
+	defer release()
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	lock, err := s.lock(ctx)
@@ -174,11 +179,7 @@ func (s *Store) mutateContext(ctx context.Context, authorize func() error, chang
 		return err
 	}
 	now := time.Now().UTC()
-	for id, record := range catalog.Records {
-		if record.Key.Kind == "composition" && !record.ExpiresAt.After(now) {
-			delete(catalog.Records, id)
-		}
-	}
+	dropExpiredCompositions(catalog, now)
 	if err := change(catalog, now); err != nil {
 		return err
 	}
@@ -200,6 +201,14 @@ func (s *Store) mutateContext(ctx context.Context, authorize func() error, chang
 		return persistenceOperationError(parent, "save context cache", err)
 	}
 	return nil
+}
+
+func dropExpiredCompositions(catalog *contextCatalog, now time.Time) {
+	for id, record := range catalog.Records {
+		if record.Key.Kind == "composition" && !record.ExpiresAt.After(now) {
+			delete(catalog.Records, id)
+		}
+	}
 }
 
 // ClaimContext serializes paid work without retaining a lock across I/O. A

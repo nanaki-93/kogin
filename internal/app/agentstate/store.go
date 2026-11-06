@@ -263,6 +263,11 @@ func validJSON(data []byte) bool {
 
 func (s *Store) mutate(ctx context.Context, change func(*database) error) (err error) {
 	parent := ctx
+	release, err := s.enterJournal(parent)
+	if err != nil {
+		return err
+	}
+	defer release()
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if ctx.Err() != nil {
