@@ -33,9 +33,13 @@ type AnalysisWork struct {
 	FileHash   string `json:"file_hash"`
 }
 
+// AnalysisGraphInput is one window of analysis work. Lanes run side by side:
+// a file's stages stay in order on one lane, and files are dealt to the
+// lanes in turn, so up to Lanes stages run at once.
 type AnalysisGraphInput struct {
 	Snapshot AnalysisSnapshot `json:"snapshot"`
 	Work     []AnalysisWork   `json:"work"`
+	Lanes    int              `json:"lanes"`
 }
 
 type AnalysisOutcome struct {
@@ -56,6 +60,9 @@ type AnalysisGraphResult struct {
 
 type AnalysisHost func(context.Context, AnalysisWork) (AnalysisOutcome, error)
 
+// analysisResultKey carries a node's settled result on its finishing event.
+const analysisResultKey = "mini_orca.analysis_result"
+
 var analysisNodeStages = []string{"semantic", "performance", "security_rules", "security_ai"}
 
 // No SDK retry is enabled. Host stage errors stop dispatch; a recorded failed
@@ -65,29 +72,53 @@ func RunAnalysisGraph(ctx context.Context, input AnalysisGraphInput, host Analys
 		return AnalysisGraphResult{}, err
 	}
 	input.Work = slices.Clone(input.Work)
-	previous := workflow.Start
+	lanes := analysisLanes(input.Work, input.Lanes)
 	var edges []workflow.Edge
-	for i, work := range input.Work {
-		node := &analysisWorkNode{BaseNode: workflow.NewBaseNode(analysisNodeID(work), "", workflow.NodeConfig{}), work: work, last: i == len(input.Work)-1, host: host}
-		edge := workflow.Edge{From: previous, To: node}
-		if i > 0 {
-			edge.Route = workflow.StringRoute("continue")
+	for _, lane := range lanes {
+		previous := workflow.Start
+		for i, work := range lane {
+			node := &analysisWorkNode{BaseNode: workflow.NewBaseNode(analysisNodeID(work), "", workflow.NodeConfig{}), work: work, last: i == len(lane)-1, host: host}
+			edge := workflow.Edge{From: previous, To: node}
+			if i > 0 {
+				edge.Route = workflow.StringRoute("continue")
+			}
+			edges = append(edges, edge)
+			previous = node
 		}
-		edges = append(edges, edge)
-		previous = node
 	}
-	worker, err := graphAgent("project_analysis", edges, 1, nil)
+	worker, err := graphAgent("project_analysis", edges, len(lanes), nil)
 	if err != nil {
 		return AnalysisGraphResult{}, err
 	}
-	return runGraph(ctx, "analysis_graph", "analysis-graph-v1", input, analysisNodeStages, worker, func(ctx context.Context, events iter.Seq2[*session.Event, error]) (AnalysisGraphResult, error) {
-		return collectAnalysisGraph(ctx, events, input.Work)
+	return runGraph(ctx, "analysis_graph", "analysis-graph-v2", input, analysisNodeStages, worker, func(ctx context.Context, events iter.Seq2[*session.Event, error]) (AnalysisGraphResult, error) {
+		return collectAnalysisGraph(ctx, events, lanes)
 	})
 }
 
+// analysisLanes deals the window's files to at most lanes lanes in turn,
+// each file's stages together and in order.
+func analysisLanes(work []AnalysisWork, lanes int) [][]AnalysisWork {
+	files := 0
+	for i, item := range work {
+		if i == 0 || item.FileIndex != work[i-1].FileIndex {
+			files++
+		}
+	}
+	result := make([][]AnalysisWork, max(1, min(lanes, files)))
+	file := -1
+	for i, item := range work {
+		if i == 0 || item.FileIndex != work[i-1].FileIndex {
+			file++
+		}
+		lane := file % len(result)
+		result[lane] = append(result[lane], item)
+	}
+	return result
+}
+
 func validateAnalysisGraph(input AnalysisGraphInput, host AnalysisHost) error {
-	if host == nil || len(input.Work) == 0 || len(input.Work) > 2000 {
-		return fmt.Errorf("analysis graph requires a host and 1-2000 stage nodes")
+	if host == nil || len(input.Work) == 0 || len(input.Work) > 2000 || input.Lanes < 1 || input.Lanes > 32 {
+		return fmt.Errorf("analysis graph requires a host, 1-2000 stage nodes and 1-32 lanes")
 	}
 	s := input.Snapshot
 	if err := validateGraphLabels(s.ProjectID, s.ProjectRevision, s.RunID, s.Generation, s.QueueID, s.PolicyFingerprint, s.ProviderFingerprint); err != nil {
@@ -156,7 +187,9 @@ func (n *analysisWorkNode) Run(ctx agent.Context, _ any) iter.Seq2[*session.Even
 			next = "complete"
 		}
 		finished := session.NewEvent(ctx, ctx.InvocationID())
-		finished.Output = AnalysisNodeResult{Work: n.work, Status: outcome.Status, Next: next}
+		// The result travels as metadata, not output: lanes end on their own
+		// nodes, and a workflow may have at most one terminal output.
+		finished.CustomMetadata = map[string]any{analysisResultKey: AnalysisNodeResult{Work: n.work, Status: outcome.Status, Next: next}}
 		finished.Routes = []string{next}
 		yield(finished, nil)
 	}
@@ -172,9 +205,11 @@ func validateAnalysisOutcome(outcome AnalysisOutcome) error {
 	return fmt.Errorf("analysis host returned an unsettled stage")
 }
 
-func collectAnalysisGraph(ctx context.Context, events iter.Seq2[*session.Event, error], work []AnalysisWork) (AnalysisGraphResult, error) {
+// collectAnalysisGraph settles the window when every lane completed its
+// work or stopped; lanes interleave, a lane's stages arrive in its order.
+func collectAnalysisGraph(ctx context.Context, events iter.Seq2[*session.Event, error], lanes [][]AnalysisWork) (AnalysisGraphResult, error) {
 	var result AnalysisGraphResult
-	finished := false
+	progress := newLaneProgress(lanes)
 	for event, err := range events {
 		if err != nil {
 			return result, err
@@ -182,24 +217,57 @@ func collectAnalysisGraph(ctx context.Context, events iter.Seq2[*session.Event, 
 		if event == nil {
 			return result, fmt.Errorf("analysis graph returned an empty event")
 		}
-		if event.Output == nil {
+		value, settledNode := event.CustomMetadata[analysisResultKey]
+		if !settledNode {
 			continue
 		}
-		node, ok := event.Output.(AnalysisNodeResult)
-		if !ok || finished || len(result.Nodes) >= len(work) || node.Work != work[len(result.Nodes)] {
+		node, ok := value.(AnalysisNodeResult)
+		if !ok || !progress.settle(node) {
 			return result, fmt.Errorf("analysis graph returned an unexpected stage")
 		}
 		result.Nodes = append(result.Nodes, node)
-		result.Stopped = node.Next == "stop"
-		finished = result.Stopped || node.Next == "complete" && len(result.Nodes) == len(work)
+		result.Stopped = result.Stopped || node.Next == "stop"
 	}
 	if err := context.Cause(ctx); err != nil {
 		return result, err
 	}
-	if !finished {
+	if !progress.finished() {
 		return result, fmt.Errorf("analysis graph ended before settling its window")
 	}
 	return result, nil
+}
+
+// laneProgress follows how far each lane settled.
+type laneProgress struct {
+	lanes   [][]AnalysisWork
+	laneOf  map[int]int
+	settled []int
+	done    []bool
+}
+
+func newLaneProgress(lanes [][]AnalysisWork) *laneProgress {
+	progress := &laneProgress{lanes: lanes, laneOf: map[int]int{}, settled: make([]int, len(lanes)), done: make([]bool, len(lanes))}
+	for lane, work := range lanes {
+		for _, item := range work {
+			progress.laneOf[item.Ordinal] = lane
+		}
+	}
+	return progress
+}
+
+// settle records a node's result; false when it is not its lane's next node.
+func (p *laneProgress) settle(node AnalysisNodeResult) bool {
+	lane, known := p.laneOf[node.Work.Ordinal]
+	if !known || p.done[lane] || node.Work != p.lanes[lane][p.settled[lane]] {
+		return false
+	}
+	p.settled[lane]++
+	p.done[lane] = node.Next == "stop" || node.Next == "complete" && p.settled[lane] == len(p.lanes[lane])
+	return true
+}
+
+func (p *laneProgress) finished() bool {
+	return !slices.Contains(p.done, false)
 }
 
 func analysisNodeID(work AnalysisWork) string {

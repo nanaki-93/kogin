@@ -8,14 +8,17 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/nanaki-93/kogin/v2/internal/app/agentstate"
 )
 
 func analysisGraphFixture() AnalysisGraphInput {
-	input := AnalysisGraphInput{Snapshot: AnalysisSnapshot{ProjectID: "project", ProjectRevision: "revision", RunID: "analysis", Generation: "generation", QueueID: "queue", PolicyFingerprint: "policy", ProviderFingerprint: "provider"}}
+	input := AnalysisGraphInput{Snapshot: AnalysisSnapshot{ProjectID: "project", ProjectRevision: "revision", RunID: "analysis", Generation: "generation", QueueID: "queue", PolicyFingerprint: "policy", ProviderFingerprint: "provider"}, Lanes: 1}
 	for i, stage := range analysisNodeStages {
 		input.Work = append(input.Work, AnalysisWork{Ordinal: i, FileIndex: 7, StageIndex: i, Stage: stage, FileHash: "PRIVATE_SOURCE_HASH"})
 	}
@@ -39,7 +42,7 @@ func TestAnalysisGraphPersistsOrderedStagesAndTruthfulOutcomes(t *testing.T) {
 		t.Fatalf("window=%+v order=%+v err=%v", result, order, err)
 	}
 	history, err := store.History(t.Context())
-	if err != nil || len(history.Runs) != 1 || history.Runs[0].SchemaVersion != "analysis-graph-v1" {
+	if err != nil || len(history.Runs) != 1 || history.Runs[0].SchemaVersion != "analysis-graph-v2" {
 		t.Fatalf("history=%+v %v", history, err)
 	}
 	want := map[string]string{"analysis_0000_semantic": "completed", "analysis_0001_performance": "recorded", "analysis_0002_security_rules": "completed", "analysis_0003_security_ai": "failed"}
@@ -93,6 +96,8 @@ func TestAnalysisGraphRejectsInvalidAdmissionWithoutDispatch(t *testing.T) {
 		func(i *AnalysisGraphInput) { i.Work[1].FileHash = "other" },
 		func(i *AnalysisGraphInput) { i.Work[1].FileIndex = -1 },
 		func(i *AnalysisGraphInput) { i.Work[1].StageIndex = 4 },
+		func(i *AnalysisGraphInput) { i.Lanes = 0 },
+		func(i *AnalysisGraphInput) { i.Lanes = 33 },
 	} {
 		input := analysisGraphFixture()
 		alter(&input)
@@ -190,5 +195,79 @@ func TestAnalysisGraphJournalFailureStopsBeforeNextStage(t *testing.T) {
 	})
 	if calls != 1 || !errors.Is(err, agentstate.ErrPersistence) || !errors.Is(context.Cause(ctx), agentstate.ErrPersistence) {
 		t.Fatalf("journal failure continued: calls=%d err=%v", calls, err)
+	}
+}
+
+func TestAnalysisGraphRunsFilesOnLanesSideBySideWithEachFilesStagesInOrder(t *testing.T) {
+	ctx, _ := budgetContext(t, nil)
+	input := analysisGraphFixture()
+	input.Work = nil
+	for file := range 3 {
+		for i, stage := range analysisNodeStages[:2] {
+			input.Work = append(input.Work, AnalysisWork{Ordinal: len(input.Work), FileIndex: file, StageIndex: i, Stage: stage, FileHash: fmt.Sprintf("HASH_%d", file)})
+		}
+	}
+	input.Lanes = 2
+	var mu sync.Mutex
+	order := map[int][]string{}
+	active, peak := 0, 0
+	bothStarted := make(chan struct{})
+	var once sync.Once
+	result, err := RunAnalysisGraph(ctx, input, func(ctx context.Context, work AnalysisWork) (AnalysisOutcome, error) {
+		mu.Lock()
+		active++
+		peak = max(peak, active)
+		order[work.FileIndex] = append(order[work.FileIndex], work.Stage)
+		if active == 2 {
+			once.Do(func() { close(bothStarted) })
+		}
+		mu.Unlock()
+		select {
+		case <-bothStarted:
+		case <-time.After(2 * time.Second):
+		}
+		mu.Lock()
+		active--
+		mu.Unlock()
+		return AnalysisOutcome{Status: "completed", Continue: true}, nil
+	})
+	if err != nil || len(result.Nodes) != 6 || result.Stopped || peak != 2 {
+		t.Fatalf("result=%+v peak=%d err=%v", result, peak, err)
+	}
+	for file := range 3 {
+		if strings.Join(order[file], ",") != "semantic,performance" {
+			t.Fatalf("file %d stages ran as %v", file, order[file])
+		}
+	}
+	if lanes := analysisLanes(input.Work, 2); len(lanes) != 2 || lanes[0][0].FileIndex != 0 || lanes[1][0].FileIndex != 1 || lanes[0][2].FileIndex != 2 {
+		t.Fatalf("lanes = %+v", lanes)
+	}
+	if lanes := analysisLanes(input.Work[:2], 8); len(lanes) != 1 {
+		t.Fatalf("one file needs one lane: %+v", lanes)
+	}
+}
+
+func TestAnalysisGraphLaneStopLetsTheOtherLanesSettle(t *testing.T) {
+	ctx, _ := budgetContext(t, nil)
+	input := analysisGraphFixture()
+	input.Work = []AnalysisWork{
+		{Ordinal: 0, FileIndex: 0, StageIndex: 0, Stage: "semantic", FileHash: "A"},
+		{Ordinal: 1, FileIndex: 0, StageIndex: 1, Stage: "performance", FileHash: "A"},
+		{Ordinal: 2, FileIndex: 1, StageIndex: 0, Stage: "semantic", FileHash: "B"},
+	}
+	input.Lanes = 2
+	var mu sync.Mutex
+	var ran []int
+	result, err := RunAnalysisGraph(ctx, input, func(_ context.Context, work AnalysisWork) (AnalysisOutcome, error) {
+		mu.Lock()
+		ran = append(ran, work.Ordinal)
+		mu.Unlock()
+		if work.Ordinal == 0 {
+			return AnalysisOutcome{Status: "stopped"}, nil
+		}
+		return AnalysisOutcome{Status: "completed", Continue: true}, nil
+	})
+	if err != nil || !result.Stopped || len(result.Nodes) != 2 || slices.Contains(ran, 1) {
+		t.Fatalf("result=%+v ran=%v err=%v", result, ran, err)
 	}
 }

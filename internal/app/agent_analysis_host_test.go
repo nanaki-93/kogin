@@ -35,7 +35,7 @@ func TestAnalysisNativeWindowOwnsModelHistoryWithoutChangingEvidence(t *testing.
 	}
 	parent := ""
 	for _, invocation := range history.Runs {
-		if invocation.SchemaVersion == "analysis-graph-v1" {
+		if invocation.SchemaVersion == "analysis-graph-v2" {
 			parent = invocation.ID
 			session, err := store.Session(t.Context(), invocation.Session)
 			if err != nil {
@@ -98,7 +98,7 @@ func TestAnalysisNativeCancellationPreservesCanceledDomainState(t *testing.T) {
 	history, _ := agentJournalHistory(t, s)
 	id := ""
 	for _, run := range history.Runs {
-		if run.SchemaVersion == "analysis-graph-v1" && run.ParentID == "" && run.Status == "running" {
+		if run.SchemaVersion == "analysis-graph-v2" && run.ParentID == "" && run.Status == "running" {
 			id = run.ID
 		}
 	}

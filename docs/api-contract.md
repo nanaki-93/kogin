@@ -429,7 +429,17 @@ eligible file the scope does not select stays in `files` with `retained: true`
 and `max_model_requests: 0` on each stage: stages with a current saved report
 are read back from it, and the others keep their earlier outcome in `carried`
 (`failed`, `stale`, `skipped` for never-analyzed, `canceled` or `unavailable`)
-with its reason. Retained files are never dispatched.
+with its reason. Retained files are never dispatched. A retry does not redo a stage an
+interrupted or canceled run never reached when that stage's saved report is
+still usable; stages that failed or went stale, and the stages of a run that
+ignored saved reports (`refresh`), are redone.
+
+A window analyzes files side by side on up to `max_concurrent_calls` lanes
+(at most eight): files are dealt to the lanes in turn and each file's stages
+run in order on its lane. A lane that stops (pause, cancel, budget) stops
+only its own next dispatch; stages already running on other lanes settle,
+and any still running when the run stops are saved as interrupted or
+canceled. The ADK graph schema is `analysis-graph-v2`.
 
 In every run, each stage the plan reuses (`cached: true`) is settled from its
 saved report when the run is admitted: it is reported completed (with

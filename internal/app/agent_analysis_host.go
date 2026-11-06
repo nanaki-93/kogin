@@ -38,6 +38,7 @@ func (s *Service) runAnalysisFiles(ctx context.Context, identity AnalysisRunIden
 		return
 	}
 	input := captureAnalysisGraph(c.run)
+	input.Lanes = analysisLaneCount(s.admittedRuntime(ctx).Limits.ConcurrentCalls)
 	c.mu.Unlock()
 	if len(input.Work) == 0 {
 		s.finishAnalysisGraph(ctx, identity, nil)
@@ -65,11 +66,32 @@ func (s *Service) runAnalysisGraphNode(ctx context.Context, identity AnalysisRun
 	if err := context.Cause(ctx); err != nil {
 		return agentruntime.AnalysisOutcome{}, err
 	}
-	i, j, found := nextAnalysisStage(c.run)
-	if !found || i != work.FileIndex || j != work.StageIndex || c.run.Files[i].ContentHash != work.FileHash || string(c.run.Files[i].Stages[j].Stage) != work.Stage {
+	i, j := work.FileIndex, work.StageIndex
+	if !analysisStageReady(c.run, i, j) || c.run.Files[i].ContentHash != work.FileHash || string(c.run.Files[i].Stages[j].Stage) != work.Stage {
 		return agentruntime.AnalysisOutcome{}, project.ErrRevisionConflict
 	}
 	return s.executeAnalysisGraphStageLocked(ctx, identity, i, j)
+}
+
+// analysisLaneCount is how many files a window analyzes at once: the agent
+// runtime's concurrent model calls, at most eight.
+func analysisLaneCount(concurrent int) int {
+	return min(max(1, concurrent), 8)
+}
+
+// analysisStageReady reports a stage that needs work after every earlier
+// stage of its file is settled: lanes run files side by side, a file's
+// stages in order.
+func analysisStageReady(run *AnalysisRun, i, j int) bool {
+	if i < 0 || i >= len(run.Files) || j < 0 || j >= len(run.Files[i].Stages) || !analysisStageNeedsWork(run.Files[i].Stages[j].Status) {
+		return false
+	}
+	for _, earlier := range run.Files[i].Stages[:j] {
+		if analysisStageNeedsWork(earlier.Status) {
+			return false
+		}
+	}
+	return true
 }
 
 // The controller owns admission and publication. ADK receives the settled stage

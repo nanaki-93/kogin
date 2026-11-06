@@ -235,12 +235,24 @@ func (s *Service) planAnalysisRetryFile(mode analysisScopedSelection, analysis p
 			continue
 		}
 		status := s.analysisSelectionStageForModels(analysis, indexed, policy, stage.Stage, evidence, models).Status
-		if mode.selects(status, s.analysisStageConfigured(stage.Stage, models)) {
+		if mode.selects(status, s.analysisStageConfigured(stage.Stage, models)) && !s.unreachedWithSavedReport(analysis, indexed, policy, stage.Stage, status, evidence, models) {
 			include = true
 			s.planAnalysisRetryStage(stage, limits, models)
 		}
 	}
 	return include
+}
+
+// unreachedWithSavedReport reports a stage an interrupted or canceled run
+// never reached while its file has a usable saved report: retrying would
+// only make the same report again. A run that was asked to ignore saved
+// reports (Analyze again) still redoes it.
+func (s *Service) unreachedWithSavedReport(analysis project.Analysis, file project.IndexFile, policy *project.ContextPolicy, stage AnalysisStage, status string, evidence analysisSelectionEvidence, models *AnalysisModels) bool {
+	if status != "interrupted" && status != "canceled" || evidence.run != nil && evidence.run.Plan.Refresh {
+		return false
+	}
+	cached, cacheStatus, _, err := s.analysisStageCacheState(analysis, file, policy, stage, models)
+	return err == nil && cached && cacheStatus != "partial"
 }
 
 func (s *Service) planAnalysisRetryStage(stage *AnalysisStagePlan, limits AnalysisRunLimits, models *AnalysisModels) {

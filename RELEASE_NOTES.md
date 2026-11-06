@@ -7,6 +7,12 @@ Kogin was called Mini-Orca until v6 (and Kasuri for part of v6 development); the
 Version 6 starts from the stable v5.0.0 tag on the `v6` branch. Its changes
 are listed here as they land.
 
+- **Faster analysis.** A project analysis runs up to `max_concurrent_calls`
+  files at once (default 4, at most 8) instead of one model call at a time;
+  each file's stages still run in order. **Retry** after an interrupted or
+  canceled run no longer analyzes again the files whose saved results are
+  still current: on pwd-manager it redid about 100 files after a restart.
+
 - **A finish line instead of an endless list.** A project profile (Settings →
   Profile) says what the project is: personal, team, open source or
   enterprise, its purpose and shape, the platforms it runs on, a security

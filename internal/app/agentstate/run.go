@@ -119,7 +119,7 @@ func validRunOwner(run Run) bool {
 
 func validRunSchema(version string) bool {
 	switch version {
-	case "completion-v1", "investigation-v1", "change-graph-v1", "review-graph-v1", "repair-graph-v1", "confirmation-v1", "analysis-graph-v1", "knowledge-graph-v1", "grounding-v1", "delegation-v1", "mission-graph-v1", "multimodal-v1", "live-v1":
+	case "completion-v1", "investigation-v1", "change-graph-v1", "review-graph-v1", "repair-graph-v1", "confirmation-v1", "analysis-graph-v1", "analysis-graph-v2", "knowledge-graph-v1", "grounding-v1", "delegation-v1", "mission-graph-v1", "multimodal-v1", "live-v1":
 		return true
 	default:
 		return false

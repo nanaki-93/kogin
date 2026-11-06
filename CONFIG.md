@@ -321,6 +321,9 @@ agent_runtime:
 
 Model calls, tokens, concurrency and elapsed time are shared by child stages and
 provider retries within an admitted workflow or analysis execution window.
+Project analysis runs that many files at once (at most eight), so
+`max_concurrent_calls` is also how fast an analysis goes; lower it when a
+provider rate-limits you.
 Standalone operations receive their own budget. Existing scope deadlines and
 analysis attempt allowances still apply; the first exhausted limit stops work.
 Limits are positive; omitted or zero values use the displayed defaults, except

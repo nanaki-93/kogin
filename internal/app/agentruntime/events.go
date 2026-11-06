@@ -106,7 +106,7 @@ func projectEvent(event *session.Event, key agentstate.Key) *agentstate.NodeProg
 	case event.Output != nil || event.TurnComplete:
 		progress.State = "completed"
 	}
-	if result, ok := event.Output.(AnalysisNodeResult); ok {
+	if result, ok := event.CustomMetadata[analysisResultKey].(AnalysisNodeResult); ok {
 		progress.State = analysisProgressState(result.Status)
 	}
 	if result, ok := event.Output.(KnowledgeOutcome); ok {
