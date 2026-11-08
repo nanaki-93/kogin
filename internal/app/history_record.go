@@ -105,9 +105,13 @@ func historyRun(session *ChangeSession) *history.Run {
 	}
 	run := &history.Run{ID: w.ID, Attempt: w.Attempt, Status: w.Status, Failure: history.Categorize(w.Status, w.Reason),
 		Reason: textutil.Truncate(w.Reason, maxHistoryReason), StartedAt: w.StartedAt, UpdatedAt: w.UpdatedAt}
+	if w.PlanStage != nil {
+		run.Stages = append(run.Stages, historyStage(*w.PlanStage))
+	}
 	for _, stage := range w.Stages {
 		run.Stages = append(run.Stages, historyStage(stage))
 	}
+	run.Plan = historyPlan(session)
 	for _, issue := range session.Issues {
 		run.Issues = append(run.Issues, history.IssueStep{FindingID: issue.FindingID, Path: issue.Path, Title: issue.Title, Status: issue.Status, Reason: textutil.Truncate(issue.Reason, maxHistoryReason), Commit: issue.Commit})
 	}
@@ -126,6 +130,21 @@ func historyRun(session *ChangeSession) *history.Run {
 
 // maxHistoryReason bounds the reasons the history keeps.
 const maxHistoryReason = 1024
+
+// historyPlan is the plan the investigation proposed for the task, when one
+// did; plans the user wrote at creation are part of the task, not a run.
+func historyPlan(session *ChangeSession) *history.Plan {
+	plan := session.Plan
+	if plan == nil || plan.Source != planSourceInvestigator {
+		return nil
+	}
+	recorded := &history.Plan{Hash: plan.Hash, Source: plan.Source, Model: plan.Model, Approved: plan.ApprovedHash != "" && plan.ApprovedHash == plan.Hash,
+		Problem: textutil.Truncate(plan.Problem, maxHistoryReason), RootCause: textutil.Truncate(plan.RootCause, maxHistoryReason), Approach: textutil.Truncate(plan.Approach, maxHistoryReason), InvestigatedAt: plan.InvestigatedAt}
+	for _, verdict := range plan.IssueVerdicts {
+		recorded.Verdicts = append(recorded.Verdicts, history.PlanVerdict{FindingID: verdict.FindingID, Verdict: verdict.Verdict, Note: verdict.Note})
+	}
+	return recorded
+}
 
 func historyStage(stage ChangeWorkflowStage) history.Stage {
 	recorded := history.Stage{Name: stage.Name, Status: stage.Status, Failure: history.Categorize(stage.Status, stage.Reason), Reason: textutil.Truncate(stage.Reason, maxHistoryReason), StartedAt: stage.StartedAt, FinishedAt: stage.FinishedAt}

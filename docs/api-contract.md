@@ -985,7 +985,19 @@ run proceeds (the investigation is skipped and `plan_stage` carried over);
 starting it with `plan_redirect` (at most 2000 bytes) runs the investigation
 again with the note and the previous plan in its prompt, needing no
 `plan_hash`. An unapproved investigator plan blocks generation like any
-unapproved plan. The gate never runs for `instructions` tasks, tasks without
+unapproved plan. Approving a plan also accepts its issue verdicts: when the
+approved run reaches the creation stage of a task that fixes issues one at a
+time, issues whose verdict is `already_fixed`, `does_not_hold` or
+`needs_own_task` are settled before any step runs (with the plan's note as
+the reason, following the same rules as a step that ends that way), so no
+coding run is spent on them; an issue that `holds` carries the plan's note in
+its step's request. The coding and testing agents' prompts carry the approved
+plan (problem, root cause, cited lines, approach, touches, risks), and the
+reviewers are told a change that diverges from the approved approach without
+the code requiring it is a finding. The history (`.kogin/kogin.db`, schema 2)
+records each run's investigator plan in a `plans` table: hash, source, model,
+approved, problem, root cause, approach, verdicts as JSON and when it was
+investigated; a version-1 history upgrades in place. The gate never runs for `instructions` tasks, tasks without
 their own worktree or acceptance criteria, resumed starts (`test`, `checks`,
 `review`), tasks that already have a proposal, or creation models without
 agent runs.

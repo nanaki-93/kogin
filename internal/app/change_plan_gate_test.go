@@ -102,7 +102,7 @@ func TestThePlanGateInvestigatesAndWaitsForTheHumansApproval(t *testing.T) {
 		t.Fatalf("the approved run lost the investigation: %+v", finished.Workflow.PlanStage)
 	}
 	coder := fakePiLog(t, flow.dir, "coder")
-	if !strings.Contains(coder.Prompt, "Approved approach: Add Sub(a, b) beside Add") {
+	if !strings.Contains(coder.Prompt, "The human approved this plan; follow it") || !strings.Contains(coder.Prompt, "Approach: Add Sub(a, b) beside Add") || !strings.Contains(coder.Prompt, "Root cause: The package only defines Add") {
 		t.Fatalf("coder prompt = %q", coder.Prompt)
 	}
 }
@@ -155,5 +155,63 @@ func TestACitationThatDoesNotCheckIsReturnedToTheInvestigator(t *testing.T) {
 	record := fakePiLog(t, flow.dir, "investigator")
 	if len(record.Results) < 3 || !strings.Contains(record.Results[1], "do not contain the quote") {
 		t.Fatalf("investigator results = %+v", record.Results)
+	}
+}
+
+// groupedInvestigatorScript proposes a plan for a three-issue task: the first
+// holds, the second does not, the third is already fixed.
+func groupedInvestigatorScript() []fakePiStep {
+	steps := investigatorScript()
+	steps[1].Arguments["issues"] = []map[string]any{
+		{"issue": 1, "verdict": "holds", "note": "Sub is still missing from calc.go."},
+		{"issue": 2, "verdict": "does_not_hold", "note": "Add cannot overflow for the int inputs this project uses."},
+		{"issue": 3, "verdict": "already_fixed", "note": "The current code already clamps the result."},
+	}
+	return steps
+}
+
+func TestApprovedPlanVerdictsSettleIssuesBeforeAnyStepRuns(t *testing.T) {
+	coder := []fakePiStep{
+		{Tool: "edit_file", Arguments: map[string]any{"path": "calc.go", "old_text": stepAddSource, "new_text": stepSubSource}},
+		{Tool: "create_file", Arguments: map[string]any{"path": "calc_sub_test.go", "content": toolSubTest}},
+		{Tool: "finish", Arguments: map[string]any{"summary": "Added Sub and its test."}},
+		{Text: "Done."},
+	}
+	tester := []fakePiStep{
+		{Tool: "finish", Arguments: map[string]any{"summary": "The fix's test covers the criterion."}},
+		{Text: "Done."},
+	}
+	scripts := map[string][]fakePiStep{"investigator": groupedInvestigatorScript(), "coder": coder, "tester": tester}
+	flow := startToolFlowScripts(t, scripts, nil, stepIssues("Sub is missing", "Add ignores overflow", "Add result is unclamped"), func(request *ChangeWorkflowRequest) { request.Plan = "on" })
+	waiting := flow.finished(t)
+	if waiting.Workflow.Status != "awaiting_plan_review" || len(waiting.Plan.IssueVerdicts) != 3 {
+		t.Fatalf("workflow = %s (%s), plan %+v", waiting.Workflow.Status, waiting.Workflow.Reason, waiting.Plan)
+	}
+	approved := flow.request
+	approved.ChangeIdentity, approved.Plan, approved.PlanHash = changeIdentity(waiting), "on", waiting.Plan.Hash
+	if _, err := flow.service.StartChangeWorkflow(context.Background(), flow.id, approved); err != nil {
+		t.Fatal(err)
+	}
+	finished := flow.finished(t)
+	if finished.Workflow.Status != "awaiting_human_review" {
+		t.Fatalf("approved run = %s (%s)", finished.Workflow.Status, finished.Workflow.Reason)
+	}
+	// Only the issue that holds got a coding step and a commit.
+	if first := finished.Issues[0]; first.Status != IssueFixed || first.Commit == "" {
+		t.Fatalf("issue 1 = %+v", first)
+	}
+	if second := finished.Issues[1]; second.Status != IssueDoesNotHold || !strings.Contains(second.Reason, "Add cannot overflow") {
+		t.Fatalf("issue 2 = %+v", second)
+	}
+	if third := finished.Issues[2]; third.Status != IssueDoesNotHold || !strings.Contains(third.Reason, "Already fixed before this task") {
+		t.Fatalf("issue 3 = %+v", third)
+	}
+	if len(finished.DismissedTargets) != 2 {
+		t.Fatalf("dismissed = %+v", finished.DismissedTargets)
+	}
+	// The step's prompt carried the plan's note for the issue that holds.
+	coderRun := fakePiLog(t, flow.dir, "coder")
+	if !strings.Contains(coderRun.Prompt, "The approved plan checked this issue against the code and it holds: Sub is still missing") {
+		t.Fatalf("coder prompt = %q", coderRun.Prompt)
 	}
 }

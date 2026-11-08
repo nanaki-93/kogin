@@ -26,7 +26,7 @@ import (
 const FileName = "kogin.db"
 
 // schemaVersion is the history's schema; a newer one is refused.
-const schemaVersion = 1
+const schemaVersion = 2
 
 // Store is one project's history, open until Close.
 type Store struct {
@@ -92,9 +92,18 @@ func (s *Store) migrate(ctx context.Context) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	for _, statement := range schema {
-		if _, err := tx.ExecContext(ctx, statement); err != nil {
-			return fmt.Errorf("create history: %w", err)
+	if version < 1 {
+		for _, statement := range schema {
+			if _, err := tx.ExecContext(ctx, statement); err != nil {
+				return fmt.Errorf("create history: %w", err)
+			}
+		}
+	}
+	if version < 2 {
+		for _, statement := range schemaV2 {
+			if _, err := tx.ExecContext(ctx, statement); err != nil {
+				return fmt.Errorf("upgrade history: %w", err)
+			}
 		}
 	}
 	if _, err := tx.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version = %d", schemaVersion)); err != nil {
@@ -176,6 +185,23 @@ var schema = []string{
 	)`,
 	`CREATE INDEX runs_task ON runs(task_id)`,
 	`CREATE INDEX review_items_kind ON review_items(kind, path)`,
+}
+
+// schemaV2 adds the plan the investigation proposed for a run: what it said,
+// whether the human approved it, and its issue verdicts as JSON.
+var schemaV2 = []string{
+	`CREATE TABLE plans (
+		run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
+		hash TEXT NOT NULL,
+		source TEXT NOT NULL DEFAULT '',
+		model TEXT NOT NULL DEFAULT '',
+		approved INTEGER NOT NULL DEFAULT 0,
+		problem TEXT NOT NULL DEFAULT '',
+		root_cause TEXT NOT NULL DEFAULT '',
+		approach TEXT NOT NULL DEFAULT '',
+		verdicts TEXT NOT NULL DEFAULT '',
+		investigated_at TEXT NOT NULL DEFAULT ''
+	)`,
 }
 
 // stamp writes a time as the history stores it; the zero time is empty.

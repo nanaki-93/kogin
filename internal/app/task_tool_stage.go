@@ -159,7 +159,9 @@ func toolTaskPrompt(root string, session *ChangeSession, role toolRole, message,
 		}
 	}
 	prompt.WriteString(leftOutBrief(session))
-	if session.Plan != nil {
+	if brief := approvedPlanTaskBrief(session); brief != "" {
+		prompt.WriteString(brief)
+	} else if session.Plan != nil {
 		if plan := strings.TrimSpace(session.Plan.Approach); plan != "" {
 			prompt.WriteString("\nApproved approach: " + plan + "\n")
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -105,5 +106,45 @@ func TestFailuresFallIntoFixedCategories(t *testing.T) {
 		if got := Categorize(test.status, test.reason); got != test.want {
 			t.Fatalf("%s %q = %q, want %q", test.status, test.reason, got, test.want)
 		}
+	}
+}
+
+func TestAPlanIsRecordedWithItsRunAndAVersion1HistoryIsUpgraded(t *testing.T) {
+	dir := t.TempDir()
+	store, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A version-1 history (no plans table) upgrades in place on open.
+	if _, err := store.db.Exec("DROP TABLE plans; PRAGMA user_version = 1"); err != nil {
+		t.Fatal(err)
+	}
+	_ = store.Close()
+	store, err = Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	ctx := context.Background()
+	now := time.Date(2026, 11, 9, 9, 0, 0, 0, time.UTC)
+	task := Task{ID: "change-2", ProjectID: "p", Kind: "fix", Title: "Fix 3 issues", CreatedAt: now, UpdatedAt: now}
+	run := Run{ID: "change-2-1", Attempt: 1, Status: "awaiting_plan_review", StartedAt: now, UpdatedAt: now,
+		Plan: &Plan{Hash: "plan-1", Source: "investigator", Model: "m", Problem: "Sub is missing.", RootCause: "Nothing defines Sub.", Approach: "Add Sub.",
+			Verdicts: []PlanVerdict{{FindingID: "f1", Verdict: "holds"}, {FindingID: "f2", Verdict: "does_not_hold", Note: "No overflow."}}, InvestigatedAt: now}}
+	if err := store.Record(ctx, task, &run); err != nil {
+		t.Fatal(err)
+	}
+	// The approved plan replaces the unapproved one for the same run.
+	run.Plan.Approved = true
+	if err := store.Record(ctx, task, &run); err != nil {
+		t.Fatal(err)
+	}
+	var plans, approved int
+	var verdicts string
+	if err := store.db.QueryRow("SELECT COUNT(*), MAX(approved), MAX(verdicts) FROM plans").Scan(&plans, &approved, &verdicts); err != nil || plans != 1 || approved != 1 {
+		t.Fatalf("plans %d approved %d, %v", plans, approved, err)
+	}
+	if verdicts == "" || !strings.Contains(verdicts, "does_not_hold") {
+		t.Fatalf("verdicts = %q", verdicts)
 	}
 }

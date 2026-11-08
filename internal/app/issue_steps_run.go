@@ -75,8 +75,13 @@ func (s *Service) runStageOrIssueSteps(ctx context.Context, job *changeWorkflowJ
 }
 
 // runIssueSteps is the creation stage of a task that fixes its issues one at
-// a time: every issue not yet tried gets its step, in order.
+// a time: every issue not yet tried gets its step, in order. Issues the
+// approved plan already settled get no step.
 func (s *Service) runIssueSteps(ctx context.Context, job *changeWorkflowJob, session *ChangeSession, runtime modelRuntime) (*ChangeSession, error) {
+	session, err := s.applyPlanVerdicts(ctx, job, session)
+	if err != nil {
+		return nil, err
+	}
 	for index := nextIssue(session); index >= 0; index = nextIssue(session) {
 		// A step would fix the issue in code the main branch has since replaced.
 		if err := s.requireMainUnchanged(ctx, job.root, session); err != nil {
@@ -95,6 +100,61 @@ func (s *Service) runIssueSteps(ctx context.Context, job *changeWorkflowJob, ses
 		return nil, &issueStepsFailedError{count: len(session.Issues)}
 	}
 	return session, nil
+}
+
+// applyPlanVerdicts settles, before any step runs, the pending issues whose
+// approved plan verdict says they need no fix in this task: already fixed,
+// do not hold, or need a task of their own. The human accepted the verdicts
+// by approving the plan, so no coding run is spent on them.
+func (s *Service) applyPlanVerdicts(ctx context.Context, job *changeWorkflowJob, session *ChangeSession) (*ChangeSession, error) {
+	plan := approvedInvestigatorPlan(session)
+	if plan == nil || len(plan.IssueVerdicts) == 0 {
+		return session, nil
+	}
+	verdicts := map[string]PlanIssueVerdict{}
+	for _, verdict := range plan.IssueVerdicts {
+		verdicts[verdict.FindingID] = verdict
+	}
+	for index := range session.Issues {
+		issue := session.Issues[index]
+		verdict, settled := verdicts[issue.FindingID]
+		if !settled || issue.Status != IssuePending || verdict.Verdict == planVerdictHolds {
+			continue
+		}
+		step := &issueStepError{reason: "The approved plan settled it: " + verdict.Note}
+		switch verdict.Verdict {
+		case outcomeAlreadyFixed, outcomeDoesNotHold:
+			step.outcome = verdict.Verdict
+		case outcomeNeedsOwnTask:
+			step.reason = "The fix needs code this task may not change: " + verdict.Note
+		}
+		next, err := s.updateIssueStep(ctx, job, session, func(current *ChangeSession) error {
+			if index >= len(current.Issues) || current.Issues[index].FindingID != issue.FindingID || current.Issues[index].Status != IssuePending {
+				return nil
+			}
+			settleIssueStep(current, index, step)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		session = next
+	}
+	return session, nil
+}
+
+// planVerdictNote is what the approved plan said about one issue that holds.
+func planVerdictNote(session *ChangeSession, findingID string) string {
+	plan := approvedInvestigatorPlan(session)
+	if plan == nil {
+		return ""
+	}
+	for _, verdict := range plan.IssueVerdicts {
+		if verdict.FindingID == findingID && verdict.Verdict == planVerdictHolds && verdict.Note != "" {
+			return verdict.Note
+		}
+	}
+	return ""
 }
 
 // runIssueStep fixes one issue: a coding run with only that issue, the
@@ -261,6 +321,9 @@ func issueStepMessage(session *ChangeSession, index int) string {
 	message.WriteString("Check it against the code first. If it does not hold, change nothing and finish with outcome does_not_hold, saying why. If an earlier step of this task, or the code as it is, already fixes it, change nothing and finish with outcome already_fixed. A finish that changed nothing without one of these is refused. ")
 	message.WriteString("Otherwise make the smallest change that fixes it, add a regression test that fails without the fix, run the checks and finish with outcome fixed. ")
 	message.WriteString("When the fix needs code outside this task's folders that its code imports, ask for those files with widen_scope and fix it there; when that is refused, change nothing and finish with outcome needs_own_task.")
+	if note := planVerdictNote(session, issue.FindingID); note != "" {
+		message.WriteString("\n\nThe approved plan checked this issue against the code and it holds: " + note)
+	}
 	if len(issue.Criteria) > 0 {
 		message.WriteString("\n\nDone when:")
 		for _, criterion := range issue.Criteria {

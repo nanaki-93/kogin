@@ -333,6 +333,36 @@ func planBrief(plan *ChangePlan, limit int) string {
 	return brief.String()
 }
 
+// approvedInvestigatorPlan is the plan the human approved for the task, when
+// the investigation proposed it and it still matches the task.
+func approvedInvestigatorPlan(session *ChangeSession) *ChangePlan {
+	plan := session.Plan
+	if plan == nil || plan.Source != planSourceInvestigator || plan.ApprovedHash == "" || plan.ApprovedHash != plan.Hash {
+		return nil
+	}
+	return plan
+}
+
+// approvedPlanReviewBrief tells the reviewers which plan the human approved,
+// so a change that strays from it without need is a finding.
+func approvedPlanReviewBrief(session *ChangeSession) string {
+	plan := approvedInvestigatorPlan(session)
+	if plan == nil {
+		return ""
+	}
+	return "\n\nThe human approved this plan before the change was written:\n" + planBrief(plan, 400) +
+		"\nA change that diverges from the approved approach without the code requiring it is a finding; say what diverged.\n"
+}
+
+// approvedPlanTaskBrief is the plan as the coding and testing agents read it.
+func approvedPlanTaskBrief(session *ChangeSession) string {
+	plan := approvedInvestigatorPlan(session)
+	if plan == nil {
+		return ""
+	}
+	return "\nThe human approved this plan; follow it, and say so in finish when the code forces a different approach:\n" + planBrief(plan, 400) + "\n"
+}
+
 // investigationReport is the conversation's record of an investigation.
 func investigationReport(plan *ChangePlanInput, tools *ChangeStageTools) string {
 	report := "Proposed a plan: " + textutil.FirstSentence(plan.Problem, 200)

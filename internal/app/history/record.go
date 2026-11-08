@@ -3,6 +3,7 @@ package history
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -29,6 +30,22 @@ type Run struct {
 	Issues                  []IssueStep
 	Review                  []ReviewItem
 	Checks                  []Check
+	// Plan is the plan the investigation proposed for the run, when one did.
+	Plan *Plan
+}
+
+// Plan is what a run's investigation proposed and whether it was approved.
+type Plan struct {
+	Hash, Source, Model          string
+	Problem, RootCause, Approach string
+	Approved                     bool
+	Verdicts                     []PlanVerdict
+	InvestigatedAt               time.Time
+}
+
+// PlanVerdict is what the investigation found for one linked issue.
+type PlanVerdict struct {
+	FindingID, Verdict, Note string
 }
 
 // Stage is one stage of a run.
@@ -100,10 +117,13 @@ func recordRun(ctx context.Context, tx *sql.Tx, taskID string, run Run) error {
 		run.ID, taskID, run.Attempt, run.Status, run.Failure, run.Reason, stamp(run.StartedAt), stamp(run.UpdatedAt)); err != nil {
 		return fmt.Errorf("record run: %w", err)
 	}
-	for _, table := range []string{"stages", "issue_steps", "review_items", "checks"} {
+	for _, table := range []string{"stages", "issue_steps", "review_items", "checks", "plans"} {
 		if _, err := tx.ExecContext(ctx, "DELETE FROM "+table+" WHERE run_id = ?", run.ID); err != nil {
 			return fmt.Errorf("replace %s: %w", table, err)
 		}
+	}
+	if err := recordPlan(ctx, tx, run.ID, run.Plan); err != nil {
+		return err
 	}
 	for i, stage := range run.Stages {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO stages (run_id, position, name, status, failure, reason, started_at, finished_at, model, provider, model_calls, tool_calls, input_tokens, output_tokens)
@@ -129,6 +149,26 @@ func recordRun(ctx context.Context, tx *sql.Tx, taskID string, run Run) error {
 			run.ID, check.ProposalHash, check.Name, check.Required, check.State, check.Outcome, check.DurationMS); err != nil {
 			return fmt.Errorf("record check: %w", err)
 		}
+	}
+	return nil
+}
+
+// recordPlan writes the plan a run's investigation proposed, when one did.
+func recordPlan(ctx context.Context, tx *sql.Tx, runID string, plan *Plan) error {
+	if plan == nil {
+		return nil
+	}
+	verdicts := ""
+	if len(plan.Verdicts) > 0 {
+		data, err := json.Marshal(plan.Verdicts)
+		if err != nil {
+			return fmt.Errorf("record plan verdicts: %w", err)
+		}
+		verdicts = string(data)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO plans (run_id, hash, source, model, approved, problem, root_cause, approach, verdicts, investigated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		runID, plan.Hash, plan.Source, plan.Model, plan.Approved, plan.Problem, plan.RootCause, plan.Approach, verdicts, stamp(plan.InvestigatedAt)); err != nil {
+		return fmt.Errorf("record plan: %w", err)
 	}
 	return nil
 }
