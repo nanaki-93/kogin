@@ -310,4 +310,8 @@ export interface WalkthroughNote {
   goal?: number;
   problem: string;
   how?: string;
+  /** The hunk's part in the change's story. */
+  kind?: 'cause' | 'fix' | 'support' | 'test' | string;
+  /** The 1-based order a reviewer follows across all files; 0 or absent reads after the ordered hunks. */
+  step?: number;
 }

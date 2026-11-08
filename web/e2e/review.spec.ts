@@ -2,7 +2,7 @@
 // a commit on the task's branch in one step, with the review gate tracking each step.
 
 import { expect, test } from './support/daemon';
-import { agentSettings, pausedTask, planReadyTask, rejectedTask, reviewTask, stageModel } from './support/fixtures';
+import { agentSettings, guidedReviewTask, pausedTask, planReadyTask, rejectedTask, reviewTask, stageModel } from './support/fixtures';
 
 test('reviews the files, then accepts and commits in one step', async ({ page, daemon }) => {
   await page.goto('/#/tasks/chg-1');
@@ -695,4 +695,24 @@ test('redirecting the plan runs the investigation again with the note', async ({
   const body = daemon.mutations('/workflow')[0].body as Record<string, unknown>;
   expect(body.plan_redirect).toBe('Keep the 500 for nested paths; only missing assets become 404.');
   expect(body.plan_hash).toBeUndefined();
+});
+
+test('a guided review walks the hunks in causal order with the plan threading through', async ({ page, daemon }) => {
+  daemon.sessions.set('chg-1', guidedReviewTask());
+  await page.goto('/#/tasks/chg-1/files');
+  const pane = page.getByRole('complementary', { name: 'This hunk' });
+  // Step 1 is the fix, wherever it sits in the file list, with the plan's problem above.
+  await expect(pane).toContainText('Step 1 of 3');
+  await expect(pane).toContainText('Fix');
+  await expect(pane).toContainText('Fixing: Nested asset paths return 500 instead of 404.');
+  await expect(page.locator('.fc-diff-head')).toContainText('webui.go');
+  // The next step is the supporting change in another file, then the proof.
+  await page.keyboard.press('j');
+  await expect(pane).toContainText('Step 2 of 3');
+  await expect(pane).toContainText('Supports the fix');
+  await expect(page.locator('.fc-diff-head')).toContainText('mime.go');
+  await page.keyboard.press('j');
+  await expect(pane).toContainText('Step 3 of 3');
+  await expect(pane).toContainText('Proof');
+  await expect(page.locator('.fc-diff-head')).toContainText('webui_test.go');
 });

@@ -416,6 +416,16 @@
   background: var(--bg-sunken);
 }
 
+/* The problem the approved plan named, threading through a guided review. */
+.hunk-plan {
+  display: -webkit-box;
+  overflow: hidden;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
 .hunk-count {
   display: flex;
   align-items: center;

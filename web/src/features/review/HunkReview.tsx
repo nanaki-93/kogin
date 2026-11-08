@@ -10,11 +10,11 @@ import { useActions } from '@/app/actions';
 import { usePageKeys } from '@/app/shortcuts';
 import type { DiffLayout } from '@/app/store';
 import { noteStart } from '@/lib/diff';
-import { hunkAnchor, hunkHasLine, hunkKey, loadVerdicts, reviewHunks, saveVerdicts, type Hunk } from '@/lib/hunks';
+import { guidedHunks, HUNK_KINDS, hunkAnchor, hunkHasLine, hunkKey, loadVerdicts, reviewHunks, saveVerdicts, type Hunk } from '@/lib/hunks';
 import { isFileReviewed } from '@/lib/readiness';
 import { navigate, useRoute } from '@/lib/router';
 import { languageOf } from '@/lib/util';
-import { Button, IconButton, Kbd, cx } from '@/components/ui';
+import { Badge, Button, IconButton, Kbd, cx } from '@/components/ui';
 import { ChangeNotes, goalLabel, HunkNote, placeNotes, walkthroughFile } from './ChangeNotes';
 import { DiffView, type DiffComments } from './DiffView';
 
@@ -30,8 +30,10 @@ export function HunkReview({ session, edits, layout, wrap, comments, focus, canM
 }) {
   const route = useRoute();
   const actions = useActions();
-  const all = useMemo(() => reviewHunks(edits), [edits]);
   const linesOf = useMemo(() => new Map<string, DiffLine[]>(edits.map(edit => [edit.path, edit.diff?.lines ?? []])), [edits]);
+  // The walkthrough's causal order (cause → fix → support → test) replaces
+  // file order when it ordered the hunks.
+  const { hunks: all, guided, kinds } = useMemo(() => guidedHunks(session, linesOf, reviewHunks(edits)), [session, linesOf, edits]);
   const [verdicts, setVerdicts] = useState(() => loadVerdicts(session.id, session.hash));
   useEffect(() => setVerdicts(loadVerdicts(session.id, session.hash)), [session.id, session.hash]);
 
@@ -80,13 +82,22 @@ export function HunkReview({ session, edits, layout, wrap, comments, focus, canM
   const done = all.filter(right).length;
   const explained = session.walkthrough?.proposal_hash === session.hash && Boolean(file?.summary);
   const summary = edits.find(edit => edit.path === hunk.path)?.summary;
+  const kind = HUNK_KINDS[kinds.get(hunkKey(hunk)) ?? ''];
+  // The problem the approved plan named threads through a guided review.
+  const problem = guided && session.plan?.source === 'investigator' ? session.plan.problem : undefined;
 
   return (
     <div className="hunk-review">
       <aside className="hunk-pane" aria-label="This hunk">
+        {problem ? (
+          <div className="hunk-plan xs muted" title={problem}>
+            Fixing: {problem}
+          </div>
+        ) : null}
         <div className="hunk-count">
           <span className="grow">
-            <span className="strong">Hunk {index + 1} of {all.length}</span>
+            <span className="strong">{guided ? 'Step' : 'Hunk'} {index + 1} of {all.length}</span>
+            {kind ? <Badge tone={kind.tone}>{kind.label}</Badge> : null}
             <span className="xs muted">{inFile.length > 1 ? `${hunk.n + 1} of ${inFile.length} in this file · ` : ''}{done} right</span>
           </span>
           <IconButton icon={ChevronLeft} label="Previous hunk (←)" size="sm" onClick={() => go(index - 1)} />

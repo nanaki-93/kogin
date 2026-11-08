@@ -62,6 +62,14 @@ every guard when the action arrives.
   confirmation lists every remote destination the Creation, Testing and Review
   roles will use; local-only runs say so. Repairs run automatically, at most
   two. A security task adds a security specialist.
+- **Guided review.** When the walkthrough ordered the hunks (each note's
+  kind and step), the one-hunk-at-a-time review follows that order across
+  files — the problem's cause and fix first, then the supporting changes,
+  then the tests — reading **Step n of m** with a chip for the hunk's part
+  (Cause, Fix, Supports the fix, Proof), and, when the task has an approved
+  investigated plan, the plan's problem pinned above the steps. Hunks the
+  walkthrough did not order follow in file order; without steps the review
+  reads in file order as before.
 - **The plan gate.** With the project profile's **Plan approval** on (every
   task by default, or only grouped fixes), a run that starts from Create on a
   fresh proposal first investigates: the creation model reads the code with

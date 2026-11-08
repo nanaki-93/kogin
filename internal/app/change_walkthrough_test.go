@@ -122,3 +122,41 @@ func TestWalkthroughsWrittenBeforeGoalsStillRead(t *testing.T) {
 		t.Fatalf("note = %+v, %v", note, err)
 	}
 }
+
+func TestWalkthroughStepsBecomeOneGuidedSequenceAcrossFiles(t *testing.T) {
+	session := walkthroughSession()
+	session.Changes = append(session.Changes, ChangeEdit{Path: "cmd/master_test.go", Content: "package cmd\n\nfunc TestGenerateKey(t *T) {}\n"})
+	// The model numbered steps 2, 5, 5, 9 across two files: they become
+	// 1..3 in that order, the repeated 5 losing its place.
+	reply := `{"files":[
+	 {"path":"cmd/master.go","summary":"Loads the saved salt.","notes":[
+	  {"quote":"\tsalt, err := readKeySalt()","goal":1,"problem":"Each run derived a new key.","how":"Reads the saved salt.","kind":"fix","step":2},
+	  {"quote":"func readKeySalt() ([]byte, error) { return nil, nil }","goal":0,"problem":"The fix needs one reader.","how":"Adds the helper.","kind":"support","step":5}]},
+	 {"path":"cmd/master_test.go","summary":"Pins the salt.","notes":[
+	  {"quote":"func TestGenerateKey(t *T) {}","goal":1,"problem":"Nothing pinned the salt surviving a restart.","how":"TestGenerateKey.","kind":"test","step":9},
+	  {"quote":"package cmd","goal":0,"problem":"A second note with a taken step.","how":"","kind":"wrong","step":5}]}]}`
+	files, err := parseWalkthrough(reply, session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, second := files[0].Notes, files[1].Notes
+	if first[0].Step != 1 || first[0].Kind != "fix" || first[1].Step != 2 || first[1].Kind != "support" {
+		t.Fatalf("master notes = %+v", first)
+	}
+	// Notes are in line order within the file; the test's step follows the fix's.
+	var test, repeated WalkthroughNote
+	for _, note := range second {
+		if note.Kind == "test" {
+			test = note
+		} else {
+			repeated = note
+		}
+	}
+	if test.Step != 3 {
+		t.Fatalf("test note = %+v", second)
+	}
+	// The repeated step fell out of the sequence, and an unknown kind is dropped.
+	if repeated.Step != 0 || repeated.Kind != "" {
+		t.Fatalf("repeated-step note = %+v", repeated)
+	}
+}

@@ -1,8 +1,10 @@
 // Hunk-by-hunk review: a file's diff split into the hunks a reviewer reads
-// one at a time, and the hunks the reviewer already called right.
+// one at a time, and the hunks the reviewer already called right. When the
+// walkthrough ordered the hunks (cause → fix → support → test), the guided
+// order replaces file order.
 
-import type { DiffLine, FileChange } from '@/api/types';
-import { buildSegments, isChange, lineAnchor, type LineAnchor } from './diff';
+import type { ChangeWalkthrough, DiffLine, FileChange } from '@/api/types';
+import { buildSegments, isChange, lineAnchor, noteStart, type LineAnchor } from './diff';
 
 export interface Hunk {
   path: string;
@@ -39,6 +41,51 @@ export function hunkHasLine(lines: DiffLine[], hunk: Hunk, line: number): boolea
 }
 
 export const hunkKey = (hunk: Pick<Hunk, 'path' | 'n'>) => `${hunk.path}#${hunk.n}`;
+
+/** The hunks in the walkthrough's guided order, when it ordered them. */
+export interface GuidedHunks {
+  hunks: Hunk[];
+  /** Whether the walkthrough's causal order replaced file order. */
+  guided: boolean;
+  /** Each hunk's part in the story (cause, fix, support or test), by hunk key. */
+  kinds: Map<string, string>;
+}
+
+/**
+ * Orders the hunks the way the walkthrough tells the change's story: the
+ * problem's cause and fix first, then supporting changes, then the tests.
+ * Hunks its notes did not order keep their file order after the ordered
+ * ones. Without a current walkthrough with steps, file order stands.
+ */
+export function guidedHunks(session: { walkthrough?: ChangeWalkthrough; hash: string }, linesOf: Map<string, DiffLine[]>, all: Hunk[]): GuidedHunks {
+  const walkthrough = session.walkthrough;
+  const kinds = new Map<string, string>();
+  if (walkthrough?.status !== 'ready' || walkthrough.proposal_hash !== session.hash) return { hunks: all, guided: false, kinds };
+  const steps = new Map<string, number>();
+  for (const file of walkthrough.files ?? []) {
+    const lines = linesOf.get(file.path) ?? [];
+    const hunks = all.filter(hunk => hunk.path === file.path);
+    for (const note of file.notes ?? []) {
+      const at = note.line ? noteStart(lines, note.line) : -1;
+      const hunk = at >= 0 ? hunks.find(entry => at >= entry.start && at < entry.end) : undefined;
+      if (!hunk) continue;
+      const key = hunkKey(hunk);
+      if (note.kind && !kinds.has(key)) kinds.set(key, note.kind);
+      if (note.step && note.step < (steps.get(key) ?? Infinity)) steps.set(key, note.step);
+    }
+  }
+  if (!steps.size) return { hunks: all, guided: false, kinds };
+  const hunks = [...all].sort((a, b) => (steps.get(hunkKey(a)) ?? Infinity) - (steps.get(hunkKey(b)) ?? Infinity));
+  return { hunks, guided: true, kinds };
+}
+
+/** How a hunk's part in the story reads on its chip. */
+export const HUNK_KINDS: Record<string, { label: string; tone: 'danger' | 'success' | 'neutral' | 'info' }> = {
+  cause: { label: 'Cause', tone: 'danger' },
+  fix: { label: 'Fix', tone: 'success' },
+  support: { label: 'Supports the fix', tone: 'neutral' },
+  test: { label: 'Proof', tone: 'info' },
+};
 
 /**
  * The hunks the reviewer called right, per task version, kept in this

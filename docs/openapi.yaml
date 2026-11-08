@@ -2590,6 +2590,8 @@ components:
                     goal: {type: integer, minimum: 0, description: The 1-based issue it serves, or criterion when the task has no issues; 0 or absent = a change another hunk needs.}
                     problem: {type: string, description: The wrong behavior it removes, or why it is needed (at most 160 characters).}
                     how: {type: string, description: The change in a few words (at most 100 characters).}
+                    kind: {type: string, enum: [cause, fix, support, test], description: "The hunk's part in the change's story; absent on walkthroughs written before kinds."}
+                    step: {type: integer, minimum: 0, description: "The 1-based guided-review order across all files (cause and fix first, then support, then tests), one sequence per walkthrough; 0 or absent reads after the ordered hunks."}
     ChangeTarget:
       type: object
       properties:

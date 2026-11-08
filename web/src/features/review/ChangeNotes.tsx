@@ -8,6 +8,7 @@ import { RefreshCw, Sparkles } from 'lucide-react';
 import type { DiffLine, LoadedSession, WalkthroughFile, WalkthroughNote } from '@/api/types';
 import { useActions } from '@/app/actions';
 import { noteStart } from '@/lib/diff';
+import { HUNK_KINDS } from '@/lib/hunks';
 import { workflowActive } from '@/lib/readiness';
 import { Badge, Button, IconButton, Spinner } from '@/components/ui';
 import { DocText } from '@/features/docs/DocText';
@@ -85,11 +86,15 @@ export function ChangeNotes({ session, path, unplaced }: { session: LoadedSessio
   );
 }
 
-/** One hunk's note: the goal it serves, the wrong behavior it removes, how. */
+/** One hunk's note: its part in the story, the goal it serves, the wrong behavior it removes, how. */
 export function HunkNote({ note, goal }: { note: WalkthroughNote; goal: string }) {
+  const kind = HUNK_KINDS[note.kind ?? ''];
   return (
     <div className="hunk-note">
-      <div className={note.goal ? 'xs hunk-note-goal truncate' : 'xs faint truncate'} title={goal}>{goal}</div>
+      <div className="row">
+        <span className={note.goal ? 'xs hunk-note-goal truncate' : 'xs faint truncate'} title={goal}>{goal}</span>
+        {kind ? <Badge tone={kind.tone}>{kind.label}</Badge> : null}
+      </div>
       <div className="small"><DocText text={note.problem} /></div>
       {note.how ? <div className="xs muted">How: <DocText text={note.how} /></div> : null}
     </div>

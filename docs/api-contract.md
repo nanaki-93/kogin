@@ -1224,7 +1224,13 @@ file's change fixes) and up to eight `notes`, one per meaningful hunk: the
 another hunk needs), the `problem` it removes and `how` in a few words, at
 the `line` where the hunk starts in the proposed content (the model quotes the
 line and the daemon finds it). Notes stored as `what`/`why` read as
-`how`/`problem`. It is advisory and never counts as review evidence; a failed
+`how`/`problem`. Each note also carries its `kind` — the hunk's part in the
+change's story: `cause`, `fix`, `support` or `test` (an unknown kind is
+dropped) — and a `step`: the guided-review order across all files. The daemon
+renumbers the model's steps into one sequence 1..N in the order given; a
+repeated step keeps its first note ordered and the rest read as 0, after the
+ordered hunks, like notes without a step. Walkthroughs stored before kinds
+read with neither. It is advisory and never counts as review evidence; a failed
 request leaves `status: failed` with its `reason` and the review goes on.
 `POST …/walkthrough` with `ChangeIdentity` (and `confirm_remote_provider` for a
 remote review model) writes it again for the current version.
