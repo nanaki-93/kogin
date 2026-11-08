@@ -113,7 +113,7 @@ test('an issue a task is fixing leaves the open issues, links to its task and re
   await expect(page.getByRole('table', { name: 'Issues' })).toContainText('Request body read without a size limit');
 });
 
-test('an issue without a file opens a composer that says what Start agents needs', async ({ page, daemon }) => {
+test('an issue without a file opens a composer that says what starting the agents needs', async ({ page, daemon }) => {
   daemon.serve('/api/projects/current/findings', () => ({
     project_id: 'p1', project_revision: 'r42',
     findings: [{ id: 'f9', project_id: 'p1', source: 'ai', severity: 'high', title: 'Vault save is not atomic', message: 'The key file and the vault can disagree after a failed save.', location: {}, status: 'open', category: 'bugs' }],
@@ -121,7 +121,7 @@ test('an issue without a file opens a composer that says what Start agents needs
   await page.goto('/#/issues?id=f9');
   await page.getByRole('complementary', { name: 'Issue detail' }).getByRole('button', { name: /Fix with agents/ }).click();
   const dialog = page.getByRole('dialog');
-  const start = dialog.getByRole('button', { name: /Start agents/ });
+  const start = dialog.getByRole('button', { name: /Investigate & plan/ });
   await expect(start).toBeDisabled();
   await expect(dialog.getByRole('status')).toHaveText('Choose at least one file the agents may change.');
   // In its own worktree a testing agent writes the tests it needs, so a file without one is enough.

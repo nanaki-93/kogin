@@ -3,8 +3,8 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { ArrowUp, FilePlus, FileSearch, FlaskConical, GitBranch, Play, Plus, Save, X } from 'lucide-react';
-import { useGitWorkspace, useIndex, useMainProject, useMainTrust } from '@/api/hooks';
+import { ArrowUp, FilePlus, FileSearch, FlaskConical, GitBranch, Map as MapIcon, Play, Plus, Save, X } from 'lucide-react';
+import { useGitWorkspace, useIndex, useMainProject, useMainTrust, useProfile } from '@/api/hooks';
 import { useActions, useBusy, type DraftTask } from '@/app/actions';
 import { setUI, useUI } from '@/app/store';
 import { rankItems } from '@/lib/fuzzy';
@@ -50,6 +50,10 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
   const worktreeBlocker = git ? ownWorktreeBlocker(git, Boolean(trust?.trusted)) : '';
   const startBlocker = worktreeBlocker || composerStartBlocker(draft.paths, Boolean(trust?.trusted));
   const steps = issueSteps(draft.issues, draft.findingTargets?.filter(target => draft.paths.includes(target.path)));
+  // The profile's plan gate: a fresh task first gets an investigated plan to approve.
+  const gate = useProfile().data?.plan_gate ?? 'always';
+  const planFirst = gate === 'always' || (gate === 'grouped' && (steps?.length ?? 0) >= 2);
+  const investigates = planFirst && !draft.skipPlan;
 
   useEffect(() => titleRef.current?.focus(), []);
 
@@ -130,15 +134,21 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
           <span className="check-label" title="A new branch and worktree from the main checkout's HEAD, so this task runs beside the others; merge it from Branches">
             <GitBranch size={13} aria-hidden /> In a new worktree · agents repair failing checks (up to 2 tries)
           </span>
+          {planFirst ? (
+            <label className="check-label" title="Off: the creation model investigates the code and proposes a plan you approve before any code. On: straight to code, this task only.">
+              <input type="checkbox" checked={Boolean(draft.skipPlan)} onChange={e => update({ skipPlan: e.target.checked })} />
+              Skip the plan this time
+            </label>
+          ) : null}
         </span>
         <span className="spacer" />
         <Button variant="ghost" icon={Save} onClick={() => void submit('draft')} disabled={Boolean(busy) || Boolean(worktreeBlocker)}>
           Save draft
         </Button>
-        <Tip label={startBlocker || 'Agents write the change, tests, and review it'}>
+        <Tip label={startBlocker || (investigates ? 'The creation model proposes a plan you approve before any code is written' : 'Agents write the change, tests, and review it')}>
           <span>
-            <Button variant="primary" icon={Play} type="button" onClick={() => void submit('agents')} loading={busy === 'Creating task…' || busy === 'Starting agents…'} disabled={Boolean(startBlocker)}>
-              Start agents <Kbd>mod+Enter</Kbd>
+            <Button variant="primary" icon={investigates ? MapIcon : Play} type="button" onClick={() => void submit('agents')} loading={busy === 'Creating task…' || busy === 'Starting agents…'} disabled={Boolean(startBlocker)}>
+              {investigates ? 'Investigate & plan' : 'Start agents'} <Kbd>mod+Enter</Kbd>
             </Button>
           </span>
         </Tip>

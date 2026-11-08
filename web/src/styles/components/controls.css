@@ -273,6 +273,22 @@
   gap: 6px;
 }
 
+/* A concept tag: kept as written (errors.as, not Errors.As); picks a filter. */
+.chip-concept {
+  cursor: pointer;
+}
+
+.chip-concept:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.chip-concept.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
 .kind-tag {
   display: inline-flex;
   align-items: center;

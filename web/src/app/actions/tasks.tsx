@@ -2,10 +2,10 @@
 // re-analyze it when stale and delete it.
 
 import { api, errorMessage, query, withWorktree } from '@/api/client';
-import type { AgentSettings, AvailableModels, ChangeOpened, ChangeReanalysis, ChangeRetake, ChangeSession, FindingTarget, LoadedSession, Model, ModelsCurrent, Project, TaskIssue } from '@/api/types';
+import type { AgentSettings, AvailableModels, ChangeOpened, ChangeReanalysis, ChangeRetake, ChangeSession, FindingTarget, LoadedSession, Model, ModelsCurrent, Project, ProjectProfile, TaskIssue } from '@/api/types';
 import { issueSteps } from '@/lib/issues';
 import { changeIdentity, openComments, workflowActive } from '@/lib/readiness';
-import { chooseRunModels, mainChangedMessage, runStartOptions, workflowDestinations, workflowRequest, type DestinationChoice, type ModelStage } from '@/lib/workflow';
+import { chooseRunModels, mainChangedMessage, planGateApplies, runStartOptions, workflowDestinations, workflowRequest, type DestinationChoice, type ModelStage } from '@/lib/workflow';
 import { roleModelOptions, selectedModel, type ModelOptionGroup } from '@/lib/agentSettings';
 import { navigate } from '@/lib/router';
 import { openWorkspace } from '@/app/checkout';
@@ -37,6 +37,8 @@ export interface DraftTask {
   findingTargets?: FindingTarget[];
   /** Several issues, fixed one at a time; sent for the linked ones when two or more remain. */
   issues?: TaskIssue[];
+  /** Start the agents without the plan gate this once: no investigation, straight to code. */
+  skipPlan?: boolean;
 }
 
 /** What deleting tasks does with the worktrees it leaves without tasks. */
@@ -89,13 +91,13 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
     for (const warning of created.warnings ?? []) toast(warning, 'warning');
     navigate(`/tasks/${created.id}`, { wt: checkout || undefined });
     const prompt = draft.title.trim() + (draft.description.trim() ? `\n\nSpecification:\n${draft.description.trim()}` : '');
-    if (draft.start === 'agents') await startAgents(loaded, { message: prompt });
+    if (draft.start === 'agents') await startAgents(loaded, { message: prompt, plan: draft.skipPlan ? 'off' : undefined });
     else if (draft.start === 'quick') await refine(loaded, prompt);
     else toast(`Draft saved. It has its own worktree on ${created.branch}.`, 'success');
     return created.id;
   }
 
-  async function startAgents(loaded: LoadedSession, options: { message?: string; approvePlan?: boolean; planRedirect?: string } = {}): Promise<boolean> {
+  async function startAgents(loaded: LoadedSession, options: { message?: string; approvePlan?: boolean; planRedirect?: string; plan?: 'on' | 'off' } = {}): Promise<boolean> {
     // The main branch may have changed the task's files since the page
     // loaded: a run would build on code that is gone, so it is retaken.
     const session = (await reload(loaded)) ?? loaded;
@@ -122,6 +124,8 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
     const again = starts.options.length > 0;
     const pause = session.workflow?.status === 'paused' ? session.workflow.pause : undefined;
     const paused = Boolean(pause);
+    // Whether this run starts with an investigation: the profile's gate on a fresh task.
+    const planFirst = planGateApplies(client.getQueriesData<ProjectProfile>({ queryKey: keys.profile })[0]?.[1]?.plan_gate, session);
     // A run paused at a plan's limit can go on now with another model.
     const models = pause ? await modelOptions(settings, choice, session) : null;
     const picked: Partial<Record<ModelStage, string>> = {};
@@ -150,6 +154,8 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
             <p>Your approval covers this exact plan. Agents write the change from it, write and run tests in an isolated copy of the project, then specialist reviewers check it. Nothing reaches your files until you review and apply it.</p>
           ) : options.planRedirect ? (
             <p>The investigation runs again with your note and proposes a revised plan. No code is written until you approve it.</p>
+          ) : options.plan !== 'off' && !again && planFirst ? (
+            <p>The creation model first investigates the code and proposes a plan — the root cause with cited lines, the approach and its alternatives — and waits for you. No code is written until you approve it; then agents write the change, test it in an isolated copy and reviewers check it.</p>
           ) : (
             <p>Agents write the change, write and run tests in an isolated copy of the project, then specialist reviewers check it. Nothing reaches your files until you review and apply it.</p>
           )}
@@ -169,7 +175,7 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
           {comments && !again ? <p className="small">{commentsBrief(comments)}</p> : null}
         </div>
       ),
-      confirmLabel: options.approvePlan ? 'Approve & run agents' : options.planRedirect ? 'Re-investigate' : paused ? 'Resume agents' : again ? 'Run agents' : 'Start agents',
+      confirmLabel: options.approvePlan ? 'Approve & run agents' : options.planRedirect ? 'Re-investigate' : paused ? 'Resume agents' : again ? 'Run agents' : options.plan !== 'off' && planFirst ? 'Investigate & plan' : 'Start agents',
     });
     if (!ok) return false;
     return Boolean(
@@ -180,7 +186,7 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
           // approval action; a plan the user wrote at creation stays implicit.
           const plan = session.plan;
           const planHash = options.planRedirect ? undefined : options.approvePlan || (plan && plan.source !== 'investigator') ? plan?.hash : undefined;
-          const body = workflowRequest(changeIdentity(session), message, run, { autoRepair: true, confirmSecurity: security, planHash, planRedirect: options.planRedirect, includeComments: comments > 0 && start !== 'checks', start });
+          const body = workflowRequest(changeIdentity(session), message, run, { autoRepair: true, confirmSecurity: security, planHash, planRedirect: options.planRedirect, plan: options.plan, includeComments: comments > 0 && start !== 'checks', start });
           setSession(await api.post<ChangeSession>(changePath(session, '/workflow'), body), session);
           toast(options.planRedirect ? 'Re-investigating with your note. The revised plan will wait for you.' : 'Agents started. Progress updates live.', 'info');
           return true;

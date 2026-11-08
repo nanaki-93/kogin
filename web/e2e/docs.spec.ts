@@ -127,6 +127,13 @@ test('the learning log lists what accepted tasks taught, filtered by concept', a
   await filter.getByRole('button', { name: /error wrapping 2/ }).click();
   await expect(log.getByRole('listitem')).toHaveCount(2);
   await expect(log).toContainText('2 entries where you met “error wrapping”.');
+  // Tags keep their spelling, and a picked concept can be explained from the code.
+  await expect(filter.getByRole('button', { name: /error wrapping 2/ })).toHaveCSS('text-transform', 'none');
+  await log.getByRole('button', { name: 'Explain “error wrapping” in this project' }).click();
+  await expect(page).toHaveURL(/#\/docs\/ask\?q=Explain\+how\+this\+project\+uses\+error\+wrapping/);
+  await expect(page.getByLabel('Question about the code')).toHaveValue(/Explain how this project uses error wrapping/);
+  await page.goto('/#/docs/log');
+  await filter.getByRole('button', { name: /error wrapping 2/ }).click();
   await filter.getByRole('button', { name: /error wrapping 2/ }).click();
   await expect(log.getByRole('listitem')).toHaveCount(3);
 });

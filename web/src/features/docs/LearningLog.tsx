@@ -9,7 +9,15 @@ import type { Lesson } from '@/api/types';
 import { useLessons } from '@/api/hooks';
 import { navigate } from '@/lib/router';
 import { plural, timeAgo } from '@/lib/util';
-import { Badge, EmptyState, Skeleton, cx } from '@/components/ui';
+import { Badge, Button, EmptyState, Skeleton, cx } from '@/components/ui';
+import { handQuestion } from './AskPanel';
+
+/** Hands Ask the code a question about the concept, answered from this project's files. */
+function explainConcept(concept: string) {
+  const question = `Explain how this project uses ${concept}: where it appears, why it is used there, and what a newcomer should know about it.`;
+  handQuestion(question);
+  navigate('/docs/ask', { q: question });
+}
 
 export function LearningLog() {
   const { data, isLoading } = useLessons();
@@ -32,14 +40,22 @@ export function LearningLog() {
       {concepts.length ? (
         <div className="chips" role="group" aria-label="Concepts">
           {concepts.map(entry => (
-            <button key={entry.name} type="button" className={cx('chip', 'chip-toggle', concept === entry.name && 'is-on')} aria-pressed={concept === entry.name}
+            <button key={entry.name} type="button" className={cx('chip', 'chip-concept', concept === entry.name && 'is-on')} aria-pressed={concept === entry.name}
               title={`Met ${plural(entry.count, 'time')} in this log`} onClick={() => setConcept(concept === entry.name ? '' : entry.name)}>
               {entry.name} <span className="faint">{entry.count}</span>
             </button>
           ))}
         </div>
       ) : null}
-      {concept ? <p className="xs muted">{plural(shown.length, 'entry', 'entries')} where you met “{concept}”.</p> : null}
+      {concept ? (
+        <div className="row">
+          <span className="xs muted">{plural(shown.length, 'entry', 'entries')} where you met “{concept}”.</span>
+          <span className="spacer" />
+          <Button size="sm" variant="secondary" icon={MessageCircleQuestion} onClick={() => explainConcept(concept)} title="Ask the code agent to explain it with this project's own files">
+            Explain “{concept}” in this project
+          </Button>
+        </div>
+      ) : null}
       <ol className="lessons" aria-label="Lessons, newest first">
         {shown.map(lesson => (
           <LessonCard key={lesson.id} lesson={lesson} onConcept={name => setConcept(name === concept ? '' : name)} />
@@ -64,7 +80,7 @@ function LessonCard({ lesson, onConcept }: { lesson: Lesson; onConcept: (name: s
       {(lesson.concepts?.length || lesson.paths?.length) ? (
         <div className="chips">
           {(lesson.concepts ?? []).map(name => (
-            <button key={name} type="button" className="chip chip-toggle" onClick={() => onConcept(name)} title="See every time you met this concept">
+            <button key={name} type="button" className="chip chip-concept" onClick={() => onConcept(name)} title="See every time you met this concept">
               {name}
             </button>
           ))}

@@ -12,7 +12,7 @@ import type { LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { navigate, useRoute } from '@/lib/router';
 import { openWorkspace } from '@/app/checkout';
-import { canOverrideReview, checkSummary, effectiveEdits, nextUnreviewedPath, proposalReadiness, reviewProgress, sessionStatusEntry, workflowActive } from '@/lib/readiness';
+import { canOverrideReview, checkSummary, effectiveEdits, investigating, nextUnreviewedPath, planAwaitsDecision, proposalReadiness, reviewProgress, sessionStatusEntry, workflowActive } from '@/lib/readiness';
 import { activeOverride, agentRunLabel, agentsFinished, reviewVerdict } from '@/lib/workflow';
 import { basename, plural, shortHash, timeAgo } from '@/lib/util';
 import { Badge, Button, Callout, EmptyState, IconButton, Skeleton, cx } from '@/components/ui';
@@ -23,6 +23,7 @@ import { ReanalyzeTask } from './ReanalyzeTask';
 import { RunAgents } from './RunAgents';
 import { TaskOverview } from './TaskOverview';
 import { AcceptTask } from './AcceptTask';
+import { ApprovePlan } from './PlanReview';
 import { ApprovalNotes, OverrideReview } from './ReviewDecision';
 
 export function TaskPage({ id, tab }: { id: string; tab: string }) {
@@ -126,7 +127,7 @@ function DeleteTask({ session }: { session: LoadedSession }) {
  */
 function offersRunBesidePrimary(session: LoadedSession): boolean {
   const step = proposalReadiness(session).step;
-  return !workflowActive(session) && !['applied', 'generate', 'agents', 'stale', 'checkout'].includes(step);
+  return !workflowActive(session) && !['applied', 'plan', 'generate', 'agents', 'stale', 'checkout'].includes(step);
 }
 
 /** The single most useful next step, as a button, on every tab. */
@@ -144,6 +145,8 @@ function PrimaryAction({ session }: { session: LoadedSession }) {
     );
   }
   switch (ready.step) {
+    case 'plan':
+      return <ApprovePlan session={session} />;
     case 'generate':
     case 'agents':
       return <RunAgents session={session} variant="primary" />;
@@ -181,8 +184,13 @@ function ReviewRail({ session }: { session: LoadedSession }) {
   const verdict = reviewVerdict(workflow, session.hash);
   const overridden = Boolean(activeOverride(workflow, session.hash));
   const reviewers = overridden ? 'Overridden by you' : verdict === 'approve' ? 'Approved' : verdict === 'changes_requested' ? 'Changes requested' : verdict === 'pending' ? 'Pending' : workflow ? 'Run after the agents' : (session.changes ?? []).length ? 'Not part of a manual proposal' : 'Run after the agents';
+  // A plan the investigation proposed comes first; the agents run from it.
+  const plan = session.plan?.source === 'investigator' ? session.plan : undefined;
+  const planDetail = planAwaitsDecision(session) ? 'Needs your approval' : plan?.approved_hash && plan.approved_hash === plan.hash ? 'Approved' : investigating(session) ? 'Investigating…' : plan ? 'Superseded' : 'Investigating…';
+  const agentsDetail = planAwaitsDecision(session) ? 'After you approve the plan' : agentRunLabel(workflow, Boolean((session.changes ?? []).length));
   const steps: { label: string; done: boolean; active: boolean; detail: ReactNode; onClick?: () => void }[] = [
-    { label: 'Agents finished', done: agentsFinished(session), active: ready.step === 'agents' || ready.step === 'generate', detail: agentRunLabel(workflow, Boolean((session.changes ?? []).length)) },
+    ...(plan || investigating(session) ? [{ label: 'Plan', done: Boolean(plan?.approved_hash) && plan?.approved_hash === plan?.hash, active: ready.step === 'plan' || investigating(session), detail: planDetail }] : []),
+    { label: 'Agents finished', done: agentsFinished(session), active: ready.step === 'agents' || ready.step === 'generate', detail: agentsDetail },
     { label: 'Reviewers', done: verdict === 'approve' || overridden, active: false, detail: reviewers },
     { label: 'Files viewed', done: ready.filesReviewed, active: ready.step === 'review', detail: `${progress.reviewed} of ${progress.total}`, onClick: () => navigate(`/tasks/${session.id}/files`) },
     { label: 'Checks', done: ready.checksPassed, active: ready.step === 'checks', detail: checks.label, onClick: () => navigate(`/tasks/${session.id}/checks`) },

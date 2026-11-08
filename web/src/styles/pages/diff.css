@@ -96,6 +96,15 @@
   font-size: var(--text-xs);
 }
 
+/* Where a file comes in a guided review. */
+.fc-step {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+
 .add { color: var(--success); }
 .del { color: var(--danger); }
 

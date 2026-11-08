@@ -10,6 +10,7 @@ import { useActions, useBusy } from '@/app/actions';
 import { setUI, useUI } from '@/app/store';
 import { usePageKeys } from '@/app/shortcuts';
 import { diffStats } from '@/lib/diff';
+import { guidedHunks, reviewHunks } from '@/lib/hunks';
 import { effectiveEdits, isFileReviewed, nextUnreviewedPath, proposalReadiness, reviewProgress, workflowActive } from '@/lib/readiness';
 import { navigate, setParam, useRoute } from '@/lib/router';
 import { basename, dirname, languageOf } from '@/lib/util';
@@ -47,6 +48,12 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
     return counts;
   }, [session.comments, session.hash]);
 
+  // In a guided review the files are read in the walkthrough's order: each shows the step it starts at.
+  const guided = useMemo(() => {
+    const linesOf = new Map(edits.map(edit => [edit.path, edit.diff?.lines ?? []]));
+    return guidedHunks(session, linesOf, reviewHunks(edits));
+  }, [session, edits]);
+  const stepOf = (path: string) => (guided.guided && mode === 'hunks' ? guided.hunks.findIndex(hunk => hunk.path === path) + 1 : 0);
   // A line from a reviewer's finding belongs to the file it came with.
   const focusLine = current && route.params.get('file') === current.path ? Number(route.params.get('line')) || undefined : undefined;
   const select = (path: string) => navigate(route.path, { ...Object.fromEntries(route.params.entries()), file: path, line: undefined, hunk: undefined }, { replace: true });
@@ -127,6 +134,7 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
                     <span className="fc-name">{basename(edit.path)}</span>
                     <span className="fc-dir">{dirname(edit.path)}</span>
                   </span>
+                  {stepOf(edit.path) ? <span className="fc-step xs" title="Where this file comes in the guided review">step {stepOf(edit.path)}</span> : null}
                   {commentCounts.get(edit.path) ? (
                     <span className="fc-comments xs" aria-label={`${commentCounts.get(edit.path)} open comments`}>
                       <MessageSquare size={11} aria-hidden /> {commentCounts.get(edit.path)}

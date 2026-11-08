@@ -87,8 +87,8 @@ export function ChangeNotes({ session, path, unplaced }: { session: LoadedSessio
 }
 
 /** One hunk's note: its part in the story, the goal it serves, the wrong behavior it removes, how. */
-export function HunkNote({ note, goal }: { note: WalkthroughNote; goal: string }) {
-  const kind = HUNK_KINDS[note.kind ?? ''];
+export function HunkNote({ note, goal, hideKind }: { note: WalkthroughNote; goal: string; hideKind?: boolean }) {
+  const kind = hideKind ? undefined : HUNK_KINDS[note.kind ?? ''];
   return (
     <div className="hunk-note">
       <div className="row">

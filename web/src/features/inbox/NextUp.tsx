@@ -4,7 +4,7 @@
 // starts it; Skip shows the next one.
 
 import { useState } from 'react';
-import { CircleAlert, Eye, GitMerge, ShieldAlert } from 'lucide-react';
+import { CircleAlert, Eye, GitMerge, Map as MapIcon, ShieldAlert } from 'lucide-react';
 import type { Finding, GitWorktree, Project, TaskEntry } from '@/api/types';
 import { useActions } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
@@ -30,11 +30,17 @@ export function NextUp({ needs, failed, toMerge, issues, project }: { needs: Tas
   const { worktreePath } = useCheckout();
   const [skipped, setSkipped] = useState<string[]>([]);
   const steps: Step[] = [
-    ...needs.map(task => ({
-      key: `review-${task.id}`, icon: Eye, tone: 'accent' as const, eyebrow: taskStatus(task).status === 'ready' ? 'Next up · ready to accept' : 'Next up · review',
-      title: `Review “${task.title || task.id}”`, detail: [plural(task.paths?.length ?? 0, 'file'), taskStatus(task).label].filter(Boolean).join(' · '),
-      action: 'Start review', run: () => navigate(`/tasks/${task.id}/files`, { wt: task.worktreePath || undefined }),
-    })),
+    ...needs.map(task => (task.workflow_status === 'awaiting_plan_review'
+      ? {
+        key: `plan-${task.id}`, icon: MapIcon, tone: 'accent' as const, eyebrow: 'Next up · plan',
+        title: `Decide on the plan for “${task.title || task.id}”`, detail: 'The investigation proposed a plan; no code yet',
+        action: 'Open the plan', run: () => navigate(`/tasks/${task.id}`, { wt: task.worktreePath || undefined }),
+      }
+      : {
+        key: `review-${task.id}`, icon: Eye, tone: 'accent' as const, eyebrow: taskStatus(task).status === 'ready' ? 'Next up · ready to accept' : 'Next up · review',
+        title: `Review “${task.title || task.id}”`, detail: [plural(task.paths?.length ?? 0, 'file'), taskStatus(task).label].filter(Boolean).join(' · '),
+        action: 'Start review', run: () => navigate(`/tasks/${task.id}/files`, { wt: task.worktreePath || undefined }),
+      })),
     ...failed.map(task => ({
       key: `failed-${task.id}`, icon: ShieldAlert, tone: 'danger' as const, eyebrow: `Next up · ${taskStatus(task).label.toLowerCase()}`,
       title: `See why “${task.title || task.id}” stopped`, detail: task.workflow_reason || taskStatus(task).label,

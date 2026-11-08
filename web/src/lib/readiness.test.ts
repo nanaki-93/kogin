@@ -119,6 +119,11 @@ describe('taskStatus', () => {
     expect(taskStatus({ ...entry, revision: 2, hash: 'x', workflow_status: 'paused' })).toEqual({ status: 'needs_you', label: 'Paused', tone: 'warning' });
     // The investigation proposed a plan: your decision comes before any code.
     expect(taskStatus({ ...entry, revision: 1, hash: 'x', workflow_status: 'awaiting_plan_review' })).toEqual({ status: 'needs_you', label: 'Plan ready', tone: 'accent' });
+    const planReady = { ...session(), changes: [], workflow: { id: 'w', status: 'awaiting_plan_review', stages: [] }, plan: { source: 'investigator', hash: 'p' } } as never;
+    expect(proposalReadiness(planReady).step).toBe('plan');
+    expect(proposalReadiness(planReady).message).toContain('Approve it to start the agents');
+    const investigating = { ...session(), changes: [], workflow: { id: 'w', status: 'running', plan_stage: { name: 'plan', status: 'running' }, stages: [{ name: 'create', status: 'pending' }] } } as never;
+    expect(proposalReadiness(investigating).message).toContain('investigation is reading the code');
     // A revision after the run needs the agents again; it is not a failure.
     expect(taskStatus({ ...entry, revision: 4, hash: 'x', workflow_status: 'outdated' })).toEqual({ status: 'needs_you', label: 'Revised', tone: 'accent' });
     expect(taskStatus({ ...entry, state: 'applied', commit: { state: 'committed' } as never }).label).toBe('Committed');

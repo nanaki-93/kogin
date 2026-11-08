@@ -65,7 +65,8 @@ every guard when the action arrives.
 - **Learning log.** Docs → Learning log is what the project has taught so
   far: one entry per accepted task — the problem it removed and the approach,
   from its approved plan — with the concepts its change used as chips; a
-  concept chip filters the log to every time it was met, with its count. On
+  concept chip filters the log to every time it was met, with its count, and
+  **Explain “…” in this project** hands Ask the code a question about it. On
   Ask the code, **Save to log** keeps an answer there. Hunk notes show the
   same concept chips during review.
 - **Guided review.** When the walkthrough ordered the hunks (each note's
@@ -73,7 +74,8 @@ every guard when the action arrives.
   files — the problem's cause and fix first, then the supporting changes,
   then the tests — reading **Step n of m** with a chip for the hunk's part
   (Cause, Fix, Supports the fix, Proof), and, when the task has an approved
-  investigated plan, the plan's problem pinned above the steps. Hunks the
+  investigated plan, the plan's problem pinned above the steps; the changed
+  files list marks where each file comes in ("step 2"). Hunks the
   walkthrough did not order follow in file order; without steps the review
   reads in file order as before.
 - **The plan gate.** With the project profile's **Plan approval** on (every
@@ -82,15 +84,24 @@ every guard when the action arrives.
   the read-only tools and proposes a plan — the problem, its root cause with
   cited lines (each a link to the code), the approach, the files it touches,
   rejected alternatives, risks and, for a grouped fix, a verdict per issue.
-  The run stops at **Plan ready** (the task list shows it under Needs you)
-  and the task page shows a **Proposed plan** card above the brief with two
-  actions: **Approve & run agents** approves that exact plan and starts the
-  run (the confirmation says the approval covers the displayed plan), and
-  **Redirect…** takes a note and runs the investigation again, proposing a
+  The run stops at **Plan ready** (the task list shows it under Needs you,
+  the Inbox's Next up reads "Decide on the plan" with **Open the plan**) and
+  the task page is about that decision: the header's primary action is
+  **Approve & run agents**, the **Proposed plan** card above the brief
+  carries the same button and **Redirect…** in its head (the note box opens
+  under it), the review gate puts a **Plan — Needs your approval** step
+  first with "After you approve the plan" under Agents finished, and the
+  revision box is not offered. Approving approves that exact plan and starts
+  the run (the confirmation says the approval covers the displayed plan);
+  redirecting takes a note and runs the investigation again, proposing a
   revised plan that waits again. No code is written, nothing to roll back:
   rejecting a plan costs one read-only run. The Investigation appears as its
   own timeline entry (Investigate & plan) with its model, usage and tool
-  calls, and stays there on the approved run.
+  calls, and stays there on the approved run; while it runs, the gate reads
+  "The investigation is reading the code to propose a plan." The composer
+  and a fresh task's **Investigate & plan** button say the plan comes first
+  whenever the profile's gate applies, and the composer's **Skip the plan
+  this time** starts straight at the code for that one task.
 - **Run again.** Whenever no run is active and the task is not applied, the
   task page offers **Run agents again** (beside the review step, or as the
   primary action when the agents must run before human review, and on a run

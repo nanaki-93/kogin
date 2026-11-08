@@ -249,7 +249,7 @@ test('a stale task names the file that changed and is re-analyzed', async ({ pag
   await expect(page.getByText('Still valid: the task now matches the current files. Run the agents when ready.')).toBeVisible();
   expect(daemon.mutations('/reanalyze')[0].body).toMatchObject({ project_id: 'p1', revision: session.revision, hash: session.hash, confirm_remote_provider: false });
   await expect(page.locator('header.task-header').getByRole('button', { name: 'Run agents again' })).toHaveCount(0);
-  await expect(page.locator('header.task-header').getByRole('button', { name: 'Start agents' })).toBeEnabled();
+  await expect(page.locator('header.task-header').getByRole('button', { name: 'Investigate & plan' })).toBeEnabled();
   await expect(page.getByText('Out of date:')).toHaveCount(0);
 });
 
@@ -301,7 +301,7 @@ test('pressing Run agents on a task whose files main changed says so before any 
   await draftInItsOwnWorktree(page);
   // The page was loaded before main moved: it learns when the agents are asked to start.
   daemon.overtake('chg-100', ['internal/api/handlers/webui.go']);
-  await page.locator('header.task-header').getByRole('button', { name: 'Start agents' }).click();
+  await page.locator('header.task-header').getByRole('button', { name: 'Investigate & plan' }).click();
   const dialog = page.getByRole('alertdialog');
   await expect(dialog).toContainText('main changed 1 file of this task since it started');
   await expect(dialog).toContainText("internal/api/handlers/webui.go. This task's work is built on that file as it was: re-analyze it against main and, if the issue is still there, start it again from main. The agents don't run on it as it is.");
@@ -309,7 +309,7 @@ test('pressing Run agents on a task whose files main changed says so before any 
   expect(daemon.mutations('/workflow')).toHaveLength(0);
   await expect(page.getByText('main changed 1 file of this task since it started')).toBeVisible();
 
-  await page.locator('header.task-header').getByRole('button', { name: 'Start agents' }).click();
+  await page.locator('header.task-header').getByRole('button', { name: 'Investigate & plan' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Re-analyze & retake' }).click();
   await expect(page.getByText('Still valid: “Reject nested asset paths” starts again from main on orca/reject-nested-asset-d4e5f6. Run the agents when ready.')).toBeVisible();
   expect(daemon.mutations('/workflow')).toHaveLength(0);
@@ -669,8 +669,18 @@ test('an investigated plan waits for approval, and approving it starts the agent
   await expect(run.getByText('Investigate & plan')).toBeVisible();
   await expect(run.getByText('Worked with tools: 9 calls in 11 turns (read_file 5, search 3, plan 1)')).toBeVisible();
   await expect(page.locator('header.task-header').getByText('Plan ready')).toBeVisible();
+  // The page is about the decision: the header's next step approves the plan,
+  // the review gate puts the plan first, and nothing offers to generate code.
+  const header = page.locator('header.task-header');
+  await expect(header.getByRole('button', { name: 'Approve & run agents' })).toBeVisible();
+  await expect(header.getByRole('button', { name: /Start agents|Investigate & plan/ })).toHaveCount(0);
+  const gate = page.getByRole('complementary', { name: 'Review gate' });
+  await expect(gate.getByText('Needs your approval')).toBeVisible();
+  await expect(gate.getByText('After you approve the plan')).toBeVisible();
+  await expect(gate).toContainText('The investigation proposed a plan. Approve it to start the agents, or redirect it with a note.');
+  await expect(page.getByRole('region', { name: 'Ask for a revision' })).toHaveCount(0);
 
-  await plan.getByRole('button', { name: 'Approve & run agents' }).click();
+  await header.getByRole('button', { name: 'Approve & run agents' }).click();
   const dialog = page.getByRole('alertdialog');
   await expect(dialog.getByRole('heading', { name: 'Approve the plan and start the agents?' })).toBeVisible();
   await expect(dialog.getByText('Your approval covers this exact plan.')).toBeVisible();
@@ -701,6 +711,10 @@ test('a guided review walks the hunks in causal order with the plan threading th
   daemon.sessions.set('chg-1', guidedReviewTask());
   await page.goto('/#/tasks/chg-1/files');
   const pane = page.getByRole('complementary', { name: 'This hunk' });
+  // The file list says where each file comes in the story.
+  const tree = page.getByRole('complementary', { name: 'Changed files' });
+  await expect(tree.getByRole('button', { name: /mime\.go/ })).toContainText('step 2');
+  await expect(tree.getByRole('button', { name: /webui_test\.go/ })).toContainText('step 3');
   // Step 1 is the fix, wherever it sits in the file list, with the plan's problem above.
   await expect(pane).toContainText('Step 1 of 3');
   await expect(pane).toContainText('Fix');

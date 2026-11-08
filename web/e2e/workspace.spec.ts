@@ -3,12 +3,13 @@
 // docs.spec.ts).
 
 import { expect, test } from './support/daemon';
+import { planReadyTask } from './support/fixtures';
 
 test('the inbox summarizes what needs you and opens a task', async ({ page }) => {
   await page.goto('/#/');
   await expect(page.getByRole('heading', { name: 'Inbox' })).toBeVisible();
-  await expect(page.getByText('1 task to review · 1 agent run in progress · 1 failed or stale · 1 branch ready to merge')).toBeVisible();
-  await page.getByRole('region', { name: 'Needs your review' }).getByText('Reject nested asset paths').click();
+  await expect(page.getByText('1 task needs you · 1 agent run in progress · 1 failed or stale · 1 branch ready to merge')).toBeVisible();
+  await page.getByRole('region', { name: 'Needs you' }).getByText('Reject nested asset paths').click();
   await expect(page).toHaveURL(/#\/tasks\/chg-1$/);
   await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toContainText('Reject nested asset paths in the Web UI handler');
 });
@@ -106,7 +107,9 @@ test('every task gets its own worktree, made from the main checkout', async ({ p
   await page.goto('/#/tasks?wt=%2Fwork%2Fkogin%2F.kogin%2Fwt%2Fchg-2');
   await page.keyboard.press('c');
   const dialog = page.getByRole('dialog');
-  await expect(dialog.getByRole('checkbox')).toHaveCount(0);
+  // No worktree choice: every task gets one. The only checkbox skips the plan gate for this task.
+  await expect(dialog.getByRole('checkbox')).toHaveCount(1);
+  await expect(dialog.getByRole('checkbox', { name: 'Skip the plan this time' })).not.toBeChecked();
   await expect(dialog.getByRole('radiogroup', { name: 'Task kind' })).toHaveCount(0);
   await expect(dialog).toContainText('In a new worktree');
   await dialog.getByPlaceholder('What should change?').fill('Return 404 for missing assets');
@@ -502,4 +505,31 @@ test('a page with its own list drills the sidebar in; Workspace shows the pages 
   await expect(workspace).toBeVisible();
   await expect(sidebar.getByRole('complementary', { name: 'Changed files' })).toBeVisible();
   await sidebar.getByRole('button', { name: 'Expand sidebar' }).click();
+});
+
+test('the composer says a plan comes first, and can skip it for one task', async ({ page, daemon }) => {
+  await page.goto('/#/tasks');
+  await page.keyboard.press('c');
+  const dialog = page.getByRole('dialog');
+  await dialog.getByPlaceholder('What should change?').fill('Return 404 for missing assets');
+  await dialog.getByLabel('Search files to add').fill('webui');
+  await dialog.getByRole('option', { name: /internal\/api\/handlers\/webui\.go/ }).first().click();
+  // The profile's gate is on: the primary action investigates first.
+  await expect(dialog.getByRole('button', { name: /Investigate & plan/ })).toBeEnabled();
+  await dialog.getByLabel('Skip the plan this time').check();
+  await dialog.getByRole('button', { name: /Start agents/ }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Start agents' }).click();
+  await expect.poll(() => daemon.mutations('/workflow').length).toBe(1);
+  expect(daemon.mutations('/workflow')[0].body).toMatchObject({ plan: 'off' });
+});
+
+test('the Inbox puts a plan that waits for a decision next up', async ({ page, daemon }) => {
+  daemon.sessions.set('chg-1', planReadyTask());
+  await page.goto('/#/inbox');
+  const next = page.getByRole('region', { name: 'Next up' });
+  await expect(next).toContainText('Decide on the plan for “Reject nested asset paths in the Web UI handler”');
+  await expect(next).toContainText('no code yet');
+  await next.getByRole('button', { name: 'Open the plan' }).click();
+  await expect(page).toHaveURL(/#\/tasks\/chg-1(\?|$)/);
+  await expect(page.getByRole('region', { name: 'Proposed plan' })).toBeVisible();
 });

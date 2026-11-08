@@ -103,6 +103,7 @@ function DocsNav({ docs, current }: { docs: ProjectDocs | undefined; current: Do
         <NavLink to="/docs/start" icon={Terminal} active={current === 'start'} count={docs?.commands?.length}>Get started</NavLink>
         <NavLink to="/docs/architecture" icon={Layers} active={current === 'architecture'}>Architecture</NavLink>
         <NavLink to="/docs/map" icon={MapIcon} active={current === 'map'}>Project map</NavLink>
+        <NavLink to="/docs/log" icon={GraduationCap} active={current === 'log'}>Learning log</NavLink>
         <NavGroup title="How it works" icon={RouteIcon} to="/docs/flows" active={current === 'flows' && !n} count={walkthroughs.length}>
           {walkthroughs.map((walkthrough, index) => (
             <NavLink key={index} to="/docs/flows" params={{ n: String(index + 1) }} active={current === 'flows' && n === index + 1} nested>{walkthrough.title}</NavLink>
@@ -122,7 +123,6 @@ function DocsNav({ docs, current }: { docs: ProjectDocs | undefined; current: Do
         </NavGroup>
         <NavLink to="/docs/dependencies" icon={Library} active={current === 'dependencies'} count={docs?.dependencies?.length}>Dependencies</NavLink>
         <NavLink to="/docs/ask" icon={MessageCircleQuestion} active={current === 'ask'}>Ask the code</NavLink>
-        <NavLink to="/docs/log" icon={GraduationCap} active={current === 'log'}>Learning log</NavLink>
       </div>
       <div className="docs-refresh">
         <RefreshStatus {...latestRefresh(data?.docs_refresh, data?.analysis_run?.docs)} />

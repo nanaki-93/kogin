@@ -93,7 +93,7 @@ export function InboxPage() {
         <div className="inbox-grid">
           <div className="stack-lg">
             {needs.length ? (
-              <ListGroup title="Needs your review" count={needs.length}>
+              <ListGroup title="Needs you" count={needs.length}>
                 {needs.map(t => <TaskRow key={t.id} task={t} />)}
               </ListGroup>
             ) : null}
@@ -211,7 +211,7 @@ function SetupNotice() {
 
 function inboxSummary(needs: number, running: number, failed: number, toMerge: number): string {
   const parts = [
-    needs ? `${plural(needs, 'task')} to review` : '',
+    needs ? `${plural(needs, 'task')} ${needs === 1 ? 'needs' : 'need'} you` : '',
     running ? `${plural(running, 'agent run')} in progress` : '',
     failed ? `${failed} failed or stale` : '',
     toMerge ? `${plural(toMerge, 'branch', 'branches')} ready to merge` : '',

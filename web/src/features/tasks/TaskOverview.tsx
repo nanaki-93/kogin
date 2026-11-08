@@ -50,7 +50,7 @@ function Brief({ session }: { session: LoadedSession }) {
         <span className="xs faint">updated {timeAgo(session.updated_at)}</span>
       </div>
       <div className="card-body stack">
-        {plan?.approach ? <p className="prose">{plan.approach}</p> : <p className="muted small">No description. The agents work from the title, scope and criteria.</p>}
+        {plan?.approach ? <p className="prose">{plan.approach}</p> : session.plan?.source === 'investigator' ? null : <p className="muted small">No description. The agents work from the title, scope and criteria.</p>}
         {plan?.assumptions?.length ? (
           <div className="small">
             <span className="muted">Assumptions: </span>
@@ -374,7 +374,8 @@ function Revise({ session }: { session: LoadedSession }) {
   const pending = usePendingRevision();
   const ready = proposalReadiness(session);
   const comments = openComments(session).length;
-  if (!ready.editable || workflowActive(session)) return null;
+  // While a plan waits for a decision, nothing is generated: the plan card decides.
+  if (!ready.editable || workflowActive(session) || ready.step === 'plan') return null;
   const revising = pending?.sessionId === session.id ? pending : null;
   const sendComments = comments > 0 && withComments;
   const submit = async () => {

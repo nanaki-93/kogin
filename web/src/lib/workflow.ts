@@ -261,7 +261,7 @@ export function planName(provider: string | undefined): string {
   return { claude: 'Claude plan', agy: 'Google AI plan', pi: 'Pi subscription' }[provider ?? ''] ?? 'plan';
 }
 
-export function workflowRequest(identity: ProjectIdentity & { revision: number; hash: string }, message: string, choice: DestinationChoice, options: { autoRepair?: boolean; confirmSecurity?: boolean; planHash?: string; planRedirect?: string; includeComments?: boolean; start?: RunStart } = {}) {
+export function workflowRequest(identity: ProjectIdentity & { revision: number; hash: string }, message: string, choice: DestinationChoice, options: { autoRepair?: boolean; confirmSecurity?: boolean; planHash?: string; planRedirect?: string; plan?: 'on' | 'off'; includeComments?: boolean; start?: RunStart } = {}) {
   return {
     ...identity,
     message,
@@ -271,9 +271,25 @@ export function workflowRequest(identity: ProjectIdentity & { revision: number; 
     auto_repair: Boolean(options.autoRepair),
     plan_hash: options.planHash || undefined,
     plan_redirect: options.planRedirect || undefined,
+    plan: options.plan,
     include_comments: options.includeComments || undefined,
     resume_from: options.start && options.start !== 'create' ? options.start : undefined,
   };
+}
+
+/**
+ * Whether the plan gate investigates before a fresh run of this task, as the
+ * daemon decides it: the profile's mode (always by default; grouped only for
+ * tasks fixing several issues), on a task in its own worktree without a
+ * proposal and without an approved investigator plan. The creation model
+ * must also run as an agent, which only the daemon knows.
+ */
+export function planGateApplies(mode: string | undefined, session: { changes?: unknown[] | null; worktree?: unknown; issues?: unknown[] | null; plan?: { source?: string; hash?: string; approved_hash?: string } }): boolean {
+  if (!session.worktree || (session.changes ?? []).length) return false;
+  const gate = mode || 'always';
+  if (gate === 'off' || (gate === 'grouped' && (session.issues ?? []).length < 2)) return false;
+  const plan = session.plan;
+  return !(plan?.source === 'investigator' && Boolean(plan.hash) && plan.approved_hash === plan.hash);
 }
 
 /** Where a run of the agents starts on a task that already has a proposal. */

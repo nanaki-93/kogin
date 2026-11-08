@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { Check, CircleSlash, CornerDownLeft, Map as MapIcon } from 'lucide-react';
 import type { LoadedSession, PlanIssueVerdict } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
+import { planAwaitsDecision } from '@/lib/readiness';
 import { navigate } from '@/lib/router';
 import { timeAgo } from '@/lib/util';
 import { Badge, Button, Textarea } from '@/components/ui';
@@ -15,8 +16,9 @@ import { FileIcon } from '@/components/domain';
 
 export function PlanReview({ session }: { session: LoadedSession }) {
   const plan = session.plan;
+  const [redirecting, setRedirecting] = useState(false);
   if (!plan || plan.source !== 'investigator') return null;
-  const waiting = session.workflow?.status === 'awaiting_plan_review';
+  const waiting = planAwaitsDecision(session);
   const approved = Boolean(plan.hash) && plan.approved_hash === plan.hash;
   return (
     <section className="card" aria-label="Proposed plan">
@@ -25,9 +27,19 @@ export function PlanReview({ session }: { session: LoadedSession }) {
         <span className="strong">Proposed plan</span>
         <Badge tone={approved ? 'success' : waiting ? 'accent' : 'neutral'}>{approved ? 'Approved' : waiting ? 'Needs your decision' : 'Superseded'}</Badge>
         <span className="spacer" />
-        {plan.model ? <span className="xs faint mono">{plan.model}</span> : null}
-        {plan.investigated_at ? <span className="xs faint">{timeAgo(plan.investigated_at)}</span> : null}
+        {plan.model && !waiting ? <span className="xs faint mono">{plan.model}</span> : null}
+        {plan.investigated_at && !waiting ? <span className="xs faint">{timeAgo(plan.investigated_at)}</span> : null}
+        {waiting ? (
+          <>
+            <Button size="sm" variant="secondary" onClick={() => setRedirecting(true)} disabled={redirecting}>
+              Redirect…
+            </Button>
+            <ApprovePlan session={session} size="sm" />
+          </>
+        ) : null}
       </div>
+      {waiting && redirecting ? <RedirectPlan session={session} onDone={() => setRedirecting(false)} /> : null}
+      {waiting && !redirecting ? <p className="card-body xs muted plan-why">No code yet: your decision steers the agents while it still matters. Approve to start them from this plan, or redirect with a note and the investigation runs again.</p> : null}
       <div className="card-body stack">
         <div>
           <div className="label-row">Problem</div>
@@ -101,8 +113,18 @@ export function PlanReview({ session }: { session: LoadedSession }) {
           </div>
         ) : null}
       </div>
-      {waiting ? <PlanDecision session={session} /> : null}
     </section>
+  );
+}
+
+/** Approves the displayed plan and starts the agents from it. */
+export function ApprovePlan({ session, size, variant = 'primary' }: { session: LoadedSession; size?: 'sm'; variant?: 'primary' | 'secondary' }) {
+  const actions = useActions();
+  const busy = Boolean(useBusy());
+  return (
+    <Button size={size} variant={variant} icon={Check} onClick={() => void actions.startAgents(session, { approvePlan: true })} disabled={busy}>
+      Approve & run agents
+    </Button>
   );
 }
 
@@ -137,45 +159,26 @@ function PlanVerdicts({ session, verdicts }: { session: LoadedSession; verdicts:
   );
 }
 
-/** Approve the plan (starting the agents) or redirect it with a note. */
-function PlanDecision({ session }: { session: LoadedSession }) {
+/** A note for the investigation to run again with; it replaces the plan. */
+function RedirectPlan({ session, onDone }: { session: LoadedSession; onDone: () => void }) {
   const actions = useActions();
   const busy = Boolean(useBusy());
-  const [redirecting, setRedirecting] = useState(false);
   const [note, setNote] = useState('');
   const redirect = async () => {
-    if (await actions.startAgents(session, { planRedirect: note.trim() })) {
-      setRedirecting(false);
-      setNote('');
-    }
+    if (await actions.startAgents(session, { planRedirect: note.trim() })) onDone();
   };
   return (
-    <div className="card-foot stack">
-      {redirecting ? (
-        <>
-          <Textarea rows={2} autoFocus placeholder="What should the plan do differently? The investigation runs again with this note." value={note} onChange={e => setNote(e.target.value)} aria-label="Redirect note" />
-          <div className="row">
-            <Button size="sm" variant="ghost" icon={CircleSlash} onClick={() => setRedirecting(false)} disabled={busy}>
-              Cancel
-            </Button>
-            <span className="spacer" />
-            <Button size="sm" variant="secondary" icon={CornerDownLeft} onClick={() => void redirect()} disabled={!note.trim() || busy}>
-              Re-investigate
-            </Button>
-          </div>
-        </>
-      ) : (
-        <div className="row">
-          <span className="xs muted">No code yet: your decision steers the agents while it still matters.</span>
-          <span className="spacer" />
-          <Button size="sm" variant="secondary" onClick={() => setRedirecting(true)} disabled={busy}>
-            Redirect…
-          </Button>
-          <Button size="sm" variant="primary" icon={Check} onClick={() => void actions.startAgents(session, { approvePlan: true })} disabled={busy}>
-            Approve & run agents
-          </Button>
-        </div>
-      )}
+    <div className="card-body stack plan-redirect">
+      <Textarea rows={2} autoFocus placeholder="What should the plan do differently? The investigation runs again with this note." value={note} onChange={e => setNote(e.target.value)} aria-label="Redirect note" />
+      <div className="row">
+        <Button size="sm" variant="ghost" icon={CircleSlash} onClick={onDone} disabled={busy}>
+          Cancel
+        </Button>
+        <span className="spacer" />
+        <Button size="sm" variant="secondary" icon={CornerDownLeft} onClick={() => void redirect()} disabled={!note.trim() || busy}>
+          Re-investigate
+        </Button>
+      </div>
     </div>
   );
 }

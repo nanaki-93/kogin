@@ -81,10 +81,21 @@ export function workflowActive(session: { workflow?: { status: string } } | null
   return status === 'running' || status === 'canceling';
 }
 
+/** The investigation proposed a plan that waits for your decision. */
+export function planAwaitsDecision(session: Pick<ChangeSession, 'workflow' | 'plan'> | null | undefined): boolean {
+  return session?.workflow?.status === 'awaiting_plan_review' && session.plan?.source === 'investigator';
+}
+
+/** The run is investigating: the plan stage runs and no model stage has started. */
+export function investigating(session: Pick<ChangeSession, 'workflow'> | null | undefined): boolean {
+  const workflow = session?.workflow;
+  return workflowActive(session) && workflow?.plan_stage?.status === 'running' && !workflow.stages.some(stage => stage.status === 'running');
+}
+
 /** Where a task made before every task got its own worktree lives. */
 export const CHECKOUT_TASK = 'Made in the main checkout, before every task got its own worktree.';
 
-export type ReviewStep = 'none' | 'generate' | 'agents' | 'review' | 'checks' | 'accept' | 'applied' | 'stale' | 'checkout';
+export type ReviewStep = 'none' | 'plan' | 'generate' | 'agents' | 'review' | 'checks' | 'accept' | 'applied' | 'stale' | 'checkout';
 
 export interface Readiness {
   editable: boolean;
@@ -123,9 +134,12 @@ export function proposalReadiness(session: ChangeSession | null | undefined): Re
   const workflowReady = !session.workflow || session.workflow.status === 'awaiting_human_review';
   result.canAccept = result.filesReviewed && result.checksPassed && workflowReady;
   result.approved = Boolean(session.hash) && session.reviewed_hash === session.hash;
-  if (!edits.length) {
+  if (!edits.length && planAwaitsDecision(session)) {
+    result.step = 'plan';
+    result.message = 'The investigation proposed a plan. Approve it to start the agents, or redirect it with a note.';
+  } else if (!edits.length) {
     result.step = workflowActive(session) ? 'agents' : 'generate';
-    result.message = workflowActive(session) ? 'Agents are writing the change.' : 'No changes yet. Start the agents to generate them.';
+    result.message = workflowActive(session) ? (investigating(session) ? 'The investigation is reading the code to propose a plan.' : 'Agents are writing the change.') : 'No changes yet. Start the agents to generate them.';
   } else if (workflowActive(session)) {
     result.step = 'agents';
     result.message = 'Agents are still working on this version.';

@@ -68,7 +68,7 @@ describe('App', () => {
     vi.stubGlobal('fetch', fakeDaemon());
     renderApp();
     const row = await screen.findByText('Reject nested asset paths');
-    expect(screen.getByText(/needs your review/i)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Needs you' })).toBeInTheDocument();
     await userEvent.click(row);
     await waitFor(() => expect(window.location.hash).toBe('#/tasks/chg-1'));
     const gate = await screen.findByRole('complementary', { name: 'Review gate' });

@@ -97,9 +97,9 @@ export function HunkReview({ session, edits, layout, wrap, comments, focus, canM
         <div className="hunk-count">
           <span className="grow">
             <span className="strong">{guided ? 'Step' : 'Hunk'} {index + 1} of {all.length}</span>
-            {kind ? <Badge tone={kind.tone}>{kind.label}</Badge> : null}
             <span className="xs muted">{inFile.length > 1 ? `${hunk.n + 1} of ${inFile.length} in this file · ` : ''}{done} right</span>
           </span>
+          {kind ? <Badge tone={kind.tone}>{kind.label}</Badge> : null}
           <IconButton icon={ChevronLeft} label="Previous hunk (←)" size="sm" onClick={() => go(index - 1)} />
           <IconButton icon={ChevronRight} label="Next hunk (→)" size="sm" onClick={() => go(index + 1)} />
         </div>
@@ -114,7 +114,7 @@ export function HunkReview({ session, edits, layout, wrap, comments, focus, canM
         </div>
         <div className="hunk-notes" aria-label="What this hunk fixes">
           {notes.length ? (
-            notes.map((note, i) => <HunkNote key={i} note={note} goal={goalLabel(session, note)} />)
+            notes.map((note, i) => <HunkNote key={i} note={note} goal={goalLabel(session, note)} hideKind={Boolean(kind)} />)
           ) : file ? (
             <p className="small muted">No note for this hunk.</p>
           ) : null}
