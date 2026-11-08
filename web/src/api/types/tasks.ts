@@ -83,18 +83,50 @@ export interface PlanEvidence {
   start_line?: number;
   end_line?: number;
   quote?: string;
-  reason?: string;
+  /** The model's reading of the cited lines; provenance, not a verified finding. */
+  observation?: string;
+}
+
+/** An approach the plan rejected, and why. */
+export interface PlanAlternative {
+  approach: string;
+  why_not: string;
+}
+
+/** A file the plan expects the change to edit or create. */
+export interface PlanTouch {
+  path: string;
+  why: string;
+}
+
+/** What the investigation found for one linked issue. */
+export interface PlanIssueVerdict {
+  finding_id: string;
+  verdict: 'holds' | 'already_fixed' | 'does_not_hold' | 'needs_own_task';
+  note?: string;
 }
 
 export interface ChangePlan {
   problem?: string;
   approach?: string;
-  evidence?: PlanEvidence[];
+  evidence?: string;
+  citations?: PlanEvidence[];
   assumptions?: string[];
   non_goals?: string[];
   read_paths?: string[];
+  /** Why the problem happens, naming the code; the citations show it. */
+  root_cause?: string;
+  alternatives?: PlanAlternative[];
+  risks?: string[];
+  touches?: PlanTouch[];
+  issue_verdicts?: PlanIssueVerdict[];
   hash?: string;
   approved_hash?: string;
+  /** Empty for a plan the user wrote at creation; 'investigator' for one the investigation proposed. */
+  source?: string;
+  /** The model that proposed it, and when. */
+  model?: string;
+  investigated_at?: string;
 }
 
 export interface ChangeSession extends ProjectIdentity {
@@ -191,7 +223,7 @@ export interface ChangeHistoryEntry extends ProjectIdentity {
 
 /** The stage a running workflow is in (gitops.ChangeWorkflowPhase). */
 export interface WorkflowPhase {
-  stage: 'create' | 'test' | 'review';
+  stage: 'plan' | 'create' | 'test' | 'review';
   /** The issue being fixed (1-based) of `issues`, while a task fixes its issues one at a time. */
   issue?: number;
   issues?: number;

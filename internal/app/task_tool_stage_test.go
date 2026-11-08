@@ -63,10 +63,19 @@ func startToolFlow(t *testing.T, coder, tester []fakePiStep, configure func(*con
 }
 
 // startToolFlowWith is startToolFlow for a task request that edit adjusts.
+// The flow turns the plan gate off; plan-gate tests use startToolFlowScripts.
 func startToolFlowWith(t *testing.T, coder, tester []fakePiStep, configure func(*config.Config), edit func(*ChangeOpenRequest)) *toolFlow {
 	t.Helper()
+	return startToolFlowScripts(t, map[string][]fakePiStep{"coder": coder, "tester": tester}, configure, edit, nil)
+}
+
+// startToolFlowScripts is the full harness: the fake CLI plays each scripted
+// role, and adjust may change the workflow request (the plan gate is off
+// unless it turns it on).
+func startToolFlowScripts(t *testing.T, scripts map[string][]fakePiStep, configure func(*config.Config), edit func(*ChangeOpenRequest), adjust func(*ChangeWorkflowRequest)) *toolFlow {
+	t.Helper()
 	dir := t.TempDir()
-	for role, steps := range map[string][]fakePiStep{"coder": coder, "tester": tester} {
+	for role, steps := range scripts {
 		data, _ := json.Marshal(steps)
 		if err := os.WriteFile(filepath.Join(dir, role+".json"), data, 0o600); err != nil {
 			t.Fatal(err)
@@ -109,7 +118,10 @@ func startToolFlowWith(t *testing.T, coder, tester []fakePiStep, configure func(
 		t.Fatal(err)
 	}
 	t.Cleanup(child.CancelChangeWorkflows)
-	workflow := ChangeWorkflowRequest{ChangeIdentity: changeIdentity(opened.ChangeSession), Message: "Add Sub(a, b) next to Add.", Models: ChangeWorkflowModels{Create: "bug", Test: "analyze", Review: "code"}, ConfirmedProfiles: []string{"bug", "analyze", "code"}}
+	workflow := ChangeWorkflowRequest{ChangeIdentity: changeIdentity(opened.ChangeSession), Message: "Add Sub(a, b) next to Add.", Models: ChangeWorkflowModels{Create: "bug", Test: "analyze", Review: "code"}, ConfirmedProfiles: []string{"bug", "analyze", "code"}, Plan: "off"}
+	if adjust != nil {
+		adjust(&workflow)
+	}
 	if _, err := child.StartChangeWorkflow(context.Background(), opened.ID, workflow); err != nil {
 		t.Fatal(err)
 	}

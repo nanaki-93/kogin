@@ -25,10 +25,7 @@ import (
 // historyDir is the metadata directory of the project a task belongs to: a
 // task in its own worktree keeps its history in the main checkout's.
 func historyDir(root string) string {
-	if filepath.Base(filepath.Dir(root)) == ".worktrees" {
-		root = filepath.Dir(filepath.Dir(root))
-	}
-	return filepath.Join(root, brand.MetadataDir)
+	return filepath.Join(mainCheckoutRoot(root), brand.MetadataDir)
 }
 
 // withHistory runs write on the project's history, logging a failure. A

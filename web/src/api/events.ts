@@ -50,6 +50,7 @@ export function withActivity(log: ChangeActivity | undefined, entry: AgentActivi
 
 const FINISHED: Record<string, { message: string; tone: 'success' | 'warning' | 'danger' | 'info' }> = {
   awaiting_human_review: { message: 'Agents finished “%”. It needs your review.', tone: 'success' },
+  awaiting_plan_review: { message: 'The investigation proposed a plan for “%”. Approve or redirect it.', tone: 'success' },
   changes_requested: { message: 'Reviewers requested changes on “%”.', tone: 'warning' },
   failed: { message: 'The agent run on “%” failed.', tone: 'danger' },
   stale: { message: '“%” is out of date; its run stopped.', tone: 'warning' },

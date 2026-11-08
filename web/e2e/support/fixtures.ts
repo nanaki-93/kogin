@@ -93,6 +93,50 @@ export function reviewTask(): ChangeSession {
   };
 }
 
+/** The task before any code: the investigation proposed a plan that waits for approval. */
+export function planReadyTask(): ChangeSession {
+  const task = reviewTask();
+  return {
+    ...task,
+    revision: 1,
+    hash: 'sha256:empty',
+    changes: [],
+    checks: [],
+    walkthrough: undefined,
+    reviewed_files: [],
+    file_review_hash: undefined,
+    messages: [{ role: 'assistant', content: 'Proposed a plan: Nested asset paths reach the embedded read and return 500.\n\nTools: 9 calls (read_file 5, search 3, plan 1) in 11 model turns.' }],
+    plan: {
+      problem: 'Nested asset paths reach the embedded read and return 500 instead of 404.',
+      root_cause: 'ServeAsset trims the name but never rejects a slash, so fs.ReadFile gets a nested path and fails.',
+      approach: 'Reject names with a slash or a parent segment before reading the embedded files, and return 404.',
+      citations: [{ path: 'internal/api/handlers/webui.go', start_line: 41, end_line: 42, quote: 'name := trim(r)', observation: 'The name is trimmed but never checked for a slash.' }],
+      alternatives: [{ approach: 'Clean the path and allow nested assets.', why_not: 'The bundle has no nested files; allowing them widens what the handler serves.' }],
+      risks: ['A client that relied on the 500 now sees 404.'],
+      touches: [
+        { path: 'internal/api/handlers/webui.go', why: 'Reject nested names before the read.' },
+        { path: 'internal/api/handlers/webui_test.go', why: 'A table test for nested and missing names.' },
+      ],
+      hash: 'plan-hash-1',
+      source: 'investigator',
+      model: 'mini-orca-local',
+      investigated_at: ago(4),
+    },
+    workflow: {
+      id: 'wf-1',
+      status: 'awaiting_plan_review',
+      reason: 'The investigation proposed a plan. Review it on the task page, then approve it to start the agents, or redirect it with a note.',
+      plan_stage: { name: 'plan', status: 'completed', started_at: ago(6), finished_at: ago(4), model: stageModel('bug'), usage: spend(11, 24_000, 1_200), cost: estimate(0.044), tools: { calls: 9, turns: 11, finished: true, summary: 'read_file 5, search 3, plan 1' } },
+      stages: [
+        { name: 'create', status: 'pending', model: stageModel('bug') },
+        { name: 'test', status: 'pending', model: stageModel('code') },
+        { name: 'review', status: 'pending', model: stageModel('analyze') },
+        { name: 'human_review', status: 'blocked' },
+      ],
+    },
+  };
+}
+
 /** The same task after the reviewers requested changes: no human input yet. */
 export function rejectedTask(): ChangeSession {
   const task = reviewTask();
@@ -432,7 +476,7 @@ export function analysisSelection(excluded: string[]): AnalysisFileSelection {
 }
 
 export function defaultProfile(): ProjectProfile {
-  return { kind: 'team', purpose: '', shape: 'other', platforms: [], security: 'standard', finish_line: 'medium', analyze_tests: false, saved: false };
+  return { kind: 'team', purpose: '', shape: 'other', platforms: [], security: 'standard', finish_line: 'medium', analyze_tests: false, plan_gate: 'always', saved: false };
 }
 
 /** A project where analyses outpace fixes: spread tests, code nothing calls, a growing trend. */

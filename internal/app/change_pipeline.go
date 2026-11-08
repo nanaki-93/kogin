@@ -43,8 +43,8 @@ func (s *Service) StartChangeWorkflow(ctx context.Context, id string, request Ch
 	if err := request.Models.validate(); err != nil {
 		return nil, err
 	}
-	if len(request.Message) > 8192 || strings.TrimSpace(request.Message) == "" && !request.IncludeComments {
-		return nil, fmt.Errorf("provide a workflow request of at most 8192 bytes")
+	if err := validateWorkflowRequestText(request); err != nil {
+		return nil, err
 	}
 	if err := s.validateModelSelections(ctx, request.Models.selections()); err != nil {
 		return nil, err
@@ -73,6 +73,7 @@ func (s *Service) StartChangeWorkflow(ctx context.Context, id string, request Ch
 	markCommentsSent(session.Comments, sent, session.Revision)
 	request.Message = message
 	retryMessage := workflowRetryMessage(request.Message, session.Workflow, session.Checks)
+	investigation := s.investigationBudget(root, session, request, start)
 	w := s.prepareWorkflowRun(session, request, start, cleanedMessages)
 	if err := storeChangeSession(root, session); err != nil {
 		release()
@@ -85,8 +86,28 @@ func (s *Service) StartChangeWorkflow(ctx context.Context, id string, request Ch
 	if start.firstModelStage() == 0 {
 		steps = pendingIssueSteps(session)
 	}
-	s.launchChangeWorkflow(agentCtx, release, root, id, w, request, start, retryMessage, steps)
+	s.launchChangeWorkflow(agentCtx, release, root, id, w, request, start, retryMessage, steps, investigation)
 	return session, nil
+}
+
+// validateWorkflowRequestText bounds a run request's message and plan fields.
+func validateWorkflowRequestText(request ChangeWorkflowRequest) error {
+	if len(request.Message) > 8192 || strings.TrimSpace(request.Message) == "" && !request.IncludeComments {
+		return fmt.Errorf("provide a workflow request of at most 8192 bytes")
+	}
+	return validateWorkflowPlanRequest(request)
+}
+
+// investigationBudget is the extra time a run that proposes a plan needs.
+func (s *Service) investigationBudget(root string, session *ChangeSession, request ChangeWorkflowRequest, start workflowStart) time.Duration {
+	if start != startCreate {
+		return 0
+	}
+	runtime := s.workflowStageRuntime(0, request.Models.Create)
+	if !investigationNeeded(session, workflowPlanMode(root, request), strings.TrimSpace(request.PlanRedirect), runtime) {
+		return 0
+	}
+	return investigationTimeFactor * duration(runtime.effective.Timeout)
 }
 
 // admitOrQueue admits the run and returns where it starts, or records it as
@@ -127,8 +148,11 @@ func (s *Service) admitWorkflowSession(ctx context.Context, session *ChangeSessi
 	if err := s.admitChangeWorkflow(ctx, session, request, messages); err != nil {
 		return workflowStart{}, err
 	}
-	if err := approveWorkflowPlan(session, request.PlanHash); err != nil {
-		return workflowStart{}, err
+	// A redirected run replaces the plan, so the old one needs no approval.
+	if request.PlanRedirect == "" {
+		if err := approveWorkflowPlan(session, request.PlanHash); err != nil {
+			return workflowStart{}, err
+		}
 	}
 	start, err := s.workflowStartFor(session, request.ResumeFrom)
 	if err != nil {
@@ -152,8 +176,8 @@ func workflowRequestMessage(session *ChangeSession, request ChangeWorkflowReques
 
 // launchChangeWorkflow starts the admitted run's worker under its total
 // deadline, which grows with the issue steps it will run.
-func (s *Service) launchChangeWorkflow(agentCtx context.Context, release context.CancelFunc, root, sessionID string, w *ChangeWorkflow, request ChangeWorkflowRequest, start workflowStart, message string, steps int) {
-	budget := s.changeWorkflowTimeout(agentCtx, request.Models, start.firstModelStage(), request.AutoRepair) + s.issueStepsBudget(agentCtx, request.Models, steps)
+func (s *Service) launchChangeWorkflow(agentCtx context.Context, release context.CancelFunc, root, sessionID string, w *ChangeWorkflow, request ChangeWorkflowRequest, start workflowStart, message string, steps int, investigation time.Duration) {
+	budget := s.changeWorkflowTimeout(agentCtx, request.Models, start.firstModelStage(), request.AutoRepair) + s.issueStepsBudget(agentCtx, request.Models, steps) + investigation
 	workCtx, cancelTimeout := context.WithTimeoutCause(agentCtx, budget, &workflowTimeoutError{limit: budget})
 	cancel := func() { cancelTimeout(); release() }
 	workCtx, interrupt := context.WithCancelCause(workCtx)
@@ -216,6 +240,12 @@ func (s *Service) runChangeWorkflow(ctx context.Context, job *changeWorkflowJob,
 	defer s.lockTaskWorktree(job)()
 	currentMessage := message
 	if job.start == startCreate {
+		// The plan gate: the run proposes a plan and waits for its review
+		// before any code, unless the human already approved the plan.
+		if err := s.investigateChangePlan(ctx, job, message); err != nil {
+			s.finishChangeWorkflow(ctx, job, err)
+			return
+		}
 		currentMessage = s.probeUncheckedChangesBeforeWorkflow(ctx, job, message)
 	}
 	limit := 0
@@ -331,6 +361,10 @@ func (s *Service) finishChangeWorkflow(ctx context.Context, job *changeWorkflowJ
 			if w.Review != nil && w.Review.Verdict == "approve" {
 				w.Status, w.Stages[3].Status = "awaiting_human_review", "waiting"
 			}
+		} else if errors.Is(runErr, errPlanReview) {
+			// Not a failure: the proposed plan waits for the human. The model
+			// stages stay pending for the approved run.
+			w.Status, w.Reason = "awaiting_plan_review", planReviewReason()
 		} else {
 			w.Status, w.Reason = workflowFailure(runErr, session.Checks)
 			if errors.As(runErr, &limit) {

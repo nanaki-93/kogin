@@ -26,7 +26,8 @@ export function profileChanged(saved: ProjectProfile, draft: ProjectProfile): bo
     [...saved.platforms].sort().join() !== [...draft.platforms].sort().join() ||
     saved.security !== draft.security ||
     saved.finish_line !== draft.finish_line ||
-    saved.analyze_tests !== draft.analyze_tests
+    saved.analyze_tests !== draft.analyze_tests ||
+    saved.plan_gate !== draft.plan_gate
   );
 }
 

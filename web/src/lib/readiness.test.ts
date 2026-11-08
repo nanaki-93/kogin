@@ -117,6 +117,8 @@ describe('taskStatus', () => {
     // A run stopped because its files changed, such as on the main branch, is out of date, not failed.
     expect(taskStatus({ ...entry, revision: 2, hash: 'x', workflow_status: 'stale' })).toEqual({ status: 'stale', label: 'Out of date', tone: 'warning' });
     expect(taskStatus({ ...entry, revision: 2, hash: 'x', workflow_status: 'paused' })).toEqual({ status: 'needs_you', label: 'Paused', tone: 'warning' });
+    // The investigation proposed a plan: your decision comes before any code.
+    expect(taskStatus({ ...entry, revision: 1, hash: 'x', workflow_status: 'awaiting_plan_review' })).toEqual({ status: 'needs_you', label: 'Plan ready', tone: 'accent' });
     // A revision after the run needs the agents again; it is not a failure.
     expect(taskStatus({ ...entry, revision: 4, hash: 'x', workflow_status: 'outdated' })).toEqual({ status: 'needs_you', label: 'Revised', tone: 'accent' });
     expect(taskStatus({ ...entry, state: 'applied', commit: { state: 'committed' } as never }).label).toBe('Committed');
@@ -125,6 +127,7 @@ describe('taskStatus', () => {
   it('names what running agents do', () => {
     const running = { ...entry, workflow_status: 'running' };
     expect(taskStatus(running).label).toBe('Agents working');
+    expect(taskStatus({ ...running, workflow_phase: { stage: 'plan' } }).label).toBe('Investigating');
     expect(taskStatus({ ...running, workflow_phase: { stage: 'create', issue: 2, issues: 5 } })).toEqual({ status: 'running', label: 'Fixing 2 of 5', tone: 'info' });
     expect(taskStatus({ ...running, workflow_phase: { stage: 'create' } }).label).toBe('Writing code');
     expect(taskStatus({ ...running, workflow_phase: { stage: 'create', repair: 1 } }).label).toBe('Repairing');

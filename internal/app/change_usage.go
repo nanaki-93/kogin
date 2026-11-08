@@ -75,6 +75,9 @@ func (s *Service) estimateStageCosts(session *ChangeSession) {
 	if session.Workflow == nil {
 		return
 	}
+	if plan := session.Workflow.PlanStage; plan != nil && plan.Usage != nil {
+		plan.Cost = agentCost(*plan.Usage, s.conf().agentRuntime.Telemetry.Prices)
+	}
 	for i := range session.Workflow.Stages {
 		if usage := session.Workflow.Stages[i].Usage; usage != nil {
 			session.Workflow.Stages[i].Cost = agentCost(*usage, s.conf().agentRuntime.Telemetry.Prices)

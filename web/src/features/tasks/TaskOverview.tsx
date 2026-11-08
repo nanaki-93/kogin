@@ -16,6 +16,7 @@ import { navigate } from '@/lib/router';
 import { openWorkspace } from '@/app/checkout';
 import { openNewTask } from '@/app/store';
 import { CodeRules } from './CodeRules';
+import { PlanReview } from './PlanReview';
 import { ReanalyzeTask } from './ReanalyzeTask';
 import { MainChanged } from './RetakeTask';
 import { RunAgents } from './RunAgents';
@@ -27,6 +28,7 @@ export function TaskOverview({ session }: { session: LoadedSession }) {
     <div className="page-inner stack-lg">
       <MainChanged session={session} />
       {workflowActive(session) && session.workflow ? <LiveRun session={session} /> : null}
+      <PlanReview session={session} />
       <Brief session={session} />
       <CodeRules session={session} />
       {session.workflow ? <AgentRun session={session} /> : null}
@@ -37,7 +39,8 @@ export function TaskOverview({ session }: { session: LoadedSession }) {
 }
 
 function Brief({ session }: { session: LoadedSession }) {
-  const plan = session.plan;
+  // A plan the investigation proposed has its own card above the brief.
+  const plan = session.plan?.source === 'investigator' ? undefined : session.plan;
   return (
     <section className="card" aria-label="Task brief">
       <div className="card-head">

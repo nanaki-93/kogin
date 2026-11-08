@@ -42,6 +42,17 @@ export function reviseSession(s: ChangeSession, body: Record<string, unknown>): 
  */
 export function startRun(s: ChangeSession, body: Record<string, unknown>): ChangeSession {
   if (s.workflow && ['running', 'canceling'].includes(s.workflow.status)) throw new Error('a change workflow is already active');
+  // Like the daemon: an investigator plan is approved by its hash, replaced by
+  // a redirect, and blocks a run that carries neither.
+  let plan = s.plan;
+  let planStage = s.workflow?.plan_stage;
+  if (body.plan_redirect) {
+    plan = undefined;
+    planStage = { name: 'plan', status: 'running', started_at: new Date().toISOString() };
+  } else if (s.plan?.source === 'investigator') {
+    if (body.plan_hash !== s.plan.hash) throw new Error('approve the displayed plan and captured source before generation');
+    plan = { ...s.plan, approved_hash: s.plan.hash };
+  }
   // Like the daemon: no run builds on files the main branch has since changed.
   const main = s.main_changed;
   if (main) throw new Error(`${main.branch} changed ${main.paths.join(', ')} since this task started. This task's work is built on ${main.paths.length === 1 ? 'that file as it was' : 'those files as they were'}: re-analyze it against ${main.branch} and, if the issue is still there, start it again from ${main.branch}.`);
@@ -55,6 +66,6 @@ export function startRun(s: ChangeSession, body: Record<string, unknown>): Chang
   const selections = [models.create, models.test, models.review];
   const stages = ['create', 'test', 'review'].map((name, i) => (i < kept ? { ...s.workflow!.stages[i], status: 'completed' } : { name, status: 'pending', model: data.stageModel(selections[i]) }));
   const revision = s.revision + 1;
-  const workflow = { id: `${s.id}-${revision}`, status: 'running', resume_from: body.resume_from as string | undefined, attempt: (s.workflow?.attempt ?? 1) + 1, auto_repair: Boolean(body.auto_repair), stages: [...stages, { name: 'human_review', status: 'blocked' }] };
-  return { ...s, revision, reviewed_hash: undefined, checks: start === 'review' ? s.checks : [], workflow };
+  const workflow = { id: `${s.id}-${revision}`, status: 'running', resume_from: body.resume_from as string | undefined, attempt: (s.workflow?.attempt ?? 1) + 1, auto_repair: Boolean(body.auto_repair), plan_stage: planStage, stages: [...stages, { name: 'human_review', status: 'blocked' }] };
+  return { ...s, revision, plan, reviewed_hash: undefined, checks: start === 'review' ? s.checks : [], workflow };
 }

@@ -35,6 +35,11 @@ func (models ChangeWorkflowModels) validate() error {
 type ChangeWorkflowRequest struct {
 	StreamOutput bool   `json:"stream_output,omitempty"`
 	PlanHash     string `json:"plan_hash,omitempty"`
+	// Plan turns the plan gate on or off for this run; empty follows the
+	// project profile. PlanRedirect runs the investigation again with the
+	// human's note, replacing the proposed plan.
+	Plan         string `json:"plan,omitempty"`
+	PlanRedirect string `json:"plan_redirect,omitempty"`
 	ResumeFrom   string `json:"resume_from,omitempty"`
 	ChangeIdentity
 	Message           string               `json:"message"`
@@ -111,20 +116,23 @@ type ChangeSpecialistReview struct {
 // Workflow reports live in private change history alongside captured source.
 // A model verdict never establishes human approval or measured performance.
 type ChangeWorkflow struct {
-	StreamOutput       bool                     `json:"stream_output,omitempty"`
-	Input              *ChangeInput             `json:"input,omitempty"`
-	Attempt            int                      `json:"attempt,omitempty"`
-	ResumeFrom         string                   `json:"resume_from,omitempty"`
-	ID                 string                   `json:"id"`
-	Status             string                   `json:"status"`
-	Reason             string                   `json:"reason,omitempty"`
-	Models             ChangeWorkflowModels     `json:"models"`
-	AutoRepair         bool                     `json:"auto_repair,omitempty"`
-	AutoRepairAttempts int                      `json:"auto_repair_attempts,omitempty"`
-	Stages             []ChangeWorkflowStage    `json:"stages"`
-	Review             *ChangeWorkflowReview    `json:"review,omitempty"`
-	Override           *ChangeWorkflowOverride  `json:"override,omitempty"`
-	Specialists        []ChangeSpecialistReview `json:"specialists,omitempty"`
+	StreamOutput       bool                 `json:"stream_output,omitempty"`
+	Input              *ChangeInput         `json:"input,omitempty"`
+	Attempt            int                  `json:"attempt,omitempty"`
+	ResumeFrom         string               `json:"resume_from,omitempty"`
+	ID                 string               `json:"id"`
+	Status             string               `json:"status"`
+	Reason             string               `json:"reason,omitempty"`
+	Models             ChangeWorkflowModels `json:"models"`
+	AutoRepair         bool                 `json:"auto_repair,omitempty"`
+	AutoRepairAttempts int                  `json:"auto_repair_attempts,omitempty"`
+	// PlanStage is the investigation that proposed the task's plan before any
+	// code, when the plan gate ran one.
+	PlanStage   *ChangeWorkflowStage     `json:"plan_stage,omitempty"`
+	Stages      []ChangeWorkflowStage    `json:"stages"`
+	Review      *ChangeWorkflowReview    `json:"review,omitempty"`
+	Override    *ChangeWorkflowOverride  `json:"override,omitempty"`
+	Specialists []ChangeSpecialistReview `json:"specialists,omitempty"`
 	// Pause is set while the run waits for a subscription plan's usage limit
 	// to reset (status paused).
 	Pause *ChangeWorkflowPause `json:"pause,omitempty"`
@@ -273,10 +281,8 @@ func validateStoredWorkflow(w *ChangeWorkflow) error {
 	if err := w.Models.validate(); err != nil {
 		return err
 	}
-	switch w.Status {
-	case "running", "canceling", "failed", "canceled", "stale", "interrupted", "outdated", "changes_requested", "awaiting_human_review", "paused", "nothing_to_fix", "waiting":
-	default:
-		return fmt.Errorf("corrupt workflow status")
+	if err := validateWorkflowStatus(w); err != nil {
+		return err
 	}
 	if err := validateWorkflowPause(w); err != nil {
 		return err
@@ -295,6 +301,20 @@ func validateStoredWorkflow(w *ChangeWorkflow) error {
 	}
 	if w.Review != nil {
 		return validateWorkflowReview(w.Review)
+	}
+	return nil
+}
+
+// validateWorkflowStatus accepts the statuses a stored run can hold, with a
+// plan stage only under its own name.
+func validateWorkflowStatus(w *ChangeWorkflow) error {
+	switch w.Status {
+	case "running", "canceling", "failed", "canceled", "stale", "interrupted", "outdated", "changes_requested", "awaiting_human_review", "awaiting_plan_review", "paused", "nothing_to_fix", "waiting":
+	default:
+		return fmt.Errorf("corrupt workflow status")
+	}
+	if w.PlanStage != nil && w.PlanStage.Name != investigationStageName {
+		return fmt.Errorf("corrupt workflow plan stage")
 	}
 	return nil
 }

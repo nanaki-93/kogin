@@ -20,9 +20,13 @@ export interface ProjectProfile {
   /** The lowest severity that still counts as work. */
   finish_line: FinishSeverity;
   analyze_tests: boolean;
+  /** When a task's agents propose a plan for review before any code. */
+  plan_gate: PlanGate;
   /** False while the project uses the default profile. */
   saved: boolean;
 }
+
+export type PlanGate = 'always' | 'grouped' | 'off';
 
 export interface HealthFinishLine {
   severity: FinishSeverity;

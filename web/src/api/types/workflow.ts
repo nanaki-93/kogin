@@ -81,6 +81,8 @@ export interface ChangeWorkflow {
   resume_from?: string;
   auto_repair?: boolean;
   auto_repair_attempts?: number;
+  /** The investigation that proposed the task's plan before any code, when the plan gate ran one. */
+  plan_stage?: WorkflowStage;
   stages: WorkflowStage[];
   review?: WorkflowReview;
   override?: WorkflowOverride;

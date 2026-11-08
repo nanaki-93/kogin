@@ -154,6 +154,11 @@ func resumedRun(session, old *ChangeSession) ChangeWorkflowRequest {
 	w, pending := old.Workflow, old.Workflow.Pending
 	request := ChangeWorkflowRequest{ChangeIdentity: identityForChange(session), StreamOutput: w.StreamOutput, Message: pending.Message, Models: w.Models, ConfirmedProfiles: slices.Clone(pending.ConfirmedProfiles), ConfirmSecurity: pending.ConfirmSecurity, AutoRepair: w.AutoRepair}
 	if session.Plan != nil {
+		// A plan the investigator proposed is never approved by a resume:
+		// the gate investigates the continued task again instead.
+		if session.Plan.Source == planSourceInvestigator {
+			return request
+		}
 		request.PlanHash = session.Plan.Hash
 	}
 	return request

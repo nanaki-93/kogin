@@ -960,6 +960,36 @@ approval. Empty fields preserve existing plan hashes.
 Legacy API conversations and schema-1 history without `plan` retain their direct
 message flow. Planned sessions reject generation without current approval.
 
+A plan can also carry investigation fields: `root_cause` (at most 8192 bytes),
+`alternatives` (at most 4, each `approach` and `why_not` of at most 512 bytes),
+`risks` (at most 6 of 512 bytes), `touches` (files the change is expected to
+edit or create, each `path` and `why`) and, for a task fixing several issues,
+`issue_verdicts` (one per linked issue: `holds`, `already_fixed`,
+`does_not_hold` or `needs_own_task`, with a `note` required for anything but
+`holds`). All are optional and empty ones preserve existing plan hashes.
+
+**The plan gate.** When a workflow run starts from `create` on a fresh
+proposal and the gate is on (request `plan: "on"`, or the project profile's
+`plan_gate`: `always`, `grouped` for tasks fixing several issues, or `off`),
+and the creation model can run as an agent, the run first investigates: the
+creation model reads the task's worktree through the read-only task tools and
+ends with a `plan` call whose citations are checked against the files (quote
+in the cited lines) at call time. Cited files outside the task's targets
+become the plan's `read_paths` (at most 8), so the citations stay verifiable.
+The stored plan carries `source: "investigator"`, the `model` and
+`investigated_at`, is unapproved, and the workflow stops with status
+`awaiting_plan_review` and `plan_stage` (name `plan`) recording the
+investigation's model, usage and tool calls; the model stages stay `pending`.
+Starting the workflow again with `plan_hash` approves that exact plan and the
+run proceeds (the investigation is skipped and `plan_stage` carried over);
+starting it with `plan_redirect` (at most 2000 bytes) runs the investigation
+again with the note and the previous plan in its prompt, needing no
+`plan_hash`. An unapproved investigator plan blocks generation like any
+unapproved plan. The gate never runs for `instructions` tasks, tasks without
+their own worktree or acceptance criteria, resumed starts (`test`, `checks`,
+`review`), tasks that already have a proposal, or creation models without
+agent runs.
+
 Every reviewer also lists `behavior_changes` (at most 8 each, `ReviewItem`s):
 what a user, a script or a caller can observe differently after the change
 (commands, flags, exit codes, output and error text, formats, defaults, timing,

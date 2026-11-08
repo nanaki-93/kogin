@@ -13,7 +13,7 @@ export function phaseTone(raw: string | undefined): PhaseTone {
   const s = (raw ?? '').toLowerCase().trim();
   if (['passed', 'completed', 'completed_empty', 'fresh', 'approve', 'approved', 'checked', 'reviewed', 'applied', 'committed', 'merged', 'verified'].includes(s)) return 'passed';
   if (['failed', 'error', 'rejected', 'changes_requested', 'stale', 'outdated', 'interrupted', 'conflicts', 'blocked'].includes(s)) return 'failed';
-  if (['waiting', 'awaiting_human_review', 'paused'].includes(s)) return 'waiting';
+  if (['waiting', 'awaiting_human_review', 'awaiting_plan_review', 'paused'].includes(s)) return 'waiting';
   if (['running', 'in_progress', 'working', 'queued', 'canceling', 'pausing', 'pending_review'].includes(s)) return 'running';
   return 'idle';
 }
@@ -205,6 +205,7 @@ export type TaskStatusEntry = Pick<ChangeHistoryEntry, 'state' | 'freshness' | '
 
 /** What the agents are doing, worded for a status column. */
 export function phaseLabel(phase: WorkflowPhase | undefined): string {
+  if (phase?.stage === 'plan') return 'Investigating';
   if (phase?.stage === 'create') {
     if (phase.issue && phase.issues) return `Fixing ${phase.issue} of ${phase.issues}`;
     return phase.repair ? 'Repairing' : 'Writing code';
@@ -233,6 +234,8 @@ export function taskStatus(entry: TaskStatusEntry): TaskStatusInfo {
   if (wf === 'waiting') return { status: 'running', label: 'Waiting', tone: 'neutral' };
   if (entry.freshness && entry.freshness !== 'current') return { status: 'stale', label: 'Stale', tone: 'warning' };
   if (wf === 'awaiting_human_review') return reviewStatus(entry.review);
+  // The investigation proposed a plan: approve or redirect it before any code.
+  if (wf === 'awaiting_plan_review') return { status: 'needs_you', label: 'Plan ready', tone: 'accent' };
   if (wf === 'changes_requested') return { status: 'needs_you', label: 'Changes requested', tone: 'warning' };
   // A plan reached its usage limit: the run continues when you resume it.
   if (wf === 'paused') return { status: 'needs_you', label: 'Paused', tone: 'warning' };

@@ -89,6 +89,10 @@ func (s *Service) prepareWorkflowRun(session *ChangeSession, request ChangeWorkf
 	}
 	w := &ChangeWorkflow{Attempt: attempt, ResumeFrom: request.ResumeFrom, ID: fmt.Sprintf("%s-%d", session.ID, session.Revision), Status: "running", Models: request.Models, AutoRepair: request.AutoRepair, StartedAt: now, UpdatedAt: now}
 	w.StreamOutput = request.StreamOutput
+	// The run after an approved plan keeps the investigation on its timeline.
+	if previous := session.Workflow; previous != nil && previous.PlanStage != nil && session.Plan != nil && session.Plan.Source == planSourceInvestigator && request.PlanRedirect == "" {
+		w.PlanStage = previous.PlanStage
+	}
 	for i, profile := range request.Models.selections() {
 		runtime := s.workflowStageRuntime(i, profile)
 		w.Stages = append(w.Stages, ChangeWorkflowStage{Name: []string{"create", "test", "review"}[i], Status: "pending", Model: &runtime.effective})

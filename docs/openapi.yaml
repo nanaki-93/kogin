@@ -1686,7 +1686,7 @@ components:
             detail: {type: string}
     ProjectProfile:
       type: object
-      required: [kind, purpose, shape, platforms, security, finish_line, analyze_tests, saved]
+      required: [kind, purpose, shape, platforms, security, finish_line, analyze_tests, plan_gate, saved]
       properties:
         kind: {type: string, enum: [personal, team, open_source, enterprise]}
         purpose: {type: string, maxLength: 240}
@@ -1695,6 +1695,7 @@ components:
         security: {type: string, enum: [basic, standard, strict]}
         finish_line: {type: string, enum: [critical, high, medium, low], description: The lowest severity that still counts as work.}
         analyze_tests: {type: boolean}
+        plan_gate: {type: string, enum: [always, grouped, off], description: "When a task's agents propose a plan for review before any code: every task, only tasks fixing several issues, or never. Empty on save means always."}
         saved: {type: boolean, description: False while the project uses the default profile; ignored on save.}
     ProjectHealth:
       type: object
@@ -2502,6 +2503,39 @@ components:
         read_paths: {type: array, maxItems: 8, uniqueItems: true, items: {type: string}, description: Existing context paths distinct from write targets; policy and size limits apply.}
         citations: {type: array, maxItems: 8, items: {$ref: '#/components/schemas/PlanEvidence'}}
         assumptions: {type: array, maxItems: 8, items: {type: string, minLength: 1, maxLength: 512}}
+        root_cause: {type: string, maxLength: 8192, description: Why the problem happens, naming the code; the citations show it.}
+        alternatives:
+          type: array
+          maxItems: 4
+          description: Approaches considered and rejected.
+          items:
+            type: object
+            required: [approach, why_not]
+            properties:
+              approach: {type: string, minLength: 1, maxLength: 512}
+              why_not: {type: string, minLength: 1, maxLength: 512}
+        risks: {type: array, maxItems: 6, items: {type: string, minLength: 1, maxLength: 512}}
+        touches:
+          type: array
+          maxItems: 64
+          description: The files the change is expected to edit or create, and why each.
+          items:
+            type: object
+            required: [path, why]
+            properties:
+              path: {type: string}
+              why: {type: string, minLength: 1, maxLength: 512}
+        issue_verdicts:
+          type: array
+          maxItems: 5
+          description: What the investigation found for each linked issue, before any code.
+          items:
+            type: object
+            required: [finding_id, verdict]
+            properties:
+              finding_id: {type: string}
+              verdict: {type: string, enum: [holds, already_fixed, does_not_hold, needs_own_task]}
+              note: {type: string, maxLength: 512}
     ChangePlan:
       allOf:
         - {$ref: '#/components/schemas/ChangePlanInput'}
@@ -2511,6 +2545,9 @@ components:
             hash: {type: string, description: "Captured intent, criteria, source, instructions and workspace identity."}
             approved_hash: {type: string}
             read_targets: {type: array, items: {$ref: '#/components/schemas/ChangeTarget'}}
+            source: {type: string, enum: [investigator], description: Present on a plan the investigation agent proposed; absent on one the user wrote at creation.}
+            model: {type: string, description: The model that proposed the plan.}
+            investigated_at: {type: string, format: date-time}
     ChangeFileReviewRequest:
       allOf:
         - {$ref: '#/components/schemas/ChangeIdentity'}
@@ -2710,6 +2747,8 @@ components:
           properties:
             stream_output: {type: boolean, default: false, description: Opt into bounded private model streaming; every selected provider must support it.}
             plan_hash: {type: string, description: Required matching plan.hash for planned sessions; explicitly approves captured intent.}
+            plan: {type: string, enum: [on, off], description: Turns the plan gate on or off for this run; omitted follows the project profile's plan_gate. With the gate on, a fresh create run on an agent-capable creation model first proposes a plan and stops at awaiting_plan_review.}
+            plan_redirect: {type: string, maxLength: 2000, description: Runs the investigation again with this note, replacing the proposed plan; the old plan needs no plan_hash.}
             resume_from: {type: string, enum: [create, test, checks, review], default: create, description: "Where the run starts: create writes the change again; test keeps the implementation; checks keeps the whole proposal and runs the checks, then the reviewers; review needs live passing checks for this hash."}
             auto_repair: {type: boolean, default: false, description: Opt into up to two automatic repairs within approved scope.}
             message: {type: string, maxLength: 8192, description: Required unless include_comments sends the open line comments.}
@@ -2808,13 +2847,26 @@ components:
         stream_output: {type: boolean, default: false}
         input: {$ref: '#/components/schemas/ChangeInput'}
         id: {type: string}
-        status: {type: string, enum: [running, canceling, failed, canceled, stale, interrupted, outdated, changes_requested, awaiting_human_review, paused, nothing_to_fix, waiting], description: "paused: a stage's subscription plan reached its usage limit; see pause. nothing_to_fix: no issue step fixed anything and some issues do not hold; close the task. waiting: another task is changing its code; see waiting."}
+        status: {type: string, enum: [running, canceling, failed, canceled, stale, interrupted, outdated, changes_requested, awaiting_human_review, awaiting_plan_review, paused, nothing_to_fix, waiting], description: "awaiting_plan_review: the investigation proposed a plan; approve it (plan_hash) or redirect it (plan_redirect). paused: a stage's subscription plan reached its usage limit; see pause. nothing_to_fix: no issue step fixed anything and some issues do not hold; close the task. waiting: another task is changing its code; see waiting."}
         attempt: {type: integer, minimum: 1}
         resume_from: {type: string, enum: [create, test, checks, review]}
         reason: {type: string}
         auto_repair: {type: boolean}
         auto_repair_attempts: {type: integer}
         models: {$ref: '#/components/schemas/ChangeWorkflowModels'}
+        plan_stage:
+          type: object
+          description: The investigation that proposed the task's plan before any code, when the plan gate ran one. Shaped like a stage, named plan.
+          required: [name, status]
+          properties:
+            name: {type: string, enum: [plan]}
+            status: {type: string, enum: [running, completed, failed]}
+            started_at: {type: string, format: date-time}
+            finished_at: {type: string, format: date-time}
+            reason: {type: string}
+            model: {$ref: '#/components/schemas/ScopedModel'}
+            usage: {$ref: '#/components/schemas/AgentUsage'}
+            cost: {$ref: '#/components/schemas/AgentCostEstimate'}
         stages:
           type: array
           minItems: 4

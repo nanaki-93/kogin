@@ -34,6 +34,10 @@ func workflowPhase(session *ChangeSession) *gitops.ChangeWorkflowPhase {
 	}
 	running := slices.IndexFunc(w.Stages, func(stage ChangeWorkflowStage) bool { return stage.Status == "running" })
 	if running < 0 {
+		// Before the model stages, the run may be investigating the plan.
+		if plan := w.PlanStage; plan != nil && plan.Status == "running" {
+			return &gitops.ChangeWorkflowPhase{Stage: investigationStageName}
+		}
 		return nil
 	}
 	phase := &gitops.ChangeWorkflowPhase{Stage: w.Stages[running].Name, Repair: w.AutoRepairAttempts, ChecksOnly: w.ResumeFrom == "checks" && w.AutoRepairAttempts == 0}

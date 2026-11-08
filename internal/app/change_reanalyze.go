@@ -166,6 +166,8 @@ func recaptureRequest(root string, session *ChangeSession) ChangeCreateRequest {
 			source := currentSource(root, citation.Path)
 			return source == nil || validatePlanCitation(citation, source.Content) != nil
 		})
+		// Issue verdicts belong to the old investigation; the gate decides again.
+		plan.IssueVerdicts = nil
 		request.Plan = &plan
 	}
 	return request

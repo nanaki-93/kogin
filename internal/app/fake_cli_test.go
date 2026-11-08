@@ -96,6 +96,8 @@ func fakeRole(system string) string {
 		return "tester"
 	case strings.Contains(system, "You are Kogin's guide to a codebase"):
 		return "asker"
+	case strings.Contains(system, "You are Kogin's investigation agent"):
+		return "investigator"
 	case strings.Contains(system, "You are Kogin's"):
 		return "coder"
 	default:

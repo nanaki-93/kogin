@@ -2,7 +2,7 @@
 // a commit on the task's branch in one step, with the review gate tracking each step.
 
 import { expect, test } from './support/daemon';
-import { agentSettings, pausedTask, rejectedTask, reviewTask, stageModel } from './support/fixtures';
+import { agentSettings, pausedTask, planReadyTask, rejectedTask, reviewTask, stageModel } from './support/fixtures';
 
 test('reviews the files, then accepts and commits in one step', async ({ page, daemon }) => {
   await page.goto('/#/tasks/chg-1');
@@ -653,4 +653,46 @@ test('a task that fixes its issues one at a time shows each step', async ({ page
   await expect(steps.getByRole('listitem').nth(1)).toContainText('Not fixed');
   await expect(steps.getByRole('listitem').nth(1)).toContainText('The coding agent changed nothing: the handler already returns 404. It is open again in Issues.');
   await expect(steps.getByRole('listitem').nth(2)).toContainText('Waiting');
+});
+
+test('an investigated plan waits for approval, and approving it starts the agents', async ({ page, daemon }) => {
+  daemon.sessions.set('chg-1', planReadyTask());
+  await page.goto('/#/tasks/chg-1');
+  const plan = page.getByRole('region', { name: 'Proposed plan' });
+  await expect(plan.getByText('Needs your decision')).toBeVisible();
+  await expect(plan.getByText('ServeAsset trims the name but never rejects a slash, so fs.ReadFile gets a nested path and fails.')).toBeVisible();
+  await expect(plan.getByRole('button', { name: 'webui.go:41–42' })).toBeVisible();
+  await expect(plan.getByText('Why not: The bundle has no nested files; allowing them widens what the handler serves.')).toBeVisible();
+  await expect(plan.getByText('A client that relied on the 500 now sees 404.')).toBeVisible();
+  // The investigation is its own timeline entry, with its model and tool calls.
+  const run = page.getByRole('region', { name: 'Agent run' });
+  await expect(run.getByText('Investigate & plan')).toBeVisible();
+  await expect(run.getByText('Worked with tools: 9 calls in 11 turns (read_file 5, search 3, plan 1)')).toBeVisible();
+  await expect(page.locator('header.task-header').getByText('Plan ready')).toBeVisible();
+
+  await plan.getByRole('button', { name: 'Approve & run agents' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog.getByRole('heading', { name: 'Approve the plan and start the agents?' })).toBeVisible();
+  await expect(dialog.getByText('Your approval covers this exact plan.')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Approve & run agents' }).click();
+  await expect(page.locator('header.task-header').getByRole('button', { name: 'Stop agents' })).toBeVisible();
+  expect(daemon.mutations('/workflow')[0].body).toMatchObject({ plan_hash: 'plan-hash-1' });
+  // The approved run keeps the investigation on its timeline.
+  await expect(run.getByText('Investigate & plan')).toBeVisible();
+});
+
+test('redirecting the plan runs the investigation again with the note', async ({ page, daemon }) => {
+  daemon.sessions.set('chg-1', planReadyTask());
+  await page.goto('/#/tasks/chg-1');
+  const plan = page.getByRole('region', { name: 'Proposed plan' });
+  await plan.getByRole('button', { name: 'Redirect…' }).click();
+  await plan.getByLabel('Redirect note').fill('Keep the 500 for nested paths; only missing assets become 404.');
+  await plan.getByRole('button', { name: 'Re-investigate' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog.getByRole('heading', { name: 'Redirect the plan?' })).toBeVisible();
+  await expect(dialog.getByText('The investigation runs again with your note and proposes a revised plan.')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Re-investigate' }).click();
+  const body = daemon.mutations('/workflow')[0].body as Record<string, unknown>;
+  expect(body.plan_redirect).toBe('Keep the 500 for nested paths; only missing assets become 404.');
+  expect(body.plan_hash).toBeUndefined();
 });

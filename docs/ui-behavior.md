@@ -62,6 +62,21 @@ every guard when the action arrives.
   confirmation lists every remote destination the Creation, Testing and Review
   roles will use; local-only runs say so. Repairs run automatically, at most
   two. A security task adds a security specialist.
+- **The plan gate.** With the project profile's **Plan approval** on (every
+  task by default, or only grouped fixes), a run that starts from Create on a
+  fresh proposal first investigates: the creation model reads the code with
+  the read-only tools and proposes a plan — the problem, its root cause with
+  cited lines (each a link to the code), the approach, the files it touches,
+  rejected alternatives, risks and, for a grouped fix, a verdict per issue.
+  The run stops at **Plan ready** (the task list shows it under Needs you)
+  and the task page shows a **Proposed plan** card above the brief with two
+  actions: **Approve & run agents** approves that exact plan and starts the
+  run (the confirmation says the approval covers the displayed plan), and
+  **Redirect…** takes a note and runs the investigation again, proposing a
+  revised plan that waits again. No code is written, nothing to roll back:
+  rejecting a plan costs one read-only run. The Investigation appears as its
+  own timeline entry (Investigate & plan) with its model, usage and tool
+  calls, and stays there on the approved run.
 - **Run again.** Whenever no run is active and the task is not applied, the
   task page offers **Run agents again** (beside the review step, or as the
   primary action when the agents must run before human review, and on a run

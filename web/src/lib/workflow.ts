@@ -6,6 +6,7 @@ import { durationBetween, plural, type Tone } from './util';
 import { phaseTone, type PhaseTone } from './readiness';
 
 export const STAGE_LABELS: Record<string, string> = {
+  plan: 'Investigate & plan',
   create: 'Write the change',
   test: 'Write and run tests',
   review: 'Specialist review',
@@ -13,6 +14,7 @@ export const STAGE_LABELS: Record<string, string> = {
 };
 
 export const STAGE_ACTORS: Record<string, string> = {
+  plan: 'Investigation agent',
   create: 'Creation agent',
   test: 'Testing agent',
   review: 'Reviewers',
@@ -55,7 +57,8 @@ export function workflowStages(workflow: ChangeWorkflow | undefined): StageView[
   // A checks start keeps the tests: its test stage only runs the checks,
   // until a repair has the testing agent write them again.
   const checksOnly = workflow?.resume_from === 'checks' && !workflow.auto_repair_attempts;
-  return (workflow?.stages ?? []).map(stage => ({
+  const stages = workflow?.plan_stage ? [workflow.plan_stage, ...(workflow.stages ?? [])] : workflow?.stages ?? [];
+  return stages.map(stage => ({
     name: stage.name,
     label: checksOnly && stage.name === 'test' ? 'Run the checks' : STAGE_LABELS[stage.name] ?? stage.name,
     actor: checksOnly && stage.name === 'test' ? 'Checks' : STAGE_ACTORS[stage.name] ?? '',
@@ -97,6 +100,7 @@ const RUN_LABELS: Record<string, string> = {
   running: 'Working',
   canceling: 'Stopping',
   awaiting_human_review: 'Finished',
+  awaiting_plan_review: 'Plan ready for your review',
   changes_requested: 'Finished with requested changes',
   failed: 'Failed',
   canceled: 'Stopped',
@@ -257,7 +261,7 @@ export function planName(provider: string | undefined): string {
   return { claude: 'Claude plan', agy: 'Google AI plan', pi: 'Pi subscription' }[provider ?? ''] ?? 'plan';
 }
 
-export function workflowRequest(identity: ProjectIdentity & { revision: number; hash: string }, message: string, choice: DestinationChoice, options: { autoRepair?: boolean; confirmSecurity?: boolean; planHash?: string; includeComments?: boolean; start?: RunStart } = {}) {
+export function workflowRequest(identity: ProjectIdentity & { revision: number; hash: string }, message: string, choice: DestinationChoice, options: { autoRepair?: boolean; confirmSecurity?: boolean; planHash?: string; planRedirect?: string; includeComments?: boolean; start?: RunStart } = {}) {
   return {
     ...identity,
     message,
@@ -266,6 +270,7 @@ export function workflowRequest(identity: ProjectIdentity & { revision: number; 
     confirm_security: Boolean(options.confirmSecurity),
     auto_repair: Boolean(options.autoRepair),
     plan_hash: options.planHash || undefined,
+    plan_redirect: options.planRedirect || undefined,
     include_comments: options.includeComments || undefined,
     resume_from: options.start && options.start !== 'create' ? options.start : undefined,
   };

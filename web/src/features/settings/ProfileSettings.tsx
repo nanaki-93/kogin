@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { Flag, Target } from 'lucide-react';
-import type { FinishSeverity, ProjectKind, ProjectPlatform, ProjectProfile, ProjectShape, SecurityLevel } from '@/api/types';
+import type { FinishSeverity, PlanGate, ProjectKind, ProjectPlatform, ProjectProfile, ProjectShape, SecurityLevel } from '@/api/types';
 import { useMainProject, useProfile } from '@/api/hooks';
 import { useActions, useBusy } from '@/app/actions';
 import { navigate } from '@/lib/router';
@@ -38,6 +38,11 @@ const FINISH: { value: FinishSeverity; label: string }[] = [
   { value: 'high', label: 'High and above' },
   { value: 'medium', label: 'Medium and above' },
   { value: 'low', label: 'Every issue' },
+];
+const PLAN_GATES: { value: PlanGate; label: string }[] = [
+  { value: 'always', label: 'Every task' },
+  { value: 'grouped', label: 'Grouped fixes only' },
+  { value: 'off', label: 'Off' },
 ];
 
 export function ProfileSettings() {
@@ -106,6 +111,9 @@ function ProfileForm({ profile }: { profile: ProjectProfile }) {
           Analyze test files too
           <span className="xs muted">Off: tests are judged by running them (Health), not reviewed issue by issue.</span>
         </label>
+        <Field label="Plan approval" hint="Before any code, an investigation agent reads the code and proposes a plan — the root cause with cited lines, the approach and its alternatives — and the run waits for you to approve or redirect it.">
+          <Segmented label="Plan approval" value={draft.plan_gate} options={PLAN_GATES} onChange={plan_gate => set({ plan_gate })} />
+        </Field>
         <Callout tone="neutral" icon={Flag}>
           Saving applies the profile to the issue list at once. The analysis reads it from the files it analyzes next; files already analyzed keep their results until they change or you re-analyze them.
         </Callout>

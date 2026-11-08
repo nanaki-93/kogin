@@ -71,6 +71,9 @@ type ProjectProfile struct {
 	// AnalyzeTests has analysis review test files too; by default tests are
 	// judged by running them.
 	AnalyzeTests bool `json:"analyze_tests"`
+	// PlanGate is when a task's agents propose a plan for review before any
+	// code: always, grouped (only tasks fixing several issues) or off.
+	PlanGate string `json:"plan_gate"`
 	// Saved reports that the project has a saved profile (response only).
 	Saved bool `json:"saved"`
 }
@@ -82,7 +85,7 @@ type storedProjectProfile struct {
 
 // DefaultProjectProfile is how Kogin judges a project without a profile.
 func DefaultProjectProfile() ProjectProfile {
-	return ProjectProfile{Kind: ProfileTeam, Shape: "other", Platforms: []string{}, Security: SecurityStandard, FinishLine: "medium"}
+	return ProjectProfile{Kind: ProfileTeam, Shape: "other", Platforms: []string{}, Security: SecurityStandard, FinishLine: "medium", PlanGate: PlanGateAlways}
 }
 
 // ProjectProfile returns the active project's profile, or the default.
@@ -157,8 +160,13 @@ func normalizeProjectProfile(profile ProjectProfile) (ProjectProfile, error) {
 	if profile.FinishLine == "" {
 		profile.FinishLine = defaults.FinishLine
 	}
+	if profile.PlanGate == "" {
+		profile.PlanGate = PlanGateAlways
+	}
 	profile.Purpose = strings.Join(strings.Fields(profile.Purpose), " ")
 	switch {
+	case !slices.Contains(planGateModes, profile.PlanGate):
+		return ProjectProfile{}, fmt.Errorf("%w: plan_gate must be one of %s", ErrInvalidProfile, strings.Join(planGateModes, ", "))
 	case !slices.Contains(profileKinds, profile.Kind):
 		return ProjectProfile{}, fmt.Errorf("%w: kind must be one of %s", ErrInvalidProfile, strings.Join(profileKinds, ", "))
 	case !slices.Contains(profileShapes, profile.Shape):

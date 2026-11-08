@@ -95,7 +95,7 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
     return created.id;
   }
 
-  async function startAgents(loaded: LoadedSession, options: { message?: string } = {}): Promise<boolean> {
+  async function startAgents(loaded: LoadedSession, options: { message?: string; approvePlan?: boolean; planRedirect?: string } = {}): Promise<boolean> {
     // The main branch may have changed the task's files since the page
     // loaded: a run would build on code that is gone, so it is retaken.
     const session = (await reload(loaded)) ?? loaded;
@@ -126,7 +126,7 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
     const models = pause ? await modelOptions(settings, choice, session) : null;
     const picked: Partial<Record<ModelStage, string>> = {};
     const ok = await confirm({
-      title: paused ? 'Resume the agents?' : again ? 'Run the agents again?' : 'Start the agents?',
+      title: options.approvePlan ? 'Approve the plan and start the agents?' : options.planRedirect ? 'Redirect the plan?' : paused ? 'Resume the agents?' : again ? 'Run the agents again?' : 'Start the agents?',
       body: (
         <div className="stack">
           {models ? (
@@ -146,6 +146,10 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
               {models ? null : <RunStartChoice options={starts.options} initial={starts.initial} comments={comments} onChange={value => (start = value)} />}
               <p className="small muted">Checks run in an isolated copy of the project. Nothing is committed until you review and accept the result. A failed check or a rejecting review starts an automatic repair of the code (up to two).</p>
             </>
+          ) : options.approvePlan ? (
+            <p>Your approval covers this exact plan. Agents write the change from it, write and run tests in an isolated copy of the project, then specialist reviewers check it. Nothing reaches your files until you review and apply it.</p>
+          ) : options.planRedirect ? (
+            <p>The investigation runs again with your note and proposes a revised plan. No code is written until you approve it.</p>
           ) : (
             <p>Agents write the change, write and run tests in an isolated copy of the project, then specialist reviewers check it. Nothing reaches your files until you review and apply it.</p>
           )}
@@ -165,16 +169,20 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
           {comments && !again ? <p className="small">{commentsBrief(comments)}</p> : null}
         </div>
       ),
-      confirmLabel: paused ? 'Resume agents' : again ? 'Run agents' : 'Start agents',
+      confirmLabel: options.approvePlan ? 'Approve & run agents' : options.planRedirect ? 'Re-investigate' : paused ? 'Resume agents' : again ? 'Run agents' : 'Start agents',
     });
     if (!ok) return false;
     return Boolean(
       await guarded('Starting agents…', async () => {
         try {
           const run = models ? chooseRunModels(choice, picked, start, session.workflow, models.modelOf) : choice;
-          const body = workflowRequest(changeIdentity(session), message, run, { autoRepair: true, confirmSecurity: security, planHash: session.plan?.hash, includeComments: comments > 0 && start !== 'checks', start });
+          // A plan the investigation proposed is approved only by the explicit
+          // approval action; a plan the user wrote at creation stays implicit.
+          const plan = session.plan;
+          const planHash = options.planRedirect ? undefined : options.approvePlan || (plan && plan.source !== 'investigator') ? plan?.hash : undefined;
+          const body = workflowRequest(changeIdentity(session), message, run, { autoRepair: true, confirmSecurity: security, planHash, planRedirect: options.planRedirect, includeComments: comments > 0 && start !== 'checks', start });
           setSession(await api.post<ChangeSession>(changePath(session, '/workflow'), body), session);
-          toast('Agents started. Progress updates live.', 'info');
+          toast(options.planRedirect ? 'Re-investigating with your note. The revised plan will wait for you.' : 'Agents started. Progress updates live.', 'info');
           return true;
         } catch (err) {
           fail('The agents could not start', err);

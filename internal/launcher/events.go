@@ -98,6 +98,7 @@ type Notice struct {
 // the Web UI announces them.
 var taskNotices = map[string]struct{ title, body string }{
 	"awaiting_human_review": {"Ready for your review", "Agents finished “%s”. It needs your review."},
+	"awaiting_plan_review":  {"Plan ready", "The investigation proposed a plan for “%s”. Approve or redirect it."},
 	"changes_requested":     {"Changes requested", "Reviewers requested changes on “%s”."},
 	"failed":                {"Agent run failed", "The agent run on “%s” failed."},
 	"stale":                 {"Task out of date", "“%s” is out of date; its run stopped."},
