@@ -2,12 +2,12 @@
 // question.
 
 import { api, query, withWorktree } from '@/api/client';
-import type { AgentSettings, AskAnswer, DocsRefresh, Model, ModelsCurrent, Project } from '@/api/types';
+import type { AgentSettings, AskAnswer, DocsRefresh, LessonsReport, Model, ModelsCurrent, Project } from '@/api/types';
 import { keys } from '@/api/hooks';
 import type { ActionContext } from './context';
 
 export function docsActions(context: ActionContext) {
-  const { client, confirm, guarded, fail } = context;
+  const { client, confirm, guarded, fail, toast } = context;
 
   /** Starts writing the docs' summaries and overview again; the Docs page shows how it ends. */
   async function refreshDocs(project: Project, worktreePath: string) {
@@ -58,5 +58,24 @@ export function docsActions(context: ActionContext) {
     }
   }
 
-  return { refreshDocs, askCodebase };
+  /** Saves an Ask the code answer to the learning log. */
+  async function saveLesson(project: Project, answer: AskAnswer): Promise<boolean> {
+    try {
+      await api.post<LessonsReport>('/api/projects/current/lessons', {
+        project_id: project.project_id,
+        project_revision: project.project_revision,
+        question: answer.question,
+        answer: answer.answer,
+        paths: [...new Set(answer.citations.map(citation => citation.path))],
+      });
+      void client.invalidateQueries({ queryKey: keys.lessons });
+      toast('Saved to the learning log (Docs → Learning log).', 'success');
+      return true;
+    } catch (err) {
+      fail('The answer could not be saved', err);
+      return false;
+    }
+  }
+
+  return { refreshDocs, askCodebase, saveLesson };
 }

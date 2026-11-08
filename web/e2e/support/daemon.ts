@@ -4,7 +4,7 @@
 // mutation must carry the Web UI header and the current proposal identity.
 
 import { test as base, expect, type Page, type Route } from '@playwright/test';
-import type { ChangeHistoryEntry, ChangeSession, DaemonEvent, DocsRefresh, Finding, GitWorktree, ProjectHealth, ProjectProfile, ProjectSetup, QuarantineReport } from '../../src/api/types';
+import type { ChangeHistoryEntry, ChangeSession, DaemonEvent, DocsRefresh, Finding, GitWorktree, Lesson, ProjectHealth, ProjectProfile, ProjectSetup, QuarantineReport } from '../../src/api/types';
 import * as data from './fixtures';
 import { approveSession, overrideReview, reviseSession, startRun } from './review';
 
@@ -98,6 +98,15 @@ export class FakeDaemon {
   }
   /** Console messages a test expects, such as the browser's note on a refused request. */
   readonly expectedConsole: RegExp[] = [];
+
+  /** The learning log, newest first; tests seed it, and saves prepend. */
+  readonly lessons: Lesson[] = data.lessonEntries();
+
+  private lessonsReport() {
+    const counts = new Map<string, number>();
+    for (const lesson of this.lessons) for (const concept of lesson.concepts ?? []) counts.set(concept, (counts.get(concept) ?? 0) + 1);
+    return { project_id: 'p1', project_revision: data.project.project_revision, lessons: this.lessons, concepts: [...counts].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)) };
+  }
 
   /**
    * Adds a live update to every event-stream connection: the fake cannot keep
@@ -296,6 +305,7 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/agent-settings$/, () => this.settings],
     [/^\/api\/projects\/current\/profile$/, () => this.profile],
     [/^\/api\/projects\/current\/health$/, () => this.currentHealth()],
+    [/^\/api\/projects\/current\/lessons$/, () => this.lessonsReport()],
     [/^\/api\/projects\/current\/setup$/, () => this.setup],
     [/^\/api\/projects\/current\/analysis\/selection$/, () => this.selection],
     [/^\/api\/projects\/current\/usage$/, () => data.usage(this.sessions.get('chg-1')!)],
@@ -334,6 +344,7 @@ export class FakeDaemon {
       checks: { commands: [{ name: 'lint', kind: 'lint', command: ['go', 'vet', './...'] }, { name: 'tests: web', kind: 'test', dir: 'web', command: ['npm', 'test'] }] } })],
     [/^\/api\/projects\/current\/analysis\/run$/, () => this.setRun('running')],
     [/^\/api\/projects\/current\/ask$/, body => ({ project_id: body.project_id, project_revision: body.project_revision, question: body.question, answer: 'Assets are served from the embedded bundle; a nested path is rejected before the file is read.', citations: [{ path: 'internal/api/handlers/webui.go', start_line: 1, end_line: 3, quote: 'func ServeAsset() {}', content_hash: 'sha256:abc' }], model: 'claude:opus', turns: 4, tool_calls: 7, at: new Date().toISOString() })],
+    [/^\/api\/projects\/current\/lessons$/, body => { this.lessons.unshift({ id: this.lessons.length + 1, kind: 'ask', title: String(body.question), insight: String(body.answer), paths: body.paths as string[], at: new Date().toISOString() }); return this.lessonsReport(); }],
     [/^\/api\/projects\/current\/docs\/refresh$/, () => (this.docsRefresh = { status: 'running', components: 0, summarized: 0, kept: 0, overview: 'skipped', at: new Date().toISOString() })],
     [/^\/api\/projects\/current\/analysis\/run\/control$/, body => this.setRun(body.action === 'pause' ? 'paused' : body.action === 'cancel' ? 'canceled' : 'running')],
     [/^\/api\/projects\/current\/git\/merge-preview$/, () => ({ commits: 'bb22 Merge preview lists overlapping files', diff: '' })],

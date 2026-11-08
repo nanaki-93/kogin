@@ -26,7 +26,7 @@ import (
 const FileName = "kogin.db"
 
 // schemaVersion is the history's schema; a newer one is refused.
-const schemaVersion = 2
+const schemaVersion = 3
 
 // Store is one project's history, open until Close.
 type Store struct {
@@ -101,6 +101,13 @@ func (s *Store) migrate(ctx context.Context) error {
 	}
 	if version < 2 {
 		for _, statement := range schemaV2 {
+			if _, err := tx.ExecContext(ctx, statement); err != nil {
+				return fmt.Errorf("upgrade history: %w", err)
+			}
+		}
+	}
+	if version < 3 {
+		for _, statement := range schemaV3 {
 			if _, err := tx.ExecContext(ctx, statement); err != nil {
 				return fmt.Errorf("upgrade history: %w", err)
 			}
@@ -202,6 +209,24 @@ var schemaV2 = []string{
 		verdicts TEXT NOT NULL DEFAULT '',
 		investigated_at TEXT NOT NULL DEFAULT ''
 	)`,
+}
+
+// schemaV3 adds the learning log: one lesson per accepted task (what was
+// wrong, the approach, the concepts its change used) and saved answers from
+// Ask the code. It outlives the tasks it came from.
+var schemaV3 = []string{
+	`CREATE TABLE lessons (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		kind TEXT NOT NULL CHECK (kind IN ('task', 'ask')),
+		task_id TEXT NOT NULL DEFAULT '',
+		title TEXT NOT NULL,
+		problem TEXT NOT NULL DEFAULT '',
+		insight TEXT NOT NULL DEFAULT '',
+		concepts TEXT NOT NULL DEFAULT '',
+		paths TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL
+	)`,
+	`CREATE INDEX lessons_created ON lessons(created_at)`,
 }
 
 // stamp writes a time as the history stores it; the zero time is empty.

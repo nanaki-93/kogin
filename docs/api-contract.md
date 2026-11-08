@@ -90,6 +90,8 @@ untrusted networks.
 | POST | `/api/projects/current/profile` | Save the profile (`project_revision`, `profile`); unknown values return 400, a stale revision 409. |
 | GET | `/api/projects/current/health` | The project's health: finish line, code and test size, the latest test run, code nothing calls, repeated code, functions over budget, the found/fixed trend and drafted tasks. |
 | POST | `/api/projects/current/health/tests` | Run the project's tests in a copy of the project (Go modules with coverage) in the background; 202, 403 without execution trust, 409 while a run is going. |
+| GET | `/api/projects/current/lessons` | The learning log, newest first, with each concept's count. |
+| POST | `/api/projects/current/lessons` | Save an Ask the code answer to the learning log. |
 | PATCH | `/api/projects/current/findings/{findingID}` | Record an explicit user triage status for one finding. |
 | GET | `/api/projects/current/findings/{findingID}/task` | Draft the task that fixes one issue for the composer: kind, title, description, the file and its conventional test in any language, criteria and the linked finding. Nothing is saved. |
 | GET | `/api/projects/current/findings/task` | Draft one task that fixes several open issues of one file (`id` repeated, one to five): the file and its conventional test, every issue in line order with its line, function, message and evidence, their criteria once each, links to all of them, and each as one of `issues` (fixed one at a time in the task's worktree). 400 when the issues are not all open or not in one file; 409 when one is no longer listed. Nothing is saved. |
@@ -997,7 +999,17 @@ reviewers are told a change that diverges from the approved approach without
 the code requiring it is a finding. The history (`.kogin/kogin.db`, schema 2)
 records each run's investigator plan in a `plans` table: hash, source, model,
 approved, problem, root cause, approach, verdicts as JSON and when it was
-investigated; a version-1 history upgrades in place. The gate never runs for `instructions` tasks, tasks without
+investigated; a version-1 history upgrades in place.
+
+**The learning log** (history schema 3, a `lessons` table) accumulates per
+project: accepting a task appends, best effort, a lesson with its title, the
+problem and approach from its approved plan (else the walkthrough's first
+problem), the concepts its walkthrough tagged (most used first, at most
+five) and up to eight changed paths. `GET …/lessons` returns the newest 200
+with each concept's count; `POST …/lessons` saves an Ask the code answer
+(`question`, `answer`, cited `paths` validated as project paths, at most
+eight kept) as a lesson of kind `ask`. Lessons are advisory history, never
+review evidence, and a task never fails because its lesson was not kept. The gate never runs for `instructions` tasks, tasks without
 their own worktree or acceptance criteria, resumed starts (`test`, `checks`,
 `review`), tasks that already have a proposal, or creation models without
 agent runs.
@@ -1223,7 +1235,9 @@ file's change fixes) and up to eight `notes`, one per meaningful hunk: the
 `goal` it serves (the 1-based issue, else criterion; 0 or absent = a change
 another hunk needs), the `problem` it removes and `how` in a few words, at
 the `line` where the hunk starts in the proposed content (the model quotes the
-line and the daemon finds it). Notes stored as `what`/`why` read as
+line and the daemon finds it). A note may tag
+`concepts`: at most three short lowercase language idioms or patterns the
+hunk is a worked example of. Notes stored as `what`/`why` read as
 `how`/`problem`. Each note also carries its `kind` — the hunk's part in the
 change's story: `cause`, `fix`, `support` or `test` (an unknown kind is
 dropped) — and a `step`: the guided-review order across all files. The daemon

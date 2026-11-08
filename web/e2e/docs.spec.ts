@@ -112,3 +112,34 @@ test('the codebase answers a question from the palette with lines that open in C
   await page.goBack();
   await expect(page.getByRole('region', { name: 'Answer to: how are assets served' })).toBeVisible();
 });
+
+test('the learning log lists what accepted tasks taught, filtered by concept', async ({ page }) => {
+  await page.goto('/#/docs/log');
+  const log = page.getByRole('article', { name: 'Learning log' });
+  await expect(log.getByRole('listitem')).toHaveCount(3);
+  await expect(log.getByRole('listitem').first()).toContainText('Shipped');
+  await expect(log.getByRole('listitem').first()).toContainText('Problem: Nested asset paths returned 500 instead of 404.');
+  await expect(log.getByRole('listitem').first()).toContainText('Approach: Reject names with a slash before reading the embedded files.');
+  await expect(log.getByRole('listitem').nth(1)).toContainText('Asked');
+  // A concept counts across the log; picking it shows every time it was met.
+  const filter = page.getByRole('group', { name: 'Concepts' });
+  await expect(filter.getByRole('button', { name: /error wrapping 2/ })).toBeVisible();
+  await filter.getByRole('button', { name: /error wrapping 2/ }).click();
+  await expect(log.getByRole('listitem')).toHaveCount(2);
+  await expect(log).toContainText('2 entries where you met “error wrapping”.');
+  await filter.getByRole('button', { name: /error wrapping 2/ }).click();
+  await expect(log.getByRole('listitem')).toHaveCount(3);
+});
+
+test('an Ask the code answer can be saved to the learning log', async ({ page, daemon }) => {
+  await page.goto('/#/docs/ask?q=how%20are%20assets%20served');
+  await page.getByRole('button', { name: 'Ask', exact: true }).click();
+  await page.getByRole('alertdialog', { name: 'Ask the codebase?' }).getByRole('button', { name: 'Ask' }).click();
+  const answer = page.getByRole('region', { name: 'Answer to: how are assets served' });
+  await answer.getByRole('button', { name: 'Save to log' }).click();
+  await expect(answer.getByRole('button', { name: 'Saved to the log' })).toBeDisabled();
+  expect(daemon.mutations('/lessons')[0].body).toMatchObject({ question: 'how are assets served', paths: ['internal/api/handlers/webui.go'] });
+  await page.goto('/#/docs/log');
+  await expect(page.getByRole('article', { name: 'Learning log' }).getByRole('listitem')).toHaveCount(4);
+  await expect(page.getByRole('article', { name: 'Learning log' }).getByRole('listitem').first()).toContainText('how are assets served');
+});

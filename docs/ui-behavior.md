@@ -62,6 +62,12 @@ every guard when the action arrives.
   confirmation lists every remote destination the Creation, Testing and Review
   roles will use; local-only runs say so. Repairs run automatically, at most
   two. A security task adds a security specialist.
+- **Learning log.** Docs → Learning log is what the project has taught so
+  far: one entry per accepted task — the problem it removed and the approach,
+  from its approved plan — with the concepts its change used as chips; a
+  concept chip filters the log to every time it was met, with its count. On
+  Ask the code, **Save to log** keeps an answer there. Hunk notes show the
+  same concept chips during review.
 - **Guided review.** When the walkthrough ordered the hunks (each note's
   kind and step), the one-hunk-at-a-time review follows that order across
   files — the problem's cause and fix first, then the supporting changes,

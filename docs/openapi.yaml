@@ -834,6 +834,28 @@ paths:
         '202': {description: Started; the health reports tests_running, then the run}
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+  /api/projects/current/lessons:
+    get:
+      summary: The learning log, newest first, with each concept's count
+      parameters: [{name: project_revision, in: query, required: true, schema: {type: string}}]
+      responses:
+        '200': {description: The log, content: {application/json: {schema: {$ref: '#/components/schemas/LessonsReport'}}}}
+    post:
+      summary: Save an Ask the code answer to the learning log
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_id, project_revision, question, answer]
+              properties:
+                project_id: {type: string}
+                project_revision: {type: string}
+                question: {type: string, maxLength: 8000}
+                answer: {type: string, maxLength: 12000}
+                paths: {type: array, maxItems: 16, items: {type: string}, description: The answer's cited files; at most eight distinct ones are kept.}
+      responses:
+        '200': {description: The updated log, content: {application/json: {schema: {$ref: '#/components/schemas/LessonsReport'}}}}
   /api/projects/current/rules:
     parameters:
       - {$ref: '#/components/parameters/WorktreePath'}
@@ -1697,6 +1719,36 @@ components:
         analyze_tests: {type: boolean}
         plan_gate: {type: string, enum: [always, grouped, off], description: "When a task's agents propose a plan for review before any code: every task, only tasks fixing several issues, or never. Empty on save means always."}
         saved: {type: boolean, description: False while the project uses the default profile; ignored on save.}
+    LessonsReport:
+      type: object
+      required: [project_id, project_revision, lessons, concepts]
+      description: "The project's learning log: one entry per accepted task (its problem, approach and concepts) and the Ask the code answers saved to it, newest first."
+      properties:
+        project_id: {type: string}
+        project_revision: {type: string}
+        lessons: {type: array, items: {$ref: '#/components/schemas/Lesson'}}
+        concepts:
+          type: array
+          description: Each concept with how often the log holds it, most frequent first.
+          items:
+            type: object
+            required: [name, count]
+            properties:
+              name: {type: string}
+              count: {type: integer, minimum: 1}
+    Lesson:
+      type: object
+      required: [id, kind, title, at]
+      properties:
+        id: {type: integer}
+        kind: {type: string, enum: [task, ask]}
+        task_id: {type: string}
+        title: {type: string}
+        problem: {type: string, description: The wrong behavior the task removed, from its approved plan or walkthrough.}
+        insight: {type: string, description: The approach that removed it, or the saved answer.}
+        concepts: {type: array, items: {type: string}, description: The concepts the change used, from the walkthrough's tags.}
+        paths: {type: array, items: {type: string}}
+        at: {type: string, format: date-time}
     ProjectHealth:
       type: object
       description: Measured from the code, its tests and the issue history without a model. See docs/api-contract.md, Project profile and health.
@@ -2592,6 +2644,7 @@ components:
                     how: {type: string, description: The change in a few words (at most 100 characters).}
                     kind: {type: string, enum: [cause, fix, support, test], description: "The hunk's part in the change's story; absent on walkthroughs written before kinds."}
                     step: {type: integer, minimum: 0, description: "The 1-based guided-review order across all files (cause and fix first, then support, then tests), one sequence per walkthrough; 0 or absent reads after the ordered hunks."}
+                    concepts: {type: array, maxItems: 3, items: {type: string, maxLength: 48}, description: Language idioms or patterns the hunk uses, as short lowercase tags; accepted tasks collect them in the learning log.}
     ChangeTarget:
       type: object
       properties:

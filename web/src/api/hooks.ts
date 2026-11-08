@@ -5,7 +5,7 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { api, query, withWorktree } from './client';
 import type {
   AgentSettings, AnalysisFileSelection, ChangeActivity, AvailableModels, ProjectSetup, ChangeHistoryEntry, ChangeRules, ChangeSession, DaemonStatus, DocsComponentFiles, ExecutionTrust, FileInfo, FileSummary,
-  FindingsResponse, GitWorkspace, LoadedSession, ModelsCurrent, Overview, Project, ProjectHealth, ProjectIndex, ProjectProfile, ProjectRules, QuarantineReport, TaskEntry, UsageReport,
+  FindingsResponse, GitWorkspace, LessonsReport, LoadedSession, ModelsCurrent, Overview, Project, ProjectHealth, ProjectIndex, ProjectProfile, ProjectRules, QuarantineReport, TaskEntry, UsageReport,
 } from './types';
 import { useCheckout } from '@/app/checkout';
 
@@ -34,6 +34,7 @@ export const keys = {
   changeRules: (id: string) => ['changeRules', id] as const,
   activity: (id: string) => ['activity', id] as const,
   profile: ['profile'] as const,
+  lessons: ['lessons'] as const,
   health: ['health'] as const,
 };
 
@@ -259,6 +260,16 @@ export function useProfile() {
   return useQuery({
     queryKey: [...keys.profile, main?.project_revision],
     queryFn: () => api.get<ProjectProfile>('/api/projects/current/profile'),
+    enabled: Boolean(main),
+  });
+}
+
+/** The project's learning log: what accepted tasks taught, and saved Ask answers. */
+export function useLessons() {
+  const main = useMainProject().data;
+  return useQuery({
+    queryKey: [...keys.lessons, main?.project_revision],
+    queryFn: () => api.get<LessonsReport>('/api/projects/current/lessons' + query({ project_revision: main!.project_revision })),
     enabled: Boolean(main),
   });
 }

@@ -2,7 +2,7 @@
 // daemon serves (task states, workflow statuses, gitops integration states,
 // finding sources), so the UI is exercised with what it really receives.
 
-import type {
+import type { Lesson,
   AgentSettings, AnalysisFileSelection, AnalysisRunFile, ProjectSetup, AnalysisRunSummary, AnalysisStageProgress, AvailableModels, BudgetUsage, ChangeHistoryEntry, ChangeSession, CostEstimate, FileChange, Finding, GitWorkspace, HealthTestRun, Model, ModelsCurrent, Overview, Project, ProjectHealth, ProjectProfile, ReviewProgress, UsageReport, WorkflowPhase,
 } from '../../src/api/types';
 
@@ -522,4 +522,13 @@ export function guidedReviewTask(): ChangeSession {
       ],
     },
   };
+}
+
+/** The learning log two accepted tasks and one saved answer have built. */
+export function lessonEntries(): Lesson[] {
+  return [
+    { id: 3, kind: 'task', task_id: 'chg-1', title: 'Reject nested asset paths in the Web UI handler', problem: 'Nested asset paths returned 500 instead of 404.', insight: 'Reject names with a slash before reading the embedded files.', concepts: ['table-driven test', 'error wrapping'], paths: ['internal/api/handlers/webui.go'], at: ago(10) },
+    { id: 2, kind: 'ask', title: 'How are assets served?', insight: 'From the embedded bundle; a nested path is rejected before the file is read.', paths: ['internal/api/handlers/webui.go'], at: ago(600) },
+    { id: 1, kind: 'task', task_id: 'chg-0', title: 'Wrap storage errors with their path', problem: 'A failed read said nothing about which file.', insight: 'Wrap with %w and the path at the storage boundary.', concepts: ['error wrapping'], paths: ['internal/storage/files.go'], at: ago(2000) },
+  ];
 }

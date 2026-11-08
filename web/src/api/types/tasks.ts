@@ -314,4 +314,6 @@ export interface WalkthroughNote {
   kind?: 'cause' | 'fix' | 'support' | 'test' | string;
   /** The 1-based order a reviewer follows across all files; 0 or absent reads after the ordered hunks. */
   step?: number;
+  /** Language idioms or patterns the hunk uses, for the learning log. */
+  concepts?: string[];
 }

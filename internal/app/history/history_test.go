@@ -116,7 +116,7 @@ func TestAPlanIsRecordedWithItsRunAndAVersion1HistoryIsUpgraded(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A version-1 history (no plans table) upgrades in place on open.
-	if _, err := store.db.Exec("DROP TABLE plans; PRAGMA user_version = 1"); err != nil {
+	if _, err := store.db.Exec("DROP TABLE plans; DROP TABLE lessons; PRAGMA user_version = 1"); err != nil {
 		t.Fatal(err)
 	}
 	_ = store.Close()

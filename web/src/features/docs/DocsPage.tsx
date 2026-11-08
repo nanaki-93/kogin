@@ -3,7 +3,7 @@
 // from the code and what a model wrote stay marked apart.
 
 import { useState, type ReactNode } from 'react';
-import { BookOpen, Boxes, ChevronRight, Compass, Layers, Library, Map as MapIcon, MessageCircleQuestion, RefreshCw, Route as RouteIcon, Terminal, Wrench } from 'lucide-react';
+import { BookOpen, Boxes, ChevronRight, Compass, GraduationCap, Layers, Library, Map as MapIcon, MessageCircleQuestion, RefreshCw, Route as RouteIcon, Terminal, Wrench } from 'lucide-react';
 import { useOverview, useProject } from '@/api/hooks';
 import type { DocsRefresh, ProjectDocs } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
@@ -19,6 +19,7 @@ import { DocRefsProvider } from './DocText';
 import { SidebarPanel } from '@/layout/SidebarPanel';
 import { ProjectMap } from './ProjectMap';
 import { ChangeGuideIndex, ChangeGuidePage, WalkthroughPage, WalkthroughsIndex } from './WalkthroughPage';
+import { LearningLog } from './LearningLog';
 
 export function DocsPage({ section }: { section: string }) {
   const { data, isLoading } = useOverview();
@@ -37,6 +38,8 @@ export function DocsPage({ section }: { section: string }) {
             <ProjectMap />
           ) : current === 'ask' ? (
             <AskPanel project={project} worktreePath={worktreePath} />
+          ) : current === 'log' ? (
+            <LearningLog />
           ) : isLoading ? (
             <Skeleton lines={10} />
           ) : !docs ? (
@@ -119,6 +122,7 @@ function DocsNav({ docs, current }: { docs: ProjectDocs | undefined; current: Do
         </NavGroup>
         <NavLink to="/docs/dependencies" icon={Library} active={current === 'dependencies'} count={docs?.dependencies?.length}>Dependencies</NavLink>
         <NavLink to="/docs/ask" icon={MessageCircleQuestion} active={current === 'ask'}>Ask the code</NavLink>
+        <NavLink to="/docs/log" icon={GraduationCap} active={current === 'log'}>Learning log</NavLink>
       </div>
       <div className="docs-refresh">
         <RefreshStatus {...latestRefresh(data?.docs_refresh, data?.analysis_run?.docs)} />

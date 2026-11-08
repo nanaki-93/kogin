@@ -654,3 +654,19 @@
   box-shadow: var(--shadow-md);
   pointer-events: none;
 }
+
+/* The learning log: one entry per accepted task or saved answer. */
+.lessons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lesson {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

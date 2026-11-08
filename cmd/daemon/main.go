@@ -277,6 +277,8 @@ func newProjectHTTPMux(application *app.Service, projectManager *project.Manager
 	mux.HandleFunc("POST /api/projects/current/profile", projectHandler.SaveProfile)
 	mux.HandleFunc("GET /api/projects/current/health", projectHandler.Health)
 	mux.HandleFunc("POST /api/projects/current/health/tests", projectHandler.RunHealthTests)
+	mux.HandleFunc("GET /api/projects/current/lessons", projectHandler.Lessons)
+	mux.HandleFunc("POST /api/projects/current/lessons", projectHandler.SaveLesson)
 	mux.HandleFunc("PATCH /api/projects/current/findings/{findingID}", projectHandler.UpdateFindingStatus)
 	mux.HandleFunc("GET /api/projects/current/findings/task", projectHandler.IssuesTask)
 	mux.HandleFunc("GET /api/projects/current/findings/{findingID}/task", projectHandler.IssueTask)

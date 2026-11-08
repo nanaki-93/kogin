@@ -112,6 +112,11 @@ func TestATaskInItsOwnWorktreeAddsRenamesAndDeletesFilesAndIsAcceptedAsACommit(t
 	if err != nil || accepted.State != "applied" || accepted.Commit == nil || accepted.Commit.State != "committed" || accepted.Freshness == "stale" {
 		t.Fatalf("accepted task = %+v, %v", accepted, err)
 	}
+	// Accepting leaves a lesson in the project's learning log.
+	lessons, err := service.Lessons(context.Background())
+	if err != nil || len(lessons.Lessons) != 1 || lessons.Lessons[0].Kind != "task" || lessons.Lessons[0].TaskID != session.ID || len(lessons.Lessons[0].Paths) == 0 {
+		t.Fatalf("lessons after accept = %+v, %v", lessons, err)
+	}
 }
 
 func TestEditsMadeInTheWorktreeBecomePartOfTheProposal(t *testing.T) {

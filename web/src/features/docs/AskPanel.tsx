@@ -3,7 +3,7 @@
 // the daemon; the page keeps this session's, newest first.
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { FileCode2, MessageCircleQuestion } from 'lucide-react';
+import { Check, FileCode2, GraduationCap, MessageCircleQuestion } from 'lucide-react';
 import type { AskAnswer, Project } from '@/api/types';
 import { useActions } from '@/app/actions';
 import { navigate, useRoute } from '@/lib/router';
@@ -84,12 +84,18 @@ export function AskPanel({ project, worktreePath }: { project: Project | undefin
           <div className="small muted">The agent is reading the code…</div>
         </div>
       ) : null}
-      {answers.map(answer => <Answer key={answer.at + answer.question} answer={answer} />)}
+      {answers.map(answer => <Answer key={answer.at + answer.question} answer={answer} project={project} />)}
     </article>
   );
 }
 
-function Answer({ answer }: { answer: AskAnswer }) {
+function Answer({ answer, project }: { answer: AskAnswer; project: Project | undefined }) {
+  const actions = useActions();
+  const [saved, setSaved] = useState(false);
+  const save = async () => {
+    if (!project || saved) return;
+    if (await actions.saveLesson(project, answer)) setSaved(true);
+  };
   return (
     <section className="doc-card ask-answer" aria-label={`Answer to: ${answer.question}`}>
       <h2>{answer.question}</h2>
@@ -106,8 +112,13 @@ function Answer({ answer }: { answer: AskAnswer }) {
           </li>
         ))}
       </ul>
-      <div className="xs faint">
-        {[answer.model, plural(answer.turns, 'turn'), plural(answer.tool_calls, 'tool call'), timeAgo(answer.at)].filter(Boolean).join(' · ')} · Model-written; the citations are what was checked.
+      <div className="row">
+        <span className="xs faint grow">
+          {[answer.model, plural(answer.turns, 'turn'), plural(answer.tool_calls, 'tool call'), timeAgo(answer.at)].filter(Boolean).join(' · ')} · Model-written; the citations are what was checked.
+        </span>
+        <Button size="sm" variant="ghost" icon={saved ? Check : GraduationCap} onClick={() => void save()} disabled={!project || saved} title="Keep this answer in Docs → Learning log">
+          {saved ? 'Saved to the log' : 'Save to log'}
+        </Button>
       </div>
     </section>
   );

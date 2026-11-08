@@ -40,6 +40,7 @@ func (s *Service) acceptWorktreeChange(ctx context.Context, root string, session
 		result.Warnings = append(result.Warnings, "Committed as "+oid+", but the task history could not be updated: "+err.Error())
 	}
 	completeFindingTargets(root, session, commit)
+	recordTaskLesson(root, session)
 	delete(s.changeAuthority, session.ProjectID+"/"+session.ID)
 	s.publishEvent(Event{Kind: "workflow", SessionID: session.ID, Title: session.Title, Status: "applied"})
 	return result, nil

@@ -128,3 +128,32 @@ export interface DocsRefresh {
   reason?: string;
   at: string;
 }
+
+/** One learning-log entry: what an accepted task taught, or a saved Ask answer. */
+export interface Lesson {
+  id: number;
+  kind: 'task' | 'ask' | string;
+  task_id?: string;
+  title: string;
+  /** The wrong behavior the task removed, from its approved plan. */
+  problem?: string;
+  /** The approach that removed it, or the saved answer. */
+  insight?: string;
+  /** The language idioms or patterns the change used, from the walkthrough. */
+  concepts?: string[];
+  paths?: string[];
+  at: string;
+}
+
+/** The project's learning log, newest first, with each concept's count. */
+export interface LessonsReport {
+  project_id: string;
+  project_revision: string;
+  lessons: Lesson[];
+  concepts: ConceptSeen[];
+}
+
+export interface ConceptSeen {
+  name: string;
+  count: number;
+}

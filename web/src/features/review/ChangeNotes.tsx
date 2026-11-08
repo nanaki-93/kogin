@@ -97,6 +97,13 @@ export function HunkNote({ note, goal }: { note: WalkthroughNote; goal: string }
       </div>
       <div className="small"><DocText text={note.problem} /></div>
       {note.how ? <div className="xs muted">How: <DocText text={note.how} /></div> : null}
+      {note.concepts?.length ? (
+        <div className="chips">
+          {note.concepts.map(concept => (
+            <span key={concept} className="chip" title="A concept this hunk is a worked example of; accepted tasks collect them in Docs → Learning log">{concept}</span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
