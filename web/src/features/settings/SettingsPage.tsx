@@ -8,7 +8,7 @@ import type { UsageTotal } from '@/api/types';
 import { costCaveat, costLabel, formatTokens } from '@/lib/usage';
 import { useActions, useBusy } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
-import { DARK_PALETTES, setUI, useUI, type Theme } from '@/app/store';
+import { DARK_PALETTES, setUI, useUI, type Density, type Font, type Theme } from '@/app/store';
 import { navigate } from '@/lib/router';
 import { plural } from '@/lib/util';
 import { Badge, Button, EmptyState, Segmented, Skeleton, cx } from '@/components/ui';
@@ -265,6 +265,8 @@ function ModelSettings() {
 function Appearance() {
   const theme = useUI(s => s.theme);
   const palette = useUI(s => s.darkPalette);
+  const density = useUI(s => s.density);
+  const font = useUI(s => s.font);
   const layout = useUI(s => s.diffLayout);
   return (
     <>
@@ -296,6 +298,14 @@ function Appearance() {
                 </button>
               ))}
             </div>
+          </div>
+          <div className="row">
+            <span className="grow stack-xs"><span>Density</span><span className="xs muted">Comfortable reads a step larger; compact fits more rows and lines.</span></span>
+            <Segmented<Density> label="Density" value={density} onChange={value => setUI({ density: value })} options={[{ value: 'comfortable', label: 'Comfortable' }, { value: 'compact', label: 'Compact' }]} />
+          </div>
+          <div className="row">
+            <span className="grow stack-xs"><span>Font</span><span className="xs muted">Your system's own face, or Inter, bundled with Kogin.</span></span>
+            <Segmented<Font> label="Font" value={font} onChange={value => setUI({ font: value })} options={[{ value: 'system', label: 'System' }, { value: 'inter', label: 'Inter' }]} />
           </div>
           <div className="row"><span className="grow">Diff layout</span><Segmented label="Diff layout" value={layout} onChange={value => setUI({ diffLayout: value })} options={[{ value: 'unified', label: 'Unified' }, { value: 'split', label: 'Split' }]} /></div>
         </div>

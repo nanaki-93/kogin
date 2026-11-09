@@ -16,7 +16,7 @@ body {
   color: var(--text);
   font-family: var(--font);
   font-size: var(--text-md);
-  line-height: 1.5;
+  line-height: var(--leading);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow: hidden;
@@ -122,6 +122,7 @@ ol {
 .row-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .stack { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .stack-lg { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.stack-xs { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .spacer { flex: 1; }
 .tone-success { color: var(--success); }
 .tone-danger { color: var(--danger); }

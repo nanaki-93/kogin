@@ -45,6 +45,22 @@ test('each action has one home: analysis runs from its page, a new task from the
   await expect(page.getByRole('button', { name: 'Reindex files' })).toHaveCount(0);
 });
 
+test('Appearance sets the density and the font on the page, and they survive a reload', async ({ page }) => {
+  await page.goto('/#/settings/appearance');
+  const html = page.locator('html');
+  await expect(html).toHaveAttribute('data-density', 'comfortable');
+  await expect(html).toHaveAttribute('data-font', 'system');
+  await page.getByRole('radiogroup', { name: 'Density' }).getByRole('radio', { name: 'Compact' }).click();
+  await page.getByRole('radiogroup', { name: 'Font' }).getByRole('radio', { name: 'Inter' }).click();
+  await expect(html).toHaveAttribute('data-density', 'compact');
+  await expect(html).toHaveAttribute('data-font', 'inter');
+  await expect(page.locator('body')).toHaveCSS('font-size', '14px');
+  await page.reload();
+  await expect(html).toHaveAttribute('data-density', 'compact');
+  await expect(html).toHaveAttribute('data-font', 'inter');
+  await expect(page.getByRole('radiogroup', { name: 'Density' }).getByRole('radio', { name: 'Compact' })).toHaveAttribute('aria-checked', 'true');
+});
+
 test('the task filters count their tasks and a search that matches nothing says so', async ({ page }) => {
   await page.goto('/#/tasks?filter=done');
   const filters = page.getByRole('radiogroup', { name: 'Show tasks' });

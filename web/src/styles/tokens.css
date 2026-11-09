@@ -276,15 +276,20 @@
      reads like a Mac app; Segoe UI and Consolas on Windows. */
   --font: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
-  /* One scale for every text; nothing is smaller than --text-xs. */
+  /* One scale for every text; nothing is smaller than --text-xs. The
+     comfortable density, the default, reads a step larger than the compact
+     one below; Settings → Appearance → Density switches. */
   --text-xs: 12px;
-  --text-sm: 13px;
-  --text-md: 14px;
-  --text-lg: 16px;
-  --text-xl: 19px;
-  --text-2xl: 24px;
+  --text-sm: 14px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 25px;
   /* Code lines, file paths and other monospace text. */
-  --text-code: 12.5px;
+  --text-code: 13.5px;
+  --leading: 1.55;
+  /* The longest a line of prose runs: plans, notes, answers and docs. */
+  --measure: 68ch;
   --radius-sm: 5px;
   --radius: 7px;
   --radius-lg: 12px;
@@ -295,4 +300,22 @@
   --statusbar: 26px;
   --row: 30px;
   --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Compact density: a step smaller, so more rows and lines fit a screen. */
+html[data-density='compact'] {
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 19px;
+  --text-2xl: 24px;
+  --text-code: 12.5px;
+  --leading: 1.5;
+  --row: 28px;
+}
+
+/* Inter, bundled with the UI, instead of the system's face. */
+html[data-font='inter'] {
+  --font: 'Inter Variable', -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'cv11', 'ss01', 'calt';
 }

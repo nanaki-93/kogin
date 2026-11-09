@@ -39,3 +39,29 @@ describe('preferences saved under earlier names', () => {
     expect(ui.darkPalette).toBe('midnight');
   });
 });
+
+describe('density and font', () => {
+  afterEach(() => localStorage.clear());
+
+  it('read comfortable and the system face until chosen otherwise', async () => {
+    const ui = await freshUI();
+    expect(ui.density).toBe('comfortable');
+    expect(ui.font).toBe('system');
+  });
+
+  it('keep the saved choice and drop one the UI does not know', async () => {
+    localStorage.setItem('kogin.prefs.v2', JSON.stringify({ density: 'compact', font: 'papyrus' }));
+    const ui = await freshUI();
+    expect(ui.density).toBe('compact');
+    expect(ui.font).toBe('system');
+  });
+
+  it('are saved with the other preferences', async () => {
+    vi.resetModules();
+    const store = await import('./store');
+    store.setUI({ density: 'compact', font: 'inter' });
+    const saved = JSON.parse(localStorage.getItem('kogin.prefs.v2') ?? '{}') as Record<string, unknown>;
+    expect(saved.density).toBe('compact');
+    expect(saved.font).toBe('inter');
+  });
+});

@@ -169,10 +169,23 @@ modifier (`usePageKeys` and `useShortcuts` own those rules).
   daemon's user message. In development the Vite proxy adds the token from the
   daemon's token file.
 - Type: the system font and its monospace (`--font`, `--mono`; SF Pro and SF
-  Mono on macOS), no bundled font files. Every font size comes from the scale
-  in `tokens.css` (`--text-xs` 12 px up to `--text-2xl`, `--text-code` for code
-  and paths); no size is set by hand and nothing is smaller than `--text-xs`.
+  Mono on macOS) by default; Inter Variable is the one bundled face, used only
+  when `html[data-font='inter']` is set from Settings → Appearance. Every font
+  size comes from the scale in `tokens.css` (`--text-xs` 12 px up to
+  `--text-2xl`, `--text-code` for code and paths), which `data-density`
+  switches between comfortable (15 px body) and compact (14 px); no size is
+  set by hand, nothing is smaller than `--text-xs`, and only a label inside
+  a fixed-size drawing (the component graph) pins a pixel size. Prose — plans,
+  notes, answers, docs — runs no wider than `--measure` (68ch); labels over a
+  block are quiet (`.label-row`: muted, weight 500, tracked) so the content
+  below them is what the eye lands on.
   `--faint` text keeps at least 4.5:1 on its palette's background.
+- Text budgets: the daemon clips model prose at the source (a plan's problem
+  ≈ 25 words, approach 1–3 steps ≈ 40 words, root cause ≈ 40, each
+  alternative and risk ≈ 15, a verdict note ≈ 20, a reviewer item's detail ≈
+  30); the UI does not truncate on its own. Reasoning sits behind a
+  disclosure (plan: **Why this plan**; hunk note: **How**) with a summary
+  that says what it holds, so a page scans in one pass.
 - Shared pieces live in `components/` (primitives in `ui.tsx`, domain pieces in
   `domain.tsx`); a page does not grow its own copy of a list group, status badge
   or key handler.

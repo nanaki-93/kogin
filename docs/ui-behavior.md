@@ -21,6 +21,17 @@ every guard when the action arrives.
   meaning; model suggestions are never shown as verified results.
 - Pages follow the daemon's event stream; when it drops, the status bar says
   so and the stream reconnects with backoff.
+- Text is kept short where it is written: the daemon clips a plan's problem,
+  approach, root cause, alternatives, risks and verdict notes and a reviewer
+  item's detail to word budgets, and the UI shows the reasoning behind a plan
+  (**Why this plan**) and a hunk note's **How** behind disclosures. Prose runs
+  no wider than `--measure` (68 characters).
+- Settings → **Appearance** chooses the theme and dark palette, the
+  **Density** (Comfortable, the default, reads a step larger; Compact fits
+  more rows and lines), the **Font** (the system's own face or Inter, bundled
+  with the UI) and the diff layout. Density and font are applied as
+  `data-density` and `data-font` on the document, saved with the other
+  preferences and kept across reloads.
 
 ## Tasks
 

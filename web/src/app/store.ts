@@ -5,6 +5,10 @@ import { useSyncExternalStore } from 'react';
 import type { DraftTask } from './actions';
 
 export type Theme = 'system' | 'dark' | 'light';
+/** How large the text runs: comfortable (15px body) or compact (14px, denser lists). */
+export type Density = 'comfortable' | 'compact';
+/** The typeface: the system's own face or Inter, bundled with the UI. */
+export type Font = 'system' | 'inter';
 
 /** The colors of the dark theme; styles/tokens.css defines each one. */
 export const DARK_PALETTES = [
@@ -30,6 +34,8 @@ export interface UIState {
   sidebarCollapsed: boolean;
   theme: Theme;
   darkPalette: DarkPalette;
+  density: Density;
+  font: Font;
   diffLayout: DiffLayout;
   /** Files changed shows one hunk at a time with its note, or whole files. */
   reviewMode: ReviewMode;
@@ -72,6 +78,8 @@ let state: UIState = {
   sidebarCollapsed: false,
   theme: 'system',
   darkPalette: 'kogin',
+  density: 'comfortable',
+  font: 'system',
   diffLayout: 'unified',
   reviewMode: 'hunks',
   wrapLines: false,
@@ -84,6 +92,8 @@ function pick(prefs: Partial<UIState>): Partial<UIState> {
   const out: Partial<UIState> = {};
   if (prefs.theme === 'dark' || prefs.theme === 'light' || prefs.theme === 'system') out.theme = prefs.theme;
   if (DARK_PALETTES.some(palette => palette.id === prefs.darkPalette)) out.darkPalette = prefs.darkPalette;
+  if (prefs.density === 'comfortable' || prefs.density === 'compact') out.density = prefs.density;
+  if (prefs.font === 'system' || prefs.font === 'inter') out.font = prefs.font;
   if (prefs.diffLayout === 'split' || prefs.diffLayout === 'unified') out.diffLayout = prefs.diffLayout;
   if (prefs.reviewMode === 'hunks' || prefs.reviewMode === 'file') out.reviewMode = prefs.reviewMode;
   if (typeof prefs.wrapLines === 'boolean') out.wrapLines = prefs.wrapLines;
@@ -102,7 +112,7 @@ export function getUI(): UIState {
 export function setUI(patch: Partial<UIState>): void {
   state = { ...state, ...patch };
   try {
-    localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: state.theme, darkPalette: state.darkPalette, diffLayout: state.diffLayout, reviewMode: state.reviewMode, wrapLines: state.wrapLines, changeNotes: state.changeNotes, sidebarCollapsed: state.sidebarCollapsed, removeWorktreeOnMerge: state.removeWorktreeOnMerge }));
+    localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: state.theme, darkPalette: state.darkPalette, density: state.density, font: state.font, diffLayout: state.diffLayout, reviewMode: state.reviewMode, wrapLines: state.wrapLines, changeNotes: state.changeNotes, sidebarCollapsed: state.sidebarCollapsed, removeWorktreeOnMerge: state.removeWorktreeOnMerge }));
   } catch {
     // Preferences are a convenience; the UI works without storage.
   }

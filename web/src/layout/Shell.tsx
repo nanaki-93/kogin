@@ -36,6 +36,8 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
   const collapsed = useUI(s => s.sidebarCollapsed);
   const theme = useUI(s => s.theme);
   const palette = useUI(s => s.darkPalette);
+  const density = useUI(s => s.density);
+  const font = useUI(s => s.font);
   const { tasks } = useTasks();
   const findings = useFindings().data?.findings ?? [];
   const git = useGitWorkspace().data;
@@ -47,11 +49,13 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
       const dark = theme === 'dark' || (theme === 'system' && Boolean(media?.matches));
       root.dataset.theme = dark ? 'dark' : 'light';
       root.dataset.palette = palette;
+      root.dataset.density = density;
+      root.dataset.font = font;
     };
     apply();
     media?.addEventListener('change', apply);
     return () => media?.removeEventListener('change', apply);
-  }, [theme, palette]);
+  }, [theme, palette, density, font]);
 
   const needsYou = tasks.filter(task => ['needs_you', 'ready'].includes(taskStatus(task).status)).length;
   const running = tasks.filter(task => taskStatus(task).status === 'running').length;

@@ -135,6 +135,11 @@
   line-height: 1.65;
 }
 
+/* Prose in a doc runs no longer than the measure; tables, code and cards keep their width. */
+.doc p, .doc li, .doc .ask-answer p {
+  max-width: var(--measure);
+}
+
 .doc h1 {
   font-size: var(--text-2xl);
   letter-spacing: -0.02em;
@@ -220,7 +225,7 @@
 
 .graph-label {
   fill: var(--text);
-  font-size: var(--text-sm);
+  font-size: 13px; /* fixed: the node's width is, whatever the density */
   font-weight: 600;
 }
 
