@@ -618,3 +618,26 @@
   gap: 2px;
   min-width: 0;
 }
+
+/* The plan card reads in a glance: problem, approach, verdicts; the reasoning folds. */
+.plan-body p, .plan-body li, .plan-why .stack > div {
+  max-width: var(--measure);
+}
+
+.plan-why {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.plan-why summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.plan-why[open] summary {
+  margin-bottom: 10px;
+}
+
+.plan-steps {
+  margin: 0 0 8px;
+}

@@ -357,12 +357,24 @@ function Conversation({ session }: { session: LoadedSession }) {
             </span>
             <div className="message-body">
               <div className="xs muted">{m.role === 'user' ? 'You' : 'Agent'}</div>
-              <div className="prose small">{m.content}</div>
+              <AgentMessage content={m.content} />
             </div>
           </li>
         ))}
       </ol>
     </section>
+  );
+}
+
+/** An agent's report with its tool counts folded into a faint line, so the report is what reads. */
+function AgentMessage({ content }: { content: string }) {
+  const marker = content.indexOf('\n\nTools:');
+  if (marker < 0) return <div className="prose small">{content}</div>;
+  return (
+    <>
+      <div className="prose small">{content.slice(0, marker).trim()}</div>
+      <div className="xs faint" title={content.slice(marker + 2).trim()}>{content.slice(marker + 2).trim()}</div>
+    </>
   );
 }
 

@@ -10,7 +10,7 @@ import type { LoadedSession, PlanIssueVerdict } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { planAwaitsDecision } from '@/lib/readiness';
 import { navigate } from '@/lib/router';
-import { timeAgo } from '@/lib/util';
+import { plural, timeAgo } from '@/lib/util';
 import { Badge, Button, Textarea } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
 
@@ -39,44 +39,14 @@ export function PlanReview({ session }: { session: LoadedSession }) {
         ) : null}
       </div>
       {waiting && redirecting ? <RedirectPlan session={session} onDone={() => setRedirecting(false)} /> : null}
-      {waiting && !redirecting ? <p className="card-body xs muted plan-why">No code yet: your decision steers the agents while it still matters. Approve to start them from this plan, or redirect with a note and the investigation runs again.</p> : null}
-      <div className="card-body stack">
+      <div className="card-body stack plan-body">
         <div>
           <div className="label-row">Problem</div>
           <p className="prose small">{plan.problem}</p>
         </div>
-        {plan.root_cause ? (
-          <div>
-            <div className="label-row">Root cause</div>
-            <p className="prose small">{plan.root_cause}</p>
-            {(plan.citations ?? []).length ? (
-              <ul className="issue-steps" aria-label="Cited lines">
-                {(plan.citations ?? []).map(citation => (
-                  <li key={citation.path + citation.start_line} className="issue-step scope-grant">
-                    <div className="issue-step-head">
-                      <button
-                        type="button"
-                        className="chip chip-file"
-                        onClick={() => navigate('/code', { file: citation.path, line: citation.start_line ? String(citation.start_line) : undefined, wt: session.checkout.worktreePath || undefined })}
-                        title={citation.quote}
-                      >
-                        <FileIcon path={citation.path} size={12} />
-                        {citation.path.slice(citation.path.lastIndexOf('/') + 1)}:{citation.start_line}
-                        {citation.end_line && citation.end_line !== citation.start_line ? `–${citation.end_line}` : ''}
-                      </button>
-                      <span className="xs muted truncate" title={citation.observation}>
-                        {citation.observation}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
         <div>
           <div className="label-row">Approach</div>
-          <p className="prose small">{plan.approach}</p>
+          <ApproachSteps approach={plan.approach ?? ''} />
           {(plan.touches ?? []).length ? (
             <div className="chips">
               {(plan.touches ?? []).map(touch => (
@@ -89,31 +59,83 @@ export function PlanReview({ session }: { session: LoadedSession }) {
           ) : null}
         </div>
         {(plan.issue_verdicts ?? []).length ? <PlanVerdicts session={session} verdicts={plan.issue_verdicts!} /> : null}
-        {(plan.alternatives ?? []).length ? (
-          <div>
-            <div className="label-row">Rejected alternatives</div>
-            <ul className="issue-steps" aria-label="Rejected alternatives">
-              {(plan.alternatives ?? []).map(alternative => (
-                <li key={alternative.approach} className="issue-step scope-grant">
-                  <p className="small">{alternative.approach}</p>
-                  <p className="xs muted">Why not: {alternative.why_not}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {(plan.risks ?? []).length ? (
-          <div>
-            <div className="label-row">Risks</div>
-            <ul className="criteria-read">
-              {(plan.risks ?? []).map(risk => (
-                <li key={risk} className="small">{risk}</li>
-              ))}
-            </ul>
-          </div>
+        {plan.root_cause || plan.alternatives?.length || plan.risks?.length ? (
+          <details className="plan-why">
+            <summary className="small">
+              Why this plan
+              <span className="xs muted"> · {[plan.root_cause ? 'root cause' : '', plan.alternatives?.length ? plural(plan.alternatives.length, 'alternative') : '', plan.risks?.length ? plural(plan.risks.length, 'risk') : ''].filter(Boolean).join(', ')}</span>
+            </summary>
+            <div className="stack">
+              {plan.root_cause ? (
+                <div>
+                  <div className="label-row">Root cause</div>
+                  <p className="prose small">{plan.root_cause}</p>
+                  {(plan.citations ?? []).length ? (
+                    <ul className="issue-steps" aria-label="Cited lines">
+                      {(plan.citations ?? []).map(citation => (
+                        <li key={citation.path + citation.start_line} className="issue-step scope-grant">
+                          <div className="issue-step-head">
+                            <button
+                              type="button"
+                              className="chip chip-file"
+                              onClick={() => navigate('/code', { file: citation.path, line: citation.start_line ? String(citation.start_line) : undefined, wt: session.checkout.worktreePath || undefined })}
+                              title={citation.quote}
+                            >
+                              <FileIcon path={citation.path} size={12} />
+                              {citation.path.slice(citation.path.lastIndexOf('/') + 1)}:{citation.start_line}
+                              {citation.end_line && citation.end_line !== citation.start_line ? `–${citation.end_line}` : ''}
+                            </button>
+                            <span className="xs muted truncate" title={citation.observation}>
+                              {citation.observation}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
+              {(plan.alternatives ?? []).length ? (
+                <div>
+                  <div className="label-row">Rejected alternatives</div>
+                  <ul className="issue-steps" aria-label="Rejected alternatives">
+                    {(plan.alternatives ?? []).map(alternative => (
+                      <li key={alternative.approach} className="issue-step scope-grant">
+                        <span className="small">{alternative.approach}</span>
+                        <span className="xs muted"> — {alternative.why_not}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {(plan.risks ?? []).length ? (
+                <div>
+                  <div className="label-row">Risks</div>
+                  <ul className="criteria-read">
+                    {(plan.risks ?? []).map(risk => (
+                      <li key={risk} className="small">{risk}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          </details>
         ) : null}
       </div>
     </section>
+  );
+}
+
+/** The approach as its numbered steps, one per line; a single line reads as prose. */
+function ApproachSteps({ approach }: { approach: string }) {
+  const steps = approach.split('\n').map(line => line.replace(/^\s*\d+[.)]\s*/, '').trim()).filter(Boolean);
+  if (steps.length <= 1) return <p className="prose small">{approach}</p>;
+  return (
+    <ol className="criteria-read plan-steps">
+      {steps.map((step, index) => (
+        <li key={index} className="small">{step}</li>
+      ))}
+    </ol>
   );
 }
 
@@ -122,7 +144,7 @@ export function ApprovePlan({ session, size, variant = 'primary' }: { session: L
   const actions = useActions();
   const busy = Boolean(useBusy());
   return (
-    <Button size={size} variant={variant} icon={Check} onClick={() => void actions.startAgents(session, { approvePlan: true })} disabled={busy}>
+    <Button size={size} variant={variant} icon={Check} onClick={() => void actions.startAgents(session, { approvePlan: true })} disabled={busy} title="Approves this exact plan and starts the agents from it; nothing is written until then">
       Approve & run agents
     </Button>
   );

@@ -173,6 +173,7 @@
 }
 
 .change-notes-summary {
+  max-width: var(--measure);
   color: var(--text);
   line-height: 1.45;
 }
@@ -190,6 +191,16 @@
 
 .hunk-note-goal {
   color: var(--accent-text);
+}
+
+/* The mechanism folds away; the problem is what the reviewer reads first. */
+.hunk-note-how summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.hunk-note-how[open] summary {
+  margin-bottom: 2px;
 }
 
 .diff-counts {

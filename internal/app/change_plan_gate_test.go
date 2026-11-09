@@ -215,3 +215,26 @@ func TestApprovedPlanVerdictsSettleIssuesBeforeAnyStepRuns(t *testing.T) {
 		t.Fatalf("coder prompt = %q", coderRun.Prompt)
 	}
 }
+
+func TestAPlanIsClippedToItsWordBudgets(t *testing.T) {
+	steps := investigatorScript()
+	steps[1].Arguments["problem"] = strings.Repeat("The handler reads nested paths and fails. ", 12)
+	steps[1].Arguments["approach"] = "1. Reject names with a slash.\n\n2. Return 404 for them.\n3. Add a table test.\n4. Refactor the handler.\n5. Document it."
+	steps[1].Arguments["risks"] = []any{strings.Repeat("A very long risk sentence that goes on and on. ", 6)}
+	flow := startToolFlowScripts(t, map[string][]fakePiStep{"investigator": steps}, nil, nil, func(request *ChangeWorkflowRequest) { request.Plan = "on" })
+	waiting := flow.finished(t)
+	plan := waiting.Plan
+	if plan == nil || waiting.Workflow.Status != "awaiting_plan_review" {
+		t.Fatalf("workflow = %s (%s)", waiting.Workflow.Status, waiting.Workflow.Reason)
+	}
+	if n := len([]rune(plan.Problem)); n > maxPlanProblemRunes || !strings.HasSuffix(plan.Problem, "…") {
+		t.Fatalf("problem not clipped: %d runes %q", n, plan.Problem)
+	}
+	// The approach keeps at most three steps, each on its own line.
+	if lines := strings.Split(plan.Approach, "\n"); len(lines) != 3 || lines[0] != "1. Reject names with a slash." || lines[2] != "3. Add a table test." {
+		t.Fatalf("approach = %q", plan.Approach)
+	}
+	if n := len([]rune(plan.Risks[0])); n > maxPlanShortRunes || !strings.HasSuffix(plan.Risks[0], "…") {
+		t.Fatalf("risk not clipped: %q", plan.Risks[0])
+	}
+}

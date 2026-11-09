@@ -978,7 +978,12 @@ creation model reads the task's worktree through the read-only task tools and
 ends with a `plan` call whose citations are checked against the files (quote
 in the cited lines) at call time. Cited files outside the task's targets
 become the plan's `read_paths` (at most 8), so the citations stay verifiable.
-The stored plan carries `source: "investigator"`, the `model` and
+The investigator's prose is clipped to word budgets before it is stored: the
+problem to 200 characters (≈ 25 words), the root cause to 300, the approach
+to its first three non-empty lines and 400 characters, each alternative's
+approach and why_not and each risk to 120, each citation's observation to
+100 and each verdict's note to 160; at most 8 citations are kept. The stored
+plan carries `source: "investigator"`, the `model` and
 `investigated_at`, is unapproved, and the workflow stops with status
 `awaiting_plan_review` and `plan_stage` (name `plan`) recording the
 investigation's model, usage and tool calls; the model stages stay `pending`.
@@ -1219,7 +1224,9 @@ and improvements beyond the task are notes, however serious. Each report has at 
 findings and 8 notes; the aggregate has at most 80 and 40. Each finding and note
 is a `ReviewItem`: `title` (a few words, at most 100 characters), and when the
 reviewer named them `path` and `line` (the file of the task and the line in its
-proposed content) and `detail` (up to 1 KiB). Reviewers quote a line of code and
+proposed content) and `detail` (stored up to 1 KiB; a detail a reviewer writes
+now is asked for in at most 30 words and clipped to 240 characters on one
+line). Reviewers quote a line of code and
 the daemon finds its line; a quote that is not found, or found in several files,
 leaves the line out. Reviews stored with text findings read as items whose
 title is the text's first sentence and whose detail is the text. A missing, failed or

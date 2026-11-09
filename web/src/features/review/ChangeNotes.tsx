@@ -96,7 +96,12 @@ export function HunkNote({ note, goal, hideKind }: { note: WalkthroughNote; goal
         {kind ? <Badge tone={kind.tone}>{kind.label}</Badge> : null}
       </div>
       <div className="small"><DocText text={note.problem} /></div>
-      {note.how ? <div className="xs muted">How: <DocText text={note.how} /></div> : null}
+      {note.how ? (
+        <details className="hunk-note-how">
+          <summary className="xs muted">How</summary>
+          <div className="xs muted"><DocText text={note.how} /></div>
+        </details>
+      ) : null}
       {note.concepts?.length ? (
         <div className="chips">
           {note.concepts.map(concept => (

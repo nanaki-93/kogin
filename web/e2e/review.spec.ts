@@ -139,7 +139,10 @@ test('the review reads one hunk at a time beside the notes of its file and hunk,
   await expect(pane).toContainText('Hunk 1 of 3');
   await expect(pane).toContainText('Criterion 1 · Nested asset paths return 404');
   await expect(pane).toContainText('A nested name reached fs.ReadFile and returned 500 instead of 404.');
-  await expect(pane).toContainText('How: ServeAsset refuses names with a slash.');
+  // The mechanism folds away until asked for.
+  await expect(pane.getByText('ServeAsset refuses names with a slash.')).toBeHidden();
+  await pane.getByText('How', { exact: true }).click();
+  await expect(pane.getByText('ServeAsset refuses names with a slash.')).toBeVisible();
   await expect(page.locator('.hunk-code')).toContainText('strings.Contains(name, "/")');
   // The review bar says what is left before Accept.
   const bar = page.getByRole('region', { name: 'Review progress' });
@@ -660,9 +663,13 @@ test('an investigated plan waits for approval, and approving it starts the agent
   await page.goto('/#/tasks/chg-1');
   const plan = page.getByRole('region', { name: 'Proposed plan' });
   await expect(plan.getByText('Needs your decision')).toBeVisible();
+  // Problem and approach read at a glance; the reasoning folds behind "Why this plan".
+  await expect(plan.getByText('Nested asset paths reach the embedded read and return 500 instead of 404.')).toBeVisible();
+  await expect(plan.getByText('ServeAsset trims the name but never rejects a slash, so fs.ReadFile gets a nested path and fails.')).toBeHidden();
+  await plan.getByText('Why this plan').click();
   await expect(plan.getByText('ServeAsset trims the name but never rejects a slash, so fs.ReadFile gets a nested path and fails.')).toBeVisible();
   await expect(plan.getByRole('button', { name: 'webui.go:41–42' })).toBeVisible();
-  await expect(plan.getByText('Why not: The bundle has no nested files; allowing them widens what the handler serves.')).toBeVisible();
+  await expect(plan.getByText('— The bundle has no nested files; allowing them widens what the handler serves.')).toBeVisible();
   await expect(plan.getByText('A client that relied on the 500 now sees 404.')).toBeVisible();
   // The investigation is its own timeline entry, with its model and tool calls.
   const run = page.getByRole('region', { name: 'Agent run' });
@@ -683,7 +690,7 @@ test('an investigated plan waits for approval, and approving it starts the agent
   await header.getByRole('button', { name: 'Approve & run agents' }).click();
   const dialog = page.getByRole('alertdialog');
   await expect(dialog.getByRole('heading', { name: 'Approve the plan and start the agents?' })).toBeVisible();
-  await expect(dialog.getByText('Your approval covers this exact plan.')).toBeVisible();
+  await expect(dialog.getByText('Approves this exact plan.')).toBeVisible();
   await dialog.getByRole('button', { name: 'Approve & run agents' }).click();
   await expect(page.locator('header.task-header').getByRole('button', { name: 'Stop agents' })).toBeVisible();
   expect(daemon.mutations('/workflow')[0].body).toMatchObject({ plan_hash: 'plan-hash-1' });
@@ -700,7 +707,7 @@ test('redirecting the plan runs the investigation again with the note', async ({
   await plan.getByRole('button', { name: 'Re-investigate' }).click();
   const dialog = page.getByRole('alertdialog');
   await expect(dialog.getByRole('heading', { name: 'Redirect the plan?' })).toBeVisible();
-  await expect(dialog.getByText('The investigation runs again with your note and proposes a revised plan.')).toBeVisible();
+  await expect(dialog.getByText('The investigation runs again with your note; the revised plan waits for you.')).toBeVisible();
   await dialog.getByRole('button', { name: 'Re-investigate' }).click();
   const body = daemon.mutations('/workflow')[0].body as Record<string, unknown>;
   expect(body.plan_redirect).toBe('Keep the 500 for nested paths; only missing assets become 404.');

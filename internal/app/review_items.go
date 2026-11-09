@@ -21,9 +21,13 @@ type ReviewItem struct {
 
 const (
 	// maxReviewTitle is in characters: a few words that fit one line.
-	maxReviewTitle  = 100
-	maxReviewDetail = 1024
-	maxReviewPath   = 512
+	maxReviewTitle = 100
+	// maxReviewDetail bounds stored details; reviews written before the word
+	// budget keep theirs. New details are clipped to maxReviewDetailWritten,
+	// about 30 words.
+	maxReviewDetail        = 1024
+	maxReviewDetailWritten = 240
+	maxReviewPath          = 512
 )
 
 // UnmarshalJSON also reads the text findings of reviews stored before items
@@ -90,7 +94,7 @@ func (wire reviewItemWire) item(files map[string]string) ReviewItem {
 	if title == "" {
 		title = detail
 	}
-	item := ReviewItem{Title: textutil.FirstSentence(title, maxReviewTitle), Detail: textutil.Truncate(detail, maxReviewDetail)}
+	item := ReviewItem{Title: textutil.FirstSentence(title, maxReviewTitle), Detail: textutil.Clip(strings.Join(strings.Fields(detail), " "), maxReviewDetailWritten)}
 	item.Path, item.Line = placeQuote(cleanReviewPath(wire.Path), wire.Quote, files)
 	return item
 }

@@ -148,16 +148,16 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
           {again ? (
             <>
               {models ? null : <RunStartChoice options={starts.options} initial={starts.initial} comments={comments} onChange={value => (start = value)} />}
-              <p className="small muted">Checks run in an isolated copy of the project. Nothing is committed until you review and accept the result. A failed check or a rejecting review starts an automatic repair of the code (up to two).</p>
+              <p className="small muted">Checks run in an isolated copy; nothing is committed until you accept. Failures get up to two automatic repairs.</p>
             </>
           ) : options.approvePlan ? (
-            <p>Your approval covers this exact plan. Agents write the change from it, write and run tests in an isolated copy of the project, then specialist reviewers check it. Nothing reaches your files until you review and apply it.</p>
+            <p>Approves this exact plan. Agents write, test and review the change from it; nothing reaches your files until you accept.</p>
           ) : options.planRedirect ? (
-            <p>The investigation runs again with your note and proposes a revised plan. No code is written until you approve it.</p>
+            <p>The investigation runs again with your note; the revised plan waits for you.</p>
           ) : options.plan !== 'off' && !again && planFirst ? (
-            <p>The creation model first investigates the code and proposes a plan — the root cause with cited lines, the approach and its alternatives — and waits for you. No code is written until you approve it; then agents write the change, test it in an isolated copy and reviewers check it.</p>
+            <p>The creation model reads the code and proposes a plan first; nothing is written until you approve it.</p>
           ) : (
-            <p>Agents write the change, write and run tests in an isolated copy of the project, then specialist reviewers check it. Nothing reaches your files until you review and apply it.</p>
+            <p>Agents write, test and review the change in an isolated copy; nothing reaches your files until you accept.</p>
           )}
           {models ? null : choice.destinations.length ? (
             <div className="consent-list">
