@@ -5,16 +5,16 @@
 
 import { useMemo } from 'react';
 import { Check, Columns2, FileDiff, ListTree, MessageSquare, MessageSquareText, Rows3, WrapText } from 'lucide-react';
-import type { FileChange, LoadedSession } from '@/api/types';
+import type { LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { setUI, useUI } from '@/app/store';
 import { usePageKeys } from '@/app/shortcuts';
 import { diffStats } from '@/lib/diff';
-import { guidedHunks, reviewHunks } from '@/lib/hunks';
 import { effectiveEdits, isFileReviewed, nextUnreviewedPath, proposalReadiness, reviewProgress, workflowActive } from '@/lib/readiness';
 import { navigate, setParam, useRoute } from '@/lib/router';
-import { basename, dirname, languageOf } from '@/lib/util';
+import { basename, dirname, languageOf, plural } from '@/lib/util';
 import { Button, EmptyState, IconButton, Kbd, Progress, Segmented, cx } from '@/components/ui';
+import { FileStatus } from './FileStatus';
 import { HunkReview } from './HunkReview';
 import { ReviewBar } from './ReviewBar';
 import { FileIcon } from '@/components/domain';
@@ -40,7 +40,8 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
   const busy = useBusy();
   const canMarkFile = (path: string) => ready.editable && !since && !isFileReviewed(session, path) && (session.changes ?? []).some(edit => edit.path === path);
   const canMark = Boolean(current) && canMarkFile(current.path);
-  const canComment = ready.editable && !since && !workflowActive(session) && (session.changes ?? []).some(edit => edit.path === current?.path);
+  const commentable = (path: string) => ready.editable && !since && !workflowActive(session) && (session.changes ?? []).some(edit => edit.path === path);
+  const canComment = Boolean(current) && commentable(current.path);
   const fileComments = useFileComments(session, current?.path ?? '', canComment);
   const commentCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -48,12 +49,7 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
     return counts;
   }, [session.comments, session.hash]);
 
-  // In a guided review the files are read in the walkthrough's order: each shows the step it starts at.
-  const guided = useMemo(() => {
-    const linesOf = new Map(edits.map(edit => [edit.path, edit.diff?.lines ?? []]));
-    return guidedHunks(session, linesOf, reviewHunks(edits));
-  }, [session, edits]);
-  const stepOf = (path: string) => (guided.guided && mode === 'hunks' ? guided.hunks.findIndex(hunk => hunk.path === path) + 1 : 0);
+  const totals = useMemo(() => edits.reduce((sum, edit) => { const stats = diffStats(edit); return { added: sum.added + stats.added, removed: sum.removed + stats.removed }; }, { added: 0, removed: 0 }), [edits]);
   // A line from a reviewer's finding belongs to the file it came with.
   const focusLine = current && route.params.get('file') === current.path ? Number(route.params.get('line')) || undefined : undefined;
   const select = (path: string) => navigate(route.path, { ...Object.fromEntries(route.params.entries()), file: path, line: undefined, hunk: undefined }, { replace: true });
@@ -77,8 +73,8 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
   usePageKeys(key => {
     const index = edits.findIndex(edit => edit.path === current?.path);
     if (key === 'v' && canMark) void markViewed();
-    else if ((key === 'j' || key === ']') && index < edits.length - 1) select(edits[index + 1].path);
-    else if ((key === 'k' || key === '[') && index > 0) select(edits[index - 1].path);
+    else if ((key === ']' || (key === 'j' && mode === 'file')) && index < edits.length - 1) select(edits[index + 1].path);
+    else if ((key === '[' || (key === 'k' && mode === 'file')) && index > 0) select(edits[index - 1].path);
     else if (key === 's') setUI({ diffLayout: layout === 'split' ? 'unified' : 'split' });
     else if (key === 'f') setUI({ reviewMode: mode === 'hunks' ? 'file' : 'hunks' });
     else return false;
@@ -134,7 +130,6 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
                     <span className="fc-name">{basename(edit.path)}</span>
                     <span className="fc-dir">{dirname(edit.path)}</span>
                   </span>
-                  {stepOf(edit.path) ? <span className="fc-step xs" title="Where this file comes in the guided review">step {stepOf(edit.path)}</span> : null}
                   {commentCounts.get(edit.path) ? (
                     <span className="fc-comments xs" aria-label={`${commentCounts.get(edit.path)} open comments`}>
                       <MessageSquare size={11} aria-hidden /> {commentCounts.get(edit.path)}
@@ -150,26 +145,34 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
           })}
         </ul>
         <div className="fc-tree-foot xs faint">
-          {mode === 'hunks' ? <><Kbd>v</Kbd> file viewed · <Kbd>f</Kbd> whole file</> : <><Kbd>j</Kbd>/<Kbd>k</Kbd> files · <Kbd>v</Kbd> viewed · <Kbd>f</Kbd> hunks</>}
+          {mode === 'hunks' ? <><Kbd>a</Kbd> hunk right · <Kbd>f</Kbd> whole file</> : <><Kbd>j</Kbd>/<Kbd>k</Kbd> files · <Kbd>v</Kbd> viewed · <Kbd>f</Kbd> hunks</>}
         </div>
       </aside>
       </SidebarPanel>
       {current ? (
         <section className="fc-diff" aria-label={`Diff of ${current.path}`}>
           <div className="fc-diff-head">
-            <FileIcon path={current.path} />
-            <span className="truncate">
-              <span className="faint">{dirname(current.path) ? dirname(current.path) + '/' : ''}</span>
-              <span className="strong">{basename(current.path)}</span>
-            </span>
-            <FileStatus change={current} />
-            <DiffCounts lines={current.diff?.lines ?? []} />
+            {mode === 'hunks' ? (
+              <span className="small muted diff-counts">
+                {plural(edits.length, 'file')} <span className="add">+{totals.added}</span> <span className="del">−{totals.removed}</span>
+              </span>
+            ) : (
+              <>
+                <FileIcon path={current.path} />
+                <span className="truncate">
+                  <span className="faint">{dirname(current.path) ? dirname(current.path) + '/' : ''}</span>
+                  <span className="strong">{basename(current.path)}</span>
+                </span>
+                <FileStatus change={current} />
+                <DiffCounts lines={current.diff?.lines ?? []} />
+              </>
+            )}
             <span className="spacer" />
             <Segmented label="Review by" value={mode} onChange={value => setUI({ reviewMode: value })} options={[{ value: 'hunks', label: 'Hunks' }, { value: 'file', label: 'Whole file' }]} />
             <IconButton icon={WrapText} label="Wrap lines" size="sm" active={wrap} onClick={() => setUI({ wrapLines: !wrap })} />
             {mode === 'file' ? <IconButton icon={MessageSquareText} label={notes ? 'Hide what it fixes' : 'Show what it fixes'} size="sm" active={notes} onClick={() => setUI({ changeNotes: !notes })} /> : null}
             <IconButton icon={layout === 'split' ? Rows3 : Columns2} label={layout === 'split' ? 'Unified view (s)' : 'Split view (s)'} size="sm" onClick={() => setUI({ diffLayout: layout === 'split' ? 'unified' : 'split' })} />
-            {isFileReviewed(session, current.path) ? (
+            {mode === 'hunks' ? null : isFileReviewed(session, current.path) ? (
               <span className="badge badge-success">
                 <Check size={12} aria-hidden /> Viewed
               </span>
@@ -181,32 +184,24 @@ export function FilesChanged({ session }: { session: LoadedSession }) {
           </div>
           {mode === 'file' && notes ? <ChangeNotes session={session} path={current.path} unplaced={hunkNotes.unplaced} /> : null}
           {mode === 'file' && current.summary && !(notes && explained) ? <div className="fc-summary small">{current.summary}</div> : null}
-          {current.criteria?.length ? (
+          {mode === 'file' && current.criteria?.length ? (
             <div className="fc-criteria xs">
               <span className="muted">The agent says this file addresses:</span>{' '}
               {current.criteria.map(n => session.acceptance_criteria[n - 1]).filter(Boolean).join(' · ')}
             </div>
           ) : null}
           {mode === 'hunks' ? (
-            <HunkReview session={session} edits={edits} layout={layout} wrap={wrap} comments={since ? undefined : fileComments} focus={focusLine} canMark={canMarkFile} />
+            <HunkReview session={session} edits={edits} layout={layout} wrap={wrap} canComment={path => !since && commentable(path)} focus={focusLine} canMark={canMarkFile} />
           ) : (
             <div className="fc-diff-body">
               <DiffView key={current.path + session.hash + layout} lines={current.diff?.lines ?? []} language={languageOf(current.path)} layout={layout} wrap={wrap} anchorPrefix={`d-${current.path}`} comments={since ? undefined : fileComments} focus={focusLine} notes={hunkNotes.placed} />
             </div>
           )}
-          {since ? null : <ReviewBar session={session} current={current.path} onNext={nextUnviewed} onSelect={select} />}
+          {since ? null : <ReviewBar session={session} current={current.path} onNext={nextUnviewed} onSelect={select} whole={mode === 'hunks'} />}
         </section>
       ) : null}
     </div>
   );
-}
-
-/** Says when a file is new, deleted or moved; a modified file needs no label. */
-function FileStatus({ change }: { change: FileChange }) {
-  if (change.status === 'added') return <span className="badge badge-success">new</span>;
-  if (change.status === 'deleted') return <span className="badge badge-danger">deleted</span>;
-  if (change.status === 'renamed') return <span className="badge badge-info" title={`Renamed from ${change.old_path}`}>renamed from {change.old_path}</span>;
-  return null;
 }
 
 function DiffCounts({ lines }: { lines: { kind: string }[] }) {

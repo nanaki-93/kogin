@@ -10,6 +10,7 @@ import { useSession, useTrust, useUsage } from '@/api/hooks';
 import { costCaveat, costLabel, usageLabel } from '@/lib/usage';
 import type { LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
+import { useUI } from '@/app/store';
 import { navigate, useRoute } from '@/lib/router';
 import { openWorkspace } from '@/app/checkout';
 import { canOverrideReview, checkSummary, effectiveEdits, investigating, nextUnreviewedPath, planAwaitsDecision, planFindsNothingToFix, proposalReadiness, reviewProgress, sessionStatusEntry, workflowActive } from '@/lib/readiness';
@@ -142,6 +143,7 @@ function PrimaryAction({ session }: { session: LoadedSession }) {
   const busy = useBusy();
   const trust = useTrust().data;
   const ready = proposalReadiness(session);
+  const reviewMode = useUI(state => state.reviewMode);
   if (workflowActive(session)) {
     return (
       <Button variant="secondary" icon={Square} onClick={() => void actions.cancelAgents(session)} disabled={session.workflow?.status === 'canceling' || Boolean(busy)}>
@@ -159,7 +161,10 @@ function PrimaryAction({ session }: { session: LoadedSession }) {
       return <ReanalyzeTask session={session} />;
     case 'review': {
       // On the files, the next step is the next file nobody viewed yet.
-      const next = route.path.endsWith('/files') ? nextUnreviewedPath(session, session.changes ?? [], route.params.get('file') ?? '') : '';
+      const onFiles = route.path.endsWith('/files');
+      // Hunk by hunk, the whole change is on the page and its bar ends the review.
+      if (onFiles && reviewMode === 'hunks') return null;
+      const next = onFiles ? nextUnreviewedPath(session, session.changes ?? [], route.params.get('file') ?? '') : '';
       return (
         <Button variant="primary" icon={FileDiff} onClick={() => navigate(`/tasks/${session.id}/files`, next ? { ...Object.fromEntries(route.params.entries()), file: next, hunk: undefined, line: undefined } : {})}>
           {next ? 'Next unviewed file' : 'Review files'}

@@ -24,7 +24,7 @@ every guard when the action arrives.
 - Text is kept short where it is written: the daemon clips a plan's problem,
   approach, root cause, alternatives, risks and verdict notes and a reviewer
   item's detail to word budgets, and the UI shows the reasoning behind a plan
-  (**Why this plan**) and a hunk note's **How** behind disclosures. Prose runs
+  (**Why this plan**) behind a disclosure; a whole file's hunk note folds its **How**. Prose runs
   no wider than `--measure` (68 characters).
 - Settings → **Appearance** chooses the theme and dark palette, the
   **Density** (Comfortable, the default, reads a step larger; Compact fits
@@ -80,15 +80,18 @@ every guard when the action arrives.
   **Explain “…” in this project** hands Ask the code a question about it. On
   Ask the code, **Save to log** keeps an answer there. Hunk notes show the
   same concept chips during review.
-- **Guided review.** When the walkthrough ordered the hunks (each note's
-  kind and step), the one-hunk-at-a-time review follows that order across
-  files — the problem's cause and fix first, then the supporting changes,
-  then the tests — reading **Step n of m** with a chip for the hunk's part
-  (Cause, Fix, Supports the fix, Proof), and, when the task has an approved
-  investigated plan, the plan's problem pinned above the steps; the changed
-  files list marks where each file comes in ("step 2"). Hunks the
-  walkthrough did not order follow in file order; without steps the review
-  reads in file order as before.
+- **Plan vs result.** When the task has an approved investigated plan, the
+  walkthrough also says which plan step each hunk carries out, and the review
+  is read against the plan: the summary lists the approved steps as a
+  checklist, each with the lines that carry it out (a step that changed no
+  line says so), and above them every hunk the plan did not call for (**Not
+  in your plan**, with why it was needed) or that nobody explained (**Not
+  explained**). The hunks follow in that order — exceptions first, then the
+  plan's steps, then the rest; a test that proves the fix is **Proof**, never
+  an exception. A walkthrough written before plan steps, or against another
+  plan, sets nothing against the plan: the hunks then keep the walkthrough's
+  order (cause and fix, supporting changes, tests, with a chip for each
+  hunk's part) or file order.
 - **The plan gate.** With the project profile's **Plan approval** on (every
   task by default, or only grouped fixes), a run that starts from Create on a
   fresh proposal first investigates: the creation model reads the code with
@@ -238,22 +241,34 @@ every guard when the action arrives.
 
 ## Review and accept
 
-- **Review by hunks.** Files changed opens one hunk at a time (**Hunks**, the
-  default; **Whole file**, or `f`, shows each file's whole diff). Beside the
-  hunk: its place ("Hunk 2 of 7", a dot per hunk, the file's hunks grouped),
-  what the file's change is for (the walkthrough's summary, or the agent's
-  when there is none, with Explain changes), the walkthrough's note for the
-  hunk, **Looks right** (`a`) and **Comment** (`m`, on the hunk's first
-  changed line). The notes stay beside the code unless the review itself is
-  under 640px wide, then they go above it. `←`/`→` (or `j`/`k`) move between
-  hunks across files. Once every hunk of a file looks right, the file is marked
-  viewed. The hunks you called right are kept per task version in this browser;
-  a new version starts over, like the files viewed.
-- **Review bar.** Under the diff in both views: files viewed (a dot per file,
-  click to open it), the checks and the reviewers' verdict, **Next unviewed**,
-  and **Accept & commit**, which says what still blocks it ("2 files left",
-  "checks first") until it can run. On the Files tab the header's next step
-  is **Next unviewed file**; the review gate offers Accept only once it can run.
+- **Review by hunks.** Files changed shows the whole change on one page
+  (**Hunks**, the default; **Whole file**, or `f`, shows one file's whole diff
+  at a time). It opens on a summary — **Plan vs result** with an approved
+  plan, else **What changed** with the file's line — that says each thing
+  once: the plan checklist, the checks as one chip (how many passed, or what
+  failed; it opens Checks), the reviewers' verdict, behavior changes to
+  accept, and the reviewers' advisory notes folded as "N suggestions from the
+  reviewers": notes on the same line of the same file are one suggestion with
+  how many reviewers made it, marked as advice that was not checked against
+  the code and never blocks. Under it, every hunk is a block: what it is to
+  the plan, its file and line (a link), the note on the wrong behavior it
+  removes with how in one muted line, then its lines; a hunk that several
+  notes explain is split so each block is one note's change, and a file that
+  moved without a changed line is listed under the hunks. `←`/`→` (or
+  `j`/`k`) move between hunks, **Looks right** (`a`) settles the current one
+  and moves on, `m` comments on its first changed line. Once every hunk of a
+  file looks right, the file is marked viewed. The hunks you called right are
+  kept per task version in this browser; a new version starts over, like the
+  files viewed.
+- **Review bar.** Under the change. With the hunks, it is the last step: how
+  many files are viewed and **All looks right**, which marks every remaining
+  file viewed at this version, then **Accept & commit** (or what still blocks
+  it); the header leaves that step to the bar. With one whole file at a time:
+  files viewed (a dot per file, click to open it), the checks and the
+  reviewers' verdict, **Next unviewed**, and **Accept & commit**, which says
+  what still blocks it ("2 files left", "checks first") until it can run, and
+  the header's next step is **Next unviewed file**. The review gate offers
+  Accept only once it can run.
 - **Agents at work.** While agents run, the Conversation opens with what the
   agent does now ("Creation agent is editing …"), its last tool calls (read,
   search, edit, checks; a failed call says why), the files it changed so far,
@@ -269,7 +284,8 @@ every guard when the action arrives.
   commit** lists them with "I accept these behavior changes", which must be
   ticked before it commits.
 - **What it fixes.** The review model's walkthrough reads with the diff,
-  hunk by hunk: over the diff, one line on what the file's change fixes (it
+  hunk by hunk, as the note of each block. In a whole file: over the diff,
+  one line on what the file's change fixes (it
   replaces the agent's own line on the file); above each hunk, heading the
   context that leads into it, a note with the issue it serves ("Issue 2 · …",
   or the criterion when the task has no issues; "Needed by the change" for a

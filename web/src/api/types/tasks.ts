@@ -300,6 +300,8 @@ export interface ChangeWalkthrough {
   reason?: string;
   at: string;
   files?: WalkthroughFile[];
+  /** The approved plan the notes were set against: a note without a plan_step is then outside that plan. */
+  plan_hash?: string;
 }
 
 export interface WalkthroughFile {
@@ -324,4 +326,6 @@ export interface WalkthroughNote {
   step?: number;
   /** Language idioms or patterns the hunk uses, for the learning log. */
   concepts?: string[];
+  /** The step of the approved plan (from 1) the hunk carries out; none under a walkthrough with a plan_hash means outside the plan. */
+  plan_step?: number;
 }

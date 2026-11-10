@@ -129,42 +129,54 @@ test('compares the split and unified diff layouts', async ({ page }) => {
   expect(Math.max(...heights)).toBeLessThan(30);
 });
 
-test('the review reads one hunk at a time beside the notes of its file and hunk, and marks a file viewed once every hunk is right', async ({ page, daemon }) => {
+test('the review shows every hunk under its note on one page, and marks a file viewed once its hunks are right', async ({ page, daemon }) => {
   await page.goto('/#/tasks/chg-1/files');
-  const pane = page.getByRole('complementary', { name: 'This hunk' });
-  // Beside the code, one line on what the file's change fixes; it replaces the agent's own.
-  await expect(pane.getByRole('region', { name: 'What it fixes' })).toContainText('Nested asset paths no longer reach the embedded read.');
+  const summary = page.getByRole('region', { name: 'Plan vs result' });
+  // Without a plan to set the change against, the summary says what changed, once: checks and reviewers as chips.
+  await expect(summary).toContainText('What changed');
+  await expect(summary.getByRole('button', { name: 'Checks: 1 optional failed' })).toBeVisible();
+  await expect(summary).toContainText('Reviewers approved');
   await expect(page.getByText('Rejects nested names.')).toBeHidden();
-  // Beside the hunk, its note: the goal it serves, the wrong behavior it removes, then how.
-  await expect(pane).toContainText('Hunk 1 of 3');
-  await expect(pane).toContainText('Criterion 1 · Nested asset paths return 404');
-  await expect(pane).toContainText('A nested name reached fs.ReadFile and returned 500 instead of 404.');
-  // The mechanism folds away until asked for.
-  await expect(pane.getByText('ServeAsset refuses names with a slash.')).toBeHidden();
-  await pane.getByText('How', { exact: true }).click();
-  await expect(pane.getByText('ServeAsset refuses names with a slash.')).toBeVisible();
-  await expect(page.locator('.hunk-code')).toContainText('strings.Contains(name, "/")');
-  // The review bar says what is left before Accept.
+  // Every hunk of the change is on the page, each with its file and lines.
+  const blocks = page.getByRole('list', { name: 'Changes, in reading order' }).locator('> li');
+  await expect(blocks).toHaveCount(3);
+  const first = blocks.nth(0);
+  await expect(first).toHaveAttribute('aria-current', 'step');
+  // On the hunk, its note: the wrong behavior it removes, how, and the goal it serves; names render as code.
+  await expect(first).toContainText('A nested name reached fs.ReadFile and returned 500 instead of 404.');
+  await expect(first).toContainText('ServeAsset refuses names with a slash. · Criterion 1');
+  await expect(first.locator('.rv-note code').first()).toHaveText('fs.ReadFile');
+  await expect(first.getByRole('button', { name: 'webui.go:42' })).toBeVisible();
+  await expect(first).toContainText('strings.Contains(name, "/")');
+  await expect(blocks.nth(1)).toContainText('No note for this hunk.');
+  // The header leaves the last step to the bar under the change.
+  await expect(page.locator('header.task-header').getByRole('button', { name: /Next unviewed file|Review files/ })).toHaveCount(0);
   const bar = page.getByRole('region', { name: 'Review progress' });
-  await expect(bar).toContainText('0 of 3 viewed');
-  await expect(bar).toContainText('Accept & commit · 3 files left');
+  await expect(bar).toContainText('0 of 3 files viewed');
+  await expect(bar.getByRole('button', { name: 'All looks right' })).toBeVisible();
 
-  // A: the hunk is right; the file's only hunk, so the file is viewed and the next hunk opens.
+  // A: the hunk is right; the file's only hunk, so the file is viewed and the next hunk is current.
   await page.keyboard.press('a');
   await expect.poll(() => daemon.mutations('/review-file').map(request => request.body?.path)).toEqual(['internal/api/handlers/webui.go']);
-  await expect(pane).toContainText('Hunk 2 of 3');
-  await expect(page.locator('.diff-file-head, .fc-diff-head')).toContainText('webui_test.go');
-  await expect(pane).toContainText('No notes for this file.');
-  // ← goes back; C opens a comment on the hunk's first changed line.
+  await expect(first.getByRole('button', { name: 'Right' })).toBeVisible();
+  await expect(blocks.nth(1)).toHaveAttribute('aria-current', 'step');
+  await expect(bar).toContainText('1 of 3 files viewed');
+  // ← goes back; M opens a comment on the hunk's first changed line.
   await page.keyboard.press('ArrowLeft');
-  await expect(pane).toContainText('Hunk 1 of 3');
+  await expect(first).toHaveAttribute('aria-current', 'step');
   await page.keyboard.press('m');
-  await expect(page.locator('.hunk-code').getByRole('textbox')).toBeVisible();
+  await expect(first.getByRole('textbox')).toBeVisible();
+  await page.keyboard.press('Escape');
+  // One step says the rest looks right; Accept & commit is then the last one.
+  await bar.getByRole('button', { name: 'All looks right' }).click();
+  await expect.poll(() => daemon.mutations('/review-file').map(request => request.body?.path)).toEqual(['internal/api/handlers/webui.go', 'internal/api/handlers/webui_test.go', 'internal/api/handlers/mime.go']);
+  await expect(bar).toContainText('3 files viewed');
+  await expect(bar.getByRole('button', { name: 'All looks right' })).toHaveCount(0);
 });
 
 test('the whole file shows each hunk under its note, and the notes fold away', async ({ page, daemon }) => {
   await page.goto('/#/tasks/chg-1/files');
-  await expect(page.getByRole('complementary', { name: 'This hunk' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Plan vs result' })).toBeVisible();
   await page.keyboard.press('f');
   await expect(page.getByRole('radio', { name: 'Whole file' })).toBeChecked();
   const notes = page.getByRole('region', { name: 'What it fixes' });
@@ -529,13 +541,19 @@ test('a task in its own worktree shows new, deleted and moved files and is accep
 
   await page.goto('/#/tasks/chg-1/files');
   const files = page.getByRole('complementary', { name: 'Changed files' });
-  const diff = page.locator('.fc-diff-head');
+  // Each hunk says when its file is new or deleted; a file moved without a changed line is listed under the hunks.
+  const current = page.locator('.rv-block.is-current');
   await files.getByRole('button', { name: /legacy\.go/ }).click();
-  await expect(diff).toContainText('deleted');
-  await files.getByRole('button', { name: /assets\.go/ }).click();
-  await expect(diff).toContainText('renamed from internal/api/handlers/static.go');
+  await expect(current).toContainText('legacy.go');
+  await expect(current.locator('.badge-danger')).toHaveText('deleted');
   await files.getByRole('button', { name: /mime\.go/ }).click();
-  await expect(diff).toContainText('new');
+  await expect(current.locator('.badge-success').first()).toHaveText('new');
+  await expect(page.getByRole('list', { name: 'Files without textual changes' })).toContainText('renamed from internal/api/handlers/static.go');
+  // The whole file says it in its head.
+  await page.keyboard.press('f');
+  await files.getByRole('button', { name: /assets\.go/ }).click();
+  await expect(page.locator('.fc-diff-head')).toContainText('renamed from internal/api/handlers/static.go');
+  await page.keyboard.press('f');
 
   await page.getByRole('tab', { name: /conversation/i }).click();
   const gate = page.getByRole('complementary', { name: 'Review gate' });
@@ -770,26 +788,44 @@ test('redirecting the plan runs the investigation again with the note', async ({
   expect(body.plan_hash).toBeUndefined();
 });
 
-test('a guided review walks the hunks in causal order with the plan threading through', async ({ page, daemon }) => {
-  daemon.sessions.set('chg-1', guidedReviewTask());
+test('the review sets the change against the approved plan and opens on what the plan did not call for', async ({ page, daemon }) => {
+  const task = guidedReviewTask();
+  const note = { title: 'Reject a trailing slash too', path: 'internal/api/handlers/webui.go', line: 42, detail: 'A name ending in a slash passes the check.' };
+  daemon.sessions.set('chg-1', { ...task, workflow: { ...task.workflow!, specialists: [
+    { id: 'correctness', status: 'completed', evidence: 'model', review: { verdict: 'approve', summary: 'Guard runs first.', findings: [], notes: [note] } },
+    { id: 'test_quality', status: 'completed', evidence: 'model', review: { verdict: 'approve', summary: 'Tested.', findings: [], notes: [{ ...note, title: 'Trailing slash is not rejected' }] } },
+  ] } });
   await page.goto('/#/tasks/chg-1/files');
-  const pane = page.getByRole('complementary', { name: 'This hunk' });
-  // The file list says where each file comes in the story.
-  const tree = page.getByRole('complementary', { name: 'Changed files' });
-  await expect(tree.getByRole('button', { name: /mime\.go/ })).toContainText('step 2');
-  await expect(tree.getByRole('button', { name: /webui_test\.go/ })).toContainText('step 3');
-  // Step 1 is the fix, wherever it sits in the file list, with the plan's problem above.
-  await expect(pane).toContainText('Step 1 of 3');
-  await expect(pane).toContainText('Fix');
-  await expect(pane).toContainText('Fixing: Nested asset paths return 500 instead of 404.');
-  await expect(page.locator('.fc-diff-head')).toContainText('webui.go');
-  // The next step is the supporting change in another file, then the proof.
-  await page.keyboard.press('j');
-  await expect(pane).toContainText('Step 2 of 3');
-  await expect(pane).toContainText('Supports the fix');
-  await expect(page.locator('.fc-diff-head')).toContainText('mime.go');
-  await page.keyboard.press('j');
-  await expect(pane).toContainText('Step 3 of 3');
-  await expect(pane).toContainText('Proof');
-  await expect(page.locator('.fc-diff-head')).toContainText('webui_test.go');
+  const summary = page.getByRole('region', { name: 'Plan vs result' });
+  await expect(summary).toContainText('Plan vs result');
+  // The plan as a checklist: what went as approved, what changed nothing, and first what was not in it.
+  const rows = summary.locator('.rv-row');
+  await expect(rows).toHaveCount(4);
+  await expect(rows.nth(0)).toContainText('Not in your plan · The handler gets its own content-type table.');
+  await expect(rows.nth(0)).toContainText('mime.go:1');
+  await expect(rows.nth(1)).toContainText('1 · Reject names with a slash before the read.');
+  await expect(rows.nth(1)).toContainText('webui.go:42');
+  await expect(rows.nth(2)).toContainText('2 · Pin the 404 with a table test.');
+  await expect(rows.nth(3)).toContainText('3 · Keep the embedded read as it is.');
+  await expect(rows.nth(3)).toContainText('no lines changed');
+  await expect(rows.nth(3)).toBeDisabled();
+  // Two reviewers said the same thing on the same line: one suggestion, folded, never a blocker.
+  await expect(summary).toContainText('1 suggestion from the reviewers');
+  await expect(summary.getByText('Reject a trailing slash too (2 reviewers)')).toBeHidden();
+  await summary.getByText('1 suggestion from the reviewers').click();
+  await expect(summary.getByText('Reject a trailing slash too (2 reviewers)')).toBeVisible();
+  // The hunks read exceptions first, then the plan's steps in order.
+  const blocks = page.getByRole('list', { name: 'Changes, in reading order' }).locator('> li');
+  await expect(blocks).toHaveCount(3);
+  await expect(blocks.nth(0)).toContainText('Not in your plan');
+  await expect(blocks.nth(0)).toContainText('mime.go');
+  await expect(blocks.nth(1)).toContainText('Step 1');
+  await expect(blocks.nth(1)).toContainText('webui.go:42');
+  await expect(blocks.nth(2)).toContainText('Step 2');
+  await expect(blocks.nth(2)).toContainText('webui_test.go:88');
+  // A row of the checklist opens its hunk.
+  await rows.nth(2).click();
+  await expect(blocks.nth(2)).toHaveAttribute('aria-current', 'step');
+  await page.keyboard.press('k');
+  await expect(blocks.nth(1)).toHaveAttribute('aria-current', 'step');
 });

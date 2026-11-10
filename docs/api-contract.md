@@ -1280,7 +1280,12 @@ dropped) — and a `step`: the guided-review order across all files. The daemon
 renumbers the model's steps into one sequence 1..N in the order given; a
 repeated step keeps its first note ordered and the rest read as 0, after the
 ordered hunks, like notes without a step. Walkthroughs stored before kinds
-read with neither. It is advisory and never counts as review evidence; a failed
+read with neither. When the task has an approved investigator plan, the
+request also lists its approach steps and each note may carry `plan_step`
+(the step, from 1, its hunk carries out; a number the plan does not have is
+dropped), and the walkthrough records that plan's hash as `plan_hash`: under
+it a note without a `plan_step` is a change the plan did not call for.
+It is advisory and never counts as review evidence; a failed
 request leaves `status: failed` with its `reason` and the review goes on.
 `POST …/walkthrough` with `ChangeIdentity` (and `confirm_remote_provider` for a
 remote review model) writes it again for the current version.

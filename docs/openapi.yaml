@@ -2627,6 +2627,7 @@ components:
         status: {type: string, enum: [ready, failed]}
         reason: {type: string, description: Why it could not be written.}
         at: {type: string, format: date-time}
+        plan_hash: {type: string, description: The approved investigator plan the notes were set against (their plan_step); absent when the task had none.}
         files:
           type: array
           maxItems: 40
@@ -2650,6 +2651,7 @@ components:
                     kind: {type: string, enum: [cause, fix, support, test], description: "The hunk's part in the change's story; absent on walkthroughs written before kinds."}
                     step: {type: integer, minimum: 0, description: "The 1-based guided-review order across all files (cause and fix first, then support, then tests), one sequence per walkthrough; 0 or absent reads after the ordered hunks."}
                     concepts: {type: array, maxItems: 3, items: {type: string, maxLength: 48}, description: Language idioms or patterns the hunk uses, as short lowercase tags; accepted tasks collect them in the learning log.}
+                    plan_step: {type: integer, minimum: 1, maximum: 3, description: The step of the approved investigator plan the hunk carries out; absent under a walkthrough with plan_hash means the plan did not call for the change.}
     ChangeTarget:
       type: object
       properties:

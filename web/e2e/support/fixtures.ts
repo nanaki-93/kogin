@@ -516,19 +516,17 @@ export function guidedReviewTask(): ChangeSession {
   const task = reviewTask();
   return {
     ...task,
-    plan: { ...task.plan, problem: 'Nested asset paths return 500 instead of 404.', hash: 'plan-hash-1', approved_hash: 'plan-hash-1', source: 'investigator', model: 'mini-orca-local', investigated_at: ago(30) },
+    plan: { ...task.plan, problem: 'Nested asset paths return 500 instead of 404.', approach: '1. Reject names with a slash before the read.\n2. Pin the 404 with a table test.\n3. Keep the embedded read as it is.', hash: 'plan-hash-1', approved_hash: 'plan-hash-1', source: 'investigator', model: 'mini-orca-local', investigated_at: ago(30) },
     walkthrough: {
-      proposal_hash: task.hash, status: 'ready', at: ago(5),
+      proposal_hash: task.hash, plan_hash: 'plan-hash-1', status: 'ready', at: ago(5),
       files: [
-        { path: 'internal/api/handlers/webui.go', summary: 'Nested asset paths no longer reach the embedded read.', notes: [{ line: 42, goal: 1, problem: 'A nested name reached `fs.ReadFile` and returned 500 instead of 404.', how: '`ServeAsset` refuses names with a slash.', kind: 'fix', step: 1 }] },
-        { path: 'internal/api/handlers/mime.go', summary: 'Content types for the assets the handler serves.', notes: [{ line: 1, goal: 0, problem: 'The handler needs its own content-type table.', how: 'Adds the `handlers` MIME table.', kind: 'support', step: 2 }] },
-        { path: 'internal/api/handlers/webui_test.go', summary: 'Pins the 404 for nested names.', notes: [{ line: 88, goal: 1, problem: 'Nothing pinned nested names returning 404.', how: '`TestServeAssetRejectsNestedPaths`.', kind: 'test', step: 3 }] },
+        { path: 'internal/api/handlers/webui.go', summary: 'Nested asset paths no longer reach the embedded read.', notes: [{ line: 42, goal: 1, problem: 'A nested name reached `fs.ReadFile` and returned 500 instead of 404.', how: '`ServeAsset` refuses names with a slash.', kind: 'fix', step: 1, plan_step: 1 }] },
+        { path: 'internal/api/handlers/mime.go', summary: 'Content types for the assets the handler serves.', notes: [{ line: 1, goal: 0, problem: 'The handler gets its own content-type table.', how: 'Adds the `handlers` MIME table.', kind: 'support', step: 2 }] },
+        { path: 'internal/api/handlers/webui_test.go', summary: 'Pins the 404 for nested names.', notes: [{ line: 88, goal: 1, problem: 'Nothing pinned nested names returning 404.', how: '`TestServeAssetRejectsNestedPaths`.', kind: 'test', step: 3, plan_step: 2 }] },
       ],
     },
   };
 }
-
-/** The learning log two accepted tasks and one saved answer have built. */
 export function lessonEntries(): Lesson[] {
   return [
     { id: 3, kind: 'task', task_id: 'chg-1', title: 'Reject nested asset paths in the Web UI handler', problem: 'Nested asset paths returned 500 instead of 404.', insight: 'Reject names with a slash before reading the embedded files.', concepts: ['table-driven test', 'error wrapping'], paths: ['internal/api/handlers/webui.go'], at: ago(10) },

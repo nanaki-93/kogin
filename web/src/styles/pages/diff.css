@@ -97,13 +97,7 @@
 }
 
 /* Where a file comes in a guided review. */
-.fc-step {
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  white-space: nowrap;
-}
+
 
 .add { color: var(--success); }
 .del { color: var(--danger); }
@@ -417,116 +411,172 @@
   height: 26px;
 }
 
-/* Focus review: one hunk at a time, its note beside it. */
-.hunk-review {
-  display: grid;
-  flex: 1;
-  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
-  min-height: 0;
-}
-
-.hunk-pane {
+/* The review as plan vs result: a summary, then every hunk under its note. */
+.rv {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 14px;
   min-height: 0;
-  padding: 16px;
+  padding: 14px 16px 24px;
   overflow: auto;
-  border-right: 1px solid var(--border);
   background: var(--bg-sunken);
 }
 
-/* The problem the approved plan named, threading through a guided review. */
-.hunk-plan {
-  display: -webkit-box;
-  overflow: hidden;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
-.hunk-count {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.hunk-count .grow {
+.rv-summary {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
 }
 
-.hunk-dots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.hunk-dot {
-  width: 16px;
-  height: 6px;
-  padding: 0;
+.rv-summary button.badge {
   border: 0;
-  border-radius: 3px;
-  background: var(--surface-3);
   cursor: pointer;
 }
 
-.hunk-dot.is-file {
-  margin-left: 6px;
+.rv-summary .change-notes {
+  padding: 0;
+  border: 0;
+  background: none;
 }
 
-.hunk-dot.is-right {
-  background: var(--accent);
+.rv-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
-.hunk-dot.is-current {
-  background: var(--nav-accent);
-  box-shadow: 0 0 0 2px var(--nav-accent-soft);
+.rv-rows li + li {
+  border-top: 1px solid var(--border);
 }
 
-.hunk-notes {
+.rv-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rv-row > svg {
+  flex: none;
+  align-self: center;
+}
+
+.rv-row:disabled {
+  cursor: default;
+}
+
+.rv-row:not(:disabled):hover {
+  background: var(--hover);
+}
+
+.rv-row.is-exception {
+  background: var(--warning-soft);
+}
+
+.rv-suggestions summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.rv-suggestions[open] summary {
+  margin-bottom: 6px;
+}
+
+.rv-blocks {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.hunk-notes .hunk-note .small {
-  font-size: var(--text-md);
-  font-weight: 500;
-  line-height: 1.45;
-  color: var(--text);
+.rv-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  overflow: hidden;
+  scroll-margin: 12px;
 }
 
-/* Code names in a note read as names, not as headings. */
-.hunk-notes .hunk-note code {
-  font-size: 0.92em;
-  font-weight: 400;
-  overflow-wrap: anywhere;
+.rv-block.is-exception {
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--border));
 }
 
-.hunk-notes .hunk-note .xs {
-  font-size: var(--text-sm);
+.rv-block.is-current {
+  box-shadow: 0 0 0 2px var(--nav-accent);
 }
 
-.hunk-actions {
+.rv-block-head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 6px;
-  margin-top: auto;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
 
-.hunk-keys {
-  line-height: 1.8;
+.rv-block.is-exception .rv-block-head {
+  background: color-mix(in srgb, var(--warning-soft) 70%, var(--surface));
 }
 
-.hunk-code {
+.rv-block-what {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
-  min-height: 0;
-  overflow: auto;
+}
+
+.rv-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.rv-note p {
+  max-width: 84ch;
+  margin: 0;
+}
+
+.rv-note .chip {
+  margin-left: 8px;
+}
+
+.rv-block.is-right .rv-note p:first-child {
+  color: var(--text-2);
+}
+
+.rv-code {
+  overflow-x: auto;
+}
+
+.rv-untouched .rv-row {
+  align-items: center;
+  cursor: default;
+}
+
+.rv-keys {
+  margin: 0;
+  text-align: center;
 }
 
 /* The review bar: what is left, and the last step. */
@@ -575,32 +625,4 @@
   color: var(--muted);
   font-size: var(--text-sm);
   white-space: nowrap;
-}
-
-/* The notes stay beside the code until the review itself is too narrow
-   for both (its width, not the window's: the sidebar takes its share). */
-@container review (max-width: 640px) {
-  .hunk-review {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-
-  .hunk-pane {
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
-}
-
-/* In the hunk pane, the file's notes are a block of the pane, not a bar. */
-.hunk-file-notes {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  white-space: normal;
-}
-
-.hunk-file-notes .change-notes {
-  padding: 0 0 12px;
-  border-bottom: 1px solid var(--border);
-  background: none;
 }

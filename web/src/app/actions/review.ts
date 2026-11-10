@@ -52,6 +52,29 @@ export function reviewActions(context: ActionContext) {
   }
 
   /**
+   * Marks every file not viewed yet as viewed, one after the other: the
+   * review that shows the whole change on one page ends with one step.
+   */
+  async function markAllViewed(session: LoadedSession, paths: string[]): Promise<boolean> {
+    return Boolean(
+      await guarded('Saving review…', async () => {
+        let latest: LoadedSession = session;
+        for (const path of paths) {
+          try {
+            const saved = await api.post<ChangeSession>(changePath(session, '/review-file'), { ...changeIdentity(latest), path });
+            setSession(saved, session);
+            latest = { ...saved, checkout: session.checkout };
+          } catch (err) {
+            fail(`Could not mark ${path} viewed`, err);
+            return false;
+          }
+        }
+        return true;
+      }),
+    );
+  }
+
+  /**
    * Writes the proposal's walkthrough again with its review model. It is
    * not guarded: the call can take a minute and other actions go on.
    */
@@ -148,5 +171,5 @@ export function reviewActions(context: ActionContext) {
     return Boolean(result);
   }
 
-  return { markViewed, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept };
+  return { markViewed, markAllViewed, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept };
 }

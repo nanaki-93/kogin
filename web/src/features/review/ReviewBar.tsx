@@ -2,8 +2,9 @@
 // reviewers) and the last step, Accept & commit, which says what still
 // blocks it until it can run.
 
-import { ArrowRight, Lock } from 'lucide-react';
+import { ArrowRight, CheckCheck, Lock } from 'lucide-react';
 import type { LoadedSession } from '@/api/types';
+import { useActions, useBusy } from '@/app/actions';
 import { checkSummary, isFileReviewed, proposalReadiness, reviewProgress } from '@/lib/readiness';
 import { reviewVerdict } from '@/lib/workflow';
 import { plural } from '@/lib/util';
@@ -12,12 +13,33 @@ import { AcceptTask } from '@/features/tasks/AcceptTask';
 
 const VERDICT: Record<string, string> = { approve: 'reviewers approved', changes_requested: 'reviewers asked for changes', pending: 'reviewers working', none: 'no review yet' };
 
-export function ReviewBar({ session, current, onNext, onSelect }: { session: LoadedSession; current: string; onNext?: () => void; onSelect: (path: string) => void }) {
+export function ReviewBar({ session, current, onNext, onSelect, whole }: { session: LoadedSession; current: string; onNext?: () => void; onSelect: (path: string) => void; /** The page shows the whole change: one step marks every file viewed. */ whole?: boolean }) {
   const ready = proposalReadiness(session);
+  const actions = useActions();
+  const busy = useBusy();
   if (!ready.editable) return null;
   const progress = reviewProgress(session);
   const checks = checkSummary(session.checks, session.checks_outdated);
   const left = progress.total - progress.reviewed;
+  const unviewed = (session.changes ?? []).filter(edit => !isFileReviewed(session, edit.path)).map(edit => edit.path);
+  if (whole) {
+    // The summary above the hunks carries checks and reviewers; the bar is the last step.
+    return (
+      <div className="review-bar" role="region" aria-label="Review progress">
+        <span className="small muted">{left ? `${progress.reviewed} of ${plural(progress.total, 'file')} viewed` : `${plural(progress.total, 'file')} viewed`}</span>
+        <span className="spacer" />
+        {left && ready.step === 'review' ? (
+          <Button size="sm" variant="primary" icon={CheckCheck} onClick={() => void actions.markAllViewed(session, unviewed)} disabled={Boolean(busy)} title="Marks every changed file viewed at this version; Accept & commit is the next step">
+            All looks right
+          </Button>
+        ) : ready.canAccept ? (
+          <AcceptTask session={session} />
+        ) : (
+          <span className="review-lock" title={ready.message}><Lock size={12} aria-hidden /> Accept &amp; commit · {blocker(ready.step, left)}</span>
+        )}
+      </div>
+    );
+  }
   return (
     <div className="review-bar" role="region" aria-label="Review progress">
       <span className="strong small">{progress.reviewed} of {progress.total} viewed</span>

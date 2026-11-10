@@ -160,3 +160,41 @@ func TestWalkthroughStepsBecomeOneGuidedSequenceAcrossFiles(t *testing.T) {
 		t.Fatalf("repeated-step note = %+v", repeated)
 	}
 }
+
+func TestAWalkthroughSetsEachHunkAgainstTheApprovedPlan(t *testing.T) {
+	session := walkthroughSession()
+	session.Plan = &ChangePlan{ChangePlanInput: ChangePlanInput{Problem: "The salt is regenerated.", Approach: "1. Read the saved salt in `generateKey`.\n2) Add one reader for the salt file."},
+		Source: planSourceInvestigator, Hash: "plan-1", ApprovedHash: "plan-1"}
+	prompt := walkthroughMessages(session)[1].Content
+	if !strings.Contains(prompt, "APPROVED PLAN (the number is a note's plan):\n1. Read the saved salt in `generateKey`.\n2. Add one reader for the salt file.\n") {
+		t.Fatalf("the prompt does not list the approved steps:\n%s", prompt)
+	}
+	reply := `{"files":[{"path":"cmd/master.go","summary":"Loads the saved salt.","notes":[
+	  {"quote":"\tsalt, err := readKeySalt()","goal":1,"problem":"Each run derived a new key.","how":"Reads the saved salt.","kind":"fix","step":1,"plan":1},
+	  {"quote":"\t_ = err","goal":0,"problem":"The read error is dropped to keep the signature.","how":"Discards err.","kind":"support","step":2,"plan":0},
+	  {"quote":"func readKeySalt() ([]byte, error) { return nil, nil }","goal":0,"problem":"The fix needs one reader.","how":"Adds the helper.","kind":"support","step":3,"plan":7}]}]}`
+	walkthrough := explainProposal(session, func([]llm.ChatMessage, llm.JSONSchema) (modelOutput, error) { return modelOutput{Content: reply}, nil })
+	if walkthrough.Status != WalkthroughReady || walkthrough.PlanHash != "plan-1" {
+		t.Fatalf("walkthrough = %+v", walkthrough)
+	}
+	// A step the plan has is kept; none, or one it does not have, is outside the plan.
+	notes := walkthrough.Files[0].Notes
+	if len(notes) != 3 || notes[0].PlanStep != 1 || notes[1].PlanStep != 0 || notes[2].PlanStep != 0 {
+		t.Fatalf("notes = %+v", notes)
+	}
+	// A stored note keeps its plan step.
+	data, _ := json.Marshal(notes[0])
+	var read WalkthroughNote
+	if err := json.Unmarshal(data, &read); err != nil || read.PlanStep != 1 {
+		t.Fatalf("read back %+v, %v", read, err)
+	}
+
+	// Without an approved investigator plan nothing is set against one.
+	session.Plan.ApprovedHash = ""
+	if prompt := walkthroughMessages(session)[1].Content; strings.Contains(prompt, "APPROVED PLAN") {
+		t.Fatalf("an unapproved plan reached the prompt:\n%s", prompt)
+	}
+	if again := explainProposal(session, func([]llm.ChatMessage, llm.JSONSchema) (modelOutput, error) { return modelOutput{Content: reply}, nil }); again.PlanHash != "" || again.Files[0].Notes[0].PlanStep != 0 {
+		t.Fatalf("walkthrough without a plan = %+v", again)
+	}
+}

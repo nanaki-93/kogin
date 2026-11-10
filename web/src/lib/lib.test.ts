@@ -12,6 +12,7 @@ import { applyEvent, finishedRun, parseFrames } from '@/api/events';
 import { QueryClient } from '@tanstack/react-query';
 import { costCaveat, costLabel, formatTokens, usageLabel } from './usage';
 import { issueSteps } from './issues';
+import { fileHunks, mergedReviewNotes, planResult, splitAtNotes } from './hunks';
 import { approachSteps, dedent } from '@/features/tasks/PlanReview';
 import { shortName } from '@/features/docs/DocText';
 import { closeDismissals, closeLabel, planFindsNothingToFix } from './readiness';
@@ -444,5 +445,58 @@ describe('plan text', () => {
     expect(shortName('TestGetPwdObjAfterCheckMasterRejectsMismatchedMasterPassword')).toBe('TestGetPwdObjAfterC…MasterPassword');
     expect(shortName('setUtilsReadPassword')).toBe('setUtilsReadPassword');
     expect(shortName('t.Cleanup(func() { utils.SetMasterKey(nil) })')).toBe('t.Cleanup(func() { utils.SetMasterKey(nil) })');
+  });
+});
+
+describe('plan vs result', () => {
+  const ctx = (o: number, n: number) => ({ kind: 'context' as const, old_line: o, new_line: n, text: `c${n}` });
+  const add = (n: number) => ({ kind: 'added' as const, new_line: n, text: `a${n}` });
+  const del = (o: number) => ({ kind: 'removed' as const, old_line: o, text: `r${o}` });
+  // One hunk: a replaced line, three unchanged lines, an added line, two unchanged, another added line.
+  const lines = [ctx(9, 9), del(10), add(10), ctx(11, 11), ctx(12, 12), ctx(13, 13), add(14), ctx(14, 15), ctx(15, 16), add(17), ctx(16, 18)];
+  const linesOf = new Map([['a.go', lines], ['a_test.go', [add(1), add(2)]]]);
+  const all = [...fileHunks('a.go', lines), ...fileHunks('a_test.go', linesOf.get('a_test.go')!)];
+  const note = (line: number, extra: Record<string, unknown> = {}) => ({ line, problem: `p${line}`, ...extra });
+  const plan = { source: 'investigator', hash: 'p1', approved_hash: 'p1', approach: '1. Replace line ten.\n2. Keep the rest.' };
+  const walkthrough = (notes: ReturnType<typeof note>[], extra: Record<string, unknown> = {}) => ({ proposal_hash: 'h', plan_hash: 'p1', status: 'ready' as const, at: '', files: [{ path: 'a.go', notes }, { path: 'a_test.go', notes: [note(1, { kind: 'test' })] }], ...extra });
+
+  it('reads a hunk several notes explain as one block per note', () => {
+    expect(all).toHaveLength(2);
+    const split = splitAtNotes(all, linesOf, walkthrough([note(10), note(14)]));
+    // The run without a note of its own stays with the note before it; the unchanged lines between are shared out.
+    expect(split.map(hunk => [hunk.path, hunk.n, hunk.start, hunk.end])).toEqual([['a.go', 0, 0, 5], ['a.go', 1, 5, 11], ['a_test.go', 0, 0, 2]]);
+    expect(splitAtNotes(all, linesOf, walkthrough([note(10)])).map(hunk => [hunk.start, hunk.end])).toEqual([[0, 11], [0, 2]]);
+  });
+
+  it('puts what the plan did not call for first, then its steps, and a test is proof', () => {
+    const result = planResult({ hash: 'h', plan, walkthrough: walkthrough([note(10, { plan_step: 1 }), note(14)]) }, linesOf, all);
+    expect(result.mapped).toBe(true);
+    expect(result.blocks.map(block => [block.hunk.path, block.hunk.n, block.exception ?? '', block.planStep])).toEqual([['a.go', 1, 'outside', 0], ['a.go', 0, '', 1], ['a_test.go', 0, '', 0]]);
+    expect(result.steps.map(step => [step.n, step.text, step.blocks.length])).toEqual([[1, 'Replace line ten.', 1], [2, 'Keep the rest.', 0]]);
+    // A hunk nobody explained is an exception too.
+    const bare = planResult({ hash: 'h', plan, walkthrough: { ...walkthrough([note(10, { plan_step: 1 })]), files: [{ path: 'a.go', notes: [note(10, { plan_step: 1 })] }] } }, linesOf, all);
+    expect(bare.blocks.map(block => block.exception ?? '')).toEqual(['unexplained', '']);
+  });
+
+  it('calls nothing an exception without a walkthrough written against the approved plan', () => {
+    for (const session of [
+      { hash: 'h', plan, walkthrough: walkthrough([note(10)], { plan_hash: undefined }) },
+      { hash: 'h', plan: { ...plan, approved_hash: 'p0' }, walkthrough: walkthrough([note(10)]) },
+      { hash: 'other', plan, walkthrough: walkthrough([note(10)]) },
+      { hash: 'h', plan },
+    ]) {
+      const result = planResult(session, linesOf, all);
+      expect(result.mapped).toBe(false);
+      expect(result.steps).toEqual([]);
+      expect(result.blocks.some(block => block.exception)).toBe(false);
+    }
+  });
+
+  it('says a suggestion once, with the reviewers who made it', () => {
+    const item = (title: string, line?: number) => ({ title, path: 'a.go', line });
+    const specialist = (id: string, notes: ReturnType<typeof item>[], hash = 'h') => ({ id, status: 'completed', evidence: 'model', review: { proposal_hash: hash, verdict: 'approve', summary: '', findings: [], notes } });
+    const workflow = { id: 'w', status: 'awaiting_human_review', stages: [], specialists: [specialist('correctness', [item('Wipe the key', 571), item('Name the helper')]), specialist('test_quality', [item('Clear the key', 571), item('name the helper.')]), specialist('security', [item('Old version', 3)], 'older')] };
+    expect(mergedReviewNotes(workflow, 'h').map(entry => [entry.item.title, entry.reviewers])).toEqual([['Wipe the key', ['correctness', 'test_quality']], ['Name the helper', ['correctness', 'test_quality']]]);
+    expect(mergedReviewNotes(undefined, 'h')).toEqual([]);
   });
 });
