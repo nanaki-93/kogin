@@ -512,6 +512,21 @@ export class FakeDaemon {
       if (!s.worktree) throw new Error('This task was made in the main checkout, which Kogin no longer changes.');
       return { ...s, state: 'applied', commit: { state: 'committed', oid: 'c0ffee12', message: String(body.commit_message || s.title) } };
     });
+    if (updated.worktree) {
+      const wtPath = this.taskWorktrees.get(updated.id) ?? `${data.project.path}/.worktrees/${updated.id}`;
+      const idx = this.worktrees.findIndex(tree => tree.path === wtPath || tree.branch === updated.worktree!.branch);
+      const nextTree: GitWorktree = {
+        path: idx >= 0 ? this.worktrees[idx].path : wtPath,
+        head: 'c0ffee12',
+        branch: updated.worktree.branch,
+        integration: 'ahead',
+        mergeable: true,
+        dirty: false,
+        sessions: [data.historyEntry(updated)],
+      };
+      if (idx >= 0) this.worktrees[idx] = { ...this.worktrees[idx], ...nextTree };
+      else this.worktrees.push(nextTree);
+    }
     return { ...data.project, session_id: updated.id, state: 'applied', hash: updated.hash, warnings: [], commit: updated.commit };
   }
 

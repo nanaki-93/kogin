@@ -25,6 +25,18 @@ export function gitActions(context: ActionContext) {
     }
   }
 
+  async function executeMerge(workspace: GitWorkspace, worktree: GitWorktree, main: Project, remove: boolean): Promise<boolean> {
+    const result = await api.post<GitMutationResult>('/api/projects/current/git/merge', { ...mergeRequest(workspace, worktree, main), keep_worktree: remove ? undefined : true });
+    if (result?.state === 'conflicts') toast('The merge stopped with conflicts. Resolve them in your editor, or abort.', 'warning');
+    else toast(`Merged ${worktree.branch || worktree.path}.`, 'success');
+    for (const warning of result?.warnings ?? []) toast(warning, 'warning');
+    if (result?.removed_worktree) leaveRemovedCheckout([result.removed_worktree]);
+    await refreshAll();
+    const merged = mergeToCheck(result);
+    if (merged) void runMergeChecks(worktree.branch || worktree.path, merged, reportMergeChecks);
+    return result?.state !== 'conflicts';
+  }
+
   /** Merges a worktree; the Branches page setting decides whether the worktree and branch go too. */
   async function merge(workspace: GitWorkspace, worktree: GitWorktree, main: Project) {
     const overlap = worktree.overlap_paths ?? [];
@@ -37,17 +49,23 @@ export function gitActions(context: ActionContext) {
     if (!ok) return;
     await guarded('Merging…', async () => {
       try {
-        const result = await api.post<GitMutationResult>('/api/projects/current/git/merge', { ...mergeRequest(workspace, worktree, main), keep_worktree: remove ? undefined : true });
-        if (result?.state === 'conflicts') toast('The merge stopped with conflicts. Resolve them in your editor, or abort.', 'warning');
-        else toast(`Merged ${worktree.branch || worktree.path}.`, 'success');
-        for (const warning of result?.warnings ?? []) toast(warning, 'warning');
-        await refreshAll();
-        const merged = mergeToCheck(result);
-        if (merged) void runMergeChecks(worktree.branch || worktree.path, merged, reportMergeChecks);
+        await executeMerge(workspace, worktree, main, remove);
       } catch (err) {
         fail('Merge failed', err);
       }
     });
+  }
+
+  /** Merges a just-committed task branch into the main checkout when confirmed during Accept. */
+  async function mergeTaskWorktree(branch: string, worktreePath: string): Promise<boolean> {
+    const main = await api.get<Project>('/api/projects/current');
+    const workspace = await api.get<GitWorkspace>('/api/projects/current/git/workspace' + query({ project_id: main.project_id, project_revision: main.project_revision }));
+    const tree = (workspace.worktrees ?? []).find(entry => (worktreePath && entry.path === worktreePath) || (branch && entry.branch === branch));
+    if (!tree?.mergeable) {
+      toast('Committed on the task branch; merge it from Branches.', 'warning');
+      return false;
+    }
+    return executeMerge(workspace, tree, main, getUI().removeWorktreeOnMerge);
   }
 
   function reportMergeChecks(result: MergeChecks) {
@@ -192,5 +210,5 @@ export function gitActions(context: ActionContext) {
     });
   }
 
-  return { previewMerge, merge, removeWorktree, removeEmptyWorktrees, discardWorktree, discardAbandonedWorktrees, abortMerge };
+  return { previewMerge, merge, mergeTaskWorktree, removeWorktree, removeEmptyWorktrees, discardWorktree, discardAbandonedWorktrees, abortMerge };
 }

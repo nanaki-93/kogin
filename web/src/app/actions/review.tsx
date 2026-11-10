@@ -8,7 +8,7 @@ import { canOverrideReview, changeIdentity, defaultCommitMessage, isFileReviewed
 import { plural } from '@/lib/util';
 import { changePath, type ActionContext } from './context';
 
-export function reviewActions(context: ActionContext) {
+export function reviewActions(context: ActionContext, git?: { mergeTaskWorktree: (branch: string, worktreePath: string) => Promise<boolean> }) {
   const { confirm, toast, guarded, fail, setSession, refreshAll, confirmRemote } = context;
 
   // ---------------------------------------------------------------- review
@@ -155,9 +155,9 @@ export function reviewActions(context: ActionContext) {
    * Accepts a task in one step: records the approval of this exact version
    * (with optional notes; the daemon also answers a waiting workflow input),
    * unless it is already approved, then commits it on the task branch in its
-   * own worktree. The caller confirms first.
+   * own worktree, and optionally merges it into the main checkout when asked.
    */
-  async function accept(session: LoadedSession, message: string, notes = '', acceptBehaviorChanges = false): Promise<boolean> {
+  async function accept(session: LoadedSession, message: string, notes = '', acceptBehaviorChanges = false, mergeAfter = false): Promise<boolean> {
     const ready = proposalReadiness(session);
     if (!ready.canAccept || !session.worktree) return false;
     const branch = session.worktree.branch;
@@ -168,6 +168,7 @@ export function reviewActions(context: ActionContext) {
     }
     const result = await guarded('Accepting…', async () => {
       let current = session;
+      let committed = false;
       try {
         if (!ready.approved) {
           const body = { ...changeIdentity(session), ...(notes.trim() ? { notes: notes.trim() } : {}), ...(acceptBehaviorChanges ? { accept_behavior_changes: true } : {}) };
@@ -176,11 +177,21 @@ export function reviewActions(context: ActionContext) {
           current = { ...approved, checkout: session.checkout };
         }
         const applied = await api.post<ChangeMutationResult>(changePath(current, '/apply'), { ...changeIdentity(current), confirm: true, commit_message: commitMessage });
+        committed = true;
         toast(`Accepted and committed on ${branch}.`, 'success');
         for (const warning of applied?.warnings ?? []) toast(warning, 'warning');
+        if (mergeAfter && git) {
+          await git.mergeTaskWorktree(branch, session.checkout.worktreePath);
+          return true;
+        }
         await refreshAll();
         return true;
       } catch (err) {
+        if (committed) {
+          fail('Committed, but the merge failed', err);
+          await refreshAll();
+          return true;
+        }
         // An approval that went through stays: Accept then only commits.
         fail(current === session ? 'Accept failed' : 'Approved, but the commit failed', err);
         return false;

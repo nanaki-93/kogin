@@ -173,7 +173,11 @@ every guard when the action arrives.
   rejecting a plan costs one read-only run. Once decided, the page shows the
   run again: the Investigation is its own timeline entry (Investigate & plan)
   with its model, usage and tool calls, the review gate puts a **Plan —
-  Approved** step first, and the plan card stays above the folded brief.
+  Approved** step first, and the plan card folds to a one-line summary above the folded brief.
+  Clicking any cited excerpt, scope file or hunk file inside a task opens a
+  read-only **Code preview** drawer beside the task (with its cached 1-line
+  file role, highlighted lines, Current/Proposed toggle when edited, and
+  `Escape` to close) without leaving the task or dispatching any model call.
   While the investigation runs, the gate reads
   "The investigation is reading the code to propose a plan." The composer
   and a fresh task's **Investigate & plan** button say the plan comes first
@@ -306,9 +310,11 @@ every guard when the action arrives.
   accept, and the reviewers' advisory notes folded as "N suggestions from the
   reviewers": notes on the same line of the same file are one suggestion with
   how many reviewers made it, marked as advice that was not checked against
-  the code and never blocks. Under it, every hunk is a block: what it is to
-  the plan, its file and line (a link), the note on the wrong behavior it
-  removes with how in one muted line, then its lines; a hunk that several
+  the code and never blocks. Under it, every hunk is a block — on wide
+  viewports, the clean diff sits on the left and its aligned sidenote sits in
+  the right margin: what it is to the plan, its file and line (opens the inline
+  Code preview), the note on the wrong behavior it removes with how in one
+  muted line, then its concept chips; a hunk that several
   notes explain is split so each block is one note's change, and a file that
   moved without a changed line is listed under the hunks. `←`/`→` (or
   `j`/`k`) move between hunks, **Looks right** (`a`) settles the current one
@@ -386,9 +392,12 @@ every guard when the action arrives.
   for the human. One confirmation, with the commit message and optional notes
   (up to 2048 bytes), records the approval of this exact hash (answering a
   waiting workflow input; the notes stay with it and are cleared with it) and
-  commits it on the task branch. A version approved but not committed (the
+  commits it on the task branch. When the main checkout is clean, an opt-in
+  checkbox (**Also merge into <branch> after committing**) merges the committed
+  task branch and runs post-merge checks in the same confirmed step; otherwise
+  the header offers **Merge from Branches** afterwards. A version approved but not committed (the
   commit failed, or it was approved before Accept became one step) is only
-  committed. After Accept the header offers **Merge from Branches**. The task
+  committed. The task
   lists show such a version as **Ready to accept**, in its own group, apart
   from **Needs review** (files still to view, with how many are viewed) and
   **Run checks**. **Reject proposal** ends a waiting workflow after

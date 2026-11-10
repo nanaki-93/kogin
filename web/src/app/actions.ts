@@ -22,9 +22,9 @@ export type { DeletableTask, DraftTask } from './actions/tasks';
 export function useActions() {
   const context = useActionContext();
   const { guarded } = context;
-  const { previewMerge, merge, removeWorktree, removeEmptyWorktrees, discardWorktree, discardAbandonedWorktrees, abortMerge } = gitActions(context);
+  const { previewMerge, merge, mergeTaskWorktree, removeWorktree, removeEmptyWorktrees, discardWorktree, discardAbandonedWorktrees, abortMerge } = gitActions(context);
   const { createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, deleteTasks, closeTask } = taskActions(context, { removeEmptyWorktrees, discardAbandonedWorktrees });
-  const { markViewed, markAllViewed, acceptTogether, writeOwnPlan, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept } = reviewActions(context);
+  const { markViewed, markAllViewed, acceptTogether, writeOwnPlan, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept } = reviewActions(context, { mergeTaskWorktree });
   const { setTrust, reindex, openProject, deleteSetAside } = projectActions(context);
   const { fixIssue, fixIssues, issueTaskDraft, triageFinding } = issueActions(context);
   const { runAnalysis, controlAnalysis } = analysisActions(context);

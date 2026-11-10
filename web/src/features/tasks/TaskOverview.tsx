@@ -22,6 +22,7 @@ import { MainChanged } from './RetakeTask';
 import { RunAgents } from './RunAgents';
 import { ReviewItems } from './ReviewItems';
 import { LiveRun } from './LiveRun';
+import { useOpenTaskFile } from './TaskCodePreview';
 
 export function TaskOverview({ session, redirecting, onRedirectDone }: { session: LoadedSession; redirecting: boolean; onRedirectDone: () => void }) {
   // A plan that waits for your decision is the whole page: the run's
@@ -60,6 +61,7 @@ function Investigated({ session }: { session: LoadedSession }) {
 }
 
 function Brief({ session, open }: { session: LoadedSession; /** Open while you write your own plan from it. */ open?: boolean }) {
+  const openTaskFile = useOpenTaskFile(session.checkout.worktreePath);
   // A plan the investigation proposed says what the task is; the brief it
   // was investigated from folds under it.
   const investigated = session.plan?.source === 'investigator';
@@ -91,7 +93,7 @@ function Brief({ session, open }: { session: LoadedSession; /** Open while you w
         <div className="label-row">Scope · files agents may change</div>
         <div className="chips">
           {targets.map(t => (
-            <button key={t.path} type="button" className="chip chip-file" onClick={() => navigate('/code', { file: t.path, wt: session.checkout.worktreePath || undefined })} title={`Open ${t.path}`}>
+            <button key={t.path} type="button" className="chip chip-file" onClick={() => openTaskFile(t.path)} title={`Inspect ${t.path}`}>
               <FileIcon path={t.path} size={12} />
               {t.path}
               {!t.exists ? <span className="faint">new</span> : null}

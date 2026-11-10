@@ -1,0 +1,195 @@
+/* ---------------------------------------------------------------- workbench */
+/* 2-column code + margin sidenotes for hunk review, and the inline read-only
+   task code preview drawer so inspecting files never leaves the task. */
+
+.task-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.task-code-pane {
+  display: flex;
+  flex-direction: column;
+  width: min(520px, 44vw);
+  min-width: 320px;
+  height: 100%;
+  min-height: 0;
+  border-left: 1px solid var(--border-strong);
+  background: var(--surface);
+}
+
+.task-code-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 10px 0 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.task-code-dir {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-code-purpose {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sunken);
+}
+
+.task-code-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg);
+}
+
+.task-code-pre {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 8px 0 24px;
+  font-family: var(--mono);
+  font-size: var(--text-code);
+  line-height: var(--diff-line-height);
+  tab-size: 4;
+}
+
+.task-code-line {
+  display: flex;
+  min-width: max-content;
+  padding-right: 16px;
+}
+
+.task-code-line .ln {
+  flex: none;
+  width: 50px;
+  padding-right: 12px;
+  color: var(--faint);
+  text-align: right;
+  user-select: none;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.task-code-line .code-text {
+  white-space: pre;
+}
+
+.task-code-line.is-cited {
+  background: var(--nav-accent-soft);
+  box-shadow: inset 3px 0 0 var(--nav-accent);
+}
+
+.task-code-line.is-cited .ln {
+  color: var(--nav-accent-text);
+  font-weight: 600;
+}
+
+@media (max-width: 960px) {
+  .task-code-pane {
+    position: fixed;
+    top: var(--topbar);
+    right: 0;
+    bottom: var(--statusbar);
+    z-index: 35;
+    width: min(560px, 92vw);
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+/* ---- Hunk review: clean code column left, aligned margin sidenote right ---- */
+
+.rv-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rv-code-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.rv-margin {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.rv-block.is-exception .rv-margin {
+  background: color-mix(in srgb, var(--warning-soft) 65%, var(--surface));
+}
+
+.rv-margin-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rv-concepts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.rv-concepts .chip {
+  margin-left: 0;
+}
+
+@container review (min-width: 820px) {
+  .rv-block:not(.is-split-layout) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 296px;
+    align-items: stretch;
+  }
+
+  .rv-block:not(.is-split-layout) .rv-main {
+    border-right: 1px solid var(--border);
+  }
+
+  .rv-block:not(.is-split-layout) .rv-margin {
+    border-top: 0;
+  }
+}
+
+@container review (min-width: 1120px) {
+  .rv-block.is-split-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 272px;
+    align-items: stretch;
+  }
+
+  .rv-block.is-split-layout .rv-main {
+    border-right: 1px solid var(--border);
+  }
+
+  .rv-block.is-split-layout .rv-margin {
+    border-top: 0;
+  }
+}
+
+/* Folded approved plan summary line */
+.plan-fold-claim {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}

@@ -10,12 +10,13 @@ import { Check, CircleSlash, CornerDownLeft, Map as MapIcon } from 'lucide-react
 import type { LoadedSession, OwnPlan, PlanEvidence, PlanIssueVerdict } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { highlightLines } from '@/lib/highlight';
+import { firstSentence } from '@/lib/docs';
 import { issueTitle, ownPlanFirst, planAwaitsDecision, planFindsNothingToFix } from '@/lib/readiness';
-import { navigate } from '@/lib/router';
 import { basename, languageOf, plural, timeAgo } from '@/lib/util';
 import { Badge, Button, Segmented, Textarea, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
 import { DocText } from '@/features/docs/DocText';
+import { useOpenTaskFile } from './TaskCodePreview';
 
 export function PlanReview({ session, redirecting, onRedirectDone }: { session: LoadedSession; redirecting: boolean; onRedirectDone: () => void }) {
   const plan = session.plan;
@@ -32,54 +33,75 @@ export function PlanReview({ session, redirecting, onRedirectDone }: { session: 
   if (ownPlanFirst(session)) return <YourPlanFirst session={session} />;
   const own = session.own_plan;
   const compared = Boolean(own && !own.skipped);
+  const badgeText = nothing ? 'Nothing to fix' : approved ? 'Approved' : waiting ? 'Needs your decision' : 'Superseded';
+  const body = (
+    <div className="card-body stack plan-body">
+      {compared ? (
+        <ComparePlans session={session} steps={steps} />
+      ) : (
+        <p className="plan-claim">
+          <DocText text={plan.claim || plan.problem || ''} shorten />
+        </p>
+      )}
+      {shown.length ? (
+        <div className="stack-sm" aria-label="The lines that show it">
+          {shown.map(citation => (
+            <CitedLines key={`${citation.path}:${citation.excerpt_line}`} session={session} citation={citation} />
+          ))}
+        </div>
+      ) : null}
+      {nothing || compared ? null : (
+        <div>
+          <div className="label-row">Approach</div>
+          {steps.length > 1 ? (
+            <ol className="criteria-read plan-steps">
+              {steps.map((step, index) => (
+                <li key={index}>
+                  <DocText text={step} shorten />
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="prose">
+              <DocText text={steps[0] ?? ''} shorten />
+            </p>
+          )}
+        </div>
+      )}
+      {verdicts.length ? <PlanVerdicts session={session} verdicts={verdicts} /> : null}
+      <PlanReasoning session={session} folded={citations.filter(citation => !citation.excerpt)} />
+      {own?.skipped ? <p className="xs faint">You read this plan without writing your own first.</p> : null}
+    </div>
+  );
+  if (!waiting) {
+    return (
+      <section className="card card-quiet plan-card" aria-label="Proposed plan">
+        <details className="card-fold">
+          <summary className="card-head">
+            <MapIcon size={15} aria-hidden />
+            <span className="strong">Plan</span>
+            <Badge tone={approved ? 'success' : 'neutral'}>{badgeText}</Badge>
+            <span className="plan-fold-claim truncate">{firstSentence(plan.claim || plan.problem || '', 90)}</span>
+            <span className="spacer" />
+            {plan.investigated_at ? <span className="xs faint">{timeAgo(plan.investigated_at)}</span> : null}
+          </summary>
+          {body}
+        </details>
+      </section>
+    );
+  }
   return (
     <section className="card plan-card" aria-label="Proposed plan">
       <div className="card-head">
         <MapIcon size={15} aria-hidden />
         <span className="strong">Plan</span>
-        <Badge tone={approved ? 'success' : waiting && !nothing ? 'accent' : 'neutral'}>{nothing ? 'Nothing to fix' : approved ? 'Approved' : waiting ? 'Needs your decision' : 'Superseded'}</Badge>
+        <Badge tone={approved ? 'success' : !nothing ? 'accent' : 'neutral'}>{badgeText}</Badge>
         <span className="spacer" />
         {plan.model ? <span className="xs faint mono">{plan.model}</span> : null}
         {plan.investigated_at ? <span className="xs faint">{timeAgo(plan.investigated_at)}</span> : null}
       </div>
-      {waiting && redirecting ? <RedirectPlan session={session} onDone={onRedirectDone} /> : null}
-      <div className="card-body stack plan-body">
-        {compared ? (
-          <ComparePlans session={session} steps={steps} />
-        ) : (
-          <p className="plan-claim">
-            <DocText text={plan.claim || plan.problem || ''} shorten />
-          </p>
-        )}
-        {shown.length ? (
-          <div className="stack-sm" aria-label="The lines that show it">
-            {shown.map(citation => (
-              <CitedLines key={`${citation.path}:${citation.excerpt_line}`} session={session} citation={citation} />
-            ))}
-          </div>
-        ) : null}
-        {nothing || compared ? null : (
-          <div>
-            <div className="label-row">Approach</div>
-            {steps.length > 1 ? (
-              <ol className="criteria-read plan-steps">
-                {steps.map((step, index) => (
-                  <li key={index}>
-                    <DocText text={step} shorten />
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="prose">
-                <DocText text={steps[0] ?? ''} shorten />
-              </p>
-            )}
-          </div>
-        )}
-        {verdicts.length ? <PlanVerdicts session={session} verdicts={verdicts} /> : null}
-        <PlanReasoning session={session} folded={citations.filter(citation => !citation.excerpt)} />
-        {own?.skipped ? <p className="xs faint">You read this plan without writing your own first.</p> : null}
-      </div>
+      {redirecting ? <RedirectPlan session={session} onDone={onRedirectDone} /> : null}
+      {body}
     </section>
   );
 }
@@ -191,6 +213,7 @@ function ComparePlans({ session, steps }: { session: LoadedSession; steps: strin
 
 /** The cited lines as code: where they are, what the investigation says of them, and the step that changes them. */
 function CitedLines({ session, citation }: { session: LoadedSession; citation: PlanEvidence }) {
+  const openTaskFile = useOpenTaskFile(session.checkout.worktreePath);
   const first = citation.excerpt_line ?? citation.start_line ?? 1;
   const html = useMemo(() => highlightLines(dedent(citation.excerpt ?? ''), languageOf(citation.path)), [citation.excerpt, citation.path]);
   const last = first + html.length - 1;
@@ -201,8 +224,8 @@ function CitedLines({ session, citation }: { session: LoadedSession; citation: P
         <button
           type="button"
           className="chip chip-file"
-          title={`Open ${citation.path} at line ${first}`}
-          onClick={() => navigate('/code', { file: citation.path, line: String(first), wt: session.checkout.worktreePath || undefined })}
+          title={`Inspect ${citation.path} at line ${first}`}
+          onClick={() => openTaskFile(citation.path, first, last)}
         >
           <FileIcon path={citation.path} size={12} />
           {basename(citation.path)}:{first}
@@ -228,6 +251,7 @@ function CitedLines({ session, citation }: { session: LoadedSession; citation: P
 
 /** Why the plan is this plan: the problem in the code's terms, its root cause, the alternatives it rejected, the risks and the files. */
 function PlanReasoning({ session, folded }: { session: LoadedSession; folded: PlanEvidence[] }) {
+  const openTaskFile = useOpenTaskFile(session.checkout.worktreePath);
   const plan = session.plan!;
   const holds = [
     plan.root_cause ? 'root cause' : '',
@@ -267,7 +291,7 @@ function PlanReasoning({ session, folded }: { session: LoadedSession; folded: Pl
                   <button
                     type="button"
                     className="chip chip-file"
-                    onClick={() => navigate('/code', { file: citation.path, line: citation.start_line ? String(citation.start_line) : undefined, wt: session.checkout.worktreePath || undefined })}
+                    onClick={() => openTaskFile(citation.path, citation.start_line, citation.end_line)}
                     title={citation.quote}
                   >
                     <FileIcon path={citation.path} size={12} />
@@ -318,7 +342,7 @@ function PlanReasoning({ session, folded }: { session: LoadedSession; folded: Pl
               {(plan.touches ?? []).map(touch => (
                 <li key={touch.path} className="issue-step scope-grant">
                   <div className="issue-step-head">
-                    <button type="button" className="chip chip-file" title={`Open ${touch.path}`} onClick={() => navigate('/code', { file: touch.path, wt: session.checkout.worktreePath || undefined })}>
+                    <button type="button" className="chip chip-file" title={`Inspect ${touch.path}`} onClick={() => openTaskFile(touch.path)}>
                       <FileIcon path={touch.path} size={12} />
                       {touch.path}
                     </button>

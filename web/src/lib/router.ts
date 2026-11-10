@@ -26,6 +26,11 @@ export function buildHash(path: string, params: Record<string, string | undefine
 }
 
 let cached: { hash: string; route: Route } | null = null;
+const listeners = new Set<() => void>();
+
+function notify(): void {
+  for (const listener of listeners) listener();
+}
 
 function current(): Route {
   const hash = window.location.hash;
@@ -34,8 +39,12 @@ function current(): Route {
 }
 
 function subscribe(callback: () => void): () => void {
-  window.addEventListener('hashchange', callback);
-  return () => window.removeEventListener('hashchange', callback);
+  if (listeners.size === 0) window.addEventListener('hashchange', notify);
+  listeners.add(callback);
+  return () => {
+    listeners.delete(callback);
+    if (listeners.size === 0) window.removeEventListener('hashchange', notify);
+  };
 }
 
 /** The route now, for code outside React rendering. */
@@ -54,7 +63,7 @@ export function navigate(path: string, params: Record<string, string | undefined
   if (hash === window.location.hash) return;
   if (options.replace) window.history.replaceState(null, '', window.location.pathname + window.location.search + hash);
   else window.location.hash = hash;
-  if (options.replace) window.dispatchEvent(new HashChangeEvent('hashchange'));
+  notify();
 }
 
 export function setParam(key: string, value: string | undefined, options: { replace?: boolean } = { replace: true }): void {

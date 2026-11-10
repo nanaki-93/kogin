@@ -879,3 +879,34 @@ test('the review sets the change against the approved plan and opens on what the
   await page.keyboard.press('k');
   await expect(blocks.nth(1)).toHaveAttribute('aria-current', 'step');
 });
+
+test('clicking a cited file opens an inline read-only code preview without leaving the task', async ({ page, daemon }) => {
+  daemon.sessions.set('chg-1', planReadyTask());
+  await page.goto('/#/tasks/chg-1');
+  const plan = page.getByRole('region', { name: 'Proposed plan' });
+  await plan.getByRole('button', { name: 'webui.go:41–42' }).click();
+  await expect(page).toHaveURL(/#\/tasks\/chg-1(\?|$)/);
+  const preview = page.getByRole('complementary', { name: 'Code preview' });
+  await expect(preview).toBeVisible();
+  await expect(preview).toContainText('webui.go');
+  await expect(preview).toContainText('Serves the embedded Web UI bundle.');
+  await expect(preview).toContainText('func ServeAsset() {}');
+  await page.keyboard.press('Escape');
+  await expect(preview).toHaveCount(0);
+});
+
+test('accept, commit and merge completes the task and merges its branch in one confirmed step', async ({ page, daemon }) => {
+  const session = daemon.sessions.get('chg-1')!;
+  daemon.sessions.set('chg-1', { ...session, reviewed_files: session.changes.map(change => change.path) });
+  await page.goto('/#/tasks/chg-1');
+  await page.locator('header.task-header').getByRole('button', { name: 'Accept & commit' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Accept and commit?' });
+  await dialog.getByLabel(/Also merge into main after committing/).check();
+  await expect(page.getByRole('dialog', { name: 'Accept, commit and merge?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Accept, commit & merge' }).click();
+  await expect(page.getByText('Merged orca/reject-nested-a1b2c3.')).toBeVisible();
+  expect(daemon.mutations('/review')).toHaveLength(1);
+  expect(daemon.mutations('/apply')).toHaveLength(1);
+  expect(daemon.mutations('/git/merge')).toHaveLength(1);
+  expect(daemon.mutations('/git/merge')[0].body).toMatchObject({ source_head: 'c0ffee12', source_branch: 'orca/reject-nested-a1b2c3', confirm: true, confirm_execution: true });
+});

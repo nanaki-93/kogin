@@ -1,11 +1,14 @@
 // Accept & commit in one step: once every file is viewed and the checks
 // pass, one confirmation records your approval of this exact version (with
-// optional notes) and commits it on the task's branch.
+// optional notes) and commits it on the task's branch, with an opt-in
+// checkbox to merge into the clean main branch right away.
 
 import { useState } from 'react';
-import { GitCommitHorizontal } from 'lucide-react';
+import { GitCommitHorizontal, GitMerge } from 'lucide-react';
+import { useGitWorkspace } from '@/api/hooks';
 import type { LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
+import { useUI } from '@/app/store';
 import { behaviorChanges, defaultCommitMessage, proposalReadiness } from '@/lib/readiness';
 import { plural } from '@/lib/util';
 import { ReviewItems } from './ReviewItems';
@@ -19,19 +22,26 @@ const MAX_NOTES = 2048;
 export function AcceptTask({ session }: { session: LoadedSession }) {
   const actions = useActions();
   const busy = useBusy();
+  const git = useGitWorkspace().data;
+  const removeWorktree = useUI(state => state.removeWorktreeOnMerge);
   const ready = proposalReadiness(session);
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState(() => defaultCommitMessage(session));
   const [notes, setNotes] = useState('');
   const [acceptChanges, setAcceptChanges] = useState(false);
+  const [mergeAfter, setMergeAfter] = useState(false);
   const branch = session.worktree?.branch ?? '';
+  const targetBranch = git?.branch || 'main';
+  const canMergeAfter = Boolean(session.worktree && git?.available && !git.dirty && !git.merge_head);
+  const willMerge = canMergeAfter && mergeAfter;
   // Approving a version accepts what it changes for its users; already approved, there is nothing left to accept.
   const changes = ready.approved ? [] : behaviorChanges(session);
   const submit = async () => {
-    if (await actions.accept(session, message, ready.approved ? '' : notes, changes.length > 0 && acceptChanges)) {
+    if (await actions.accept(session, message, ready.approved ? '' : notes, changes.length > 0 && acceptChanges, willMerge)) {
       setOpen(false);
       setNotes('');
       setAcceptChanges(false);
+      setMergeAfter(false);
     }
   };
   return (
@@ -42,15 +52,19 @@ export function AcceptTask({ session }: { session: LoadedSession }) {
       <Modal
         open={open}
         onOpenChange={setOpen}
-        title="Accept and commit?"
-        description={`Commits “${session.title || session.id}” on ${branch}, exactly as reviewed${ready.approved ? '' : ', and records your approval of this version'}. Its files are already in the task's worktree; merge the branch from Branches when you are ready.`}
+        title={willMerge ? 'Accept, commit and merge?' : 'Accept and commit?'}
+        description={
+          willMerge
+            ? `Commits “${session.title || session.id}” on ${branch}${ready.approved ? '' : ' with your approval'}, merges it into ${targetBranch}, marks linked issues done, and ${removeWorktree ? 'removes the worktree and its branch' : 'keeps the worktree and its branch'}.`
+            : `Commits “${session.title || session.id}” on ${branch}, exactly as reviewed${ready.approved ? '' : ', and records your approval of this version'}. Its files are already in the task's worktree; merge the branch from Branches when you are ready.`
+        }
         footer={
           <>
             <Button variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" form="accept-task" variant="primary" icon={GitCommitHorizontal} disabled={!message.trim() || (changes.length > 0 && !acceptChanges) || Boolean(busy)} loading={busy === 'Accepting…'}>
-              Accept & commit
+            <Button type="submit" form="accept-task" variant="primary" icon={willMerge ? GitMerge : GitCommitHorizontal} disabled={!message.trim() || (changes.length > 0 && !acceptChanges) || Boolean(busy)} loading={busy === 'Accepting…'}>
+              {willMerge ? 'Accept, commit & merge' : 'Accept & commit'}
             </Button>
           </>
         }
@@ -83,6 +97,12 @@ export function AcceptTask({ session }: { session: LoadedSession }) {
               <Textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} maxLength={MAX_NOTES} placeholder="Kept with your approval, such as follow-ups." aria-label="Approval notes" />
             </label>
           )}
+          {canMergeAfter ? (
+            <label className="check-label small">
+              <input type="checkbox" checked={mergeAfter} onChange={e => setMergeAfter(e.target.checked)} />
+              Also merge into {targetBranch} after committing{removeWorktree ? ' and remove the worktree' : ''}
+            </label>
+          ) : null}
         </form>
       </Modal>
     </>

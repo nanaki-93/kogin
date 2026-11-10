@@ -7,6 +7,8 @@ import type { ChangeHistoryEntry, Check } from './tasks';
 export interface GitMutationResult {
   state: string;
   previous_head?: string;
+  removed_worktree?: string;
+  removed_branch?: string;
   repository?: { head: string; branch: string };
   index?: ProjectIdentity;
   error?: string;

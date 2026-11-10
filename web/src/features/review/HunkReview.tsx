@@ -19,6 +19,7 @@ import { basename, languageOf, plural } from '@/lib/util';
 import { Badge, Button, IconButton, Kbd, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
 import { DocText } from '@/features/docs/DocText';
+import { useOpenTaskFile } from '@/features/tasks/TaskCodePreview';
 import { ReviewItems } from '@/features/tasks/ReviewItems';
 import { ChangeNotes, goalLabel } from './ChangeNotes';
 import { DiffView } from './DiffView';
@@ -225,6 +226,7 @@ function ReviewHunk({ session, change, block, lines, mapped, current, right, lay
   onRight: () => void;
 }) {
   const { hunk, notes } = block;
+  const openTaskFile = useOpenTaskFile(session.checkout.worktreePath);
   const comments = useFileComments(session, hunk.path, canComment);
   // M opens the form on the hunk's first changed line.
   useEffect(() => {
@@ -239,18 +241,27 @@ function ReviewHunk({ session, change, block, lines, mapped, current, right, lay
     : mapped && block.planStep ? { text: `Step ${block.planStep}`, tone: 'accent' as const }
     : mapped && !block.exception ? { text: 'Proof', tone: 'info' as const }
     : kind ? { text: kind.label, tone: kind.tone } : null;
+  const firstLine = notes.find(note => note.line)?.line ?? hunkAnchor(lines, hunk)?.line;
   return (
-    <li className={cx('rv-block', current && 'is-current', block.exception && 'is-exception', right && 'is-right')} aria-current={current ? 'step' : undefined} onClick={onSelect}>
-      <header className="rv-block-head">
-        <div className="rv-block-what">
-          {tag ? <Badge tone={tag.tone}>{tag.text}</Badge> : null}
-          <button type="button" className="chip chip-file" title={`Open ${hunk.path} in the whole-file review`} onClick={event => { event.stopPropagation(); navigate(`/code`, { file: hunk.path, wt: session.checkout.worktreePath || undefined }); }}>
+    <li className={cx('rv-block', layout === 'split' && 'is-split-layout', current && 'is-current', block.exception && 'is-exception', right && 'is-right')} aria-current={current ? 'step' : undefined} onClick={onSelect}>
+      <div className="rv-main">
+        <div className="rv-code-bar">
+          <button type="button" className="chip chip-file" title={`Inspect ${hunk.path} in place`} onClick={event => { event.stopPropagation(); openTaskFile(hunk.path, firstLine); }}>
             <FileIcon path={hunk.path} size={12} />
             {blockPlace(block)}
           </button>
           {change ? <FileStatus change={change} /> : null}
           <span className="spacer" />
-          {canComment ? <IconButton icon={MessageSquare} label="Comment on this hunk (M)" size="sm" onClick={() => { const anchor = hunkAnchor(lines, hunk); if (anchor) comments.onAdd?.(anchor); }} /> : null}
+          {canComment ? <IconButton icon={MessageSquare} label="Comment on this hunk (M)" size="sm" onClick={event => { event.stopPropagation(); const anchor = hunkAnchor(lines, hunk); if (anchor) comments.onAdd?.(anchor); }} /> : null}
+        </div>
+        <div className="rv-code">
+          <DiffView lines={lines.slice(hunk.start, hunk.end)} language={languageOf(hunk.path)} layout={layout} wrap={wrap} anchorPrefix={`h-${hunkKey(hunk)}`} comments={comments} focus={focus} />
+        </div>
+      </div>
+      <aside className="rv-margin" aria-label="Hunk note">
+        <div className="rv-margin-top">
+          {tag ? <Badge tone={tag.tone}>{tag.text}</Badge> : null}
+          <span className="spacer" />
           <Button size="sm" variant={right ? 'ghost' : current ? 'primary' : 'secondary'} icon={right ? CircleCheck : Check} onClick={event => { event.stopPropagation(); onRight(); }} kbd={current && !right ? 'A' : undefined}>
             {right ? 'Right' : 'Looks right'}
           </Button>
@@ -264,31 +275,35 @@ function ReviewHunk({ session, change, block, lines, mapped, current, right, lay
         ) : (
           <p className="small muted rv-notes">{block.exception === 'unexplained' ? 'The explainer left no note on this hunk: read it yourself.' : 'No note for this hunk.'}</p>
         )}
-      </header>
-      <div className="rv-code">
-        <DiffView lines={lines.slice(hunk.start, hunk.end)} language={languageOf(hunk.path)} layout={layout} wrap={wrap} anchorPrefix={`h-${hunkKey(hunk)}`} comments={comments} focus={focus} />
-      </div>
+      </aside>
     </li>
   );
 }
 
 /** A note on its hunk: the wrong behavior that goes away, then how, in one muted line. */
 function BlockNote({ session, note }: { session: LoadedSession; note: WalkthroughNote }) {
+  const concepts = note.concepts ?? [];
   return (
     <div className="rv-note">
       <p>
         <DocText text={note.problem} shorten />
       </p>
-      <p className="small muted">
-        {note.how ? <DocText text={note.how} shorten /> : null}
-        {note.how && note.goal ? ' · ' : null}
-        {note.goal ? <span title={goalLabel(session, note)}>{goalLabel(session, note).split(' · ')[0]}</span> : null}
-        {(note.concepts ?? []).map(concept => (
-          <span key={concept} className="chip chip-concept" title="A concept this hunk is a worked example of; accepted tasks collect them in Docs → Learning log">
-            {concept}
-          </span>
-        ))}
-      </p>
+      {note.how || note.goal ? (
+        <p className="small muted">
+          {note.how ? <DocText text={note.how} shorten /> : null}
+          {note.how && note.goal ? ' · ' : null}
+          {note.goal ? <span title={goalLabel(session, note)}>{goalLabel(session, note).split(' · ')[0]}</span> : null}
+        </p>
+      ) : null}
+      {concepts.length ? (
+        <div className="rv-concepts">
+          {concepts.map(concept => (
+            <span key={concept} className="chip chip-concept" title="A concept this hunk is a worked example of; accepted tasks collect them in Docs → Learning log">
+              {concept}
+            </span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -121,12 +121,11 @@ accent stays readable.
   `j`/`k`/`Enter`; an empty filter or search says so and offers the way on. Rows share
   fixed trailing columns (status, kind, files, time) so they line up across
   groups.
-- **Task** — Conversation (brief, criteria, scope, the agent timeline with
-  reviewer verdicts, messages, revise), Files changed (file tree with viewed
-  marks, progress and comment counts, unified or split diff with line
-  comments, "since last review"), Checks
-  (results with output), and the Ready to accept? rail with Accept & commit
-  (after Accept: Merge from Branches).
+- **Task** — Conversation (brief, criteria, scope, folded approved plan, the agent timeline with
+  reviewer verdicts, messages, revise), Files changed (2-column hunk review with code on the left and aligned margin sidenotes on the right, or whole-file unified/split diff with line
+  comments and "since last review"), Checks
+  (results with output), an inline read-only Code preview pane on demand (`Escape` closes), and the Ready to accept? rail with Accept & commit
+  (with an opt-in checkbox to merge into the clean main branch immediately, or Merge from Branches afterwards).
 - **Code** — virtualized file tree, editor tabs per checkout, highlighted
   source with issue markers and line links, an inspector with Ask about it, "New
   task with this file", one sentence on what the file does (the rest of its
@@ -154,6 +153,7 @@ remote model destination for consent first.
 | `g` then `h t c i d b s` | Go to a workspace |
 | `j` / `k`, `Enter` | Move through and open list rows |
 | `v`, `j` / `k`, `s` | Files changed: mark viewed, next/previous file, split diff |
+| `1` / `2` / `3`, `r` | Task page: switch tabs (`r` jumps to Files changed) |
 | `⌘↵` / `Ctrl+↵` | Start agents in the composer; send a revision |
 | `?` | Keyboard shortcuts |
 

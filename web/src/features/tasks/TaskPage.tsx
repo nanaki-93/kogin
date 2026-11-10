@@ -10,6 +10,7 @@ import { useSession, useTrust, useUsage } from '@/api/hooks';
 import { costCaveat, costLabel, usageLabel } from '@/lib/usage';
 import type { LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
+import { usePageKeys } from '@/app/shortcuts';
 import { useUI } from '@/app/store';
 import { navigate, useRoute } from '@/lib/router';
 import { openWorkspace } from '@/app/checkout';
@@ -27,12 +28,23 @@ import { TaskOverview } from './TaskOverview';
 import { AcceptTask } from './AcceptTask';
 import { ApprovePlan, RedirectPlanButton } from './PlanReview';
 import { ApprovalNotes, OverrideReview } from './ReviewDecision';
+import { TaskCodePane, TaskCodePreviewProvider } from './TaskCodePreview';
 
 export function TaskPage({ id, tab }: { id: string; tab: string }) {
   const route = useRoute();
   const worktreePath = route.params.get('wt') ?? '';
   const { data: session, isLoading, error } = useSession(id, worktreePath, false);
   const [redirecting, setRedirecting] = useState(false);
+  const current = tab === 'files' || tab === 'checks' ? tab : 'overview';
+
+  usePageKeys(key => {
+    if (!session) return false;
+    if (key === '1' && current !== 'overview') navigate(`/tasks/${id}`);
+    else if ((key === '2' || (key === 'r' && current !== 'files')) && current !== 'files') navigate(`/tasks/${id}/files`);
+    else if (key === '3' && current !== 'checks') navigate(`/tasks/${id}/checks`);
+    else return false;
+    return true;
+  });
 
   if (isLoading) return <div className="page-scroll"><div className="page-inner"><Skeleton lines={8} /></div></div>;
   if (error || !session) {
@@ -44,41 +56,43 @@ export function TaskPage({ id, tab }: { id: string; tab: string }) {
   }
   const edits = effectiveEdits(session);
   const checks = checkSummary(session.checks, session.checks_outdated);
-  const current = tab === 'files' || tab === 'checks' ? tab : 'overview';
   // A plan waiting for a decision is the page: no gate rail beside it.
   const deciding = planAwaitsDecision(session);
 
   return (
-    <div className="task-page">
-      <TaskHeader session={session} onRedirect={() => { setRedirecting(true); if (current !== 'overview') navigate(`/tasks/${id}`); }} redirecting={redirecting} />
-      <Tabs.Root className="task-tabs" value={current} onValueChange={value => navigate(`/tasks/${id}${value === 'overview' ? '' : '/' + value}`, { file: route.params.get('file') ?? undefined })}>
-        <Tabs.List className="tabs" aria-label="Task sections">
-          <Tabs.Trigger value="overview" className="tab">
-            <MessageSquare size={14} aria-hidden /> Conversation
-          </Tabs.Trigger>
-          <Tabs.Trigger value="files" className="tab">
-            <FileDiff size={14} aria-hidden /> Files changed <span className="count">{edits.length}</span>
-          </Tabs.Trigger>
-          <Tabs.Trigger value="checks" className="tab">
-            <FlaskConical size={14} aria-hidden /> Checks <span className={cx('count', `count-${checks.tone}`)}>{checks.total ? checks.label : '—'}</span>
-          </Tabs.Trigger>
-        </Tabs.List>
-        <div className="task-body">
-          <div className="task-main">
-            <Tabs.Content value="overview" className="tab-panel">
-              <TaskOverview session={session} redirecting={redirecting} onRedirectDone={() => setRedirecting(false)} />
-            </Tabs.Content>
-            <Tabs.Content value="files" className="tab-panel tab-panel-fill">
-              <FilesChanged session={session} />
-            </Tabs.Content>
-            <Tabs.Content value="checks" className="tab-panel">
-              <ChecksPanel session={session} />
-            </Tabs.Content>
+    <TaskCodePreviewProvider key={session.id}>
+      <div className="task-page">
+        <TaskHeader session={session} onRedirect={() => { setRedirecting(true); if (current !== 'overview') navigate(`/tasks/${id}`); }} redirecting={redirecting} />
+        <Tabs.Root className="task-tabs" value={current} onValueChange={value => navigate(`/tasks/${id}${value === 'overview' ? '' : '/' + value}`, { file: route.params.get('file') ?? undefined })}>
+          <Tabs.List className="tabs" aria-label="Task sections">
+            <Tabs.Trigger value="overview" className="tab">
+              <MessageSquare size={14} aria-hidden /> Conversation
+            </Tabs.Trigger>
+            <Tabs.Trigger value="files" className="tab">
+              <FileDiff size={14} aria-hidden /> Files changed <span className="count">{edits.length}</span>
+            </Tabs.Trigger>
+            <Tabs.Trigger value="checks" className="tab">
+              <FlaskConical size={14} aria-hidden /> Checks <span className={cx('count', `count-${checks.tone}`)}>{checks.total ? checks.label : '—'}</span>
+            </Tabs.Trigger>
+          </Tabs.List>
+          <div className="task-body">
+            <div className="task-main">
+              <Tabs.Content value="overview" className="tab-panel">
+                <TaskOverview session={session} redirecting={redirecting} onRedirectDone={() => setRedirecting(false)} />
+              </Tabs.Content>
+              <Tabs.Content value="files" className="tab-panel tab-panel-fill">
+                <FilesChanged session={session} />
+              </Tabs.Content>
+              <Tabs.Content value="checks" className="tab-panel">
+                <ChecksPanel session={session} />
+              </Tabs.Content>
+            </div>
+            <TaskCodePane session={session} />
+            {current !== 'files' && !deciding ? <ReviewRail session={session} /> : null}
           </div>
-          {current !== 'files' && !deciding ? <ReviewRail session={session} /> : null}
-        </div>
-      </Tabs.Root>
-    </div>
+        </Tabs.Root>
+      </div>
+    </TaskCodePreviewProvider>
   );
 }
 
