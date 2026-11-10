@@ -9,7 +9,7 @@ import { useActions, useBusy, type DeletableTask } from '@/app/actions';
 import { usePageKeys } from '@/app/shortcuts';
 import { navigate, setParam, useRoute } from '@/lib/router';
 import { rankItems } from '@/lib/fuzzy';
-import { taskStatus, type TaskStatus } from '@/lib/readiness';
+import { isOwnTask, taskStatus, type TaskStatus } from '@/lib/readiness';
 import { basename, plural, timeAgo } from '@/lib/util';
 import { Button, EmptyState, Highlight, Input, ListGroup, Segmented, Skeleton, cx } from '@/components/ui';
 import { KindTag, StatusGlyph } from '@/components/domain';
@@ -43,7 +43,10 @@ export function TaskListPage() {
 
   const grouped = useMemo(
     () =>
-      GROUPS.map(group => ({ ...group, items: visible.filter(v => group.statuses.includes(taskStatus(v.item).status)) })).filter(group => group.items.length),
+      // Within a group, the tasks you asked for come before those that fix what analysis found; a search keeps its ranking.
+      GROUPS.map(group => ({ ...group, items: visible.filter(v => group.statuses.includes(taskStatus(v.item).status)) }))
+        .map(group => (q.trim() ? group : { ...group, items: [...group.items.filter(v => isOwnTask(v.item)), ...group.items.filter(v => !isOwnTask(v.item))] }))
+        .filter(group => group.items.length),
     [visible],
   );
   const flat = grouped.flatMap(group => group.items.map(v => v.item));
@@ -135,6 +138,7 @@ export function TaskRow({ task, positions = [], active, onHover, compact }: { ta
       <span className="list-main">
         <span className="list-title truncate">
           <Highlight text={task.title || task.id} positions={positions.filter(p => p < (task.title || '').length)} />
+          {isOwnTask(task) ? <span className="own-task" title="A task you asked for, not one that fixes what analysis found">yours</span> : null}
         </span>
         {!compact ? <RowDetail task={task} detail={status.detail} /> : null}
       </span>

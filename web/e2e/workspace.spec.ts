@@ -549,3 +549,34 @@ test('the Inbox puts a plan that waits for a decision next up', async ({ page, d
   await expect(page).toHaveURL(/#\/tasks\/chg-1(\?|$)/);
   await expect(page.getByRole('region', { name: 'Proposed plan' })).toBeVisible();
 });
+
+test('the Inbox starts from what you want: a sentence drafts the task in the composer', async ({ page, daemon }) => {
+  await page.goto('/#/inbox');
+  const ask = page.getByRole('form', { name: 'Start from what you want' });
+  await expect(ask.getByText('What should kogin do next?')).toBeVisible();
+  const draft = ask.getByRole('button', { name: 'Draft the task' });
+  await expect(draft).toBeDisabled();
+  await ask.getByRole('textbox').fill('add a --json flag to the daemon in cmd/daemon/main.go');
+  await draft.click();
+  // The composer opens with the task drafted; nothing ran.
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByLabel('Title')).toHaveValue('Add a --json flag to the daemon in cmd/daemon/main.go');
+  await expect(dialog).toContainText('cmd/daemon/main.go');
+  expect(daemon.mutations('/changes')).toHaveLength(0);
+  expect(daemon.mutations('/workflow')).toHaveLength(0);
+});
+
+test('a task you asked for comes before the ones that fix what analysis found', async ({ page, daemon }) => {
+  // The task waiting for review fixes an issue; another one, asked for, waits too.
+  const linked = daemon.sessions.get('chg-1')!;
+  daemon.sessions.set('chg-1', { ...linked, finding_targets: [{ project_id: 'p1', kind: 'semantic', id: 'f1', path: 'internal/api/handlers/webui.go' }] });
+  daemon.sessions.set('chg-9', { ...linked, id: 'chg-9', title: 'Copy the password with --copy', kind: 'feature' });
+  await page.goto('/#/inbox');
+  const rows = page.getByRole('region', { name: 'Needs you' }).getByRole('listitem');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText('Copy the password with --copy');
+  await expect(rows.nth(0)).toContainText('yours');
+  await expect(rows.nth(1)).toContainText('Reject nested asset paths in the Web UI handler');
+  await expect(rows.nth(1)).not.toContainText('yours');
+  await expect(page.getByRole('region', { name: 'Next up' })).toContainText('Review “Copy the password with --copy”');
+});

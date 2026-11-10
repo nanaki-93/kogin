@@ -114,6 +114,16 @@ export function closeDismissals(session: Pick<ChangeSession, 'plan' | 'issues' |
   return (session.dismissed_targets ?? []).map(target => titled(target.id));
 }
 
+/** A task you asked for, as against one that fixes what analysis found. */
+export function isOwnTask(task: { finding_targets?: unknown[] }): boolean {
+  return !(task.finding_targets ?? []).length;
+}
+
+/** The tasks you asked for first, each group in the order given. */
+export function ownFirst<T extends { finding_targets?: unknown[] }>(tasks: T[]): T[] {
+  return [...tasks.filter(isOwnTask), ...tasks.filter(task => !isOwnTask(task))];
+}
+
 /** What closing a task with nothing to fix is called, by how many issues it dismisses. */
 export function closeLabel(dismissed: number): string {
   return dismissed === 1 ? 'Dismiss the issue' : dismissed > 1 ? `Dismiss ${dismissed} issues` : 'Close task';

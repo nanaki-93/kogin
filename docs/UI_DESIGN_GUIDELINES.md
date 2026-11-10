@@ -112,7 +112,9 @@ accent stays readable.
 
 ## Pages
 
-- **Inbox** — a one-line summary of what waits for you, grouped task rows and
+- **Inbox** — what you want first ("What should <project> do next?" drafts a
+  task from a sentence), then a one-line summary of what waits for you, grouped task rows
+  (yours before the analysis's) and
   branches ready to merge, with open issues and analysis coverage beside them.
 - **Tasks** — grouped list with status filters that count their tasks and
   `j`/`k`/`Enter`; an empty filter or search says so and offers the way on. Rows share

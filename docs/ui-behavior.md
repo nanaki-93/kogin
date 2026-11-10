@@ -51,7 +51,16 @@ every guard when the action arrives.
   **Start agents on it** creates the task and starts the run; **Edit it first**
   opens the composer. Nothing runs before one is chosen, and the remote-model
   confirmation still applies.
-- **Next up.** The Inbox opens with the one thing to do now: a review that is
+- **Start from what you want.** The Inbox opens with a question, "What should
+  <project> do next?", and one line to answer it. **Draft the task** (Enter)
+  opens the composer with the task drafted from the sentence: its title, the
+  files it names with their tests, and, when it names an open issue, that
+  issue's fix. Nothing is created or run until you start it there. In the
+  Inbox and the task list, a task you asked for (one that fixes no issue of
+  the analysis) is marked **yours** and comes before the others in its
+  group; a search keeps its own ranking. What analysis found sits beside the
+  tasks under **Found by analysis**, with how many issues count as work.
+- **Next up.** Under it, the one thing to do now: a review that is
   ready, then a run that failed or went stale, a branch ready to merge, and
   the worst open issue. `Enter` starts it; **Skip** (`s`) shows the next.
 - **Own worktree.** Every task gets its own branch (`orca/<title>-<suffix>`)

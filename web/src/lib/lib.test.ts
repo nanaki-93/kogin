@@ -15,7 +15,7 @@ import { issueSteps } from './issues';
 import { fileHunks, mergedReviewNotes, planResult, splitAtNotes } from './hunks';
 import { approachSteps, dedent } from '@/features/tasks/PlanReview';
 import { shortName } from '@/features/docs/DocText';
-import { closeDismissals, closeLabel, planFindsNothingToFix } from './readiness';
+import { closeDismissals, closeLabel, isOwnTask, ownFirst, planFindsNothingToFix } from './readiness';
 import { ApiError, createApi, documentWriteToken, errorMessage, query, withWorktree } from '@/api/client';
 
 describe('fuzzy', () => {
@@ -498,5 +498,16 @@ describe('plan vs result', () => {
     const workflow = { id: 'w', status: 'awaiting_human_review', stages: [], specialists: [specialist('correctness', [item('Wipe the key', 571), item('Name the helper')]), specialist('test_quality', [item('Clear the key', 571), item('name the helper.')]), specialist('security', [item('Old version', 3)], 'older')] };
     expect(mergedReviewNotes(workflow, 'h').map(entry => [entry.item.title, entry.reviewers])).toEqual([['Wipe the key', ['correctness', 'test_quality']], ['Name the helper', ['correctness', 'test_quality']]]);
     expect(mergedReviewNotes(undefined, 'h')).toEqual([]);
+  });
+});
+
+describe('own tasks', () => {
+  it('come before the tasks that fix what analysis found, each in its order', () => {
+    const task = (id: string, linked: boolean) => ({ id, finding_targets: linked ? [{}] : undefined });
+    const list = [task('a', true), task('b', false), task('c', true), task('d', false)];
+    expect(ownFirst(list).map(entry => entry.id)).toEqual(['b', 'd', 'a', 'c']);
+    expect(isOwnTask(task('x', false))).toBe(true);
+    expect(isOwnTask({ finding_targets: [] })).toBe(true);
+    expect(isOwnTask(task('y', true))).toBe(false);
   });
 });

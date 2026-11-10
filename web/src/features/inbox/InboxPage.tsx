@@ -5,7 +5,7 @@ import { Bot, CircleAlert, FolderOpen, GitMerge, Inbox, Plus, ShieldOff, Sparkle
 import { useFindings, useGitWorkspace, useMainProject, useOverview, useSetup, useTasks, useTrust } from '@/api/hooks';
 import { openNewTask } from '@/app/store';
 import { navigate } from '@/lib/router';
-import { taskStatus } from '@/lib/readiness';
+import { ownFirst, taskStatus } from '@/lib/readiness';
 import { plural, severityRank, timeAgo } from '@/lib/util';
 import { runActive, runProgress, statusLabel, statusTone } from '@/lib/analysis';
 import { Badge, Button, Callout, EmptyState, Kbd, ListGroup, Progress, Skeleton } from '@/components/ui';
@@ -14,6 +14,7 @@ import { QuarantineNotice } from '@/features/settings/Quarantine';
 import { AgentSettingsNotice } from '@/features/settings/AgentSettingsNotice';
 import { TaskRow } from '@/features/tasks/TaskListPage';
 import { OpenProject } from '@/features/settings/OpenProject';
+import { AskNext } from './AskNext';
 import { NextUp } from './NextUp';
 
 export function InboxPage() {
@@ -37,9 +38,10 @@ export function InboxPage() {
     );
   }
 
-  const needs = tasks.filter(t => ['needs_you', 'ready'].includes(taskStatus(t).status));
-  const failed = tasks.filter(t => ['failed', 'stale'].includes(taskStatus(t).status));
-  const running = tasks.filter(t => taskStatus(t).status === 'running');
+  // What you asked for comes before what analysis found, in every group.
+  const needs = ownFirst(tasks.filter(t => ['needs_you', 'ready'].includes(taskStatus(t).status)));
+  const failed = ownFirst(tasks.filter(t => ['failed', 'stale'].includes(taskStatus(t).status)));
+  const running = ownFirst(tasks.filter(t => taskStatus(t).status === 'running'));
   const recent = tasks.filter(t => taskStatus(t).status === 'applied').slice(0, 4);
   const toMerge = (git?.worktrees ?? []).filter(tree => !tree.current && tree.mergeable);
   const topIssues = [...findings].sort((a, b) => severityRank(a.severity) - severityRank(b.severity)).slice(0, 5);
@@ -65,6 +67,7 @@ export function InboxPage() {
         <SetupNotice />
         <AgentSettingsNotice />
         <QuarantineNotice />
+        <AskNext project={main.data} />
         {isLoading ? (
           <Skeleton lines={6} />
         ) : nothing && !tasks.length ? (
@@ -72,9 +75,9 @@ export function InboxPage() {
             <div className="welcome-card">
               <Sparkles size={22} className="tone-accent" aria-hidden />
               <h2>Describe a change. Agents do the rest; you stay in control.</h2>
-              <p className="muted">Agents write the change and its tests in an isolated copy, run the checks and review it. You read the diff and accept the exact version you reviewed as a commit on the task's own branch.</p>
+              <p className="muted">An agent first reads the code and proposes a plan you approve. Agents then write the change and its tests in an isolated copy, run the checks and review it; you read the result against the plan and accept the exact version you reviewed as a commit on the task's own branch.</p>
               <div className="row">
-                <Button variant="primary" icon={Plus} onClick={() => openNewTask()}>
+                <Button icon={Plus} onClick={() => openNewTask()}>
                   New task
                 </Button>
                 <span className="xs muted">
@@ -130,7 +133,8 @@ export function InboxPage() {
             <div className="card">
               <div className="card-head">
                 <CircleAlert size={15} aria-hidden />
-                <span className="strong">Open issues</span>
+                <span className="strong">Found by analysis</span>
+                {findings.length ? <span className="count">{findings.length}</span> : null}
                 <span className="spacer" />
                 <button type="button" className="link-btn small" onClick={() => navigate('/issues')}>
                   View all
@@ -148,7 +152,7 @@ export function InboxPage() {
                   ))}
                 </ul>
               ) : (
-                <div className="card-body muted small">No open issues. Analysis findings appear here.</div>
+                <div className="card-body muted small">No open issue counts as work. What analysis finds appears here.</div>
               )}
             </div>
             <div className="card">
