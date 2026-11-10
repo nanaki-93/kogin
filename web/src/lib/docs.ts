@@ -140,11 +140,11 @@ export function architectureLines(text: string | undefined): string[] {
 }
 
 /** The Docs pages; older links land on the page that replaced theirs. */
-export type DocsSection = 'overview' | 'start' | 'architecture' | 'map' | 'components' | 'flows' | 'changes' | 'dependencies' | 'ask' | 'log';
+export type DocsSection = 'overview' | 'start' | 'architecture' | 'map' | 'components' | 'flows' | 'changes' | 'dependencies' | 'ask' | 'log' | 'decisions';
 
 const SECTIONS: Record<string, DocsSection> = {
   overview: 'overview', start: 'start', architecture: 'architecture', map: 'map', components: 'components', flows: 'flows', changes: 'changes', dependencies: 'dependencies', ask: 'ask', log: 'log',
-  runbook: 'start', scenarios: 'flows', decisions: 'overview', glossary: 'overview',
+  runbook: 'start', scenarios: 'flows', decisions: 'decisions', glossary: 'overview',
 };
 
 export function docsSection(segment: string | undefined): DocsSection {

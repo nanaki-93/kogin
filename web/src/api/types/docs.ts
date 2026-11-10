@@ -160,3 +160,22 @@ export interface ConceptSeen {
   name: string;
   count: number;
 }
+
+/** One design decision the project records as a numbered Markdown file. */
+export interface Decision {
+  number: number;
+  title: string;
+  /** As the file states it, lower case: accepted, proposed, superseded by …; absent when it states none. */
+  status?: string;
+  date?: string;
+  path: string;
+  sections?: { heading: string; text: string }[];
+}
+
+/** The project's decision log, newest first; `dir` is where the records are, or where Kogin looks first. */
+export interface DecisionsReport {
+  project_id: string;
+  project_revision: string;
+  dir: string;
+  decisions: Decision[];
+}

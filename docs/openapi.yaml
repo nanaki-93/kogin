@@ -844,6 +844,15 @@ paths:
         '202': {description: Started; the health reports tests_running, then the run}
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+  /api/projects/current/decisions:
+    get:
+      tags: [Project]
+      description: The decision log - the design decisions the project records as numbered Markdown files (NNNN-title.md) in the first of docs/decisions, docs/adr, doc/adr, adr or decisions that holds any, newest first, each with its number, title, status and date when stated, path and sections. Read from the indexed files; nothing is written.
+      parameters:
+        - {in: query, name: project_revision, required: true, schema: {type: string}}
+      responses:
+        '200': {description: The decision log}
+        '409': {description: The project changed since it was loaded}
   /api/projects/current/lessons:
     get:
       summary: The learning log, newest first, with each concept's count

@@ -102,6 +102,16 @@ every guard when the action arrives.
   confirmation lists every remote destination the Creation, Testing and Review
   roles will use; local-only runs say so. Repairs run automatically, at most
   two. A security task adds a security specialist.
+- **Decisions.** Docs → Decisions lists the design decisions the project
+  records as numbered Markdown files (`docs/decisions/NNNN-title.md`, or
+  `docs/adr`, `doc/adr`, `adr`, `decisions`), newest first: number, title,
+  date and status (accepted, proposed, superseded by …, or "no status"),
+  with how many still wait for a choice. A record opens to its sections
+  (context, options, decision, consequences, revisit when — whatever the file
+  has) and a link to the file in Code. Kogin never writes one: **Record a
+  decision** shows the next file name and what goes in it, to commit like any
+  file. Each investigation is told which records exist. A project without
+  records says where they go.
 - **Learning log.** Docs → Learning log is what the project has taught so
   far: one entry per accepted task — the problem it removed and the approach,
   from its approved plan — with the concepts its change used as chips; a

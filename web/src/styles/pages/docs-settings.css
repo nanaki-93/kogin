@@ -675,3 +675,71 @@
   flex-direction: column;
   gap: 6px;
 }
+
+/* The decision log: one row per record, its sections on demand. */
+.decision-list {
+  display: flex;
+  flex-direction: column;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.decision + .decision {
+  border-top: 1px solid var(--border);
+}
+
+.decision-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.decision-head:hover {
+  background: var(--hover);
+}
+
+.decision-caret {
+  flex: none;
+  align-self: center;
+  color: var(--faint);
+  transition: transform 120ms;
+}
+
+.decision.is-open .decision-caret {
+  transform: rotate(90deg);
+}
+
+.decision-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 12px 14px 36px;
+}
+
+.decision-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.decision-template {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+  font-family: var(--mono);
+  font-size: var(--text-code);
+  white-space: pre-wrap;
+}

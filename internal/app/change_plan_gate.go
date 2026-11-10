@@ -98,7 +98,7 @@ func (s *Service) investigateChangePlan(ctx context.Context, job *changeWorkflow
 	if err != nil || session == nil {
 		return err
 	}
-	prompt := investigationMessage(session, message, redirect, s.docsBrief(changeTargetPaths(session)))
+	prompt := investigationMessage(session, message, redirect, s.docsBrief(changeTargetPaths(session))+s.decisionsBrief(ctx))
 	plan, tools, runErr := s.runInvestigation(ctx, job.root, session, runtime, prompt)
 	if storeErr := s.settleInvestigation(ctx, job, runtime, plan, tools, runErr); storeErr != nil {
 		return storeErr

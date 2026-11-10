@@ -3,7 +3,7 @@
 
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { api, query, withWorktree } from './client';
-import type {
+import type { DecisionsReport,
   AgentSettings, AnalysisFileSelection, ChangeActivity, AvailableModels, ProjectSetup, ChangeHistoryEntry, ChangeRules, ChangeSession, DaemonStatus, DocsComponentFiles, ExecutionTrust, FileInfo, FileSummary,
   FindingsResponse, GitWorkspace, LessonsReport, LoadedSession, ModelsCurrent, Overview, Project, ProjectHealth, ProjectIndex, ProjectProfile, ProjectRules, QuarantineReport, TaskEntry, UsageReport,
 } from './types';
@@ -270,6 +270,16 @@ export function useLessons() {
   return useQuery({
     queryKey: [...keys.lessons, main?.project_revision],
     queryFn: () => api.get<LessonsReport>('/api/projects/current/lessons' + query({ project_revision: main!.project_revision })),
+    enabled: Boolean(main),
+  });
+}
+
+/** The project's decision log: the design decisions it records as Markdown files. */
+export function useDecisions() {
+  const main = useMainProject().data;
+  return useQuery({
+    queryKey: ['decisions', main?.project_revision],
+    queryFn: () => api.get<DecisionsReport>('/api/projects/current/decisions' + query({ project_revision: main!.project_revision })),
     enabled: Boolean(main),
   });
 }

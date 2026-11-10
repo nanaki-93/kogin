@@ -34,3 +34,17 @@ func (h *ProjectHandler) SaveLesson(w http.ResponseWriter, r *http.Request) {
 	}
 	api.WriteJSON(w, http.StatusOK, lessons)
 }
+
+// Decisions returns the project's decision log: the design decisions it
+// records as numbered Markdown files, newest first.
+func (h *ProjectHandler) Decisions(w http.ResponseWriter, r *http.Request) {
+	if !requireCurrentRevision(w, h.manager, r.URL.Query().Get("project_revision")) {
+		return
+	}
+	decisions, err := h.service.Decisions(r.Context())
+	if err != nil {
+		writeProjectError(w, "decision log unavailable", err)
+		return
+	}
+	api.WriteJSON(w, http.StatusOK, decisions)
+}

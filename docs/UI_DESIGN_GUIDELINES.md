@@ -45,7 +45,7 @@ this document owns how the interface is organized, looks and responds.
 | **Code** | `g c` | A read-only explorer: file tree, editor tabs, highlighted source with issue markers, an inspector. |
 | **Issues** | `g i` | Findings grouped by file (or by severity) with status, severity and category filters, and a file's open issues fixed in one task; the selected finding's problem, source and actions, then its evidence as short sections (preconditions, fix, how to verify). |
 | **Analysis** | `g a` | The last or running analysis: progress, why stages failed, results per section, the models used and each file's stages; analyze, retry failed, pause, resume and cancel. |
-| **Docs** | `g d` | A guide to the project: overview, get started (commands, entry points), architecture (components diagram), how it works (walkthroughs), a page per component with its files, dependencies, and Ask the code. |
+| **Docs** | `g d` | A guide to the project: overview, get started (commands, entry points), architecture (components diagram), how it works (walkthroughs), a page per component with its files, dependencies, the decisions the project records, the learning log, and Ask the code. |
 | **Branches** | `g b` | The main checkout and task worktrees with their tasks, integration state, merge preview and merge (removing the worktree and branch unless switched off), and removal of a worktree with nothing left to merge. |
 | **Setup** | — | The project's first-run wizard: models, agents & budget, checks, analysis. Opens once for a project without its own configuration; Settings → Project reopens it. |
 | **Settings** | `g s` | Project, trust, models and agents, usage, appearance. |

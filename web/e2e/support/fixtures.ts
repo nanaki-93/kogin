@@ -2,7 +2,7 @@
 // daemon serves (task states, workflow statuses, gitops integration states,
 // finding sources), so the UI is exercised with what it really receives.
 
-import type { Lesson,
+import type { Decision, Lesson,
   AgentSettings, AnalysisFileSelection, AnalysisRunFile, ProjectSetup, AnalysisRunSummary, AnalysisStageProgress, AvailableModels, BudgetUsage, ChangeHistoryEntry, ChangeSession, CostEstimate, FileChange, Finding, GitWorkspace, HealthTestRun, Model, ModelsCurrent, Overview, Project, ProjectHealth, ProjectProfile, ReviewProgress, UsageReport, WorkflowPhase,
 } from '../../src/api/types';
 
@@ -534,5 +534,18 @@ export function lessonEntries(): Lesson[] {
     { id: 3, kind: 'task', task_id: 'chg-1', title: 'Reject nested asset paths in the Web UI handler', problem: 'Nested asset paths returned 500 instead of 404.', insight: 'Reject names with a slash before reading the embedded files.', concepts: ['table-driven test', 'error wrapping'], paths: ['internal/api/handlers/webui.go'], at: ago(10), own_plan: 'Wrong: The handler serves any path.\nApproach: Clean the path first.', own_match: 'partly' },
     { id: 2, kind: 'ask', title: 'How are assets served?', insight: 'From the embedded bundle; a nested path is rejected before the file is read.', paths: ['internal/api/handlers/webui.go'], at: ago(600) },
     { id: 1, kind: 'task', task_id: 'chg-0', title: 'Wrap storage errors with their path', problem: 'A failed read said nothing about which file.', insight: 'Wrap with %w and the path at the storage boundary.', concepts: ['error wrapping'], paths: ['internal/storage/files.go'], at: ago(2000) },
+  ];
+}
+
+export function decisionRecords(): Decision[] {
+  return [
+    { number: 2, title: 'Accepting a change needs a person', status: 'proposed', date: '2026-11-10', path: 'docs/decisions/0002-accept-needs-a-person.md', sections: [
+      { heading: 'Context', text: 'Housekeeping tasks are accepted together, with one confirmation.' },
+      { heading: 'Options', text: '1. Keep the confirmation.\n2. Let the daemon accept on its own, per project.' },
+    ] },
+    { number: 1, title: 'Decisions live as Markdown in the repository', status: 'accepted', date: '2026-11-10', path: 'docs/decisions/0001-decisions-as-markdown.md', sections: [
+      { heading: 'Decision', text: 'Numbered files under `docs/decisions`, written in ordinary commits.' },
+      { heading: 'Revisit when', text: 'Records need to be queried across projects.' },
+    ] },
   ];
 }

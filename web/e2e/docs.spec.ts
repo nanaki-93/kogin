@@ -153,3 +153,34 @@ test('an Ask the code answer can be saved to the learning log', async ({ page, d
   await expect(page.getByRole('article', { name: 'Learning log' }).getByRole('listitem')).toHaveCount(4);
   await expect(page.getByRole('article', { name: 'Learning log' }).getByRole('listitem').first()).toContainText('how are assets served');
 });
+
+test('Docs lists the decisions the project records, and says how to record one', async ({ page, daemon }) => {
+  await page.goto('/#/docs/overview');
+  await page.getByRole('link', { name: 'Decisions', exact: true }).click();
+  await expect(page).toHaveURL(/#\/docs\/decisions/);
+  const log = page.getByRole('article', { name: 'Decisions' });
+  await expect(log).toContainText('1 decision still waits for a choice.');
+  const records = log.getByRole('list', { name: 'Decision records' }).getByRole('listitem');
+  await expect(records).toHaveCount(2);
+  // Newest first, each with its number, status and date; its sections open on demand.
+  await expect(records.nth(0)).toContainText('0002');
+  await expect(records.nth(0)).toContainText('Accepting a change needs a person');
+  await expect(records.nth(0)).toContainText('proposed');
+  await expect(records.nth(1)).toContainText('accepted');
+  await expect(log.getByText('Records need to be queried across projects.')).toBeHidden();
+  await records.nth(1).getByRole('button', { name: /Decisions live as Markdown/ }).click();
+  await expect(records.nth(1)).toContainText('Revisit when');
+  await expect(records.nth(1)).toContainText('Records need to be queried across projects.');
+  await expect(records.nth(1).locator('code')).toHaveText('docs/decisions');
+  // A record is a file you commit: the next number and what goes in it.
+  await log.getByText('Record a decision').click();
+  await expect(log).toContainText('docs/decisions/0003-short-title.md');
+  await expect(log.locator('.decision-template')).toContainText('# 3. <the decision in a few words>');
+  await expect(log.locator('.decision-template')).toContainText('## Revisit when');
+  // A project without records says where they go.
+  daemon.decisions = [];
+  await page.reload();
+  await expect(page.getByText('No decisions recorded yet')).toBeVisible();
+  await page.getByText('Record a decision').click();
+  await expect(page.locator('.decision-template')).toContainText('# 1. <the decision in a few words>');
+});

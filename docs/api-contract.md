@@ -90,6 +90,7 @@ untrusted networks.
 | POST | `/api/projects/current/profile` | Save the profile (`project_revision`, `profile`); unknown values return 400, a stale revision 409. |
 | GET | `/api/projects/current/health` | The project's health: finish line, code and test size, the latest test run, code nothing calls, repeated code, functions over budget, the found/fixed trend and drafted tasks. |
 | POST | `/api/projects/current/health/tests` | Run the project's tests in a copy of the project (Go modules with coverage) in the background; 202, 403 without execution trust, 409 while a run is going. |
+| GET | `/api/projects/current/decisions` | The decision log: the design decisions the project records as numbered Markdown files, newest first. |
 | GET | `/api/projects/current/lessons` | The learning log, newest first, with each concept's count. |
 | POST | `/api/projects/current/lessons` | Save an Ask the code answer to the learning log. |
 | PATCH | `/api/projects/current/findings/{findingID}` | Record an explicit user triage status for one finding. |
@@ -1025,6 +1026,22 @@ the code requiring it is a finding. The history (`.kogin/kogin.db`, schema 2)
 records each run's investigator plan in a `plans` table: hash, source, model,
 approved, problem, root cause, approach, verdicts as JSON and when it was
 investigated; a version-1 history upgrades in place.
+
+**The decision log.** `GET /api/projects/current/decisions` (with
+`project_revision`) reads the project's design decisions from its indexed
+files: the numbered Markdown records (`NNNN-title.md`, at most 32 KiB each,
+at most 200) of the first of `docs/decisions`, `docs/adr`, `doc/adr`, `adr`
+and `decisions` that holds any. It answers `{project_id, project_revision,
+dir, decisions}`, newest first; each decision has its `number` (from the file
+name), `title` (the first `# ` heading without a leading number), `status`
+and `date` when the file states them (a `Status:` / `Date:` line or a
+section of that name; status in lower case), its `path`, and its other
+`## ` sections as `{heading, text}` (text at most 4000 bytes). A record
+changed since the index was built, or left out by the context policy, is not
+listed. Without records, `decisions` is empty and `dir` is `docs/decisions`.
+Kogin never writes a record. An investigation's request lists up to 20
+records that are not superseded (number, title, status, path) and asks for a
+plan that goes against an accepted one to say so in its risks.
 
 **Your own plan.** `POST .../changes/{sessionID}/own-plan` (with the task's
 `ChangeIdentity`) records, while an investigator plan waits at

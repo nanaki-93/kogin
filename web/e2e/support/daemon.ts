@@ -4,7 +4,7 @@
 // mutation must carry the Web UI header and the current proposal identity.
 
 import { test as base, expect, type Page, type Route } from '@playwright/test';
-import type { ChangeHistoryEntry, ChangeSession, DaemonEvent, DocsRefresh, Finding, GitWorktree, Lesson, ProjectHealth, ProjectProfile, ProjectSetup, QuarantineReport } from '../../src/api/types';
+import type { ChangeHistoryEntry, ChangeSession, DaemonEvent, Decision, DocsRefresh, Finding, GitWorktree, Lesson, ProjectHealth, ProjectProfile, ProjectSetup, QuarantineReport } from '../../src/api/types';
 import { closeDismissals, planFindsNothingToFix } from '../../src/lib/readiness';
 import * as data from './fixtures';
 import { approveSession, overrideReview, ownPlan, reviseSession, startRun } from './review';
@@ -102,6 +102,8 @@ export class FakeDaemon {
 
   /** The learning log, newest first; tests seed it, and saves prepend. */
   readonly lessons: Lesson[] = data.lessonEntries();
+  /** The project's decision records, newest first. */
+  decisions: Decision[] = data.decisionRecords();
 
   private lessonsReport() {
     const counts = new Map<string, number>();
@@ -307,6 +309,7 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/agent-settings$/, () => this.settings],
     [/^\/api\/projects\/current\/profile$/, () => this.profile],
     [/^\/api\/projects\/current\/health$/, () => this.currentHealth()],
+    [/^\/api\/projects\/current\/decisions$/, () => ({ project_id: 'p1', project_revision: data.project.project_revision, dir: 'docs/decisions', decisions: this.decisions })],
     [/^\/api\/projects\/current\/lessons$/, () => this.lessonsReport()],
     [/^\/api\/projects\/current\/setup$/, () => this.setup],
     [/^\/api\/projects\/current\/analysis\/selection$/, () => this.selection],

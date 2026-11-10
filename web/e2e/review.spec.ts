@@ -524,6 +524,8 @@ test('a comment can be deleted before it is sent', async ({ page, daemon }) => {
 test('a page from an earlier daemon launch is told to reload', async ({ page, daemon }) => {
   daemon.expectedConsole.push(/status of 401/);
   await page.goto('/#/tasks/chg-1/files');
+  // The key acts on the loaded review, not on a page still fetching the task.
+  await expect(page.getByRole('region', { name: 'Review progress' })).toBeVisible();
   await page.evaluate(() => document.querySelector('meta[name="kogin-write-token"]')?.setAttribute('content', 'previous-launch'));
   await page.keyboard.press('v');
   await expect(page.getByText("Reload the Web UI to get this daemon's write token.")).toBeVisible();
