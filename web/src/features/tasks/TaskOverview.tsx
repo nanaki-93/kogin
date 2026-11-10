@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Bot, CircleCheck, CornerDownLeft, FileText, Gavel, Hourglass, ListChecks, MessageSquare, Plus, ShieldAlert, Square, User } from 'lucide-react';
 import type { ChangeWorkflow, LoadedSession } from '@/api/types';
 import { useActions, useBusy, usePendingRevision } from '@/app/actions';
-import { behaviorChanges, openComments, planAwaitsDecision, proposalReadiness, workflowActive } from '@/lib/readiness';
+import { behaviorChanges, openComments, ownPlanFirst, planAwaitsDecision, proposalReadiness, workflowActive } from '@/lib/readiness';
 import { activeOverride, issueStepState, pauseTitle, stageStatusLabel, workflowSpecialists, workflowStages, type SpecialistView, type StageView } from '@/lib/workflow';
 import { formatDuration, formatElapsed, plural, timeAgo } from '@/lib/util';
 import { costCaveat, costLabel, formatTokens, usageLabel } from '@/lib/usage';
@@ -31,8 +31,8 @@ export function TaskOverview({ session, redirecting, onRedirectDone }: { session
       <div className="page-inner stack-lg">
         <MainChanged session={session} />
         <PlanReview session={session} redirecting={redirecting} onRedirectDone={onRedirectDone} />
-        <Brief session={session} />
-        <Investigated session={session} />
+        <Brief session={session} open={ownPlanFirst(session)} />
+        {ownPlanFirst(session) ? null : <Investigated session={session} />}
       </div>
     );
   }
@@ -59,7 +59,7 @@ function Investigated({ session }: { session: LoadedSession }) {
   return <p className="xs faint plan-investigated">{[lead, tools].filter(Boolean).join(' · ')}</p>;
 }
 
-function Brief({ session }: { session: LoadedSession }) {
+function Brief({ session, open }: { session: LoadedSession; /** Open while you write your own plan from it. */ open?: boolean }) {
   // A plan the investigation proposed says what the task is; the brief it
   // was investigated from folds under it.
   const investigated = session.plan?.source === 'investigator';
@@ -103,7 +103,7 @@ function Brief({ session }: { session: LoadedSession }) {
   );
   if (investigated) {
     return (
-      <details className="card card-fold" aria-label="Task brief">
+      <details className="card card-fold" aria-label="Task brief" open={open || undefined}>
         <summary className="card-head">
           <FileText size={15} aria-hidden />
           <span className="strong">Brief</span>

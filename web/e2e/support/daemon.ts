@@ -7,7 +7,7 @@ import { test as base, expect, type Page, type Route } from '@playwright/test';
 import type { ChangeHistoryEntry, ChangeSession, DaemonEvent, DocsRefresh, Finding, GitWorktree, Lesson, ProjectHealth, ProjectProfile, ProjectSetup, QuarantineReport } from '../../src/api/types';
 import { closeDismissals, planFindsNothingToFix } from '../../src/lib/readiness';
 import * as data from './fixtures';
-import { approveSession, overrideReview, reviseSession, startRun } from './review';
+import { approveSession, overrideReview, ownPlan, reviseSession, startRun } from './review';
 
 export interface RecordedRequest {
   method: string;
@@ -318,6 +318,7 @@ export class FakeDaemon {
 
   private readonly posts: [RegExp, Handler][] = [
     [/^\/api\/projects\/current\/changes$/, body => this.createTask(body)],
+    [/^\/api\/projects\/current\/changes\/([^/]+)\/own-plan$/, (body, m) => this.update(m[1], body, s => ownPlan(s, body))],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/review-file$/, (body, m) => this.update(m[1], body, s => ({ ...s, reviewed_files: [...new Set([...(s.reviewed_files ?? []), String(body.path)])], file_review_hash: s.hash }))],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/walkthrough$/, (body, m) => this.update(m[1], body, s => ({ ...s, walkthrough: { proposal_hash: s.hash, status: 'ready', at: new Date().toISOString(), files: (s.changes ?? []).map(change => ({ path: change.path, summary: `Explained ${change.path}.`, notes: [] })) } }))],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/workflow\/input$/, (body, m) => this.update(m[1], body, s => ({ ...s, workflow: { ...s.workflow!, input: { ...s.workflow!.input!, status: String(body.decision) === 'approve' ? 'answered' : 'rejected' }, status: body.decision === 'approve' ? 'awaiting_human_review' : 'canceled' } }))],

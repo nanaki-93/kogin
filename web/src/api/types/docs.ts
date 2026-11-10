@@ -143,6 +143,9 @@ export interface Lesson {
   concepts?: string[];
   paths?: string[];
   at: string;
+  /** The plan you wrote before seeing the agent's, and your mark of how close it was. */
+  own_plan?: string;
+  own_match?: 'same' | 'partly' | 'missed' | string;
 }
 
 /** The project's learning log, newest first, with each concept's count. */

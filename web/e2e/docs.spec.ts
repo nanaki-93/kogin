@@ -120,6 +120,9 @@ test('the learning log lists what accepted tasks taught, filtered by concept', a
   await expect(log.getByRole('listitem').first()).toContainText('Shipped');
   await expect(log.getByRole('listitem').first()).toContainText('Problem: Nested asset paths returned 500 instead of 404.');
   await expect(log.getByRole('listitem').first()).toContainText('Approach: Reject names with a slash before reading the embedded files.');
+  // What you wrote before seeing the agent's plan stays with the entry, with your own mark.
+  await expect(log.getByRole('listitem').first()).toContainText('You wrote first (partly right):');
+  await expect(log.getByRole('listitem').first()).toContainText('Wrong: The handler serves any path.');
   await expect(log.getByRole('listitem').nth(1)).toContainText('Asked');
   // A concept counts across the log; picking it shows every time it was met.
   const filter = page.getByRole('group', { name: 'Concepts' });

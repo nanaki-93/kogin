@@ -26,6 +26,10 @@ type Lesson struct {
 	Concepts  []string
 	Paths     []string
 	CreatedAt time.Time
+	// OwnPlan is the plan the human wrote before seeing the agent's, and
+	// OwnMatch their mark of how close it was (same, partly, missed).
+	OwnPlan  string
+	OwnMatch string
 }
 
 // AddLesson appends one lesson to the learning log.
@@ -38,8 +42,8 @@ func (s *Store) AddLesson(ctx context.Context, lesson Lesson) error {
 	if err != nil {
 		return fmt.Errorf("record lesson paths: %w", err)
 	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO lessons (kind, task_id, title, problem, insight, concepts, paths, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		lesson.Kind, lesson.TaskID, lesson.Title, lesson.Problem, lesson.Insight, concepts, paths, stamp(lesson.CreatedAt)); err != nil {
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO lessons (kind, task_id, title, problem, insight, concepts, paths, created_at, own_plan, own_match) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		lesson.Kind, lesson.TaskID, lesson.Title, lesson.Problem, lesson.Insight, concepts, paths, stamp(lesson.CreatedAt), lesson.OwnPlan, lesson.OwnMatch); err != nil {
 		return fmt.Errorf("record lesson: %w", err)
 	}
 	return nil
@@ -47,7 +51,7 @@ func (s *Store) AddLesson(ctx context.Context, lesson Lesson) error {
 
 // Lessons are the learning log's newest entries, newest first.
 func (s *Store) Lessons(ctx context.Context, limit int) ([]Lesson, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, kind, task_id, title, problem, insight, concepts, paths, created_at FROM lessons ORDER BY created_at DESC, id DESC LIMIT ?`, limit)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, kind, task_id, title, problem, insight, concepts, paths, created_at, own_plan, own_match FROM lessons ORDER BY created_at DESC, id DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +60,7 @@ func (s *Store) Lessons(ctx context.Context, limit int) ([]Lesson, error) {
 	for rows.Next() {
 		var lesson Lesson
 		var concepts, paths, created string
-		if err := rows.Scan(&lesson.ID, &lesson.Kind, &lesson.TaskID, &lesson.Title, &lesson.Problem, &lesson.Insight, &concepts, &paths, &created); err != nil {
+		if err := rows.Scan(&lesson.ID, &lesson.Kind, &lesson.TaskID, &lesson.Title, &lesson.Problem, &lesson.Insight, &concepts, &paths, &created, &lesson.OwnPlan, &lesson.OwnMatch); err != nil {
 			return nil, err
 		}
 		lesson.Concepts = unpackStrings(concepts)

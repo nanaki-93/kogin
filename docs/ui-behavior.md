@@ -109,6 +109,19 @@ every guard when the action arrives.
   **Explain “…” in this project** hands Ask the code a question about it. On
   Ask the code, **Save to log** keeps an answer there. Hunk notes show the
   same concept chips during review.
+- **Your plan first.** When a plan is ready, the task page does not show it
+  yet. **Your plan first** asks three things — what is wrong, what you would
+  do, and (optional) what could break — with the brief open below to work
+  from; no decision is offered. **Show the agent's plan** saves your plan as
+  written (it cannot be edited afterwards) and reveals the agent's; **Skip
+  this time** reveals it without one, and the card then says you read it
+  without writing your own. With both, the Plan card opens on the two side by
+  side, answer by answer (an answer you left out reads "Left empty"), and
+  **How close were you?** — Same cause, Partly, Missed it — is your own mark,
+  which you can change after seeing the fix. The cited lines, the reasoning
+  and the decisions follow as usual. Accepting the task keeps your plan and
+  your mark with its Learning log entry ("You wrote first (partly right)").
+  A redirected plan does not ask again: you have seen the first one.
 - **Plan vs result.** When the task has an approved investigated plan, the
   walkthrough also says which plan step each hunk carries out, and the review
   is read against the plan: the summary lists the approved steps as a

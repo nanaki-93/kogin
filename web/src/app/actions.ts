@@ -24,7 +24,7 @@ export function useActions() {
   const { guarded } = context;
   const { previewMerge, merge, removeWorktree, removeEmptyWorktrees, discardWorktree, discardAbandonedWorktrees, abortMerge } = gitActions(context);
   const { createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, deleteTasks, closeTask } = taskActions(context, { removeEmptyWorktrees, discardAbandonedWorktrees });
-  const { markViewed, markAllViewed, acceptTogether, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept } = reviewActions(context);
+  const { markViewed, markAllViewed, acceptTogether, writeOwnPlan, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept } = reviewActions(context);
   const { setTrust, reindex, openProject, deleteSetAside } = projectActions(context);
   const { fixIssue, fixIssues, issueTaskDraft, triageFinding } = issueActions(context);
   const { runAnalysis, controlAnalysis } = analysisActions(context);
@@ -32,5 +32,5 @@ export function useActions() {
   const { refreshDocs, askCodebase, saveLesson } = docsActions(context);
   const { saveProfile, runHealthTests, startHealthTask } = healthActions(context);
 
-  return { guarded, createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, markViewed, markAllViewed, acceptTogether, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept, setTrust, reindex, openProject, deleteSetAside, fixIssue, fixIssues, issueTaskDraft, triageFinding, deleteTasks, closeTask, saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, runAnalysis, controlAnalysis, controlAgentSettings, previewMerge, merge, removeWorktree, discardWorktree, abortMerge, refreshDocs, askCodebase, saveLesson, saveProfile, runHealthTests, startHealthTask };
+  return { guarded, createTask, startAgents, reanalyze, retake, cancelAgents, refine, stopRevision, markViewed, markAllViewed, acceptTogether, writeOwnPlan, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept, setTrust, reindex, openProject, deleteSetAside, fixIssue, fixIssues, issueTaskDraft, triageFinding, deleteTasks, closeTask, saveSetup, saveTimeouts, skipSetup, testSetupModel, saveAnalysisSelection, runAnalysis, controlAnalysis, controlAgentSettings, previewMerge, merge, removeWorktree, discardWorktree, abortMerge, refreshDocs, askCodebase, saveLesson, saveProfile, runHealthTests, startHealthTask };
 }

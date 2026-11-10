@@ -13,7 +13,7 @@ import { useActions, useBusy } from '@/app/actions';
 import { useUI } from '@/app/store';
 import { navigate, useRoute } from '@/lib/router';
 import { openWorkspace } from '@/app/checkout';
-import { canOverrideReview, checkSummary, effectiveEdits, investigating, nextUnreviewedPath, planAwaitsDecision, planFindsNothingToFix, proposalReadiness, reviewProgress, sessionStatusEntry, workflowActive } from '@/lib/readiness';
+import { canOverrideReview, checkSummary, effectiveEdits, investigating, nextUnreviewedPath, ownPlanFirst, planAwaitsDecision, planFindsNothingToFix, proposalReadiness, reviewProgress, sessionStatusEntry, workflowActive } from '@/lib/readiness';
 import { activeOverride, agentRunLabel, agentsFinished, reviewVerdict } from '@/lib/workflow';
 import { basename, plural, shortHash, timeAgo } from '@/lib/util';
 import { Badge, Button, Callout, EmptyState, IconButton, Skeleton, cx } from '@/components/ui';
@@ -100,7 +100,7 @@ function TaskHeader({ session, onRedirect, redirecting }: { session: LoadedSessi
           {session.updated_at ? <span className="xs faint">updated {timeAgo(session.updated_at)}</span> : null}
         </div>
       </div>
-      {planAwaitsDecision(session) && !workflowActive(session) ? <RedirectPlanButton session={session} onClick={onRedirect} disabled={redirecting} /> : null}
+      {planAwaitsDecision(session) && !ownPlanFirst(session) && !workflowActive(session) ? <RedirectPlanButton session={session} onClick={onRedirect} disabled={redirecting} /> : null}
       <PrimaryAction session={session} />
       {offersRunBesidePrimary(session) ? <RunAgents session={session} /> : null}
       <DeleteTask session={session} />
@@ -153,6 +153,8 @@ function PrimaryAction({ session }: { session: LoadedSession }) {
   }
   switch (ready.step) {
     case 'plan':
+      // Your own plan comes first; the decisions appear with the agent's plan.
+      if (ownPlanFirst(session)) return null;
       return planFindsNothingToFix(session) ? <CloseTask session={session} variant="primary" size="md" /> : <ApprovePlan session={session} />;
     case 'generate':
     case 'agents':

@@ -35,6 +35,10 @@ type Lesson struct {
 	Concepts []string  `json:"concepts,omitempty"`
 	Paths    []string  `json:"paths,omitempty"`
 	At       time.Time `json:"at"`
+	// OwnPlan is the plan you wrote before seeing the agent's, and OwnMatch
+	// your mark of how close it was (same, partly, missed).
+	OwnPlan  string `json:"own_plan,omitempty"`
+	OwnMatch string `json:"own_match,omitempty"`
 }
 
 // LessonsReport is the learning log, newest first, with each concept's count.
@@ -79,7 +83,7 @@ func (s *Service) Lessons(ctx context.Context) (*LessonsReport, error) {
 	counts := map[string]int{}
 	for _, entry := range entries {
 		report.Lessons = append(report.Lessons, Lesson{ID: entry.ID, Kind: entry.Kind, TaskID: entry.TaskID, Title: entry.Title, Problem: entry.Problem,
-			Insight: entry.Insight, Concepts: entry.Concepts, Paths: entry.Paths, At: entry.CreatedAt})
+			Insight: entry.Insight, Concepts: entry.Concepts, Paths: entry.Paths, At: entry.CreatedAt, OwnPlan: entry.OwnPlan, OwnMatch: entry.OwnMatch})
 		for _, concept := range entry.Concepts {
 			counts[concept]++
 		}
@@ -144,6 +148,9 @@ func recordTaskLesson(root string, session *ChangeSession) {
 	}
 	if lesson.Problem == "" {
 		lesson.Problem = textutil.Truncate(walkthroughProblem(session), maxLessonText)
+	}
+	if own := session.OwnPlan; own != nil {
+		lesson.OwnPlan, lesson.OwnMatch = textutil.Truncate(ownPlanText(own), maxLessonText), own.Match
 	}
 	lesson.Concepts = lessonConcepts(session)
 	for _, edit := range session.Changes {

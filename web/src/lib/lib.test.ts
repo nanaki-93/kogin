@@ -16,7 +16,7 @@ import { acceptBlockers, digestLine, isHousekeepingTask } from './housekeeping';
 import { fileHunks, mergedReviewNotes, planResult, splitAtNotes } from './hunks';
 import { approachSteps, dedent } from '@/features/tasks/PlanReview';
 import { shortName } from '@/features/docs/DocText';
-import { closeDismissals, closeLabel, isOwnTask, ownFirst, planFindsNothingToFix } from './readiness';
+import { closeDismissals, closeLabel, isOwnTask, ownFirst, ownPlanFirst, planFindsNothingToFix } from './readiness';
 import { ApiError, createApi, documentWriteToken, errorMessage, query, withWorktree } from '@/api/client';
 
 describe('fuzzy', () => {
@@ -559,5 +559,18 @@ describe('housekeeping', () => {
     // What the profile does not count is neither.
     const below = finding({ test: true, out_of_scope: { reason: 'below_finish_line', detail: '' } });
     expect([isWorkFinding(below), isHousekeepingFinding(below)]).toEqual([false, false]);
+  });
+});
+
+describe('your plan first', () => {
+  it('holds the agent\'s plan back only while it waits and you have written nothing', () => {
+    const waiting = { id: 'w', status: 'awaiting_plan_review', stages: [] };
+    const plan = { source: 'investigator', hash: 'p1' };
+    expect(ownPlanFirst({ workflow: waiting, plan })).toBe(true);
+    expect(ownPlanFirst({ workflow: waiting, plan, own_plan: { skipped: true, plan_hash: 'p1', written_at: '' } })).toBe(false);
+    expect(ownPlanFirst({ workflow: waiting, plan, own_plan: { wrong: 'a', approach: 'b', plan_hash: 'p0', written_at: '' } })).toBe(false);
+    // A plan you wrote yourself, or one already decided, is not held back.
+    expect(ownPlanFirst({ workflow: waiting, plan: { hash: 'p1' } })).toBe(false);
+    expect(ownPlanFirst({ workflow: { ...waiting, status: 'running' }, plan })).toBe(false);
   });
 });

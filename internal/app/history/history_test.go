@@ -148,3 +148,34 @@ func TestAPlanIsRecordedWithItsRunAndAVersion1HistoryIsUpgraded(t *testing.T) {
 		t.Fatalf("verdicts = %q", verdicts)
 	}
 }
+
+func TestALessonKeepsThePlanYouWroteAndAVersion3HistoryGainsIt(t *testing.T) {
+	dir := t.TempDir()
+	store, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	// A version-3 history has lessons without the own plan columns.
+	if _, err := store.db.Exec("ALTER TABLE lessons DROP COLUMN own_plan; ALTER TABLE lessons DROP COLUMN own_match; PRAGMA user_version = 3"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.Exec(`INSERT INTO lessons (kind, task_id, title, problem, insight, concepts, paths, created_at) VALUES ('task', 't0', 'Old', 'p', 'i', '', '', '2026-11-09T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	_ = store.Close()
+	if store, err = Open(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	if err := store.AddLesson(ctx, Lesson{Kind: LessonTask, TaskID: "t1", Title: "Add Sub", Problem: "No Sub.", Insight: "Add it.", OwnPlan: "Wrong: There is no Sub.\nApproach: Add Sub beside Add.", OwnMatch: "partly", CreatedAt: time.Date(2026, 11, 10, 0, 0, 0, 0, time.UTC)}); err != nil {
+		t.Fatal(err)
+	}
+	lessons, err := store.Lessons(ctx, 10)
+	if err != nil || len(lessons) != 2 {
+		t.Fatalf("lessons = %+v, %v", lessons, err)
+	}
+	if lessons[0].OwnPlan != "Wrong: There is no Sub.\nApproach: Add Sub beside Add." || lessons[0].OwnMatch != "partly" || lessons[1].Title != "Old" || lessons[1].OwnPlan != "" {
+		t.Fatalf("lessons = %+v", lessons)
+	}
+}

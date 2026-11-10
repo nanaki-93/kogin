@@ -5,15 +5,15 @@
 // awaiting_plan_review the task header approves or redirects; a plan that
 // finds nothing to fix is closed instead.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Check, CircleSlash, CornerDownLeft, Map as MapIcon } from 'lucide-react';
-import type { LoadedSession, PlanEvidence, PlanIssueVerdict } from '@/api/types';
+import type { LoadedSession, OwnPlan, PlanEvidence, PlanIssueVerdict } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { highlightLines } from '@/lib/highlight';
-import { issueTitle, planAwaitsDecision, planFindsNothingToFix } from '@/lib/readiness';
+import { issueTitle, ownPlanFirst, planAwaitsDecision, planFindsNothingToFix } from '@/lib/readiness';
 import { navigate } from '@/lib/router';
 import { basename, languageOf, plural, timeAgo } from '@/lib/util';
-import { Badge, Button, Textarea, cx } from '@/components/ui';
+import { Badge, Button, Segmented, Textarea, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
 import { DocText } from '@/features/docs/DocText';
 
@@ -28,6 +28,10 @@ export function PlanReview({ session, redirecting, onRedirectDone }: { session: 
   const shown = citations.filter(citation => citation.excerpt);
   const steps = approachSteps(plan.approach ?? '');
   const verdicts = plan.issue_verdicts ?? [];
+  // Your plan first: the agent's stays out of sight until yours is written or skipped.
+  if (ownPlanFirst(session)) return <YourPlanFirst session={session} />;
+  const own = session.own_plan;
+  const compared = Boolean(own && !own.skipped);
   return (
     <section className="card plan-card" aria-label="Proposed plan">
       <div className="card-head">
@@ -40,9 +44,13 @@ export function PlanReview({ session, redirecting, onRedirectDone }: { session: 
       </div>
       {waiting && redirecting ? <RedirectPlan session={session} onDone={onRedirectDone} /> : null}
       <div className="card-body stack plan-body">
-        <p className="plan-claim">
-          <DocText text={plan.claim || plan.problem || ''} shorten />
-        </p>
+        {compared ? (
+          <ComparePlans session={session} steps={steps} />
+        ) : (
+          <p className="plan-claim">
+            <DocText text={plan.claim || plan.problem || ''} shorten />
+          </p>
+        )}
         {shown.length ? (
           <div className="stack-sm" aria-label="The lines that show it">
             {shown.map(citation => (
@@ -50,7 +58,7 @@ export function PlanReview({ session, redirecting, onRedirectDone }: { session: 
             ))}
           </div>
         ) : null}
-        {nothing ? null : (
+        {nothing || compared ? null : (
           <div>
             <div className="label-row">Approach</div>
             {steps.length > 1 ? (
@@ -70,8 +78,114 @@ export function PlanReview({ session, redirecting, onRedirectDone }: { session: 
         )}
         {verdicts.length ? <PlanVerdicts session={session} verdicts={verdicts} /> : null}
         <PlanReasoning session={session} folded={citations.filter(citation => !citation.excerpt)} />
+        {own?.skipped ? <p className="xs faint">You read this plan without writing your own first.</p> : null}
       </div>
     </section>
+  );
+}
+
+/**
+ * Before the agent's plan is shown: what you think is wrong, what you would
+ * do and what could break. It is kept as written and set beside the agent's.
+ */
+function YourPlanFirst({ session }: { session: LoadedSession }) {
+  const actions = useActions();
+  const busy = Boolean(useBusy());
+  const [wrong, setWrong] = useState('');
+  const [approach, setApproach] = useState('');
+  const [risk, setRisk] = useState('');
+  const ready = wrong.trim() && approach.trim();
+  return (
+    <section className="card plan-card" aria-label="Your plan first">
+      <div className="card-head">
+        <MapIcon size={15} aria-hidden />
+        <span className="strong">Your plan first</span>
+        <Badge tone="accent">The agent’s plan is ready</Badge>
+      </div>
+      <form
+        className="card-body stack plan-own"
+        onSubmit={event => {
+          event.preventDefault();
+          if (ready) void actions.writeOwnPlan(session, { wrong: wrong.trim(), approach: approach.trim(), risk: risk.trim() || undefined });
+        }}
+      >
+        <p className="small muted">Before you read it, write your own from the brief and the code. It is kept as you wrote it and shown beside the agent’s; where the two differ is what this task can teach you.</p>
+        <label className="stack-xs">
+          <span className="label-row">What is wrong?</span>
+          <Textarea rows={2} autoFocus value={wrong} onChange={e => setWrong(e.target.value)} maxLength={600} placeholder="The cause, as far as you can tell: which code, doing what" />
+        </label>
+        <label className="stack-xs">
+          <span className="label-row">What would you do?</span>
+          <Textarea rows={2} value={approach} onChange={e => setApproach(e.target.value)} maxLength={600} placeholder="The smallest change that fixes it" />
+        </label>
+        <label className="stack-xs">
+          <span className="label-row">What could break? <span className="faint">(optional)</span></span>
+          <Textarea rows={1} value={risk} onChange={e => setRisk(e.target.value)} maxLength={600} placeholder="Who relies on the current behavior" />
+        </label>
+        <div className="row">
+          <Button type="submit" variant="primary" disabled={!ready || busy}>
+            Show the agent’s plan
+          </Button>
+          <Button variant="ghost" onClick={() => void actions.writeOwnPlan(session, { skip: true })} disabled={busy} title="Recorded as skipped: nothing is compared for this task">
+            Skip this time
+          </Button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+const MATCHES: { value: NonNullable<OwnPlan['match']>; label: string }[] = [
+  { value: 'same', label: 'Same cause' },
+  { value: 'partly', label: 'Partly' },
+  { value: 'missed', label: 'Missed it' },
+];
+
+/** Your plan and the agent's, answer by answer, and your own mark of how close you were. */
+function ComparePlans({ session, steps }: { session: LoadedSession; steps: string[] }) {
+  const actions = useActions();
+  const own = session.own_plan!;
+  const plan = session.plan!;
+  const rows: { label: string; yours: string; theirs: ReactNode }[] = [
+    { label: 'What is wrong', yours: own.wrong ?? '', theirs: <DocText text={plan.claim || plan.problem || ''} shorten /> },
+    {
+      label: 'What to do',
+      yours: own.approach ?? '',
+      theirs: steps.length > 1 ? (
+        <ol className="criteria-read plan-steps">
+          {steps.map((step, index) => (
+            <li key={index}>
+              <DocText text={step} shorten />
+            </li>
+          ))}
+        </ol>
+      ) : <DocText text={steps[0] ?? ''} shorten />,
+    },
+    {
+      label: 'What could break',
+      yours: own.risk ?? '',
+      theirs: (plan.risks ?? []).length ? (plan.risks ?? []).map((risk, index) => <div key={index}><DocText text={risk} shorten /></div>) : <span className="faint">Nothing named</span>,
+    },
+  ];
+  return (
+    <div className="plan-compare" role="table" aria-label="Your plan and the agent’s">
+      <div className="plan-compare-row plan-compare-head" role="row">
+        <span role="columnheader" />
+        <span role="columnheader">You wrote, before seeing it</span>
+        <span role="columnheader">The agent’s plan</span>
+      </div>
+      {rows.map(row => (
+        <div key={row.label} className="plan-compare-row" role="row">
+          <span className="label-row" role="rowheader">{row.label}</span>
+          <div role="cell">{row.yours || <span className="faint">Left empty</span>}</div>
+          <div role="cell">{row.theirs}</div>
+        </div>
+      ))}
+      <div className="plan-compare-mark">
+        <span className="small muted">How close were you? Your call; change it once you have seen the fix.</span>
+        <Segmented label="How close your plan was" value={(own.match ?? '') as NonNullable<OwnPlan['match']>} onChange={match => void actions.writeOwnPlan(session, { match })} options={MATCHES} />
+      </div>
+    </div>
   );
 }
 

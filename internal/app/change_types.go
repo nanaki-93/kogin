@@ -27,7 +27,9 @@ type ChangeEdit = archgate.ChangeEdit
 // ChangeSession is private project-local history, unlike source-free findings
 // and audits. Restored check/review evidence is cleared before reuse.
 type ChangeSession struct {
-	Plan                *ChangePlan  `json:"plan,omitempty"`
+	Plan *ChangePlan `json:"plan,omitempty"`
+	// OwnPlan is the plan the human wrote before the investigator's was shown.
+	OwnPlan             *OwnPlan     `json:"own_plan,omitempty"`
 	ReviewedFiles       []string     `json:"reviewed_files,omitempty"`
 	FileReviewHash      string       `json:"file_review_hash,omitempty"`
 	LastReviewedChanges []ChangeEdit `json:"last_reviewed_changes,omitempty"`

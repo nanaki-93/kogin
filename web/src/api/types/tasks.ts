@@ -137,7 +137,21 @@ export interface ChangePlan {
   investigated_at?: string;
 }
 
+/** The plan you wrote before the investigator's was shown; kept as written. */
+export interface OwnPlan {
+  wrong?: string;
+  approach?: string;
+  risk?: string;
+  /** You chose to read the agent's plan without writing one. */
+  skipped?: boolean;
+  plan_hash: string;
+  written_at: string;
+  /** Your own mark of how close it was, once you saw both. */
+  match?: 'same' | 'partly' | 'missed';
+}
+
 export interface ChangeSession extends ProjectIdentity {
+  own_plan?: OwnPlan;
   id: string;
   kind: string;
   title: string;

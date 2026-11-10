@@ -387,3 +387,78 @@ func TestAPlanExcerptIsTheFilesOwnLinesWithinTheCitation(t *testing.T) {
 		}
 	}
 }
+
+func TestYourOwnPlanIsWrittenOnceBeforeTheAgentsAndKeptWithTheLesson(t *testing.T) {
+	scripts := map[string][]fakePiStep{"investigator": investigatorScript(), "coder": coderScript(), "tester": testerScript()}
+	flow := startToolFlowScripts(t, scripts, nil, nil, func(request *ChangeWorkflowRequest) { request.Plan = "on" })
+	waiting := flow.finished(t)
+	ctx := context.Background()
+	write := func(session *ChangeSession, change func(*OwnPlanRequest)) (*ChangeSession, error) {
+		request := OwnPlanRequest{ChangeIdentity: changeIdentity(session)}
+		change(&request)
+		return flow.service.WriteOwnPlan(ctx, session.ID, request)
+	}
+	// A plan says what is wrong and what to do; a mark comes only after it.
+	if _, err := write(waiting, func(r *OwnPlanRequest) { r.Wrong = "Sub is missing." }); err == nil {
+		t.Fatal("accepted a plan without an approach")
+	}
+	if _, err := write(waiting, func(r *OwnPlanRequest) { r.Match = OwnPlanSame }); err == nil {
+		t.Fatal("marked a plan that was not written")
+	}
+	written, err := write(waiting, func(r *OwnPlanRequest) { r.Wrong, r.Approach, r.Risk = " There is no Sub. ", "Add Sub beside Add.", "" })
+	if err != nil {
+		t.Fatal(err)
+	}
+	own := written.OwnPlan
+	if own == nil || own.Wrong != "There is no Sub." || own.Approach != "Add Sub beside Add." || own.PlanHash != waiting.Plan.Hash || own.WrittenAt.IsZero() || own.Skipped {
+		t.Fatalf("own plan = %+v", own)
+	}
+	// It is kept as written: no second version, no late skip.
+	if _, err := write(written, func(r *OwnPlanRequest) { r.Wrong, r.Approach = "Add overflows.", "Clamp it." }); !errors.Is(err, errOwnPlanWritten) {
+		t.Fatalf("rewrote the plan: %v", err)
+	}
+	if _, err := write(written, func(r *OwnPlanRequest) { r.Skip = true }); !errors.Is(err, errOwnPlanWritten) {
+		t.Fatalf("skipped a written plan: %v", err)
+	}
+	if _, err := write(written, func(r *OwnPlanRequest) { r.Match = "close" }); err == nil {
+		t.Fatal("accepted an unknown mark")
+	}
+	marked, err := write(written, func(r *OwnPlanRequest) { r.Match = OwnPlanPartly })
+	if err != nil || marked.OwnPlan.Match != OwnPlanPartly || marked.OwnPlan.Wrong != "There is no Sub." {
+		t.Fatalf("marked = %+v, %v", marked.OwnPlan, err)
+	}
+	// Approving and running keeps it on the task, and the lesson carries it.
+	approved := flow.request
+	approved.ChangeIdentity, approved.Plan, approved.PlanHash = changeIdentity(marked), "on", marked.Plan.Hash
+	if _, err := flow.service.StartChangeWorkflow(ctx, flow.id, approved); err != nil {
+		t.Fatal(err)
+	}
+	finished := flow.finished(t)
+	if finished.Workflow.Status != "awaiting_human_review" || finished.OwnPlan == nil || finished.OwnPlan.Match != OwnPlanPartly {
+		t.Fatalf("run = %s, own plan %+v", finished.Workflow.Status, finished.OwnPlan)
+	}
+	if text := ownPlanText(finished.OwnPlan); text != "Wrong: There is no Sub.\nApproach: Add Sub beside Add." {
+		t.Fatalf("lesson text = %q", text)
+	}
+	// Once the plan is decided, a first own plan can no longer be written.
+	other := *finished
+	other.OwnPlan = nil
+	if _, err := newOwnPlan(&other, OwnPlanRequest{Wrong: "x", Approach: "y"}); !errors.Is(err, errOwnPlanNotWaiting) {
+		t.Fatalf("wrote an own plan after the decision: %v", err)
+	}
+}
+
+func TestASkippedOwnPlanIsRecordedAndHasNothingToCompare(t *testing.T) {
+	flow := startToolFlowScripts(t, map[string][]fakePiStep{"investigator": investigatorScript()}, nil, nil, func(request *ChangeWorkflowRequest) { request.Plan = "on" })
+	waiting := flow.finished(t)
+	skipped, err := flow.service.WriteOwnPlan(context.Background(), waiting.ID, OwnPlanRequest{ChangeIdentity: changeIdentity(waiting), Skip: true})
+	if err != nil || skipped.OwnPlan == nil || !skipped.OwnPlan.Skipped || ownPlanText(skipped.OwnPlan) != "" {
+		t.Fatalf("skipped = %+v, %v", skipped.OwnPlan, err)
+	}
+	if _, err := flow.service.WriteOwnPlan(context.Background(), waiting.ID, OwnPlanRequest{ChangeIdentity: changeIdentity(skipped), Match: OwnPlanSame}); err == nil {
+		t.Fatal("marked a skipped plan")
+	}
+	if _, err := flow.service.WriteOwnPlan(context.Background(), waiting.ID, OwnPlanRequest{ChangeIdentity: changeIdentity(skipped), Skip: true, Wrong: "x"}); err == nil {
+		t.Fatal("accepted text with a skip")
+	}
+}

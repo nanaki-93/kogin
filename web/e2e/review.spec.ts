@@ -760,6 +760,54 @@ test('an investigated plan waits for approval, and approving it starts the agent
   await expect(page.getByRole('complementary', { name: 'Review gate' }).getByText('Approved')).toBeVisible();
 });
 
+test('your own plan comes first: the agent\'s stays out of sight until you write yours, then both read side by side', async ({ page, daemon }) => {
+  daemon.sessions.set('chg-1', { ...planReadyTask(), own_plan: undefined });
+  await page.goto('/#/tasks/chg-1');
+  const first = page.getByRole('region', { name: 'Your plan first' });
+  await expect(first).toContainText('The agent’s plan is ready');
+  // Nothing of the agent's plan is on the page, and no decision is offered yet; the brief is open to work from.
+  await expect(page.getByRole('region', { name: 'Proposed plan' })).toHaveCount(0);
+  await expect(page.getByText('Asking for an asset inside a folder fails', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('name := trim(r)')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Approve & run agents|Redirect…/ })).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Task brief' }).getByText('Nested asset paths return 404')).toBeVisible();
+  const show = first.getByRole('button', { name: 'Show the agent’s plan' });
+  await expect(show).toBeDisabled();
+  await first.getByLabel('What is wrong?').fill('The handler serves any path under the asset folder.');
+  await first.getByLabel('What would you do?').fill('Clean the path and check it stays inside the folder.');
+  await show.click();
+  expect(daemon.mutations('/own-plan')[0].body).toMatchObject({ wrong: 'The handler serves any path under the asset folder.', approach: 'Clean the path and check it stays inside the folder.' });
+  // Both plans, answer by answer; yours as written, an empty answer said so.
+  const plan = page.getByRole('region', { name: 'Proposed plan' });
+  const compare = plan.getByRole('table', { name: 'Your plan and the agent’s' });
+  const rows = compare.getByRole('row');
+  await expect(rows.nth(1)).toContainText('The handler serves any path under the asset folder.');
+  await expect(rows.nth(1)).toContainText('Asking for an asset inside a folder fails with a server error instead of "not found".');
+  await expect(rows.nth(2)).toContainText('Clean the path and check it stays inside the folder.');
+  await expect(rows.nth(2)).toContainText('Reject names with a slash or a parent segment before reading the embedded files.');
+  await expect(rows.nth(3)).toContainText('Left empty');
+  await expect(rows.nth(3)).toContainText('A client that relied on the 500 now sees 404.');
+  // The code and the decisions are there now, the approach said once.
+  await expect(plan.getByRole('figure')).toHaveCount(1);
+  await expect(plan.getByText('Reject names with a slash or a parent segment before reading the embedded files.')).toHaveCount(1);
+  await expect(page.locator('header.task-header').getByRole('button', { name: 'Approve & run agents' })).toBeVisible();
+  // How close you were is your own call.
+  await compare.getByRole('radio', { name: 'Partly' }).click();
+  await expect(compare.getByRole('radio', { name: 'Partly' })).toBeChecked();
+  expect(daemon.mutations('/own-plan')[1].body).toMatchObject({ match: 'partly' });
+});
+
+test('skipping your own plan shows the agent\'s and says nothing was compared', async ({ page, daemon }) => {
+  daemon.sessions.set('chg-1', { ...planReadyTask(), own_plan: undefined });
+  await page.goto('/#/tasks/chg-1');
+  await page.getByRole('region', { name: 'Your plan first' }).getByRole('button', { name: 'Skip this time' }).click();
+  expect(daemon.mutations('/own-plan')[0].body).toMatchObject({ skip: true });
+  const plan = page.getByRole('region', { name: 'Proposed plan' });
+  await expect(plan.getByText('Asking for an asset inside a folder fails with a server error instead of "not found".')).toBeVisible();
+  await expect(plan.getByRole('table', { name: 'Your plan and the agent’s' })).toHaveCount(0);
+  await expect(plan.getByText('You read this plan without writing your own first.')).toBeVisible();
+});
+
 test('a plan captured before claims and excerpts still reads', async ({ page, daemon }) => {
   const task = planReadyTask();
   daemon.sessions.set('chg-1', { ...task, plan: { ...task.plan!, claim: undefined, approach: 'Reject names with a slash before the read.', citations: [{ path: 'internal/api/handlers/webui.go', start_line: 41, end_line: 42, quote: 'name := trim(r)', observation: 'The name is trimmed but never checked for a slash.' }] } });

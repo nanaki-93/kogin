@@ -26,7 +26,7 @@ import (
 const FileName = "kogin.db"
 
 // schemaVersion is the history's schema; a newer one is refused.
-const schemaVersion = 3
+const schemaVersion = 4
 
 // Store is one project's history, open until Close.
 type Store struct {
@@ -92,24 +92,14 @@ func (s *Store) migrate(ctx context.Context) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if version < 1 {
-		for _, statement := range schema {
-			if _, err := tx.ExecContext(ctx, statement); err != nil {
-				return fmt.Errorf("create history: %w", err)
-			}
+	// Each version's statements bring a history from the version before it.
+	for from, statements := range [][]string{schema, schemaV2, schemaV3, schemaV4} {
+		if version > from {
+			continue
 		}
-	}
-	if version < 2 {
-		for _, statement := range schemaV2 {
+		for _, statement := range statements {
 			if _, err := tx.ExecContext(ctx, statement); err != nil {
-				return fmt.Errorf("upgrade history: %w", err)
-			}
-		}
-	}
-	if version < 3 {
-		for _, statement := range schemaV3 {
-			if _, err := tx.ExecContext(ctx, statement); err != nil {
-				return fmt.Errorf("upgrade history: %w", err)
+				return fmt.Errorf("bring history to version %d: %w", from+1, err)
 			}
 		}
 	}
@@ -117,6 +107,13 @@ func (s *Store) migrate(ctx context.Context) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+// schemaV4 keeps, with a task's lesson, the plan its human wrote before
+// seeing the investigator's, and their mark of how close it was.
+var schemaV4 = []string{
+	`ALTER TABLE lessons ADD COLUMN own_plan TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE lessons ADD COLUMN own_match TEXT NOT NULL DEFAULT ''`,
 }
 
 // schema is version 1 of the history. Times are RFC 3339 text in UTC.

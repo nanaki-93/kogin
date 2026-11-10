@@ -16,6 +16,20 @@ export function approveSession(s: ChangeSession, body: Record<string, unknown>):
   return { ...s, reviewed_hash: s.hash, review_notes: notes || undefined, accepted_behavior_changes: changes.length ? changes : undefined, workflow: workflow && { ...workflow, input } };
 }
 
+/** Your own plan is written once while the investigator's waits; later only its mark changes. */
+export function ownPlan(s: ChangeSession, body: Record<string, unknown>): ChangeSession {
+  if (s.own_plan) {
+    if (body.skip || body.wrong || body.approach || body.risk) throw new Error('your plan is kept as you wrote it before seeing the agent\'s; only how close it was can be marked');
+    if (s.own_plan.skipped || !['same', 'partly', 'missed'].includes(String(body.match))) throw new Error('mark your plan same, partly or missed');
+    return { ...s, own_plan: { ...s.own_plan, match: body.match as 'same' | 'partly' | 'missed' } };
+  }
+  if (s.workflow?.status !== 'awaiting_plan_review' || s.plan?.source !== 'investigator') throw new Error('your own plan is written while the investigator\'s plan waits for your decision');
+  const written = { plan_hash: s.plan.hash ?? '', written_at: data.ago(0) };
+  if (body.skip) return { ...s, own_plan: { ...written, skipped: true } };
+  if (!String(body.wrong ?? '').trim() || !String(body.approach ?? '').trim()) throw new Error('say what is wrong and what you would do');
+  return { ...s, own_plan: { ...written, wrong: String(body.wrong), approach: String(body.approach), risk: body.risk ? String(body.risk) : undefined } };
+}
+
 /** Only the reviewers' rejection of this exact hash can be overridden, with a reason. */
 export function overrideReview(s: ChangeSession, body: Record<string, unknown>): ChangeSession {
   const workflow = s.workflow;

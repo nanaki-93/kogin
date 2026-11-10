@@ -86,6 +86,15 @@ export function planAwaitsDecision(session: Pick<ChangeSession, 'workflow' | 'pl
   return session?.workflow?.status === 'awaiting_plan_review' && session.plan?.source === 'investigator';
 }
 
+/**
+ * The plan waits for your decision and you have not yet written your own (or
+ * skipped it): the agent's plan stays out of sight until you do, so the two
+ * are independent answers.
+ */
+export function ownPlanFirst(session: Pick<ChangeSession, 'workflow' | 'plan' | 'own_plan'> | null | undefined): boolean {
+  return planAwaitsDecision(session) && !session?.own_plan;
+}
+
 /** How many issues a plan gives a verdict to: each step of a grouped fix, or the one issue a task links. */
 function judgedIssues(session: Pick<ChangeSession, 'issues' | 'finding_targets'>): number {
   const steps = (session.issues ?? []).length;

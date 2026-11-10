@@ -52,6 +52,24 @@ export function reviewActions(context: ActionContext) {
   }
 
   /**
+   * Records the plan you wrote before reading the agent's (or that you
+   * skipped it), or later your mark of how close it was.
+   */
+  async function writeOwnPlan(session: LoadedSession, body: { wrong?: string; approach?: string; risk?: string; skip?: boolean; match?: string }): Promise<boolean> {
+    return Boolean(
+      await guarded('Saving…', async () => {
+        try {
+          setSession(await api.post<ChangeSession>(changePath(session, '/own-plan'), { ...changeIdentity(session), ...body }), session);
+          return true;
+        } catch (err) {
+          fail('Could not save your plan', err);
+          return false;
+        }
+      }),
+    );
+  }
+
+  /**
    * Marks every file not viewed yet as viewed, one after the other: the
    * review that shows the whole change on one page ends with one step.
    */
@@ -218,5 +236,5 @@ export function reviewActions(context: ActionContext) {
     return done ?? 0;
   }
 
-  return { markViewed, markAllViewed, acceptTogether, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept };
+  return { markViewed, markAllViewed, acceptTogether, writeOwnPlan, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept };
 }

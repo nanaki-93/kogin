@@ -673,6 +673,62 @@
   text-wrap: pretty;
 }
 
+/* Your plan beside the agent's, answer by answer. */
+.plan-compare {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.plan-compare-row {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px 14px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.plan-compare-row .label-row {
+  margin: 0;
+  align-items: baseline;
+}
+
+.plan-compare-head {
+  border-top: 0;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.plan-compare-mark {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+@media (max-width: 760px) {
+  .plan-compare-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.plan-own .label-row {
+  margin-bottom: 2px;
+}
+
+.lesson-own {
+  padding-left: 10px;
+  border-left: 2px solid var(--border-strong);
+}
+
 .plan-code {
   margin: 0;
   border: 1px solid var(--border);

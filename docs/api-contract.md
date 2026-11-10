@@ -131,6 +131,7 @@ untrusted networks.
 | POST | `/api/projects/current/changes/{sessionID}/workflow/cancel` | Cancel the identified workflow without applying source. |
 | POST | `/api/projects/current/changes/{sessionID}/workflow/input` | Respond to the exact durable review request with current proposal identity. |
 | POST | `/api/projects/current/changes/{sessionID}/review-file` | Record inspection of a changed file for the current hash. |
+| POST | `/api/projects/current/changes/{sessionID}/own-plan` | Record the plan you wrote before reading the investigator's (or that you skipped it), or later how close it was. |
 | POST | `/api/projects/current/changes/{sessionID}/walkthrough` | Write the proposal's walkthrough again (one model request). |
 | POST | `/api/projects/current/changes/{sessionID}/comments` | Add a reviewer comment on one line of the current proposal. |
 | POST | `/api/projects/current/changes/{sessionID}/comments/delete` | Delete an open line comment. |
@@ -1024,6 +1025,21 @@ the code requiring it is a finding. The history (`.kogin/kogin.db`, schema 2)
 records each run's investigator plan in a `plans` table: hash, source, model,
 approved, problem, root cause, approach, verdicts as JSON and when it was
 investigated; a version-1 history upgrades in place.
+
+**Your own plan.** `POST .../changes/{sessionID}/own-plan` (with the task's
+`ChangeIdentity`) records, while an investigator plan waits at
+`awaiting_plan_review`, the plan the human wrote before reading it: `wrong`
+and `approach` (required, at most 600 bytes each), `risk` (optional), or
+`skip: true` with no text. It is stored on the task as `own_plan`
+(`wrong`, `approach`, `risk`, `skipped`, the waiting plan's `plan_hash`,
+`written_at`) and written once: a second write, or a first one when no
+investigator plan is waiting, is refused. Afterwards the same route takes
+only `match` (`same`, `partly` or `missed`, the human's own mark; not for a
+skipped plan), which may change. The daemon does not hide the plan: the Web
+UI keeps it out of sight until `own_plan` exists. Accepting the task copies
+the written plan and its mark into the task's lesson (`own_plan`,
+`own_match`; history schema 4 adds the two columns to `lessons`, and a
+version-3 history upgrades in place).
 
 **The learning log** (history schema 3, a `lessons` table) accumulates per
 project: accepting a task appends, best effort, a lesson with its title, the

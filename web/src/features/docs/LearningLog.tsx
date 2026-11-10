@@ -19,6 +19,9 @@ function explainConcept(concept: string) {
   navigate('/docs/ask', { q: question });
 }
 
+/** How you marked your own plan against the agent's. */
+const OWN_MATCH: Record<string, string> = { same: 'same cause', partly: 'partly right', missed: 'missed it' };
+
 export function LearningLog() {
   const { data, isLoading } = useLessons();
   const [concept, setConcept] = useState('');
@@ -77,6 +80,14 @@ function LessonCard({ lesson, onConcept }: { lesson: Lesson; onConcept: (name: s
       </div>
       {lesson.problem ? <p className="small"><span className="muted">Problem:</span> {lesson.problem}</p> : null}
       {lesson.insight ? <p className="small"><span className="muted">{ask ? 'Answer:' : 'Approach:'}</span> {lesson.insight}</p> : null}
+      {lesson.own_plan ? (
+        <div className="small lesson-own">
+          <span className="muted">You wrote first{lesson.own_match ? ` (${OWN_MATCH[lesson.own_match] ?? lesson.own_match})` : ''}:</span>
+          {lesson.own_plan.split('\n').map((line, index) => (
+            <div key={index}>{line}</div>
+          ))}
+        </div>
+      ) : null}
       {(lesson.concepts?.length || lesson.paths?.length) ? (
         <div className="chips">
           {(lesson.concepts ?? []).map(name => (

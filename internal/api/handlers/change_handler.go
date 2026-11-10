@@ -248,6 +248,17 @@ func (h *ChangeHandler) ReviewFile(w http.ResponseWriter, r *http.Request) {
 	respondWorkflow(w, value, err)
 }
 
+// OwnPlan records the plan the human wrote before reading the
+// investigator's, or their mark of how close it was.
+func (h *ChangeHandler) OwnPlan(w http.ResponseWriter, r *http.Request) {
+	var request app.OwnPlanRequest
+	if !decodeWorkflowBody(w, r, &request) {
+		return
+	}
+	value, err := h.service.WriteOwnPlan(r.Context(), r.PathValue("sessionID"), request)
+	respondWorkflow(w, value, err)
+}
+
 // Walkthrough explains the task's proposal file by file again.
 func (h *ChangeHandler) Walkthrough(w http.ResponseWriter, r *http.Request) {
 	var request app.ChangeWalkthroughRequest

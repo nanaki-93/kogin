@@ -94,10 +94,12 @@ export function reviewTask(): ChangeSession {
 }
 
 /** The task before any code: the investigation proposed a plan that waits for approval. */
+/** A task whose investigated plan waits for a decision; you already chose to read it without writing your own (drop own_plan to be asked first). */
 export function planReadyTask(): ChangeSession {
   const task = reviewTask();
   return {
     ...task,
+    own_plan: { skipped: true, plan_hash: 'plan-hash-1', written_at: ago(3) },
     revision: 1,
     hash: 'sha256:empty',
     changes: [],
@@ -529,7 +531,7 @@ export function guidedReviewTask(): ChangeSession {
 }
 export function lessonEntries(): Lesson[] {
   return [
-    { id: 3, kind: 'task', task_id: 'chg-1', title: 'Reject nested asset paths in the Web UI handler', problem: 'Nested asset paths returned 500 instead of 404.', insight: 'Reject names with a slash before reading the embedded files.', concepts: ['table-driven test', 'error wrapping'], paths: ['internal/api/handlers/webui.go'], at: ago(10) },
+    { id: 3, kind: 'task', task_id: 'chg-1', title: 'Reject nested asset paths in the Web UI handler', problem: 'Nested asset paths returned 500 instead of 404.', insight: 'Reject names with a slash before reading the embedded files.', concepts: ['table-driven test', 'error wrapping'], paths: ['internal/api/handlers/webui.go'], at: ago(10), own_plan: 'Wrong: The handler serves any path.\nApproach: Clean the path first.', own_match: 'partly' },
     { id: 2, kind: 'ask', title: 'How are assets served?', insight: 'From the embedded bundle; a nested path is rejected before the file is read.', paths: ['internal/api/handlers/webui.go'], at: ago(600) },
     { id: 1, kind: 'task', task_id: 'chg-0', title: 'Wrap storage errors with their path', problem: 'A failed read said nothing about which file.', insight: 'Wrap with %w and the path at the storage boundary.', concepts: ['error wrapping'], paths: ['internal/storage/files.go'], at: ago(2000) },
   ];
