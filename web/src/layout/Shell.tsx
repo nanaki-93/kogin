@@ -19,7 +19,7 @@ import type { Project } from '@/api/types';
 import { Dot, IconButton, Kbd, Spinner, Tip, cx } from '@/components/ui';
 import { BrandMark } from '@/components/BrandMark';
 import { formatKeys } from '@/app/shortcuts';
-import { isCountedOpenFinding } from '@/components/domain';
+import { isWorkFinding } from '@/components/domain';
 import { SidebarSlotContext } from './SidebarPanel';
 
 interface NavItem {
@@ -59,7 +59,8 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
 
   const needsYou = tasks.filter(task => ['needs_you', 'ready'].includes(taskStatus(task).status)).length;
   const running = tasks.filter(task => taskStatus(task).status === 'running').length;
-  const openIssues = findings.filter(isCountedOpenFinding).length;
+  // The badge counts work on the code that runs; upkeep of the tests is under Issues → Counts.
+  const openIssues = findings.filter(isWorkFinding).length;
   const toMerge = (git?.worktrees ?? []).filter(tree => !tree.current && tree.mergeable).length;
   const analyzing = runActive(useOverview().data?.analysis_run);
 

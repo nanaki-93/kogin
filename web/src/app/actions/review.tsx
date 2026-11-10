@@ -4,7 +4,7 @@
 
 import { api } from '@/api/client';
 import type { ChangeMutationResult, ChangeSession, LoadedSession } from '@/api/types';
-import { canOverrideReview, changeIdentity, proposalReadiness } from '@/lib/readiness';
+import { canOverrideReview, changeIdentity, defaultCommitMessage, isFileReviewed, proposalReadiness } from '@/lib/readiness';
 import { plural } from '@/lib/util';
 import { changePath, type ActionContext } from './context';
 
@@ -171,5 +171,52 @@ export function reviewActions(context: ActionContext) {
     return Boolean(result);
   }
 
-  return { markViewed, markAllViewed, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept };
+  /**
+   * Accepts several reviewed housekeeping tasks in one step, after one
+   * confirmation that lists them: each is marked viewed, approved at its
+   * exact version and committed on its own branch, with the same requests
+   * and the same daemon guards as accepting it from its page. One that fails
+   * says so and the rest go on. Merging stays on Branches.
+   */
+  async function acceptTogether(sessions: LoadedSession[], lines: string[]): Promise<number> {
+    if (!sessions.length) return 0;
+    const ok = await confirm({
+      title: sessions.length === 1 ? 'Accept this housekeeping task?' : `Accept ${sessions.length} housekeeping tasks?`,
+      body: (
+        <div className="stack">
+          <p>Each changed only test files, passed its checks, was approved by the reviewers and stayed within what it was asked. They are committed on their own branches; merging them is still yours, on Branches.</p>
+          <ul className="small">
+            {lines.slice(0, 8).map((line, index) => (
+              <li key={index}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      ),
+      confirmLabel: sessions.length === 1 ? 'Accept & commit' : `Accept & commit ${sessions.length}`,
+    });
+    if (!ok) return 0;
+    const done = await guarded('Accepting…', async () => {
+      let accepted = 0;
+      for (const session of sessions) {
+        try {
+          let current: LoadedSession = session;
+          for (const edit of session.changes ?? []) {
+            if (isFileReviewed(current, edit.path)) continue;
+            current = { ...(await api.post<ChangeSession>(changePath(session, '/review-file'), { ...changeIdentity(current), path: edit.path })), checkout: session.checkout };
+          }
+          if (current.reviewed_hash !== current.hash) current = { ...(await api.post<ChangeSession>(changePath(session, '/review'), changeIdentity(current))), checkout: session.checkout };
+          await api.post<ChangeMutationResult>(changePath(current, '/apply'), { ...changeIdentity(current), confirm: true, commit_message: defaultCommitMessage(session) });
+          accepted++;
+        } catch (err) {
+          fail(`Could not accept “${session.title}”`, err);
+        }
+      }
+      await refreshAll();
+      return accepted;
+    });
+    if (done) toast(`${plural(done, 'housekeeping task')} accepted and committed. Merge ${done === 1 ? 'it' : 'them'} from Branches.`, 'success');
+    return done ?? 0;
+  }
+
+  return { markViewed, markAllViewed, acceptTogether, explainChange, runChecks, addComment, deleteComment, overrideReview, reject, accept };
 }

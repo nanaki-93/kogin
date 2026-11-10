@@ -40,7 +40,7 @@ this document owns how the interface is organized, looks and responds.
 
 | Workspace | Keys | Contents |
 | --- | --- | --- |
-| **Inbox** | `g h` | Needs your review, agents working, failed or stale, ready to merge, recently applied; open issues and analysis coverage beside them. |
+| **Inbox** | `g h` | What you want next, then housekeeping to accept together, needs your review, agents working, failed or stale, ready to merge, recently applied; what analysis found and its coverage beside them. |
 | **Tasks** | `g t` | Every task grouped by what it needs, with filters and `j`/`k`/`Enter`. A task opens on its own page. |
 | **Code** | `g c` | A read-only explorer: file tree, editor tabs, highlighted source with issue markers, an inspector. |
 | **Issues** | `g i` | Findings grouped by file (or by severity) with status, severity and category filters, and a file's open issues fixed in one task; the selected finding's problem, source and actions, then its evidence as short sections (preconditions, fix, how to verify). |
@@ -114,8 +114,9 @@ accent stays readable.
 
 - **Inbox** — what you want first ("What should <project> do next?" drafts a
   task from a sentence), then a one-line summary of what waits for you, grouped task rows
-  (yours before the analysis's) and
-  branches ready to merge, with open issues and analysis coverage beside them.
+  (yours before the analysis's; reviewed upkeep of the tests in a
+  **Housekeeping** group accepted together) and
+  branches ready to merge, with what analysis found and its coverage beside them.
 - **Tasks** — grouped list with status filters that count their tasks and
   `j`/`k`/`Enter`; an empty filter or search says so and offers the way on. Rows share
   fixed trailing columns (status, kind, files, time) so they line up across

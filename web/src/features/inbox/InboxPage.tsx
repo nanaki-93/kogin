@@ -9,18 +9,23 @@ import { ownFirst, taskStatus } from '@/lib/readiness';
 import { plural, severityRank, timeAgo } from '@/lib/util';
 import { runActive, runProgress, statusLabel, statusTone } from '@/lib/analysis';
 import { Badge, Button, Callout, EmptyState, Kbd, ListGroup, Progress, Skeleton } from '@/components/ui';
-import { SeverityBadge, isCountedOpenFinding } from '@/components/domain';
+import { SeverityBadge, isCountedOpenFinding, isHousekeepingFinding, isWorkFinding } from '@/components/domain';
 import { QuarantineNotice } from '@/features/settings/Quarantine';
 import { AgentSettingsNotice } from '@/features/settings/AgentSettingsNotice';
 import { TaskRow } from '@/features/tasks/TaskListPage';
 import { OpenProject } from '@/features/settings/OpenProject';
+import { isHousekeepingTask } from '@/lib/housekeeping';
 import { AskNext } from './AskNext';
+import { Housekeeping } from './Housekeeping';
 import { NextUp } from './NextUp';
 
 export function InboxPage() {
   const main = useMainProject();
   const { tasks, isLoading } = useTasks();
-  const findings = (useFindings().data?.findings ?? []).filter(isCountedOpenFinding);
+  const counted = (useFindings().data?.findings ?? []).filter(isCountedOpenFinding);
+  // Issues in the code that runs are the work; issues in tests are housekeeping.
+  const findings = counted.filter(isWorkFinding);
+  const upkeep = counted.filter(isHousekeepingFinding).length;
   const overview = useOverview().data;
   const git = useGitWorkspace().data;
   const trust = useTrust().data;
@@ -39,7 +44,10 @@ export function InboxPage() {
   }
 
   // What you asked for comes before what analysis found, in every group.
-  const needs = ownFirst(tasks.filter(t => ['needs_you', 'ready'].includes(taskStatus(t).status)));
+  const waiting = tasks.filter(t => ['needs_you', 'ready'].includes(taskStatus(t).status));
+  // Reviewed upkeep of the tests gets its own group, accepted together; the rest needs you one by one.
+  const housekeeping = waiting.filter(t => isHousekeepingTask(t) && t.workflow_status === 'awaiting_human_review');
+  const needs = ownFirst(waiting.filter(t => !housekeeping.includes(t)));
   const failed = ownFirst(tasks.filter(t => ['failed', 'stale'].includes(taskStatus(t).status)));
   const running = ownFirst(tasks.filter(t => taskStatus(t).status === 'running'));
   const recent = tasks.filter(t => taskStatus(t).status === 'applied').slice(0, 4);
@@ -48,7 +56,7 @@ export function InboxPage() {
   const coverage = overview?.analysis_coverage;
   const run = overview?.analysis_run;
   const progress = runProgress(run);
-  const nothing = !needs.length && !failed.length && !running.length && !toMerge.length;
+  const nothing = !waiting.length && !failed.length && !running.length && !toMerge.length;
 
   return (
     <div className="page-scroll">
@@ -56,7 +64,7 @@ export function InboxPage() {
         <div className="page-head">
           <div className="grow">
             <h1 className="page-title">Inbox</h1>
-            <p className="page-sub">{isLoading ? ' ' : inboxSummary(needs.length, running.length, failed.length, toMerge.length)}</p>
+            <p className="page-sub">{isLoading ? ' ' : inboxSummary(waiting.length, running.length, failed.length, toMerge.length)}</p>
           </div>
         </div>
         {trust && !trust.trusted ? (
@@ -95,6 +103,7 @@ export function InboxPage() {
         {!isLoading && (!nothing || topIssues.length) ? <NextUp needs={needs} failed={failed} toMerge={toMerge} issues={topIssues} project={main.data} /> : null}
         <div className="inbox-grid">
           <div className="stack-lg">
+            <Housekeeping tasks={housekeeping} />
             {needs.length ? (
               <ListGroup title="Needs you" count={needs.length}>
                 {needs.map(t => <TaskRow key={t.id} task={t} />)}
@@ -152,8 +161,15 @@ export function InboxPage() {
                   ))}
                 </ul>
               ) : (
-                <div className="card-body muted small">No open issue counts as work. What analysis finds appears here.</div>
+                <div className="card-body muted small">No open issue in the code that runs counts as work. What analysis finds appears here.</div>
               )}
+              {upkeep ? (
+                <div className="card-foot">
+                  <button type="button" className="link-btn small" onClick={() => navigate('/issues', { scope: 'housekeeping' })}>
+                    {plural(upkeep, 'housekeeping issue')} in tests
+                  </button>
+                </div>
+              ) : null}
             </div>
             <div className="card">
               <div className="card-head">

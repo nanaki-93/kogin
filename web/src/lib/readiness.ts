@@ -114,6 +114,11 @@ export function closeDismissals(session: Pick<ChangeSession, 'plan' | 'issues' |
   return (session.dismissed_targets ?? []).map(target => titled(target.id));
 }
 
+/** The commit message Accept offers: the task's kind and title. */
+export function defaultCommitMessage(session: Pick<ChangeSession, 'kind' | 'title'>): string {
+  return `${session.kind === 'fix' ? 'fix' : 'feat'}: ${session.title}`.slice(0, 120);
+}
+
 /** A task you asked for, as against one that fixes what analysis found. */
 export function isOwnTask(task: { finding_targets?: unknown[] }): boolean {
   return !(task.finding_targets ?? []).length;

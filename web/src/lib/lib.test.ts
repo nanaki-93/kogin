@@ -5,13 +5,14 @@ import { buildHash, parseHash } from './router';
 import { escapeHtml, highlightLines } from './highlight';
 import { companionTestPath, formatElapsed, isTestPath, newFilePath, timeAgo } from './util';
 import { chooseRunModels, composerStartBlocker, issueStepState, modelProvider, ownWorktreeBlocker, parseCommits, pauseTitle, runStartOptions, stagesRunFrom, stageToolsLabel, taskFixingIssue, workflowBlocker, workflowDestinations, workflowRequest, workflowStages, worktreeDiscardable, worktreeRemovable, worktreeTasks } from './workflow';
-import type { ChangeHistoryEntry, Finding, GitWorkspace, GitWorktree } from '@/api/types';
-import { isInProgressFinding, isOpenFinding, isUnresolvedFinding } from '@/components/domain';
+import type { ChangeHistoryEntry, Finding, GitWorkspace, GitWorktree, LoadedSession } from '@/api/types';
+import { isHousekeepingFinding, isInProgressFinding, isOpenFinding, isUnresolvedFinding, isWorkFinding } from '@/components/domain';
 import { limitErrors, modelLocation, roleModelOptions, selectedModel } from './agentSettings';
 import { applyEvent, finishedRun, parseFrames } from '@/api/events';
 import { QueryClient } from '@tanstack/react-query';
 import { costCaveat, costLabel, formatTokens, usageLabel } from './usage';
 import { issueSteps } from './issues';
+import { acceptBlockers, digestLine, isHousekeepingTask } from './housekeeping';
 import { fileHunks, mergedReviewNotes, planResult, splitAtNotes } from './hunks';
 import { approachSteps, dedent } from '@/features/tasks/PlanReview';
 import { shortName } from '@/features/docs/DocText';
@@ -509,5 +510,54 @@ describe('own tasks', () => {
     expect(isOwnTask(task('x', false))).toBe(true);
     expect(isOwnTask({ finding_targets: [] })).toBe(true);
     expect(isOwnTask(task('y', true))).toBe(false);
+  });
+});
+
+describe('housekeeping', () => {
+  const add = (n: number) => ({ kind: 'added' as const, new_line: n, text: `a${n}` });
+  const edit = (path: string) => ({ path, content: '', hash: 'h-' + path, diff: { lines: [add(1), add(2)] } });
+  const passed = { name: 'tests', required: true, state: 'passed', command: [] };
+  const base = (extra: Record<string, unknown> = {}) => ({
+    id: 'c1', kind: 'fix', title: 'Fix: Unstubbed read', project_id: 'p', project_revision: 'r', revision: 2, hash: 'h', state: 'draft', freshness: 'current', updated_at: '',
+    acceptance_criteria: [], messages: [], targets: [{ path: 'cmd/add_test.go', hash: 'a', exists: true, test: true }], changes: [edit('cmd/add_test.go')], checks: [passed],
+    worktree: { base: 'b', branch: 'orca/x' }, checkout: { worktreePath: '/wt', project_id: 'p', project_revision: 'r' },
+    walkthrough: { proposal_hash: 'h', status: 'ready', at: '', files: [{ path: 'cmd/add_test.go', summary: 'The test no longer reads the keyboard.', notes: [{ line: 1, problem: 'It read stdin.' }] }] },
+    workflow: { id: 'w', status: 'awaiting_human_review', stages: [], review: { proposal_hash: 'h', verdict: 'approve', summary: '', findings: [] } },
+    ...extra,
+  }) as unknown as LoadedSession;
+
+  it('is a task that fixes issues and touches only tests', () => {
+    expect(isHousekeepingTask({ finding_targets: [{}], paths: ['cmd/add_test.go', 'web/src/a.test.ts'] })).toBe(true);
+    expect(isHousekeepingTask({ finding_targets: [{}], paths: ['cmd/add_test.go', 'cmd/add.go'] })).toBe(false);
+    expect(isHousekeepingTask({ paths: ['cmd/add_test.go'] })).toBe(false);
+    expect(isHousekeepingTask({ finding_targets: [{}], paths: [] })).toBe(false);
+  });
+
+  it('accepts in one step only what the review would not have stopped at', () => {
+    expect(acceptBlockers(base())).toEqual([]);
+    expect(acceptBlockers(base({ changes: [edit('cmd/add_test.go'), edit('cmd/add.go')], walkthrough: undefined }))).toEqual(['it changes add.go, not only tests', 'its change is not explained']);
+    expect(acceptBlockers(base({ checks: [{ ...passed, state: 'failed' }] }))).toEqual(['its checks have not all passed']);
+    expect(acceptBlockers(base({ workflow: { id: 'w', status: 'awaiting_human_review', stages: [], review: { proposal_hash: 'h', verdict: 'approve', summary: '', findings: [], behavior_changes: [{ title: 'Exit code' }] } } }))).toEqual(['1 behavior change to accept']);
+    expect(acceptBlockers(base({ workflow: { id: 'w', status: 'changes_requested', stages: [] } }))).toEqual(['it is not waiting for review']);
+    // A hunk the explainer left without a note, or one outside the approved plan, needs you.
+    expect(acceptBlockers(base({ walkthrough: { proposal_hash: 'h', status: 'ready', at: '', files: [{ path: 'cmd/add_test.go', notes: [] }] } }))).toEqual(['1 change nobody explained']);
+    const planned = { plan: { source: 'investigator', hash: 'p1', approved_hash: 'p1', approach: 'Stub the reader.' }, walkthrough: { proposal_hash: 'h', plan_hash: 'p1', status: 'ready', at: '', files: [{ path: 'cmd/add_test.go', notes: [{ line: 1, problem: 'Sets the key in memory.' }] }] } };
+    expect(acceptBlockers(base(planned))).toEqual(['1 change outside its plan']);
+    expect(acceptBlockers(base({ ...planned, walkthrough: { ...planned.walkthrough, files: [{ path: 'cmd/add_test.go', notes: [{ line: 1, problem: 'Stubs the reader.', plan_step: 1 }] }] } }))).toEqual([]);
+  });
+
+  it('says a task in one line: the claim, else what its change fixes', () => {
+    expect(digestLine(base())).toBe('The test no longer reads the keyboard.');
+    expect(digestLine(base({ plan: { source: 'investigator', claim: 'One test asks for the password on the real keyboard.', problem: 'x' } }))).toBe('One test asks for the password on the real keyboard.');
+    expect(digestLine(base({ walkthrough: undefined }))).toBe('Fix: Unstubbed read');
+  });
+
+  it('keeps issues in tests apart from the work on the code that runs', () => {
+    const finding = (extra: Partial<Finding>) => ({ id: 'f', title: 't', severity: 'medium', status: 'open', location: { path: 'a.go' }, ...extra }) as Finding;
+    expect([isWorkFinding(finding({})), isHousekeepingFinding(finding({}))]).toEqual([true, false]);
+    expect([isWorkFinding(finding({ test: true })), isHousekeepingFinding(finding({ test: true }))]).toEqual([false, true]);
+    // What the profile does not count is neither.
+    const below = finding({ test: true, out_of_scope: { reason: 'below_finish_line', detail: '' } });
+    expect([isWorkFinding(below), isHousekeepingFinding(below)]).toEqual([false, false]);
   });
 });

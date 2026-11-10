@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { GitCommitHorizontal } from 'lucide-react';
 import type { LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
-import { behaviorChanges, proposalReadiness } from '@/lib/readiness';
+import { behaviorChanges, defaultCommitMessage, proposalReadiness } from '@/lib/readiness';
 import { plural } from '@/lib/util';
 import { ReviewItems } from './ReviewItems';
 import { Button, Input, Textarea } from '@/components/ui';
@@ -14,11 +14,6 @@ import { Modal } from '@/components/overlays';
 
 const MAX_MESSAGE = 200;
 const MAX_NOTES = 2048;
-
-/** The commit message Accept offers: the task's kind and title. */
-export function defaultCommitMessage(session: Pick<LoadedSession, 'kind' | 'title'>): string {
-  return `${session.kind === 'fix' ? 'fix' : 'feat'}: ${session.title}`.slice(0, 120);
-}
 
 /** The Accept & commit button and its confirmation; disabled until the version can be accepted. */
 export function AcceptTask({ session }: { session: LoadedSession }) {

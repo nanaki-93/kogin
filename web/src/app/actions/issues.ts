@@ -3,6 +3,7 @@
 import { api, query, withWorktree } from '@/api/client';
 import type { Finding, IssueTaskDraft, Project } from '@/api/types';
 import { openNewTask } from '@/app/store';
+import { isTestPath } from '@/lib/util';
 import type { ActionContext } from './context';
 import type { DraftTask } from './tasks';
 
@@ -24,7 +25,9 @@ export function issueActions(context: ActionContext) {
     if (!project) return null;
     try {
       const draft = await api.get<IssueTaskDraft>(withWorktree(`/api/projects/current/findings/${encodeURIComponent(finding.id)}/task` + query({ project_revision: project.project_revision }), worktreePath));
-      return { findingTargets: draft.finding_targets?.length ? draft.finding_targets : undefined, issues: draft.issues?.length ? draft.issues : undefined, title: draft.title, kind: draft.kind, description: draft.description, paths: draft.paths, criteria: draft.acceptance_criteria };
+      // Upkeep of a test needs no plan to approve: its review checks it against the tests it changed.
+      const housekeeping = Boolean(finding.test) && draft.paths.every(isTestPath);
+      return { findingTargets: draft.finding_targets?.length ? draft.finding_targets : undefined, issues: draft.issues?.length ? draft.issues : undefined, title: draft.title, kind: draft.kind, description: draft.description, paths: draft.paths, criteria: draft.acceptance_criteria, ...(housekeeping ? { skipPlan: true } : {}) };
     } catch (err) {
       fail('Could not draft a task for this issue', err);
       return null;

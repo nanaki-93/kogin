@@ -97,6 +97,16 @@ export function isCountedOpenFinding(finding: Finding): boolean {
   return isOpenFinding(finding) && !isOutOfScope(finding);
 }
 
+/** An open issue that counts, in a test file: upkeep of the tests, kept apart from the work on the code that runs. */
+export function isHousekeepingFinding(finding: Finding): boolean {
+  return isCountedOpenFinding(finding) && Boolean(finding.test);
+}
+
+/** An open issue that counts as work on the code that runs. */
+export function isWorkFinding(finding: Finding): boolean {
+  return isCountedOpenFinding(finding) && !finding.test;
+}
+
 /** Why an issue is out of the work, in a few words. */
 export const SCOPE_LABELS: Record<string, string> = {
   test: 'In a test file',

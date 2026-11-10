@@ -3,7 +3,7 @@
 // docs.spec.ts).
 
 import { expect, test } from './support/daemon';
-import { planReadyTask } from './support/fixtures';
+import { findings, planReadyTask } from './support/fixtures';
 
 test('the inbox summarizes what needs you and opens a task', async ({ page }) => {
   await page.goto('/#/');
@@ -579,4 +579,57 @@ test('a task you asked for comes before the ones that fix what analysis found', 
   await expect(rows.nth(1)).toContainText('Reject nested asset paths in the Web UI handler');
   await expect(rows.nth(1)).not.toContainText('yours');
   await expect(page.getByRole('region', { name: 'Next up' })).toContainText('Review “Copy the password with --copy”');
+});
+
+test('reviewed housekeeping is accepted together from the Inbox; what needs you says why', async ({ page, daemon }) => {
+  const base = daemon.sessions.get('chg-1')!;
+  const target = [{ project_id: 'p1', kind: 'semantic', id: 'f1', path: 'internal/api/handlers/webui_test.go' }];
+  const test = base.changes.find(change => change.path.endsWith('webui_test.go'))!;
+  const passed = base.checks.filter(check => check.state === 'passed');
+  const explained = { proposal_hash: base.hash, status: 'ready' as const, at: base.updated_at, files: [{ path: test.path, summary: 'Nested names are pinned to 404.', notes: [{ line: 88, problem: 'Nothing pinned nested names returning 404.' }] }] };
+  // One task only changed a test and passed everything; another, also on a test file, changed code too.
+  daemon.sessions.set('chg-1', { ...base, title: 'Fix: Nested names are not tested', finding_targets: target, targets: [{ path: test.path, hash: 'b', exists: true, test: true }], changes: [test], checks: passed, walkthrough: explained });
+  daemon.sessions.set('chg-8', { ...base, id: 'chg-8', title: 'Fix: Missing assets are not tested', finding_targets: target, targets: [{ path: test.path, hash: 'b', exists: true, test: true }], checks: passed, walkthrough: explained });
+  await page.goto('/#/inbox');
+  const group = page.getByRole('region', { name: 'Housekeeping' });
+  const rows = group.getByRole('listitem');
+  await expect(rows).toHaveCount(2);
+  // One line each: what its change fixes, and why it is ready or what needs you.
+  await expect(rows.nth(0)).toContainText('Nested names are pinned to 404.');
+  await expect(rows.nth(0)).toContainText('Tests only · 2 checks passed · reviewers approved · nothing outside what it was asked');
+  await expect(rows.nth(1)).toContainText('Needs you: it changes webui.go and 1 other file, not only tests');
+  // Housekeeping is out of the one-by-one list and of Next up.
+  await expect(page.getByRole('region', { name: 'Needs you' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Next up' })).not.toContainText('Nested names are not tested');
+  await group.getByRole('button', { name: 'Accept it' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog.getByRole('heading', { name: 'Accept this housekeeping task?' })).toBeVisible();
+  await expect(dialog).toContainText('merging them is still yours, on Branches');
+  await expect(dialog).toContainText('Nested names are pinned to 404.');
+  await dialog.getByRole('button', { name: 'Accept & commit' }).click();
+  await expect(page.getByText('1 housekeeping task accepted and committed. Merge it from Branches.')).toBeVisible();
+  // The same requests as accepting it from its page: viewed, approved at this version, committed.
+  expect(daemon.mutations('/review-file').map(request => request.body?.path)).toEqual([test.path]);
+  expect(daemon.mutations('/review')[0].body).toMatchObject({ revision: base.revision, hash: base.hash });
+  expect(daemon.mutations('/apply')[0].body).toMatchObject({ confirm: true, commit_message: 'fix: Fix: Nested names are not tested' });
+  expect(daemon.mutations('/apply')).toHaveLength(1);
+});
+
+test('issues in tests are housekeeping, kept apart from the work', async ({ page, daemon }) => {
+  daemon.serve('/api/projects/current/findings', () => ({ project_id: 'p1', project_revision: 'r42', findings: [...findings, { ...findings[0], id: 't1', title: 'Unstubbed read from real stdin', severity: 'medium', test: true, location: { path: 'internal/api/handlers/webui_test.go', start_line: 12 } }] }));
+  await page.goto('/#/inbox');
+  const found = page.locator('.card', { hasText: 'Found by analysis' });
+  await expect(found).not.toContainText('Unstubbed read from real stdin');
+  await found.getByRole('button', { name: '1 housekeeping issue in tests' }).click();
+  await expect(page).toHaveURL(/#\/issues\?scope=housekeeping/);
+  await expect(page.getByRole('row', { name: /Unstubbed read from real stdin/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Request body read without a size limit/ })).toHaveCount(0);
+  // The sidebar counts the work on the code that runs.
+  await expect(page.getByRole('navigation').getByRole('link', { name: /Issues/ })).toContainText('2');
+  // Fixing it needs no plan to approve: the composer opens with the plan skipped, and says so.
+  await page.getByRole('row', { name: /Unstubbed read from real stdin/ }).click();
+  await page.getByRole('complementary', { name: 'Issue detail' }).getByRole('button', { name: /Fix with agents/ }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('checkbox', { name: 'Skip the plan this time' })).toBeChecked();
+  await expect(dialog.getByRole('button', { name: /Start agents/ })).toBeVisible();
 });

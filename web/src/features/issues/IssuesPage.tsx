@@ -22,17 +22,19 @@ import { DocText } from '@/features/docs/DocText';
 type StatusFilter = 'open' | 'in_progress' | 'dismissed' | 'all';
 type View = 'file' | 'list';
 /** The issues that count as work, those below the finish line, or those the profile leaves out (tests, other platforms, second looks at unchanged code). */
-type Scope = 'code' | 'below' | 'out';
+type Scope = 'code' | 'housekeeping' | 'below' | 'out';
 
 function inScope(finding: Finding, scope: Scope): boolean {
   const reason = finding.out_of_scope?.reason;
   if (scope === 'below') return reason === 'below_finish_line';
   if (scope === 'out') return Boolean(reason) && reason !== 'below_finish_line';
-  return !reason;
+  // Work is the code that runs; a counted issue in a test file is housekeeping.
+  if (scope === 'housekeeping') return !reason && Boolean(finding.test);
+  return !reason && !finding.test;
 }
 
 function scopeParam(value: string | null): Scope {
-  if (value === 'below' || value === 'out') return value;
+  if (value === 'below' || value === 'out' || value === 'housekeeping') return value;
   return value === 'tests' ? 'out' : 'code';
 }
 
@@ -72,7 +74,7 @@ export function IssuesPage() {
   }, [all, scope]);
   const scopeCounts = useMemo(() => {
     const open = all.filter(isOpenFinding);
-    return { below: open.filter(f => inScope(f, 'below')).length, out: open.filter(f => inScope(f, 'out')).length };
+    return { below: open.filter(f => inScope(f, 'below')).length, out: open.filter(f => inScope(f, 'out')).length, housekeeping: open.filter(f => inScope(f, 'housekeeping')).length };
   }, [all]);
   const categories = Object.keys(categoryCounts).sort();
   const project = useProject().data;
@@ -125,7 +127,7 @@ export function IssuesPage() {
           {categories.length > 1 || category ? (
             <FilterMenu label="Kind" value={category} onChange={v => setParam('category', v || undefined)} options={[{ value: '', label: 'Any' }, ...categories.map(c => ({ value: c, label: CATEGORY_LABELS[c] ?? c, count: categoryCounts[c] }))]} />
           ) : null}
-          <FilterMenu label="Counts" value={scope} onChange={v => setParam('scope', v === 'code' ? undefined : v)} options={[{ value: 'code', label: 'Work' }, { value: 'below', label: 'Below the finish line', count: scopeCounts.below || undefined }, { value: 'out', label: 'Out of scope', count: scopeCounts.out || undefined }]} />
+          <FilterMenu label="Counts" value={scope} onChange={v => setParam('scope', v === 'code' ? undefined : v)} options={[{ value: 'code', label: 'Work' }, { value: 'housekeeping', label: 'Housekeeping (tests)', count: scopeCounts.housekeeping || undefined }, { value: 'below', label: 'Below the finish line', count: scopeCounts.below || undefined }, { value: 'out', label: 'Out of scope', count: scopeCounts.out || undefined }]} />
           {status !== 'open' ? <FilterChip label={`Status: ${STATUS_LABELS[status]}`} onClear={() => setParam('status', undefined)} /> : null}
           {severity !== 'all' ? <FilterChip label={`Severity: ${severity}`} onClear={() => setParam('severity', undefined)} /> : null}
           {category ? <FilterChip label={`Kind: ${CATEGORY_LABELS[category] ?? category}`} onClear={() => setParam('category', undefined)} /> : null}
@@ -137,7 +139,7 @@ export function IssuesPage() {
           <Skeleton lines={8} />
         ) : !list.length ? (
           <EmptyState icon={CircleAlert} title={all.length ? (status === 'in_progress' ? 'No issue is being fixed' : 'No issues match') : 'No issues yet'}>
-            {all.length ? (status === 'in_progress' ? 'Fix an open issue with agents; it shows here while its task is under way.' : scope === 'code' && scopeCounts.below + scopeCounts.out ? 'Nothing left at or above the finish line. Issues the project profile does not count are under Counts.' : 'Try another filter.') : 'Run a project analysis to find bugs, performance and security issues.'}
+            {all.length ? (status === 'in_progress' ? 'Fix an open issue with agents; it shows here while its task is under way.' : scope === 'code' && scopeCounts.below + scopeCounts.out + scopeCounts.housekeeping ? 'Nothing left to do in the code that runs. Housekeeping in the tests and issues the project profile does not count are under Counts.' : 'Try another filter.') : 'Run a project analysis to find bugs, performance and security issues.'}
           </EmptyState>
         ) : (
           <table className="table" aria-label="Issues">

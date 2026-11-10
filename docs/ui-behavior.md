@@ -60,6 +60,26 @@ every guard when the action arrives.
   the analysis) is marked **yours** and comes before the others in its
   group; a search keeps its own ranking. What analysis found sits beside the
   tasks under **Found by analysis**, with how many issues count as work.
+- **Housekeeping.** Upkeep of the tests is kept apart from work on the code
+  that runs. A counted open issue in a test file is housekeeping: it is out
+  of the sidebar's Issues count, the Inbox's **Found by analysis** (which
+  links "N housekeeping issues in tests") and Next up, and listed under
+  Issues → Counts → **Housekeeping (tests)**; **Work** is the code that runs.
+  Fixing one opens the composer with **Skip the plan this time** ticked: its
+  review checks it against the tests it changed. A task that fixes issues and
+  touches only test files is a housekeeping task: once reviewed it leaves
+  **Needs you** and Next up for the Inbox's **Housekeeping** group, one line
+  each — what was wrong, in the plan's plain words or the walkthrough's line —
+  with why it is ready or what needs you. It is ready when it changed only
+  test files, every required check passed, the reviewers approved it with no
+  behavior change, and every hunk is explained and none is outside an
+  approved plan. **Accept all N** (**Accept it**) lists the ready ones in one
+  confirmation and then, for each, marks its files viewed, records your
+  approval of that exact version and commits it on its own branch: the same
+  requests, checked by the daemon in the same way, as accepting it from its
+  page. One that fails says so and the rest go on. Merging stays on
+  Branches. Nothing is accepted without that confirmation; a task that is not
+  ready opens as usual.
 - **Next up.** Under it, the one thing to do now: a review that is
   ready, then a run that failed or went stale, a branch ready to merge, and
   the worst open issue. `Enter` starts it; **Skip** (`s`) shows the next.
@@ -510,7 +530,8 @@ every guard when the action arrives.
   analysis** only when they say more, and a tool's output shows as is. The
   drafted task carries the same lines and where the issue is.
   **Counts** splits **Work** (the default: the issues the project profile
-  counts) from **Below the finish line** and **Out of scope** (AI issues in
+  counts in the code that runs) from **Housekeeping (tests)** (counted issues
+  in test files), **Below the finish line** and **Out of scope** (AI issues in
   test files, files that only build for platforms the project skips, and
   second looks at code that had not changed since its last analysis), each
   with its count. Issues out of the work are left out of the open-issue counts
