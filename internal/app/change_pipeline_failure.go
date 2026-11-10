@@ -27,6 +27,7 @@ func workflowFailure(err error, checks []CheckResult) (string, string) {
 	var nothing *nothingToFixError
 	var wait *taskWaitError
 	var mainChanged *mainChangedError
+	var refused *agentOutcomeError
 	switch {
 	case errors.As(err, &wait):
 		return "waiting", wait.Error()
@@ -47,16 +48,10 @@ func workflowFailure(err error, checks []CheckResult) (string, string) {
 	case errors.Is(err, project.ErrRevisionConflict), errors.Is(err, project.ErrExcludedFile):
 		return "stale", staleWorkflowReason(staleReason(err))
 	case errors.Is(err, errWorkflowChecksFailed):
-		base := "Tests or source checks failed. Inspect the check evidence before running again."
-		if existingTestsFail(checks) {
-			base = "Checks already failed before this change and Kogin could not tell which failures are new, so the agent cannot fix them. Fix or skip those checks, or declare a narrower command in AGENTS.md, then run again."
-		} else if !workflowChecksRepairable(checks) {
-			base = "Required checks did not complete. Inspect the check evidence and retry checks before changing code."
-		}
-		if detail := summarizeFailedChecks(checks); detail != "" {
-			return "failed", base + " (" + detail + ")"
-		}
-		return "failed", base
+		return "failed", checksFailureReason(checks)
+	case errors.As(err, &refused):
+		// The agent ran and said what it did; its own words are the reason.
+		return "failed", "The agent's result could not be used: " + clip(strings.TrimSpace(refused.Error()), maxIssueReasonBytes-64)
 	default:
 		base := "The stage could not complete or returned an invalid response. Check its model and captured scope, then run again."
 		if detail := sanitizeWorkflowError(err); detail != "" {
@@ -64,6 +59,20 @@ func workflowFailure(err error, checks []CheckResult) (string, string) {
 		}
 		return "failed", base
 	}
+}
+
+// checksFailureReason says why a run stopped at its checks, and what to do.
+func checksFailureReason(checks []CheckResult) string {
+	base := "Tests or source checks failed. Inspect the check evidence before running again."
+	if existingTestsFail(checks) {
+		base = "Checks already failed before this change and Kogin could not tell which failures are new, so the agent cannot fix them. Fix or skip those checks, or declare a narrower command in AGENTS.md, then run again."
+	} else if !workflowChecksRepairable(checks) {
+		base = "Required checks did not complete. Inspect the check evidence and retry checks before changing code."
+	}
+	if detail := summarizeFailedChecks(checks); detail != "" {
+		return base + " (" + detail + ")"
+	}
+	return base
 }
 
 func summarizeFailedChecks(checks []CheckResult) string {

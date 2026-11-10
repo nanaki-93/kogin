@@ -273,7 +273,7 @@ paths:
       - {in: path, name: sessionID, required: true, schema: {type: string}}
     post:
       tags: [Chat]
-      description: Close a task whose agents found nothing to fix (workflow status nothing_to_fix, no proposal) - dismiss its dismissed_targets in the checkout that holds the issues and delete the task. Any other task returns 400; another version 409. Publishes a `workflow` event with status `deleted`.
+      description: Close a task with nothing to fix and no proposal - one whose run ended nothing_to_fix (its dismissed_targets are dismissed), or one waiting at awaiting_plan_review whose investigator plan gives no linked issue the verdict holds (the issues judged already_fixed or does_not_hold are dismissed). The issues are dismissed in the checkout that holds them and the task is deleted. Any other task returns 400; another version 409. Publishes a `workflow` event with status `deleted`.
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChangeIdentity'}}}}
       responses:
         '200': {description: The closed task, content: {application/json: {schema: {type: object, required: [deleted, dismissed_issues], properties: {deleted: {type: string}, dismissed_issues: {type: integer, minimum: 0}}}}}}

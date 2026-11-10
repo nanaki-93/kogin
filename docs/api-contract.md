@@ -138,7 +138,7 @@ untrusted networks.
 | POST | `/api/projects/current/changes/{sessionID}/review-override` | Override the model reviewers' rejection of the current checked hash with a reason; approves nothing. |
 | POST | `/api/projects/current/changes/{sessionID}/apply` | Accept the current reviewed proposal as a commit on the task's branch (after the commits of the issues it fixed one at a time). A task made in the main checkout, before every task got its own worktree, is refused with 400. |
 | POST | `/api/projects/current/changes/{sessionID}/delete` | Delete a task that is not running; stale tasks included. Publishes a `workflow` event with status `deleted`. |
-| POST | `/api/projects/current/changes/{sessionID}/close` | Close a task whose agents found nothing to fix: dismiss the issues that do not hold and delete it. |
+| POST | `/api/projects/current/changes/{sessionID}/close` | Close a task whose agents or plan found nothing to fix: dismiss the issues that do not hold and delete it. |
 | POST | `/api/projects/current/changes/{sessionID}/reanalyze` | Re-check an out-of-date task's issue against the current files: still valid captures it again, not valid deletes it and dismisses its linked issues. |
 | POST | `/api/projects/current/changes/{sessionID}/retake` | Re-check the issue of a task in its own worktree whose files the main branch changed against the main branch: still valid opens it again in a new worktree from there, not valid dismisses its linked issues; the old task is deleted either way. |
 
@@ -965,10 +965,14 @@ message flow. Planned sessions reject generation without current approval.
 A plan can also carry investigation fields: `root_cause` (at most 8192 bytes),
 `alternatives` (at most 4, each `approach` and `why_not` of at most 512 bytes),
 `risks` (at most 6 of 512 bytes), `touches` (files the change is expected to
-edit or create, each `path` and `why`) and, for a task fixing several issues,
+edit or create, each `path` and `why`) and, for a task that links issues,
 `issue_verdicts` (one per linked issue: `holds`, `already_fixed`,
 `does_not_hold` or `needs_own_task`, with a `note` required for anything but
-`holds`). All are optional and empty ones preserve existing plan hashes.
+`holds`). A task fixing several issues one at a time gets a verdict for each;
+a task that links exactly one issue may get one (never `needs_own_task`), and
+none means it holds. All are optional and empty ones preserve existing plan
+hashes. An investigator plan names its `touches` unless its verdicts say no
+issue needs a change.
 
 **The plan gate.** When a workflow run starts from `create` on a fresh
 proposal and the gate is on (request `plan: "on"`, or the project profile's
@@ -998,7 +1002,12 @@ time, issues whose verdict is `already_fixed`, `does_not_hold` or
 `needs_own_task` are settled before any step runs (with the plan's note as
 the reason, following the same rules as a step that ends that way), so no
 coding run is spent on them; an issue that `holds` carries the plan's note in
-its step's request. The coding and testing agents' prompts carry the approved
+its step's request. When the verdicts say of every linked issue that this
+task has no fix to make for it (none `holds`), the task can be closed at
+`awaiting_plan_review` without approving the plan (see `close` below), and an
+approved run of a task without issue steps ends `nothing_to_fix` before any
+coding run, with the verdict's note as its reason and the issue among the
+task's `dismissed_targets`. The coding and testing agents' prompts carry the approved
 plan (problem, root cause, cited lines, approach, touches, risks), and the
 reviewers are told a change that diverges from the approved approach without
 the code requiring it is a finding. The history (`.kogin/kogin.db`, schema 2)
@@ -1183,7 +1192,17 @@ the run stay as its evidence. When no issue could be fixed, the run fails; when
 none was fixed but some do not hold, it ends `nothing_to_fix` instead, and
 `POST .../changes/{sessionID}/close` (with the task's `ChangeIdentity`)
 dismisses those issues and deletes the task, which holds no change; it answers
-`{deleted, dismissed_issues}` and refuses any other task. Otherwise testing, checks
+`{deleted, dismissed_issues}`. A task that links one issue and fixes it without
+steps ends `nothing_to_fix` the same way when its coding agent changes nothing
+and its `finish` says `already_fixed` or `does_not_hold` (a first run that
+changed nothing is refused a `finish` without an outcome); the issue becomes
+its one dismissed target. `close` also accepts a task waiting at
+`awaiting_plan_review` whose plan verdicts leave nothing to fix: it dismisses
+the issues judged `already_fixed` or `does_not_hold`, leaves `needs_own_task`
+ones open, and deletes the task. It refuses any other task. A coding or
+testing agent's result that Kogin cannot use (no change without such an
+outcome, a file out of scope) fails the run with "The agent's result could not
+be used:" and what the agent said. Otherwise testing, checks
 and review cover the whole proposal, as for any task, and a repair after them is
 one coding run that reads only the review or check feedback and the issues'
 outcomes. These stages read the task as what its steps fixed: the acceptance

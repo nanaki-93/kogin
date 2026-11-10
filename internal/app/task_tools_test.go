@@ -217,12 +217,14 @@ func TestAToolRunEndsAtFinishOrAtItsCallBudget(t *testing.T) {
 	mustTool(t, run, "outline", map[string]any{"path": "calc.go"})
 	refusedTool(t, run, "outline", map[string]any{"path": "calc.go"}, "used its 2 tool calls; call finish now")
 	refusedTool(t, run, "finish", map[string]any{"summary": "Done.", "criteria": []map[string]any{{"criterion": 2, "how": "x"}}}, "number the task's 1 acceptance criteria")
-	mustTool(t, run, "finish", map[string]any{"summary": "Nothing to change.", "criteria": []map[string]any{{"criterion": 1, "how": "Run already reports errors."}}}, "Recorded.")
+	// The task fixes one issue: a run that changed nothing says how it ended.
+	refusedTool(t, run, "finish", map[string]any{"summary": "Nothing to change.", "criteria": []map[string]any{{"criterion": 1, "how": "Run already reports errors."}}}, "you changed nothing, so say how this issue ended")
+	mustTool(t, run, "finish", map[string]any{"summary": "Nothing to change.", "outcome": "already_fixed", "criteria": []map[string]any{{"criterion": 1, "how": "Run already reports errors."}}}, "Recorded.")
 	refusedTool(t, run, "read_file", map[string]any{"path": "calc.go"}, "this run is finished")
-	if finish := run.finished(); finish == nil || finish.Criteria[0].How != "Run already reports errors." || len(session.AcceptanceCriteria) != 1 {
+	if finish := run.finished(); finish == nil || finish.Outcome != outcomeAlreadyFixed || finish.Criteria[0].How != "Run already reports errors." || len(session.AcceptanceCriteria) != 1 {
 		t.Fatalf("finish = %+v", finish)
 	}
-	if calls, counts := run.usage(); calls != 4 || counts != "finish 2, outline 2" {
+	if calls, counts := run.usage(); calls != 5 || counts != "finish 3, outline 2" {
 		t.Fatalf("usage = %d %q", calls, counts)
 	}
 }

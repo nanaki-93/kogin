@@ -619,11 +619,39 @@ test('a task with nothing to fix is closed, dismissing the issues that do not ho
   await page.goto('/#/tasks/chg-1');
   const run = page.getByRole('region', { name: 'Agent run' });
   await expect(run.getByText('Nothing to fix', { exact: true })).toBeVisible();
-  await run.getByRole('button', { name: 'Close task' }).click();
+  await run.getByRole('button', { name: 'Dismiss the issue' }).click();
   const dialog = page.getByRole('alertdialog');
-  await expect(dialog.getByText('1 issue that does not hold is dismissed', { exact: false })).toBeVisible();
+  await expect(dialog.getByText('It is dismissed; you can reopen it in Issues. The task is deleted; it changed no files.')).toBeVisible();
   await expect(dialog.getByText('Nested asset paths are served')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Close task' }).click();
+  await dialog.getByRole('button', { name: 'Dismiss the issue' }).click();
+  await expect(page).toHaveURL(/#\/tasks$/);
+  expect(daemon.mutations('/close')[0].body).toMatchObject({ revision: task.revision, hash: task.hash });
+});
+
+test('a plan that finds nothing to fix offers to dismiss the issue instead of running agents', async ({ page, daemon }) => {
+  const task = planReadyTask();
+  daemon.sessions.set('chg-1', {
+    ...task,
+    title: 'Fix: Global master key left set',
+    finding_targets: [{ project_id: 'p1', kind: 'semantic', id: 'f1', path: 'internal/api/handlers/webui.go' }],
+    plan: { ...task.plan!, problem: 'Reported: the key is left set. It is not: the cleanup clears it.', approach: 'Nothing to change.', touches: [], issue_verdicts: [{ finding_id: 'f1', verdict: 'does_not_hold', note: 'withTempHome clears the key when each subtest ends.' }] },
+  });
+  await page.goto('/#/tasks/chg-1');
+  const plan = page.getByRole('region', { name: 'Proposed plan' });
+  await expect(plan.getByText('Nothing to fix', { exact: true })).toBeVisible();
+  await expect(plan.getByText('withTempHome clears the key when each subtest ends.')).toBeVisible();
+  // Nothing offers to run agents: the header and the card dismiss, or redirect.
+  const header = page.locator('header.task-header');
+  await expect(header.getByRole('button', { name: 'Dismiss the issue' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Approve & run agents|Start agents|Investigate & plan/ })).toHaveCount(0);
+  await expect(page.getByRole('complementary', { name: 'Review gate' }).getByText('Found nothing to fix', { exact: true })).toBeVisible();
+  await plan.getByRole('button', { name: 'I think it’s real…' }).click();
+  await expect(plan.getByPlaceholder('Why do you think the issue is real? The investigation runs again with this note.')).toBeVisible();
+  await plan.getByRole('button', { name: 'Cancel' }).click();
+  await plan.getByRole('button', { name: 'Dismiss the issue' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog.getByText('Global master key left set')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Dismiss the issue' }).click();
   await expect(page).toHaveURL(/#\/tasks$/);
   expect(daemon.mutations('/close')[0].body).toMatchObject({ revision: task.revision, hash: task.hash });
 });

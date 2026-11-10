@@ -4,7 +4,7 @@
 import { api, errorMessage, query, withWorktree } from '@/api/client';
 import type { AgentSettings, AvailableModels, ChangeOpened, ChangeReanalysis, ChangeRetake, ChangeSession, FindingTarget, LoadedSession, Model, ModelsCurrent, Project, ProjectProfile, TaskIssue } from '@/api/types';
 import { issueSteps } from '@/lib/issues';
-import { changeIdentity, openComments, workflowActive } from '@/lib/readiness';
+import { changeIdentity, closeDismissals, closeLabel, openComments, workflowActive } from '@/lib/readiness';
 import { chooseRunModels, mainChangedMessage, planGateApplies, runStartOptions, workflowDestinations, workflowRequest, type DestinationChoice, type ModelStage } from '@/lib/workflow';
 import { roleModelOptions, selectedModel, type ModelOptionGroup } from '@/lib/agentSettings';
 import { navigate } from '@/lib/router';
@@ -466,32 +466,27 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
   }
 
   /**
-   * Closes a task whose agents found nothing to fix: the issues that do not
-   * hold are dismissed with their reasons, the task is deleted and its
+   * Closes a task with nothing to fix, as its agents or its plan found: the
+   * issues that do not hold are dismissed, the task is deleted and its
    * worktree, holding no work, is removed.
    */
   async function closeTask(session: LoadedSession, leave?: () => void): Promise<boolean> {
-    const dismissed = (session.issues ?? []).filter(issue => issue.status === 'does_not_hold');
+    const dismissed = closeDismissals(session);
     const ok = await confirm({
-      title: 'Close this task?',
+      title: dismissed.length === 1 ? 'Dismiss this issue?' : 'Close this task?',
       body: (
         <div className="stack">
-          <p>
-            {dismissed.length
-              ? `${plural(dismissed.length, 'issue')} that ${dismissed.length === 1 ? 'does' : 'do'} not hold ${dismissed.length === 1 ? 'is' : 'are'} dismissed, with the reasons shown under Creation; you can reopen them in Issues.`
-              : 'No issue is dismissed.'}{' '}
-            The task is deleted; it changed no files.
-          </p>
+          <p>{dismissed.length ? `${dismissed.length === 1 ? 'It is' : `${plural(dismissed.length, 'issue')} are`} dismissed; you can reopen ${dismissed.length === 1 ? 'it' : 'them'} in Issues. The task is deleted; it changed no files.` : 'No issue is dismissed. The task is deleted; it changed no files.'}</p>
           {dismissed.length ? (
             <ul className="small">
-              {dismissed.slice(0, 5).map(issue => (
-                <li key={issue.finding_id}>{issue.title}</li>
+              {dismissed.slice(0, 5).map(title => (
+                <li key={title}>{title}</li>
               ))}
             </ul>
           ) : null}
         </div>
       ),
-      confirmLabel: 'Close task',
+      confirmLabel: closeLabel(dismissed.length),
     });
     if (!ok) return false;
     const closed = await guarded('Closing task…', async () => {

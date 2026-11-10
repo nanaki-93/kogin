@@ -14,12 +14,14 @@ type ChangeClosed struct {
 	DismissedIssues int    `json:"dismissed_issues"`
 }
 
-var errNotNothingToFix = errors.New("only a task whose agents found nothing to fix can be closed; delete it instead")
+var errNotNothingToFix = errors.New("only a task whose agents or plan found nothing to fix can be closed; delete it instead")
 
-// CloseChange ends a task whose run found nothing to fix: the issues it found
-// do not hold are dismissed (their reasons stay on the task page until then,
-// and they can be reopened in Issues) and the task is deleted. It holds no
-// change, so its worktree holds no work of it.
+// CloseChange ends a task that has nothing to fix: its run ended so, or the
+// plan waiting for review says of every linked issue that it needs no change
+// here. The issues found not to hold or already fixed are dismissed (their
+// reasons stay on the task page until then, and they can be reopened in
+// Issues) and the task is deleted. It holds no change, so its worktree holds
+// no work of it.
 func (s *Service) CloseChange(ctx context.Context, id string, request ChangeIdentity) (*ChangeClosed, error) {
 	s.jobLifecycleMu.Lock()
 	defer s.jobLifecycleMu.Unlock()
@@ -36,10 +38,11 @@ func (s *Service) CloseChange(ctx context.Context, id string, request ChangeIden
 	if request.ProjectID != session.ProjectID || request.Revision != session.Revision || request.Hash != session.Hash {
 		return nil, project.ErrRevisionConflict
 	}
-	if session.Workflow == nil || session.Workflow.Status != "nothing_to_fix" || len(session.Changes) > 0 {
-		return nil, errNotNothingToFix
+	dismissed, err := closableWithoutChange(session)
+	if err != nil {
+		return nil, err
 	}
-	if err := s.dismissTargets(session.DismissedTargets); err != nil {
+	if err := s.dismissTargets(dismissed); err != nil {
 		return nil, err
 	}
 	if err := s.removeChangeLocked(root, session); err != nil {
@@ -48,7 +51,7 @@ func (s *Service) CloseChange(ctx context.Context, id string, request ChangeIden
 	recordOutcome(root, session, history.OutcomeClosed)
 	s.notifyEvent("findings")
 	s.scheduleResume()
-	return &ChangeClosed{Deleted: session.ID, DismissedIssues: len(session.DismissedTargets)}, nil
+	return &ChangeClosed{Deleted: session.ID, DismissedIssues: len(dismissed)}, nil
 }
 
 // dismissTargets dismisses issues in the checkout that holds them: the main

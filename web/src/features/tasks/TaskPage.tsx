@@ -12,7 +12,7 @@ import type { LoadedSession } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
 import { navigate, useRoute } from '@/lib/router';
 import { openWorkspace } from '@/app/checkout';
-import { canOverrideReview, checkSummary, effectiveEdits, investigating, nextUnreviewedPath, planAwaitsDecision, proposalReadiness, reviewProgress, sessionStatusEntry, workflowActive } from '@/lib/readiness';
+import { canOverrideReview, checkSummary, effectiveEdits, investigating, nextUnreviewedPath, planAwaitsDecision, planFindsNothingToFix, proposalReadiness, reviewProgress, sessionStatusEntry, workflowActive } from '@/lib/readiness';
 import { activeOverride, agentRunLabel, agentsFinished, reviewVerdict } from '@/lib/workflow';
 import { basename, plural, shortHash, timeAgo } from '@/lib/util';
 import { Badge, Button, Callout, EmptyState, IconButton, Skeleton, cx } from '@/components/ui';
@@ -21,6 +21,7 @@ import { FilesChanged } from '@/features/review/FilesChanged';
 import { ChecksPanel } from '@/features/review/ChecksPanel';
 import { ReanalyzeTask } from './ReanalyzeTask';
 import { RunAgents } from './RunAgents';
+import { CloseTask } from './CloseTask';
 import { TaskOverview } from './TaskOverview';
 import { AcceptTask } from './AcceptTask';
 import { ApprovePlan } from './PlanReview';
@@ -146,7 +147,7 @@ function PrimaryAction({ session }: { session: LoadedSession }) {
   }
   switch (ready.step) {
     case 'plan':
-      return <ApprovePlan session={session} />;
+      return planFindsNothingToFix(session) ? <CloseTask session={session} variant="primary" size="md" /> : <ApprovePlan session={session} />;
     case 'generate':
     case 'agents':
       return <RunAgents session={session} variant="primary" />;
@@ -186,8 +187,8 @@ function ReviewRail({ session }: { session: LoadedSession }) {
   const reviewers = overridden ? 'Overridden by you' : verdict === 'approve' ? 'Approved' : verdict === 'changes_requested' ? 'Changes requested' : verdict === 'pending' ? 'Pending' : workflow ? 'Run after the agents' : (session.changes ?? []).length ? 'Not part of a manual proposal' : 'Run after the agents';
   // A plan the investigation proposed comes first; the agents run from it.
   const plan = session.plan?.source === 'investigator' ? session.plan : undefined;
-  const planDetail = planAwaitsDecision(session) ? 'Needs your approval' : plan?.approved_hash && plan.approved_hash === plan.hash ? 'Approved' : investigating(session) ? 'Investigating…' : plan ? 'Superseded' : 'Investigating…';
-  const agentsDetail = planAwaitsDecision(session) ? 'After you approve the plan' : agentRunLabel(workflow, Boolean((session.changes ?? []).length));
+  const planDetail = planAwaitsDecision(session) ? (planFindsNothingToFix(session) ? 'Found nothing to fix' : 'Needs your approval') : plan?.approved_hash && plan.approved_hash === plan.hash ? 'Approved' : investigating(session) ? 'Investigating…' : plan ? 'Superseded' : 'Investigating…';
+  const agentsDetail = planAwaitsDecision(session) ? (planFindsNothingToFix(session) ? 'Not needed' : 'After you approve the plan') : agentRunLabel(workflow, Boolean((session.changes ?? []).length));
   const steps: { label: string; done: boolean; active: boolean; detail: ReactNode; onClick?: () => void }[] = [
     ...(plan || investigating(session) ? [{ label: 'Plan', done: Boolean(plan?.approved_hash) && plan?.approved_hash === plan?.hash, active: ready.step === 'plan' || investigating(session), detail: planDetail }] : []),
     { label: 'Agents finished', done: agentsFinished(session), active: ready.step === 'agents' || ready.step === 'generate', detail: agentsDetail },

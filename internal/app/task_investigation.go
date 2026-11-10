@@ -138,17 +138,23 @@ type planVerdictInput struct {
 }
 
 func (run *investigationRun) planTool() toolSpec {
-	issues := ""
-	if len(run.session.Issues) > 1 {
-		issues = fmt.Sprintf(`,"issues":{"type":"array","minItems":%d,"maxItems":%d,"items":{"type":"object","properties":{"issue":{"type":"integer","minimum":1},"verdict":{"type":"string","enum":["holds","already_fixed","does_not_hold","needs_own_task"]},"note":{"type":"string","maxLength":512}},"required":["issue","verdict"],"additionalProperties":false}}`, len(run.session.Issues), len(run.session.Issues))
-	}
-	required := `"problem","root_cause","approach","citations","touches"`
-	if issues != "" {
-		required += `,"issues"`
+	issues, required := "", `"problem","root_cause","approach","citations"`
+	if judged := judgedIssues(run.session); judged > 0 {
+		// A task whose issues need no fix touches nothing, so touches is checked with the verdicts.
+		// A single issue's verdict may be left out: it then holds.
+		verdicts, least := `"holds","already_fixed","does_not_hold","needs_own_task"`, judged
+		if judged == 1 {
+			verdicts, least = `"holds","already_fixed","does_not_hold"`, 0
+		} else {
+			required += `,"issues"`
+		}
+		issues = fmt.Sprintf(`,"issues":{"type":"array","minItems":%d,"maxItems":%d,"items":{"type":"object","properties":{"issue":{"type":"integer","minimum":1},"verdict":{"type":"string","enum":[%s]},"note":{"type":"string","maxLength":512}},"required":["issue","verdict"],"additionalProperties":false}}`, least, judged, verdicts)
+	} else {
+		required += `,"touches"`
 	}
 	return toolSpec{name: "plan", readOnly: true, call: run.recordPlan,
 		description: "End the investigation with the plan a human reviews. Each citation's quote must appear in those lines of the file; a citation that does not check is reported so you can fix it.",
-		schema: fmt.Sprintf(`{"type":"object","properties":{"problem":{"type":"string","minLength":1,"maxLength":%d},"root_cause":{"type":"string","minLength":1,"maxLength":%d},"approach":{"type":"string","minLength":1,"maxLength":%d},"citations":{"type":"array","minItems":1,"maxItems":%d,"items":{"type":"object","properties":{"path":{"type":"string"},"start_line":{"type":"integer","minimum":1},"end_line":{"type":"integer","minimum":1},"quote":{"type":"string","minLength":1,"maxLength":%d},"observation":{"type":"string","maxLength":%d}},"required":["path","start_line","end_line","quote"],"additionalProperties":false}},"alternatives":{"type":"array","maxItems":%d,"items":{"type":"object","properties":{"approach":{"type":"string","minLength":1,"maxLength":%d},"why_not":{"type":"string","minLength":1,"maxLength":%d}},"required":["approach","why_not"],"additionalProperties":false}},"risks":{"type":"array","maxItems":%d,"items":{"type":"string","minLength":1,"maxLength":%d}},"touches":{"type":"array","minItems":1,"maxItems":%d,"items":{"type":"object","properties":{"path":{"type":"string"},"why":{"type":"string","minLength":1,"maxLength":%d}},"required":["path","why"],"additionalProperties":false}}%s},"required":[%s],"additionalProperties":false}`,
+		schema: fmt.Sprintf(`{"type":"object","properties":{"problem":{"type":"string","minLength":1,"maxLength":%d},"root_cause":{"type":"string","minLength":1,"maxLength":%d},"approach":{"type":"string","minLength":1,"maxLength":%d},"citations":{"type":"array","minItems":1,"maxItems":%d,"items":{"type":"object","properties":{"path":{"type":"string"},"start_line":{"type":"integer","minimum":1},"end_line":{"type":"integer","minimum":1},"quote":{"type":"string","minLength":1,"maxLength":%d},"observation":{"type":"string","maxLength":%d}},"required":["path","start_line","end_line","quote"],"additionalProperties":false}},"alternatives":{"type":"array","maxItems":%d,"items":{"type":"object","properties":{"approach":{"type":"string","minLength":1,"maxLength":%d},"why_not":{"type":"string","minLength":1,"maxLength":%d}},"required":["approach","why_not"],"additionalProperties":false}},"risks":{"type":"array","maxItems":%d,"items":{"type":"string","minLength":1,"maxLength":%d}},"touches":{"type":"array","maxItems":%d,"items":{"type":"object","properties":{"path":{"type":"string"},"why":{"type":"string","minLength":1,"maxLength":%d}},"required":["path","why"],"additionalProperties":false}}%s},"required":[%s],"additionalProperties":false}`,
 			2*maxPlanProblemRunes, 2*maxPlanRootCauseRunes, 2*maxPlanApproachRunes, maxPlanCitations, maxPlanQuote, 2*maxPlanObservationRunes, maxPlanAlternatives, 2*maxPlanShortRunes, 2*maxPlanShortRunes, maxPlanRisks, 2*maxPlanShortRunes, maxStoredTaskPaths, 2*maxPlanShortRunes, issues, required)}
 }
 
@@ -170,9 +176,8 @@ func (run *investigationRun) recordPlan(_ context.Context, arguments json.RawMes
 	return "Plan recorded. End your turn.", nil
 }
 
-// checkedPlan verifies the proposed plan against the files as they are, and
-// returns the problems for the agent to fix.
-func (run *investigationRun) checkedPlan(input planToolInput) (*ChangePlanInput, error) {
+// clippedPlan is the proposed plan's prose within its word budgets.
+func clippedPlan(input planToolInput) *ChangePlanInput {
 	plan := &ChangePlanInput{
 		Problem:   textutil.Clip(tidyPlanText(input.Problem), maxPlanProblemRunes),
 		RootCause: textutil.Clip(tidyPlanText(input.RootCause), maxPlanRootCauseRunes),
@@ -187,6 +192,13 @@ func (run *investigationRun) checkedPlan(input planToolInput) (*ChangePlanInput,
 	for _, touch := range input.Touches {
 		plan.Touches = append(plan.Touches, PlanTouch{Path: touch.Path, Why: textutil.Clip(tidyPlanText(touch.Why), maxPlanShortRunes)})
 	}
+	return plan
+}
+
+// checkedPlan verifies the proposed plan against the files as they are, and
+// returns the problems for the agent to fix.
+func (run *investigationRun) checkedPlan(input planToolInput) (*ChangePlanInput, error) {
+	plan := clippedPlan(input)
 	if plan.Problem == "" || plan.RootCause == "" || plan.Approach == "" {
 		return nil, errors.New("give the problem, its root cause and the approach")
 	}
@@ -211,6 +223,9 @@ func (run *investigationRun) checkedPlan(input planToolInput) (*ChangePlanInput,
 		problems = append(problems, err.Error())
 	} else {
 		plan.IssueVerdicts = verdicts
+	}
+	if _, nothing := planNoFix(&ChangeSession{Plan: &ChangePlan{ChangePlanInput: *plan, Source: planSourceInvestigator}, Issues: run.session.Issues, FindingTargets: run.session.FindingTargets}); !nothing && len(plan.Touches) == 0 {
+		problems = append(problems, "touches: name each file the change edits or creates")
 	}
 	if len(problems) > 0 {
 		return nil, errors.New(strings.Join(problems, "\n") + "\nFix these and call plan again.")
@@ -282,30 +297,38 @@ func planReadPaths(session *ChangeSession, citations []PlanEvidence) ([]string, 
 	return reads, nil
 }
 
-// planIssueVerdicts checks that a grouped task's plan gives every issue
-// exactly one verdict, and maps them to the issues' finding IDs.
+// planIssueVerdicts checks that the plan gives every issue it judges exactly
+// one verdict, and maps them to the issues' finding IDs. The one issue of a
+// task without steps may go without: it is then taken to hold.
 func planIssueVerdicts(session *ChangeSession, verdicts []planVerdictInput) ([]PlanIssueVerdict, error) {
-	if len(session.Issues) < 2 {
+	judged := judgedIssues(session)
+	if judged == 0 {
 		if len(verdicts) > 0 {
 			return nil, errors.New("this task fixes no listed issues; leave issues out")
 		}
 		return nil, nil
 	}
-	if len(verdicts) != len(session.Issues) {
-		return nil, fmt.Errorf("give every issue a verdict: the task fixes %d issues", len(session.Issues))
+	if judged == 1 && len(verdicts) == 0 {
+		return nil, nil
+	}
+	if len(verdicts) != judged {
+		return nil, fmt.Errorf("give every issue a verdict: the task fixes %d", judged)
 	}
 	mapped := make([]PlanIssueVerdict, 0, len(verdicts))
 	seen := map[int]bool{}
 	for _, verdict := range verdicts {
-		if verdict.Issue < 1 || verdict.Issue > len(session.Issues) || seen[verdict.Issue] {
-			return nil, fmt.Errorf("verdicts name each issue 1 to %d exactly once", len(session.Issues))
+		if verdict.Issue < 1 || verdict.Issue > judged || seen[verdict.Issue] {
+			return nil, fmt.Errorf("verdicts name each issue 1 to %d exactly once", judged)
 		}
 		seen[verdict.Issue] = true
 		note := strings.TrimSpace(verdict.Note)
-		if verdict.Verdict != planVerdictHolds && note == "" {
+		switch {
+		case verdict.Verdict != planVerdictHolds && note == "":
 			return nil, fmt.Errorf("issue %d: a verdict other than holds needs a note saying why", verdict.Issue)
+		case judged == 1 && verdict.Verdict == outcomeNeedsOwnTask:
+			return nil, errors.New("this task is the issue's own task: its verdict is holds, already_fixed or does_not_hold")
 		}
-		mapped = append(mapped, PlanIssueVerdict{FindingID: session.Issues[verdict.Issue-1].FindingID, Verdict: verdict.Verdict, Note: textutil.Clip(tidyPlanText(note), maxPlanNoteRunes)})
+		mapped = append(mapped, PlanIssueVerdict{FindingID: judgedFindingID(session, verdict.Issue), Verdict: verdict.Verdict, Note: textutil.Clip(tidyPlanText(note), maxPlanNoteRunes)})
 	}
 	slices.SortFunc(mapped, func(a, b PlanIssueVerdict) int { return strings.Compare(a.FindingID, b.FindingID) })
 	return mapped, nil
@@ -328,6 +351,9 @@ func investigationMessage(session *ChangeSession, message, redirect, docs string
 		for index, issue := range session.Issues {
 			fmt.Fprintf(&prompt, "%d. %s (%s)\n%s\n", index+1, issue.Title, issue.Path, strings.TrimSpace(issue.Detail))
 		}
+	}
+	if judgedIssues(session) == 1 {
+		prompt.WriteString("\nThis task fixes one reported issue. Check it against the code and give it a verdict as issue 1: holds when the code needs the fix, already_fixed when the code as it is already fixes it, does_not_hold when the code does not have the problem; a verdict other than holds needs a note saying why, in at most 20 words. When nothing needs to change, approach says so in one line and touches stays empty.\n")
 	}
 	if named := changeTargetPaths(session); len(named) > 0 {
 		prompt.WriteString("\nFiles the task names (a starting point; the change may touch others): " + strings.Join(named, ", ") + "\n")

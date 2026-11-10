@@ -5,6 +5,7 @@
 
 import { test as base, expect, type Page, type Route } from '@playwright/test';
 import type { ChangeHistoryEntry, ChangeSession, DaemonEvent, DocsRefresh, Finding, GitWorktree, Lesson, ProjectHealth, ProjectProfile, ProjectSetup, QuarantineReport } from '../../src/api/types';
+import { closeDismissals, planFindsNothingToFix } from '../../src/lib/readiness';
 import * as data from './fixtures';
 import { approveSession, overrideReview, reviseSession, startRun } from './review';
 
@@ -235,13 +236,14 @@ export class FakeDaemon {
     return { deleted: task.id };
   }
 
-  /** Closes a task whose agents found nothing to fix: its issues that do not hold are dismissed. */
+  /** Closes a task whose agents or plan found nothing to fix: its issues that do not hold are dismissed. */
   private closeTask(id: string, body: Record<string, unknown>) {
     const session = this.sessions.get(decodeURIComponent(id));
     if (!session) throw new Error('This task no longer exists; refresh the task list.');
-    if (session.workflow?.status !== 'nothing_to_fix') throw new Error('only a task whose agents found nothing to fix can be closed; delete it instead');
+    const planned = session.workflow?.status === 'awaiting_plan_review' && planFindsNothingToFix(session);
+    if (session.workflow?.status !== 'nothing_to_fix' && !planned) throw new Error('only a task whose agents or plan found nothing to fix can be closed; delete it instead');
     if (body.revision !== session.revision || body.hash !== session.hash) throw new Error('The task changed since it was loaded.');
-    const dismissed = (session.issues ?? []).filter(issue => issue.status === 'does_not_hold').length;
+    const dismissed = closeDismissals(session).length;
     this.deleteTask(id, body);
     return { deleted: session.id, dismissed_issues: dismissed };
   }

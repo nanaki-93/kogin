@@ -175,9 +175,12 @@ func validateSettledIssues(session *ChangeSession) error {
 		if err := target.Validate(); err != nil {
 			return err
 		}
-		if !slices.ContainsFunc(session.Issues, func(issue ChangeIssue) bool {
+		held := slices.ContainsFunc(session.Issues, func(issue ChangeIssue) bool {
 			return issue.FindingID == target.ID && issue.Path == target.Path && issue.Status == IssueDoesNotHold
-		}) {
+		})
+		// A task that fixes one issue without steps sets it aside whole.
+		single := len(session.Issues) == 0 && slices.Contains(session.FindingTargets, target)
+		if !held && !single {
 			return fmt.Errorf("a dismissed issue must be one the task found does not hold")
 		}
 	}

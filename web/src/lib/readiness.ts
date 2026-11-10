@@ -86,6 +86,44 @@ export function planAwaitsDecision(session: Pick<ChangeSession, 'workflow' | 'pl
   return session?.workflow?.status === 'awaiting_plan_review' && session.plan?.source === 'investigator';
 }
 
+/** How many issues a plan gives a verdict to: each step of a grouped fix, or the one issue a task links. */
+function judgedIssues(session: Pick<ChangeSession, 'issues' | 'finding_targets'>): number {
+  const steps = (session.issues ?? []).length;
+  if (steps > 1) return steps;
+  return steps === 0 && (session.finding_targets ?? []).length === 1 ? 1 : 0;
+}
+
+/**
+ * The plan says no linked issue needs a change in this task, so there is
+ * nothing to approve: the task closes, dismissing the issues that do not hold
+ * or are already fixed. Mirrors the daemon's rule for Close.
+ */
+export function planFindsNothingToFix(session: Pick<ChangeSession, 'plan' | 'issues' | 'finding_targets'> | null | undefined): boolean {
+  const verdicts = session?.plan?.source === 'investigator' ? (session.plan.issue_verdicts ?? []) : [];
+  return Boolean(session) && verdicts.length > 0 && verdicts.length === judgedIssues(session!) && verdicts.every(verdict => verdict.verdict !== 'holds');
+}
+
+/** The issues closing the task dismisses: found not to hold by its steps, its coding agent or its plan. */
+export function closeDismissals(session: Pick<ChangeSession, 'plan' | 'issues' | 'finding_targets' | 'dismissed_targets' | 'workflow' | 'title'>): string[] {
+  const steps = (session.issues ?? []).filter(issue => issue.status === 'does_not_hold').map(issue => issue.title);
+  if (steps.length) return steps;
+  const titled = (id: string) => (session.issues ?? []).find(issue => issue.finding_id === id)?.title ?? issueTitle(session.title);
+  if (session.workflow?.status === 'awaiting_plan_review' && planFindsNothingToFix(session)) {
+    return (session.plan?.issue_verdicts ?? []).filter(verdict => verdict.verdict !== 'needs_own_task').map(verdict => titled(verdict.finding_id));
+  }
+  return (session.dismissed_targets ?? []).map(target => titled(target.id));
+}
+
+/** What closing a task with nothing to fix is called, by how many issues it dismisses. */
+export function closeLabel(dismissed: number): string {
+  return dismissed === 1 ? 'Dismiss the issue' : dismissed > 1 ? `Dismiss ${dismissed} issues` : 'Close task';
+}
+
+/** A fix task is titled "Fix: <issue>"; the issue's own title is what follows. */
+export function issueTitle(taskTitle: string): string {
+  return taskTitle.replace(/^Fix:\s*/, '');
+}
+
 /** The run is investigating: the plan stage runs and no model stage has started. */
 export function investigating(session: Pick<ChangeSession, 'workflow'> | null | undefined): boolean {
   const workflow = session?.workflow;
@@ -136,7 +174,7 @@ export function proposalReadiness(session: ChangeSession | null | undefined): Re
   result.approved = Boolean(session.hash) && session.reviewed_hash === session.hash;
   if (!edits.length && planAwaitsDecision(session)) {
     result.step = 'plan';
-    result.message = 'The investigation proposed a plan. Approve it to start the agents, or redirect it with a note.';
+    result.message = planFindsNothingToFix(session) ? 'The investigation found nothing to fix. Close the task, or redirect the investigation with a note if you think the issue is real.' : 'The investigation proposed a plan. Approve it to start the agents, or redirect it with a note.';
   } else if (!edits.length) {
     result.step = workflowActive(session) ? 'agents' : 'generate';
     result.message = workflowActive(session) ? (investigating(session) ? 'The investigation is reading the code to propose a plan.' : 'Agents are writing the change.') : 'No changes yet. Start the agents to generate them.';

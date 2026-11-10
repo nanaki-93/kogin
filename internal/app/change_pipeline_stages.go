@@ -184,7 +184,11 @@ func (s *Service) runWorkflowModelStage(ctx context.Context, job *changeWorkflow
 	var err error
 	switch {
 	case tools && stage == 0:
-		session, err = s.runToolStage(timed, job.root, view, runtime, toolCoder, message)
+		next, run, runErr := s.runToolAgent(timed, job.root, view, runtime, toolCoder, message)
+		if finish, nothing := singleIssueNoFix(session, run, runErr); nothing {
+			return nil, s.endWithNothingToFix(ctx, job, session, session.FindingTargets, noFixReason(finish))
+		}
+		session, err = next, runErr
 	case tools:
 		session, err = s.runToolStage(timed, job.root, view, runtime, toolTester, withTestDispute(session, strings.Replace(workflowTestStageMessage(message), workflowTestPrompt, toolTestPrompt, 1)))
 	case stage == 0:

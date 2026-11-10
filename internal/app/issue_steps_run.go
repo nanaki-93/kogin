@@ -41,9 +41,17 @@ func (e *issueStepsFailedError) Error() string {
 // nothingToFixError ends a run in which no issue needed a change it could
 // make, and some do not hold: the task has nothing to merge, and closing it
 // dismisses those.
-type nothingToFixError struct{ count, doNotHold int }
+type nothingToFixError struct {
+	count, doNotHold int
+	// single is why a task that fixes one issue without steps has nothing
+	// to fix: the plan's verdict, or what its coding agent found.
+	single string
+}
 
 func (e *nothingToFixError) Error() string {
+	if e.single != "" {
+		return "Nothing to fix: " + e.single + " Close task dismisses the issue; you can reopen it in Issues."
+	}
 	reason := fmt.Sprintf("Nothing to fix: %d of the %d issues do not hold", e.doNotHold, e.count)
 	if other := e.count - e.doNotHold; other > 0 {
 		reason += fmt.Sprintf(", and %d could not be fixed (open again in Issues)", other)
@@ -71,7 +79,25 @@ func (s *Service) runStageOrIssueSteps(ctx context.Context, job *changeWorkflowJ
 		}
 		message = issueRepairMessage(session, message)
 	}
+	if stage == 0 && len(session.Changes) == 0 && approvedInvestigatorPlan(session) != nil {
+		// The approved plan found nothing to fix: no coding run is spent on it.
+		if dismiss, nothing := planNoFix(session); nothing {
+			return nil, s.endWithNothingToFix(ctx, job, session, dismiss, planNoFixReason(session))
+		}
+	}
 	return s.runWorkflowModelStage(ctx, job, session, runtime, stage, message)
+}
+
+// endWithNothingToFix records the issues closing the task will dismiss and
+// returns the run's ending: nothing to fix, with why.
+func (s *Service) endWithNothingToFix(ctx context.Context, job *changeWorkflowJob, session *ChangeSession, dismiss []project.FindingTarget, reason string) error {
+	if _, err := s.updateIssueStep(ctx, job, session, func(current *ChangeSession) error {
+		current.DismissedTargets = slices.Clone(dismiss)
+		return nil
+	}); err != nil {
+		return err
+	}
+	return &nothingToFixError{single: reason}
 }
 
 // runIssueSteps is the creation stage of a task that fixes its issues one at

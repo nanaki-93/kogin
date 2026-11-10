@@ -12,6 +12,7 @@ import { applyEvent, finishedRun, parseFrames } from '@/api/events';
 import { QueryClient } from '@tanstack/react-query';
 import { costCaveat, costLabel, formatTokens, usageLabel } from './usage';
 import { issueSteps } from './issues';
+import { closeDismissals, closeLabel, planFindsNothingToFix } from './readiness';
 import { ApiError, createApi, documentWriteToken, errorMessage, query, withWorktree } from '@/api/client';
 
 describe('fuzzy', () => {
@@ -390,5 +391,37 @@ describe('issues fixed one at a time', () => {
     expect(issueStepState('does_not_hold')).toEqual({ label: 'Does not hold', tone: 'idle', badge: 'neutral' });
     expect(issueStepState('fixing').tone).toBe('running');
     expect(issueStepState(undefined).label).toBe('Waiting');
+  });
+});
+
+describe('a plan that finds nothing to fix', () => {
+  const target = (id: string) => ({ project_id: 'p1', kind: 'semantic', id, path: 'a.go' });
+  const verdict = (id: string, v: 'holds' | 'already_fixed' | 'does_not_hold' | 'needs_own_task') => ({ finding_id: id, verdict: v, note: 'why' });
+  const plan = (...verdicts: ReturnType<typeof verdict>[]) => ({ source: 'investigator', issue_verdicts: verdicts });
+  const waiting = { id: 'wf', status: 'awaiting_plan_review', stages: [] };
+
+  it('needs a verdict other than holds for every judged issue', () => {
+    expect(planFindsNothingToFix({ plan: plan(verdict('f1', 'does_not_hold')), finding_targets: [target('f1')] })).toBe(true);
+    expect(planFindsNothingToFix({ plan: plan(verdict('f1', 'holds')), finding_targets: [target('f1')] })).toBe(false);
+    expect(planFindsNothingToFix({ plan: plan(), finding_targets: [target('f1')] })).toBe(false);
+    // A task that links no issue, or a user's own plan, has no such verdict.
+    expect(planFindsNothingToFix({ plan: plan(verdict('f1', 'does_not_hold')), finding_targets: [] })).toBe(false);
+    expect(planFindsNothingToFix({ plan: { ...plan(verdict('f1', 'does_not_hold')), source: undefined }, finding_targets: [target('f1')] })).toBe(false);
+    const issues = [{ finding_id: 'f1', path: 'a.go', title: 'One', detail: '' }, { finding_id: 'f2', path: 'a.go', title: 'Two', detail: '' }];
+    expect(planFindsNothingToFix({ plan: plan(verdict('f1', 'already_fixed'), verdict('f2', 'needs_own_task')), issues, finding_targets: [target('f1'), target('f2')] })).toBe(true);
+    expect(planFindsNothingToFix({ plan: plan(verdict('f1', 'already_fixed'), verdict('f2', 'holds')), issues, finding_targets: [target('f1'), target('f2')] })).toBe(false);
+  });
+
+  it('names what closing dismisses', () => {
+    const issues = [{ finding_id: 'f1', path: 'a.go', title: 'One', detail: '' }, { finding_id: 'f2', path: 'a.go', title: 'Two', detail: '' }];
+    // A plan: the issues it found fixed or absent, not those needing their own task.
+    expect(closeDismissals({ title: 'Fix 2 issues', workflow: waiting, plan: plan(verdict('f1', 'already_fixed'), verdict('f2', 'needs_own_task')), issues, finding_targets: [target('f1'), target('f2')] })).toEqual(['One']);
+    // A single issue is named by its task.
+    expect(closeDismissals({ title: 'Fix: Key left set', workflow: waiting, plan: plan(verdict('f1', 'does_not_hold')), finding_targets: [target('f1')] })).toEqual(['Key left set']);
+    expect(closeDismissals({ title: 'Fix: Key left set', workflow: { id: 'wf', status: 'nothing_to_fix', stages: [] }, dismissed_targets: [target('f1')] })).toEqual(['Key left set']);
+    expect(closeDismissals({ title: 'Fix 2 issues', workflow: { id: 'wf', status: 'nothing_to_fix', stages: [] }, issues: [{ ...issues[0], status: 'does_not_hold' }, { ...issues[1], status: 'not_fixed' }] })).toEqual(['One']);
+    expect(closeLabel(0)).toBe('Close task');
+    expect(closeLabel(1)).toBe('Dismiss the issue');
+    expect(closeLabel(3)).toBe('Dismiss 3 issues');
   });
 });

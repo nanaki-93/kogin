@@ -8,7 +8,8 @@ import { useState } from 'react';
 import { Check, CircleSlash, CornerDownLeft, Map as MapIcon } from 'lucide-react';
 import type { LoadedSession, PlanIssueVerdict } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
-import { planAwaitsDecision } from '@/lib/readiness';
+import { issueTitle, planAwaitsDecision, planFindsNothingToFix } from '@/lib/readiness';
+import { CloseTask } from './CloseTask';
 import { navigate } from '@/lib/router';
 import { plural, timeAgo } from '@/lib/util';
 import { Badge, Button, Textarea } from '@/components/ui';
@@ -20,21 +21,23 @@ export function PlanReview({ session }: { session: LoadedSession }) {
   if (!plan || plan.source !== 'investigator') return null;
   const waiting = planAwaitsDecision(session);
   const approved = Boolean(plan.hash) && plan.approved_hash === plan.hash;
+  // No linked issue needs a change: the decision is to close, not to approve.
+  const nothing = planFindsNothingToFix(session);
   return (
     <section className="card" aria-label="Proposed plan">
       <div className="card-head">
         <MapIcon size={15} aria-hidden />
         <span className="strong">Proposed plan</span>
-        <Badge tone={approved ? 'success' : waiting ? 'accent' : 'neutral'}>{approved ? 'Approved' : waiting ? 'Needs your decision' : 'Superseded'}</Badge>
+        <Badge tone={approved ? 'success' : waiting && !nothing ? 'accent' : 'neutral'}>{nothing ? 'Nothing to fix' : approved ? 'Approved' : waiting ? 'Needs your decision' : 'Superseded'}</Badge>
         <span className="spacer" />
         {plan.model && !waiting ? <span className="xs faint mono">{plan.model}</span> : null}
         {plan.investigated_at && !waiting ? <span className="xs faint">{timeAgo(plan.investigated_at)}</span> : null}
         {waiting ? (
           <>
             <Button size="sm" variant="secondary" onClick={() => setRedirecting(true)} disabled={redirecting}>
-              Redirect…
+              {nothing ? 'I think it’s real…' : 'Redirect…'}
             </Button>
-            <ApprovePlan session={session} size="sm" />
+            {nothing ? <CloseTask session={session} variant="primary" /> : <ApprovePlan session={session} size="sm" />}
           </>
         ) : null}
       </div>
@@ -153,7 +156,8 @@ export function ApprovePlan({ session, size, variant = 'primary' }: { session: L
 /** What the investigation found per linked issue, before any code. */
 function PlanVerdicts({ session, verdicts }: { session: LoadedSession; verdicts: PlanIssueVerdict[] }) {
   const issues = session.issues ?? [];
-  const titled = (findingId: string) => issues.find(issue => issue.finding_id === findingId)?.title ?? findingId;
+  // A task that fixes one issue without steps is titled after it.
+  const titled = (findingId: string) => issues.find(issue => issue.finding_id === findingId)?.title ?? issueTitle(session.title);
   const label: Record<PlanIssueVerdict['verdict'], { text: string; tone: 'neutral' | 'success' | 'warning' | 'info' }> = {
     holds: { text: 'Holds', tone: 'info' },
     already_fixed: { text: 'Already fixed', tone: 'success' },
@@ -191,7 +195,7 @@ function RedirectPlan({ session, onDone }: { session: LoadedSession; onDone: () 
   };
   return (
     <div className="card-body stack plan-redirect">
-      <Textarea rows={2} autoFocus placeholder="What should the plan do differently? The investigation runs again with this note." value={note} onChange={e => setNote(e.target.value)} aria-label="Redirect note" />
+      <Textarea rows={2} autoFocus placeholder={planFindsNothingToFix(session) ? 'Why do you think the issue is real? The investigation runs again with this note.' : 'What should the plan do differently? The investigation runs again with this note.'} value={note} onChange={e => setNote(e.target.value)} aria-label="Redirect note" />
       <div className="row">
         <Button size="sm" variant="ghost" icon={CircleSlash} onClick={onDone} disabled={busy}>
           Cancel

@@ -2,7 +2,7 @@
 // stage, what reviewers said, and a box to ask for a revision.
 
 import { useEffect, useState } from 'react';
-import { Archive, Bot, CircleCheck, CornerDownLeft, FileText, Gavel, Hourglass, ListChecks, MessageSquare, Plus, ShieldAlert, Square, User } from 'lucide-react';
+import { Bot, CircleCheck, CornerDownLeft, FileText, Gavel, Hourglass, ListChecks, MessageSquare, Plus, ShieldAlert, Square, User } from 'lucide-react';
 import type { ChangeWorkflow, LoadedSession } from '@/api/types';
 import { useActions, useBusy, usePendingRevision } from '@/app/actions';
 import { behaviorChanges, openComments, proposalReadiness, workflowActive } from '@/lib/readiness';
@@ -13,8 +13,8 @@ import { firstSentence } from '@/lib/docs';
 import { Badge, Button, Callout, PhaseIcon, Textarea, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
 import { navigate } from '@/lib/router';
-import { openWorkspace } from '@/app/checkout';
 import { openNewTask } from '@/app/store';
+import { CloseTask } from './CloseTask';
 import { CodeRules } from './CodeRules';
 import { PlanReview } from './PlanReview';
 import { ReanalyzeTask } from './ReanalyzeTask';
@@ -176,17 +176,6 @@ function endedAction(session: LoadedSession) {
   }
   if (session.freshness !== 'current') return <ReanalyzeTask session={session} variant="secondary" size="sm" />;
   return <RunAgents session={session} size="sm" />;
-}
-
-/** Closes a task whose agents found nothing to fix, then leaves its page. */
-function CloseTask({ session }: { session: LoadedSession }) {
-  const actions = useActions();
-  const busy = useBusy();
-  return (
-    <Button size="sm" variant="secondary" icon={Archive} onClick={() => void actions.closeTask(session, () => openWorkspace('/tasks'))} disabled={Boolean(busy)}>
-      Close task
-    </Button>
-  );
 }
 
 /** How an ended run reads: a revision after it is not a failure, nor a pause at a plan's limit. */

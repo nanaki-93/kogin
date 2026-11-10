@@ -30,7 +30,7 @@ var failureSigns = []struct {
 	{FailureContextLimit, []string{"context exceeds", "exceeds 256 kib", "token limit", "too large"}},
 	{FailureCallBudget, []string{"model calls limit", "calls limit", "call budget", "tool calls"}},
 	{FailureNoFinish, []string{"without finish", "stopped before finishing", "never called finish", "did not finish"}},
-	{FailureInvalidResponse, []string{"invalid response", "invalid workflow", "not the expected json", "parse"}},
+	{FailureInvalidResponse, []string{"invalid response", "result could not be used", "invalid workflow", "not the expected json", "parse"}},
 	{FailureChecks, []string{"check", "test", "lint", "budget"}},
 	{FailureMainChanged, []string{"main changed", "out of date", "stale", "main moved"}},
 	{FailureProvider, []string{"provider", "could not start", "unavailable", "connection", "status 5"}},

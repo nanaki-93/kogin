@@ -133,10 +133,17 @@ every guard when the action arrives.
   it is opened again in a new worktree, its fixed issues carried over while
   their commits still apply, and its agents start. If checks must be allowed
   again first (after a merge), the card says so.
-- **Nothing to fix.** When no issue step fixed anything and some issues do not
-  hold, the run ends **Nothing to fix** instead of failing, with **Close task**:
-  it lists the issues it dismisses (their reasons stay under Creation), deletes
-  the task and removes its worktree.
+- **Nothing to fix.** A task whose issues need no change never ends as a
+  failure. When the investigation finds that every linked issue does not hold,
+  is already fixed or needs a task of its own, the plan card reads **Nothing
+  to fix** and its decision is **Dismiss the issue** (or **Dismiss N issues**,
+  **Close task** when none is dismissed) beside **I think it's real…**, which
+  redirects the investigation with your note; no agents run. A coding agent
+  that changes nothing must say whether the issue is already fixed or does
+  not hold, and the run then ends **Nothing to fix** with its reason, as does
+  a run of issue steps in which none fixed anything and some do not hold.
+  Closing lists the issues it dismisses, deletes the task and removes its
+  worktree; a dismissed issue can be reopened in Issues.
 - **Testing decisions.** The testing agent's tests are its own: a coding repair
   may not change them, and a coder sure one is wrong disputes it once; the
   next testing run decides. Under Write and run tests, the task lists the

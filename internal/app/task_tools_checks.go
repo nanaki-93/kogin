@@ -181,9 +181,13 @@ var errStepUnchanged = errors.New("you changed nothing, so say how this issue en
 
 // checkStepOutcome checks how a coding agent says one issue's step ended
 // against the worktree: a step with no change must say which kind of no-fix
-// it is. A fix that leaves out the outcome is taken as fixed.
+// it is. A fix that leaves out the outcome is taken as fixed. The first
+// coding run of a task that fixes a single issue is such a step.
 func (run *taskToolRun) checkStepOutcome(ctx context.Context, outcome string) error {
-	if run.role != toolCoder || stepIssue(run.session) < 0 || (outcome != "" && outcome != outcomeFixed) {
+	// A task that fixes one issue without steps is held to the same rule
+	// until it has a change: its first run is that issue's only step.
+	single := judgedIssues(run.session) == 1 && len(run.session.Issues) == 0 && len(run.session.Changes) == 0
+	if run.role != toolCoder || (stepIssue(run.session) < 0 && !single) || (outcome != "" && outcome != outcomeFixed) {
 		return nil
 	}
 	run.writeMu.Lock()

@@ -2,8 +2,13 @@ package app
 
 import (
 	"context"
+	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // investigatorScript is a scripted investigation that reads calc.go and
@@ -236,5 +241,112 @@ func TestAPlanIsClippedToItsWordBudgets(t *testing.T) {
 	}
 	if n := len([]rune(plan.Risks[0])); n > maxPlanShortRunes || !strings.HasSuffix(plan.Risks[0], "…") {
 		t.Fatalf("risk not clipped: %q", plan.Risks[0])
+	}
+}
+
+// oneIssue makes the flow's task the fix of a single reported issue.
+func oneIssue(request *ChangeOpenRequest) {
+	request.Kind, request.Title = "fix", "Fix: Add rounds wrong"
+	request.FindingTargets = []project.FindingTarget{{ProjectID: request.ProjectID, Kind: "semantic", ID: "finding:a", Path: "calc.go"}}
+	request.Issues = nil
+}
+
+// noBugInvestigatorScript proposes a plan whose verdict is that the task's
+// one issue does not hold: nothing is touched.
+func noBugInvestigatorScript(verdict string) []fakePiStep {
+	steps := investigatorScript()
+	steps[1].Arguments["problem"] = "Reported: Add rounds wrong. It does not: Add returns a + b for ints."
+	steps[1].Arguments["root_cause"] = "No bug. Add is integer addition; there is nothing to round."
+	steps[1].Arguments["approach"] = "Nothing to change."
+	delete(steps[1].Arguments, "touches")
+	steps[1].Arguments["issues"] = []map[string]any{{"issue": 1, "verdict": verdict, "note": "Add is integer addition; nothing is rounded."}}
+	return steps
+}
+
+func TestAPlanThatFindsNothingToFixClosesTheTaskAndDismissesTheIssue(t *testing.T) {
+	flow := startToolFlowScripts(t, map[string][]fakePiStep{"investigator": noBugInvestigatorScript("does_not_hold")}, nil, oneIssue, func(request *ChangeWorkflowRequest) { request.Plan = "on" })
+	waiting := flow.finished(t)
+	if waiting.Workflow.Status != "awaiting_plan_review" || len(waiting.Plan.IssueVerdicts) != 1 || waiting.Plan.IssueVerdicts[0].FindingID != "finding:a" || len(waiting.Plan.Touches) != 0 {
+		t.Fatalf("workflow = %s (%s), plan %+v", waiting.Workflow.Status, waiting.Workflow.Reason, waiting.Plan)
+	}
+	record := fakePiLog(t, flow.dir, "investigator")
+	if !strings.Contains(record.Prompt, "This task fixes one reported issue. Check it against the code and give it a verdict as issue 1") {
+		t.Fatalf("investigator prompt = %q", record.Prompt)
+	}
+	// Closing from the plan step needs no approval and no agents.
+	closed, err := flow.service.CloseChange(context.Background(), waiting.ID, changeIdentity(waiting))
+	if err != nil || closed.Deleted != waiting.ID || closed.DismissedIssues != 1 {
+		t.Fatalf("close = %+v, %v", closed, err)
+	}
+	if _, err := os.Stat(filepath.Join(flow.dir, "coder.log.json")); !os.IsNotExist(err) {
+		t.Fatalf("a coding agent ran: %v", err)
+	}
+}
+
+func TestAPlanWhoseIssueHoldsCannotBeClosedAndNeedsItsTouches(t *testing.T) {
+	steps := investigatorScript()
+	withIssue := map[string]any{}
+	for key, value := range steps[1].Arguments {
+		withIssue[key] = value
+	}
+	withIssue["issues"] = []map[string]any{{"issue": 1, "verdict": "holds"}}
+	// First without touches: a plan that changes code must name its files.
+	bare := map[string]any{}
+	for key, value := range withIssue {
+		bare[key] = value
+	}
+	delete(bare, "touches")
+	scripts := map[string][]fakePiStep{"investigator": {steps[0], {Tool: "plan", Arguments: bare}, {Tool: "plan", Arguments: withIssue}, {Text: "Planned."}}}
+	flow := startToolFlowScripts(t, scripts, nil, oneIssue, func(request *ChangeWorkflowRequest) { request.Plan = "on" })
+	waiting := flow.finished(t)
+	if waiting.Workflow.Status != "awaiting_plan_review" || waiting.Plan.IssueVerdicts[0].Verdict != "holds" {
+		t.Fatalf("workflow = %s (%s), plan %+v", waiting.Workflow.Status, waiting.Workflow.Reason, waiting.Plan)
+	}
+	record := fakePiLog(t, flow.dir, "investigator")
+	if len(record.Results) < 2 || !strings.Contains(record.Results[1], "touches: name each file the change edits or creates") {
+		t.Fatalf("investigator results = %+v", record.Results)
+	}
+	if _, err := flow.service.CloseChange(context.Background(), waiting.ID, changeIdentity(waiting)); !errors.Is(err, errNotNothingToFix) {
+		t.Fatalf("closed a task whose issue holds: %v", err)
+	}
+}
+
+func TestApprovingAPlanWithNothingToFixSpendsNoCodingRun(t *testing.T) {
+	flow := startToolFlowScripts(t, map[string][]fakePiStep{"investigator": noBugInvestigatorScript("already_fixed")}, nil, oneIssue, func(request *ChangeWorkflowRequest) { request.Plan = "on" })
+	waiting := flow.finished(t)
+	approved := flow.request
+	approved.ChangeIdentity, approved.Plan, approved.PlanHash = changeIdentity(waiting), "on", waiting.Plan.Hash
+	if _, err := flow.service.StartChangeWorkflow(context.Background(), flow.id, approved); err != nil {
+		t.Fatal(err)
+	}
+	finished := flow.finished(t)
+	if finished.Workflow.Status != "nothing_to_fix" || !strings.HasPrefix(finished.Workflow.Reason, "Nothing to fix: the code already fixes the issue. Add is integer addition") {
+		t.Fatalf("approved run = %s (%s)", finished.Workflow.Status, finished.Workflow.Reason)
+	}
+	if len(finished.DismissedTargets) != 1 || finished.DismissedTargets[0].ID != "finding:a" {
+		t.Fatalf("dismissed = %+v", finished.DismissedTargets)
+	}
+	if closed, err := flow.service.CloseChange(context.Background(), finished.ID, changeIdentity(finished)); err != nil || closed.DismissedIssues != 1 {
+		t.Fatalf("close = %+v, %v", closed, err)
+	}
+}
+
+func TestACoderThatFindsNothingToFixEndsTheRunWithItsReason(t *testing.T) {
+	coder := []fakePiStep{
+		{Tool: "finish", Arguments: map[string]any{"summary": "No change. Add is integer addition, nothing rounds."}},
+		{Tool: "finish", Arguments: map[string]any{"summary": "No change. Add is integer addition, nothing rounds.", "outcome": "does_not_hold"}},
+		{Text: "Nothing to change."},
+	}
+	flow := startToolFlowScripts(t, map[string][]fakePiStep{"coder": coder}, nil, oneIssue, nil)
+	finished := flow.finished(t)
+	if finished.Workflow.Status != "nothing_to_fix" || !strings.Contains(finished.Workflow.Reason, "the coding agent found the issue does not hold. No change. Add is integer addition") {
+		t.Fatalf("run = %s (%s)", finished.Workflow.Status, finished.Workflow.Reason)
+	}
+	record := fakePiLog(t, flow.dir, "coder")
+	if len(record.Results) != 2 || !strings.Contains(record.Results[0], "you changed nothing, so say how this issue ended") || !strings.HasPrefix(record.Results[1], "Recorded.") {
+		t.Fatalf("the finish that changed nothing was not asked how it ended: %q", record.Results)
+	}
+	if closed, err := flow.service.CloseChange(context.Background(), finished.ID, changeIdentity(finished)); err != nil || closed.DismissedIssues != 1 {
+		t.Fatalf("close = %+v, %v", closed, err)
 	}
 }
