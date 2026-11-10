@@ -28,10 +28,10 @@ every guard when the action arrives.
   no wider than `--measure` (68 characters).
 - Settings → **Appearance** chooses the theme and dark palette, the
   **Density** (Comfortable, the default, reads a step larger; Compact fits
-  more rows and lines), the **Font** (the system's own face or Inter, bundled
-  with the UI) and the diff layout. Density and font are applied as
-  `data-density` and `data-font` on the document, saved with the other
-  preferences and kept across reloads.
+  more rows and lines), the **Font** (Inter and JetBrains Mono, bundled with
+  the UI by default, or the system's own faces) and the diff layout. Density
+  and font are applied as `data-density` and `data-font` on the document,
+  saved with the other preferences and kept across reloads.
 
 ## Tasks
 
@@ -236,11 +236,14 @@ every guard when the action arrives.
   waits on someone (your review, or a paused stage waiting for a plan's reset)
   shows a yellow hourglass instead. **Stop agents** asks first and applies
   nothing.
-- **Code rules.** Under the brief, a Code rules card lists each task file with
+- **Code rules.** Under the brief, a Code rules card checks each task file with
   budgets from its `AGENTS.md` files: its lines against the file budget, what
   the proposal made go over (the complexity gate fails), what was already over
   and may not grow (tracked as a Maintainability issue), functions the parser
-  could not measure, and any rules block that was not applied. A file over its
+  could not measure, and any rules block that was not applied. When every file
+  is within budget and no rules block failed, the card folds to a single
+  summary line (**All N files within budget**); any violation, inherited debt
+  or unapplied rules block opens the card automatically. A file over its
   budget after Creation or Testing is split by a fix-up step; new sibling files
   join the scope as new files, and the Conversation says what moved and which
   functions changed while moving. Function complexity defaults to 15, so the

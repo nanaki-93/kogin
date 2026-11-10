@@ -8,6 +8,20 @@
   overflow: hidden;
 }
 
+/* Quiet status/foldable cards recede when everything passes so exceptions pop. */
+.card-quiet:has(> .card-fold:not([open])) {
+  background: transparent;
+  box-shadow: none;
+}
+
+.card-quiet > .card-fold:not([open]) > summary.card-head {
+  min-height: 36px;
+}
+
+.card-quiet > .card-fold:not([open]) > summary.card-head:hover {
+  background: var(--hover);
+}
+
 .card-head {
   display: flex;
   align-items: center;

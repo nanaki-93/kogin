@@ -5,48 +5,50 @@
 :root,
 :root[data-theme='dark'] {
   color-scheme: dark;
-  /* Chrome is the frame around the content panel (sidebar, gutters). */
-  --chrome: #120c24;
-  --bg: #160f2b;
-  --bg-sunken: #130d26;
-  --surface: #1b1433;
-  --surface-2: #221a3d;
-  --surface-3: #2a2148;
+  /* Chrome is the frame around the content panel (sidebar, gutters).
+     Default Kogin dark uses calm obsidian-slate surfaces with subtle indigo
+     depth so code and emerald/violet accents carry the eye without glare. */
+  --chrome: #0d0d13;
+  --bg: #12121a;
+  --bg-sunken: #0f0f16;
+  --surface: #171721;
+  --surface-2: #1d1d29;
+  --surface-3: #252534;
   --hover: rgba(255, 255, 255, 0.04);
   --active: rgba(255, 255, 255, 0.07);
-  --border: rgba(255, 255, 255, 0.075);
+  --border: rgba(255, 255, 255, 0.07);
   --border-strong: rgba(255, 255, 255, 0.13);
-  --text: #eeeaf8;
-  --text-2: #c9c2dd;
-  --muted: #a79fc2;
-  --faint: #9187b8;
+  --text: #f0eff7;
+  --text-2: #c4c3d4;
+  --muted: #9493a8;
+  --faint: #88879d;
   /* Emerald is for actions: primary buttons, what needs you, success. */
   --accent: #34d399;
   --accent-strong: #22c08a;
   --accent-soft: rgba(52, 211, 153, 0.14);
   --accent-text: #7fe5be;
-  --on-accent: #160f2b;
+  --on-accent: #091712;
   /* Violet is for navigation: the active page, selection and focus. */
   --nav-accent: #9b7bff;
-  --nav-accent-soft: rgba(155, 123, 255, 0.16);
+  --nav-accent-soft: rgba(155, 123, 255, 0.15);
   --nav-accent-text: #c4b2ff;
   /* The logo's threads keep the brand colors in every palette. */
   --brand-thread-across: #34d399;
   --brand-thread-down: #9b7bff;
   --success: #34d399;
-  --success-soft: rgba(52, 211, 153, 0.13);
+  --success-soft: rgba(52, 211, 153, 0.12);
   --warning: #e8b54d;
-  --warning-soft: rgba(232, 181, 77, 0.13);
+  --warning-soft: rgba(232, 181, 77, 0.12);
   --danger: #f2706b;
-  --danger-soft: rgba(242, 112, 107, 0.13);
+  --danger-soft: rgba(242, 112, 107, 0.12);
   --info: #5eaaff;
-  --info-soft: rgba(94, 170, 255, 0.13);
-  --diff-add: rgba(76, 195, 138, 0.1);
-  --diff-add-strong: rgba(76, 195, 138, 0.28);
-  --diff-del: rgba(242, 112, 107, 0.1);
-  --diff-del-strong: rgba(242, 112, 107, 0.28);
-  --diff-gutter-add: rgba(76, 195, 138, 0.15);
-  --diff-gutter-del: rgba(242, 112, 107, 0.15);
+  --info-soft: rgba(94, 170, 255, 0.12);
+  --diff-add: rgba(52, 211, 153, 0.085);
+  --diff-add-strong: rgba(52, 211, 153, 0.26);
+  --diff-del: rgba(242, 112, 107, 0.085);
+  --diff-del-strong: rgba(242, 112, 107, 0.26);
+  --diff-gutter-add: rgba(52, 211, 153, 0.14);
+  --diff-gutter-del: rgba(242, 112, 107, 0.14);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
   --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
@@ -272,10 +274,11 @@
 }
 
 :root {
-  /* The system's own faces: SF Pro and SF Mono on macOS, so the desktop app
-     reads like a Mac app; Segoe UI and Consolas on Windows. */
-  --font: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  /* Inter Variable + JetBrains Mono Variable are bundled with the UI by default;
+     Settings → Appearance → Font switches to the system's own faces. */
+  --font: 'Inter Variable', -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-feature-settings: 'cv11', 'ss01', 'calt';
   /* One scale for every text; nothing is smaller than --text-xs. The
      comfortable density, the default, reads a step larger than the compact
      one below; Settings → Appearance → Density switches. */
@@ -286,8 +289,9 @@
   --text-xl: 20px;
   --text-2xl: 25px;
   /* Code lines, file paths and other monospace text. */
-  --text-code: 13.5px;
-  --leading: 1.55;
+  --text-code: 13px;
+  --diff-line-height: 22px;
+  --leading: 1.58;
   /* The longest a line of prose runs: plans, notes, answers and docs. */
   --measure: 68ch;
   --radius-sm: 5px;
@@ -309,13 +313,21 @@ html[data-density='compact'] {
   --text-lg: 16px;
   --text-xl: 19px;
   --text-2xl: 24px;
-  --text-code: 12.5px;
-  --leading: 1.5;
+  --text-code: 12px;
+  --diff-line-height: 20px;
+  --leading: 1.52;
   --row: 28px;
 }
 
-/* Inter, bundled with the UI, instead of the system's face. */
+/* System faces (SF Pro + SF Mono on macOS; Segoe UI + Consolas on Windows). */
+html[data-font='system'] {
+  --font: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-feature-settings: normal;
+}
+
 html[data-font='inter'] {
   --font: 'Inter Variable', -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
   font-feature-settings: 'cv11', 'ss01', 'calt';
 }

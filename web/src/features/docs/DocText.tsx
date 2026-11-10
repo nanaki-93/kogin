@@ -23,7 +23,7 @@ export function DocRefsProvider({ docs, children }: { docs: ProjectDocs; childre
 }
 
 /** A long identifier in a sentence reads as a wall: keep its two ends, the whole name on hover. */
-export function shortName(name: string, max = 34): string {
+export function shortName(name: string, max = 48): string {
   if (name.length <= max || /\s/.test(name)) return name;
   const head = Math.ceil((max - 1) * 0.55);
   return `${name.slice(0, head)}…${name.slice(name.length - (max - 1 - head))}`;

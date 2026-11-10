@@ -76,8 +76,10 @@
 .reviewers {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
   margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
 }
 
 /* What the version changes for its users, accepted with it. */
@@ -86,14 +88,24 @@
   flex-direction: column;
   gap: 6px;
   padding: 8px 10px;
+  margin-bottom: 4px;
   border: 1px solid var(--border);
   border-left: 3px solid var(--warning);
   border-radius: 8px;
 }
 
 .reviewer {
+  border-radius: 6px;
+  background: transparent;
+  transition: background-color 120ms;
+}
+
+.reviewer:hover {
+  background: var(--hover);
+}
+
+.reviewer.is-open {
   border: 1px solid var(--border);
-  border-radius: 8px;
   background: var(--surface-2);
 }
 

@@ -443,7 +443,9 @@ describe('plan text', () => {
   });
 
   it('keeps both ends of a long name', () => {
-    expect(shortName('TestGetPwdObjAfterCheckMasterRejectsMismatchedMasterPassword')).toBe('TestGetPwdObjAfterC…MasterPassword');
+    expect(shortName('TestGetPwdObjAfterCheckMasterRejectsMismatchedMasterPassword')).toBe('TestGetPwdObjAfterCheckMas…matchedMasterPassword');
+    expect(shortName('TestGetPwdObjAfterCheckMasterRejectsMismatchedMasterPassword', 34)).toBe('TestGetPwdObjAfterC…MasterPassword');
+    expect(shortName('ChangeArchitectureAndComplexityChecks')).toBe('ChangeArchitectureAndComplexityChecks');
     expect(shortName('setUtilsReadPassword')).toBe('setUtilsReadPassword');
     expect(shortName('t.Cleanup(func() { utils.SetMasterKey(nil) })')).toBe('t.Cleanup(func() { utils.SetMasterKey(nil) })');
   });

@@ -171,10 +171,10 @@ modifier (`usePageKeys` and `useShortcuts` own those rules).
   token from the document and the guarded proposal identity; failures show the
   daemon's user message. In development the Vite proxy adds the token from the
   daemon's token file.
-- Type: the system font and its monospace (`--font`, `--mono`; SF Pro and SF
-  Mono on macOS) by default; Inter Variable is the one bundled face, used only
-  when `html[data-font='inter']` is set from Settings → Appearance. Every font
-  size comes from the scale in `tokens.css` (`--text-xs` 12 px up to
+- Type: Inter Variable and JetBrains Mono Variable (`--font`, `--mono`) are
+  bundled with the UI by default; `html[data-font='system']` from Settings →
+  Appearance switches both to the system's own faces (SF Pro and SF Mono on
+  macOS). Every font size comes from the scale in `tokens.css` (`--text-xs` 12 px up to
   `--text-2xl`, `--text-code` for code and paths), which `data-density`
   switches between comfortable (15 px body) and compact (14 px); no size is
   set by hand and nothing is smaller than `--text-xs`; a drawing with text

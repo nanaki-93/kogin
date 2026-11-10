@@ -49,15 +49,15 @@ test('Appearance sets the density and the font on the page, and they survive a r
   await page.goto('/#/settings/appearance');
   const html = page.locator('html');
   await expect(html).toHaveAttribute('data-density', 'comfortable');
-  await expect(html).toHaveAttribute('data-font', 'system');
-  await page.getByRole('radiogroup', { name: 'Density' }).getByRole('radio', { name: 'Compact' }).click();
-  await page.getByRole('radiogroup', { name: 'Font' }).getByRole('radio', { name: 'Inter' }).click();
-  await expect(html).toHaveAttribute('data-density', 'compact');
   await expect(html).toHaveAttribute('data-font', 'inter');
+  await page.getByRole('radiogroup', { name: 'Density' }).getByRole('radio', { name: 'Compact' }).click();
+  await page.getByRole('radiogroup', { name: 'Font' }).getByRole('radio', { name: 'System' }).click();
+  await expect(html).toHaveAttribute('data-density', 'compact');
+  await expect(html).toHaveAttribute('data-font', 'system');
   await expect(page.locator('body')).toHaveCSS('font-size', '14px');
   await page.reload();
   await expect(html).toHaveAttribute('data-density', 'compact');
-  await expect(html).toHaveAttribute('data-font', 'inter');
+  await expect(html).toHaveAttribute('data-font', 'system');
   await expect(page.getByRole('radiogroup', { name: 'Density' }).getByRole('radio', { name: 'Compact' })).toHaveAttribute('aria-checked', 'true');
 });
 
@@ -463,12 +463,25 @@ test('a task shows its files against the code rules, and a budget issue opens a 
     revision: 3,
     problems: [],
     files: [
-      { path: 'internal/api/handlers/webui.go', budgets: { file_lines: 800, function_complexity: 15 }, lines: 812, base_lines: 812, debt: [{ kind: 'file_lines', value: 812, base: 812, limit: 800 }], test: false, proposed: true, sources: ['AGENTS.md'] },
-      { path: 'internal/api/handlers/mime.go', budgets: { file_lines: 800, function_complexity: 15 }, lines: 40, over: [{ kind: 'function_complexity', function: 'mimeType', line: 3, value: 17, limit: 15 }], test: false, proposed: true, sources: ['AGENTS.md'] },
+      { path: 'internal/api/handlers/webui.go', budgets: { file_lines: 800, function_complexity: 15 }, lines: 120, test: false, proposed: true, sources: ['AGENTS.md'] },
+      { path: 'internal/api/handlers/mime.go', budgets: { file_lines: 800, function_complexity: 15 }, lines: 40, test: false, proposed: true, sources: ['AGENTS.md'] },
     ],
   }));
   await page.goto('/#/tasks/chg-1');
   const rules = page.getByRole('region', { name: 'Code rules' });
+  await expect(rules).toContainText('All 2 files within budget');
+  await expect(rules.locator('details')).not.toHaveAttribute('open', '');
+
+  daemon.serve('/api/projects/current/changes/chg-1/rules', () => ({
+    session_id: 'chg-1',
+    revision: 3,
+    problems: [],
+    files: [
+      { path: 'internal/api/handlers/webui.go', budgets: { file_lines: 800, function_complexity: 15 }, lines: 812, base_lines: 812, debt: [{ kind: 'file_lines', value: 812, base: 812, limit: 800 }], test: false, proposed: true, sources: ['AGENTS.md'] },
+      { path: 'internal/api/handlers/mime.go', budgets: { file_lines: 800, function_complexity: 15 }, lines: 40, over: [{ kind: 'function_complexity', function: 'mimeType', line: 3, value: 17, limit: 15 }], test: false, proposed: true, sources: ['AGENTS.md'] },
+    ],
+  }));
+  await page.reload();
   await expect(rules).toContainText('from AGENTS.md');
   await expect(rules).toContainText('812 / 800 lines');
   await expect(rules).toContainText('Already over');

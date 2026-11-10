@@ -371,6 +371,37 @@ function Reviewer({ reviewer, session }: { reviewer: SpecialistView; session: Lo
 function Conversation({ session }: { session: LoadedSession }) {
   const messages = (session.messages ?? []).filter(m => m.content?.trim());
   if (!messages.length) return null;
+  const hasUserMessages = messages.some(m => m.role === 'user');
+  const quiet = Boolean(session.workflow) && !hasUserMessages;
+  const list = (
+    <ol className="messages">
+      {messages.map((m, i) => (
+        <li key={i} className={cx('message', m.role === 'user' ? 'from-user' : 'from-agent')}>
+          <span className="message-avatar" aria-hidden>
+            {m.role === 'user' ? <User size={13} /> : <Bot size={13} />}
+          </span>
+          <div className="message-body">
+            <div className="xs muted">{m.role === 'user' ? 'You' : 'Agent'}</div>
+            <AgentMessage content={m.content} />
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+  if (quiet) {
+    return (
+      <section className="card card-quiet" aria-label="Conversation">
+        <details className="card-fold">
+          <summary className="card-head">
+            <MessageSquare size={15} aria-hidden />
+            <span className="strong">Agent notes</span>
+            <span className="xs faint">{plural(messages.length, 'note')}</span>
+          </summary>
+          {list}
+        </details>
+      </section>
+    );
+  }
   return (
     <section className="card" aria-label="Conversation">
       <div className="card-head">
@@ -378,19 +409,7 @@ function Conversation({ session }: { session: LoadedSession }) {
         <span className="strong">Conversation</span>
         <span className="xs faint">{messages.length}</span>
       </div>
-      <ol className="messages">
-        {messages.map((m, i) => (
-          <li key={i} className={cx('message', m.role === 'user' ? 'from-user' : 'from-agent')}>
-            <span className="message-avatar" aria-hidden>
-              {m.role === 'user' ? <User size={13} /> : <Bot size={13} />}
-            </span>
-            <div className="message-body">
-              <div className="xs muted">{m.role === 'user' ? 'You' : 'Agent'}</div>
-              <AgentMessage content={m.content} />
-            </div>
-          </li>
-        ))}
-      </ol>
+      {list}
     </section>
   );
 }

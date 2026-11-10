@@ -14,26 +14,31 @@ export function CodeRules({ session }: { session: LoadedSession }) {
   const files = (data?.files ?? []).filter(file => describeBudgets(file.budgets) || file.imports?.length);
   if (!data || (!files.length && !data.problems.length)) return null;
   const sources = unique(files.flatMap(file => file.sources ?? []));
+  const hasAttention = data.problems.length > 0 || files.some(file => Boolean(file.over?.length || file.debt?.length));
   return (
-    <section className="card" aria-label="Code rules">
-      <div className="card-head">
-        <Ruler size={15} aria-hidden />
-        <span className="strong">Code rules</span>
-        <span className="spacer" />
-        {sources.length ? <span className="xs faint">from {sources.join(', ')}</span> : null}
-      </div>
-      <div className="card-body stack">
-        {data.problems.map(problem => (
-          <Callout key={problem.path} tone="warning" icon={TriangleAlert} title={`The rules block in ${problem.path} is not applied`}>
-            {problem.message}
-          </Callout>
-        ))}
-        <ul className="rules-list">
-          {files.map(file => (
-            <RulesFile key={file.path} file={file} />
+    <section className={cx('card', !hasAttention && 'card-quiet')} aria-label="Code rules">
+      <details className="card-fold" open={hasAttention || undefined}>
+        <summary className="card-head">
+          <Ruler size={15} className={hasAttention ? undefined : 'tone-success'} aria-hidden />
+          <span className="strong">Code rules</span>
+          {!hasAttention && files.length ? (
+            <Badge tone="success">All {files.length === 1 ? '1 file' : `${files.length} files`} within budget</Badge>
+          ) : null}
+          {sources.length ? <span className="xs faint">from {sources.join(', ')}</span> : null}
+        </summary>
+        <div className="card-body stack">
+          {data.problems.map(problem => (
+            <Callout key={problem.path} tone="warning" icon={TriangleAlert} title={`The rules block in ${problem.path} is not applied`}>
+              {problem.message}
+            </Callout>
           ))}
-        </ul>
-      </div>
+          <ul className="rules-list">
+            {files.map(file => (
+              <RulesFile key={file.path} file={file} />
+            ))}
+          </ul>
+        </div>
+      </details>
     </section>
   );
 }

@@ -7,12 +7,12 @@ import type { DraftTask } from './actions';
 export type Theme = 'system' | 'dark' | 'light';
 /** How large the text runs: comfortable (15px body) or compact (14px, denser lists). */
 export type Density = 'comfortable' | 'compact';
-/** The typeface: the system's own face or Inter, bundled with the UI. */
-export type Font = 'system' | 'inter';
+/** The typeface: Inter + JetBrains Mono bundled with the UI, or the system's own faces. */
+export type Font = 'inter' | 'system';
 
 /** The colors of the dark theme; styles/tokens.css defines each one. */
 export const DARK_PALETTES = [
-  { id: 'kogin', label: 'Kogin', chrome: '#120c24', surface: '#1b1433', accent: '#34d399' },
+  { id: 'kogin', label: 'Kogin', chrome: '#0d0d13', surface: '#171721', accent: '#34d399' },
   { id: 'midnight', label: 'Midnight', chrome: '#0a0b0d', surface: '#15161a', accent: '#7f86ff' },
   { id: 'graphite', label: 'Graphite', chrome: '#111111', surface: '#1c1c1c', accent: '#e0e0e0' },
   { id: 'ocean', label: 'Ocean', chrome: '#071018', surface: '#0f1d29', accent: '#3fc1e8' },
@@ -79,7 +79,7 @@ let state: UIState = {
   theme: 'system',
   darkPalette: 'kogin',
   density: 'comfortable',
-  font: 'system',
+  font: 'inter',
   diffLayout: 'unified',
   reviewMode: 'hunks',
   wrapLines: false,
