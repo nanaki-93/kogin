@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Bot, CircleCheck, CornerDownLeft, FileText, Gavel, Hourglass, ListChecks, MessageSquare, Plus, ShieldAlert, Square, User } from 'lucide-react';
 import type { ChangeWorkflow, LoadedSession } from '@/api/types';
 import { useActions, useBusy, usePendingRevision } from '@/app/actions';
-import { behaviorChanges, openComments, proposalReadiness, workflowActive } from '@/lib/readiness';
+import { behaviorChanges, openComments, planAwaitsDecision, proposalReadiness, workflowActive } from '@/lib/readiness';
 import { activeOverride, issueStepState, pauseTitle, stageStatusLabel, workflowSpecialists, workflowStages, type SpecialistView, type StageView } from '@/lib/workflow';
 import { formatDuration, formatElapsed, plural, timeAgo } from '@/lib/util';
 import { costCaveat, costLabel, formatTokens, usageLabel } from '@/lib/usage';
@@ -23,12 +23,24 @@ import { RunAgents } from './RunAgents';
 import { ReviewItems } from './ReviewItems';
 import { LiveRun } from './LiveRun';
 
-export function TaskOverview({ session }: { session: LoadedSession }) {
+export function TaskOverview({ session, redirecting, onRedirectDone }: { session: LoadedSession; redirecting: boolean; onRedirectDone: () => void }) {
+  // A plan that waits for your decision is the whole page: the run's
+  // stages, the rules and the conversation come back once it is decided.
+  if (planAwaitsDecision(session)) {
+    return (
+      <div className="page-inner stack-lg">
+        <MainChanged session={session} />
+        <PlanReview session={session} redirecting={redirecting} onRedirectDone={onRedirectDone} />
+        <Brief session={session} />
+        <Investigated session={session} />
+      </div>
+    );
+  }
   return (
     <div className="page-inner stack-lg">
       <MainChanged session={session} />
       {workflowActive(session) && session.workflow ? <LiveRun session={session} /> : null}
-      <PlanReview session={session} />
+      <PlanReview session={session} redirecting={false} onRedirectDone={onRedirectDone} />
       <Brief session={session} />
       <CodeRules session={session} />
       {session.workflow ? <AgentRun session={session} /> : null}
@@ -38,9 +50,69 @@ export function TaskOverview({ session }: { session: LoadedSession }) {
   );
 }
 
+/** Who investigated, with what and for how long: one line under the plan it proposed. */
+function Investigated({ session }: { session: LoadedSession }) {
+  const stage = session.workflow ? workflowStages(session.workflow).find(entry => entry.name === 'plan') : undefined;
+  if (!stage) return null;
+  const lead = `${stage.model ? `Investigated by ${stage.model}` : 'Investigated'}${stage.durationMs ? ` in ${formatDuration(stage.durationMs)}` : ''}`;
+  const tools = (stage.tools ?? '').replace(/^Worked with tools:\s*/, '');
+  return <p className="xs faint plan-investigated">{[lead, tools].filter(Boolean).join(' · ')}</p>;
+}
+
 function Brief({ session }: { session: LoadedSession }) {
-  // A plan the investigation proposed has its own card above the brief.
-  const plan = session.plan?.source === 'investigator' ? undefined : session.plan;
+  // A plan the investigation proposed says what the task is; the brief it
+  // was investigated from folds under it.
+  const investigated = session.plan?.source === 'investigator';
+  const plan = investigated ? undefined : session.plan;
+  const criteria = session.acceptance_criteria ?? [];
+  const targets = session.targets ?? [];
+  const body = (
+    <div className="card-body stack">
+      {plan?.approach ? <p className="prose">{plan.approach}</p> : investigated ? null : <p className="muted small">No description. The agents work from the title, scope and criteria.</p>}
+      {plan?.assumptions?.length ? (
+        <div className="small">
+          <span className="muted">Assumptions: </span>
+          {plan.assumptions.join(' · ')}
+        </div>
+      ) : null}
+      {criteria.length ? (
+        <div>
+          <div className="label-row">
+            <ListChecks size={13} aria-hidden /> Done when
+          </div>
+          <ol className="criteria-read">
+            {criteria.map((c, i) => (
+              <li key={i}>{c}</li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+      <div>
+        <div className="label-row">Scope · files agents may change</div>
+        <div className="chips">
+          {targets.map(t => (
+            <button key={t.path} type="button" className="chip chip-file" onClick={() => navigate('/code', { file: t.path, wt: session.checkout.worktreePath || undefined })} title={`Open ${t.path}`}>
+              <FileIcon path={t.path} size={12} />
+              {t.path}
+              {!t.exists ? <span className="faint">new</span> : null}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+  if (investigated) {
+    return (
+      <details className="card card-fold" aria-label="Task brief">
+        <summary className="card-head">
+          <FileText size={15} aria-hidden />
+          <span className="strong">Brief</span>
+          <span className="xs muted">{[criteria.length ? `done when ${plural(criteria.length, 'criterion', 'criteria')}` : '', plural(targets.length, 'file')].filter(Boolean).join(' · ')}</span>
+        </summary>
+        {body}
+      </details>
+    );
+  }
   return (
     <section className="card" aria-label="Task brief">
       <div className="card-head">
@@ -49,39 +121,7 @@ function Brief({ session }: { session: LoadedSession }) {
         <span className="spacer" />
         <span className="xs faint">updated {timeAgo(session.updated_at)}</span>
       </div>
-      <div className="card-body stack">
-        {plan?.approach ? <p className="prose">{plan.approach}</p> : session.plan?.source === 'investigator' ? null : <p className="muted small">No description. The agents work from the title, scope and criteria.</p>}
-        {plan?.assumptions?.length ? (
-          <div className="small">
-            <span className="muted">Assumptions: </span>
-            {plan.assumptions.join(' · ')}
-          </div>
-        ) : null}
-        {session.acceptance_criteria?.length ? (
-          <div>
-            <div className="label-row">
-              <ListChecks size={13} aria-hidden /> Done when
-            </div>
-            <ol className="criteria-read">
-              {session.acceptance_criteria.map((c, i) => (
-                <li key={i}>{c}</li>
-              ))}
-            </ol>
-          </div>
-        ) : null}
-        <div>
-          <div className="label-row">Scope · files agents may change</div>
-          <div className="chips">
-            {(session.targets ?? []).map(t => (
-              <button key={t.path} type="button" className="chip chip-file" onClick={() => navigate('/code', { file: t.path, wt: session.checkout.worktreePath || undefined })} title={`Open ${t.path}`}>
-                <FileIcon path={t.path} size={12} />
-                {t.path}
-                {!t.exists ? <span className="faint">new</span> : null}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {body}
     </section>
   );
 }

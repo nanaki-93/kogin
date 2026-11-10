@@ -1,7 +1,7 @@
 // One task, laid out like a pull request: header with the next action, tabs
 // for the conversation, files changed and checks, and a review-gate rail.
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import {
   ArrowLeft, Archive, CheckCircle2, Circle, FileDiff, FlaskConical, GitBranch, GitMerge, MessageSquare, ShieldCheck, Square, ThumbsDown, Trash2,
@@ -24,13 +24,14 @@ import { RunAgents } from './RunAgents';
 import { CloseTask } from './CloseTask';
 import { TaskOverview } from './TaskOverview';
 import { AcceptTask } from './AcceptTask';
-import { ApprovePlan } from './PlanReview';
+import { ApprovePlan, RedirectPlanButton } from './PlanReview';
 import { ApprovalNotes, OverrideReview } from './ReviewDecision';
 
 export function TaskPage({ id, tab }: { id: string; tab: string }) {
   const route = useRoute();
   const worktreePath = route.params.get('wt') ?? '';
   const { data: session, isLoading, error } = useSession(id, worktreePath, false);
+  const [redirecting, setRedirecting] = useState(false);
 
   if (isLoading) return <div className="page-scroll"><div className="page-inner"><Skeleton lines={8} /></div></div>;
   if (error || !session) {
@@ -43,10 +44,12 @@ export function TaskPage({ id, tab }: { id: string; tab: string }) {
   const edits = effectiveEdits(session);
   const checks = checkSummary(session.checks, session.checks_outdated);
   const current = tab === 'files' || tab === 'checks' ? tab : 'overview';
+  // A plan waiting for a decision is the page: no gate rail beside it.
+  const deciding = planAwaitsDecision(session);
 
   return (
     <div className="task-page">
-      <TaskHeader session={session} />
+      <TaskHeader session={session} onRedirect={() => { setRedirecting(true); if (current !== 'overview') navigate(`/tasks/${id}`); }} redirecting={redirecting} />
       <Tabs.Root className="task-tabs" value={current} onValueChange={value => navigate(`/tasks/${id}${value === 'overview' ? '' : '/' + value}`, { file: route.params.get('file') ?? undefined })}>
         <Tabs.List className="tabs" aria-label="Task sections">
           <Tabs.Trigger value="overview" className="tab">
@@ -62,7 +65,7 @@ export function TaskPage({ id, tab }: { id: string; tab: string }) {
         <div className="task-body">
           <div className="task-main">
             <Tabs.Content value="overview" className="tab-panel">
-              <TaskOverview session={session} />
+              <TaskOverview session={session} redirecting={redirecting} onRedirectDone={() => setRedirecting(false)} />
             </Tabs.Content>
             <Tabs.Content value="files" className="tab-panel tab-panel-fill">
               <FilesChanged session={session} />
@@ -71,14 +74,14 @@ export function TaskPage({ id, tab }: { id: string; tab: string }) {
               <ChecksPanel session={session} />
             </Tabs.Content>
           </div>
-          {current !== 'files' ? <ReviewRail session={session} /> : null}
+          {current !== 'files' && !deciding ? <ReviewRail session={session} /> : null}
         </div>
       </Tabs.Root>
     </div>
   );
 }
 
-function TaskHeader({ session }: { session: LoadedSession }) {
+function TaskHeader({ session, onRedirect, redirecting }: { session: LoadedSession; onRedirect: () => void; redirecting: boolean }) {
   const branch = session.git?.branch || (session.checkout.worktreePath ? basename(session.checkout.worktreePath) : '');
   return (
     <header className="task-header">
@@ -96,6 +99,7 @@ function TaskHeader({ session }: { session: LoadedSession }) {
           {session.updated_at ? <span className="xs faint">updated {timeAgo(session.updated_at)}</span> : null}
         </div>
       </div>
+      {planAwaitsDecision(session) && !workflowActive(session) ? <RedirectPlanButton session={session} onClick={onRedirect} disabled={redirecting} /> : null}
       <PrimaryAction session={session} />
       {offersRunBesidePrimary(session) ? <RunAgents session={session} /> : null}
       <DeleteTask session={session} />
@@ -187,8 +191,8 @@ function ReviewRail({ session }: { session: LoadedSession }) {
   const reviewers = overridden ? 'Overridden by you' : verdict === 'approve' ? 'Approved' : verdict === 'changes_requested' ? 'Changes requested' : verdict === 'pending' ? 'Pending' : workflow ? 'Run after the agents' : (session.changes ?? []).length ? 'Not part of a manual proposal' : 'Run after the agents';
   // A plan the investigation proposed comes first; the agents run from it.
   const plan = session.plan?.source === 'investigator' ? session.plan : undefined;
-  const planDetail = planAwaitsDecision(session) ? (planFindsNothingToFix(session) ? 'Found nothing to fix' : 'Needs your approval') : plan?.approved_hash && plan.approved_hash === plan.hash ? 'Approved' : investigating(session) ? 'Investigating…' : plan ? 'Superseded' : 'Investigating…';
-  const agentsDetail = planAwaitsDecision(session) ? (planFindsNothingToFix(session) ? 'Not needed' : 'After you approve the plan') : agentRunLabel(workflow, Boolean((session.changes ?? []).length));
+  const planDetail = planAwaitsDecision(session) ? 'Needs your approval' : plan?.approved_hash && plan.approved_hash === plan.hash ? 'Approved' : investigating(session) ? 'Investigating…' : plan ? 'Superseded' : 'Investigating…';
+  const agentsDetail = planAwaitsDecision(session) ? 'After you approve the plan' : agentRunLabel(workflow, Boolean((session.changes ?? []).length));
   const steps: { label: string; done: boolean; active: boolean; detail: ReactNode; onClick?: () => void }[] = [
     ...(plan || investigating(session) ? [{ label: 'Plan', done: Boolean(plan?.approved_hash) && plan?.approved_hash === plan?.hash, active: ready.step === 'plan' || investigating(session), detail: planDetail }] : []),
     { label: 'Agents finished', done: agentsFinished(session), active: ready.step === 'agents' || ready.step === 'generate', detail: agentsDetail },

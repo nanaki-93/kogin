@@ -21,6 +21,9 @@ type ChangePlanInput struct {
 	ReadPaths   []string       `json:"read_paths,omitempty"`
 	Citations   []PlanEvidence `json:"citations,omitempty"`
 	Assumptions []string       `json:"assumptions,omitempty"`
+	// Claim is the problem in one plain sentence for someone who has not
+	// read the code: no identifiers, files or line numbers.
+	Claim string `json:"claim,omitempty"`
 	// RootCause is why the problem happens, naming the code; the citations
 	// are the lines that show it.
 	RootCause string `json:"root_cause,omitempty"`
@@ -138,7 +141,7 @@ func validateChangePlanInput(input ChangePlanInput) error {
 			return fmt.Errorf("invalid plan assumption")
 		}
 	}
-	for _, value := range append([]string{input.Problem, input.Evidence, input.Approach, input.RootCause}, input.NonGoals...) {
+	for _, value := range append([]string{input.Problem, input.Evidence, input.Approach, input.RootCause, input.Claim}, input.NonGoals...) {
 		if len(value) > 8192 || !utf8.ValidString(value) || strings.ContainsRune(value, 0) {
 			return fmt.Errorf("plan text must be UTF-8 without NUL and at most 8192 bytes per field")
 		}

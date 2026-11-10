@@ -644,11 +644,12 @@ test('a plan that finds nothing to fix offers to dismiss the issue instead of ru
   const header = page.locator('header.task-header');
   await expect(header.getByRole('button', { name: 'Dismiss the issue' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Approve & run agents|Start agents|Investigate & plan/ })).toHaveCount(0);
-  await expect(page.getByRole('complementary', { name: 'Review gate' }).getByText('Found nothing to fix', { exact: true })).toBeVisible();
-  await plan.getByRole('button', { name: 'I think it’s real…' }).click();
+  await expect(page.getByRole('complementary', { name: 'Review gate' })).toHaveCount(0);
+  await expect(plan.getByText('Approach')).toHaveCount(0);
+  await header.getByRole('button', { name: 'I think it’s real…' }).click();
   await expect(plan.getByPlaceholder('Why do you think the issue is real? The investigation runs again with this note.')).toBeVisible();
   await plan.getByRole('button', { name: 'Cancel' }).click();
-  await plan.getByRole('button', { name: 'Dismiss the issue' }).click();
+  await header.getByRole('button', { name: 'Dismiss the issue' }).click();
   const dialog = page.getByRole('alertdialog');
   await expect(dialog.getByText('Global master key left set')).toBeVisible();
   await dialog.getByRole('button', { name: 'Dismiss the issue' }).click();
@@ -691,29 +692,43 @@ test('an investigated plan waits for approval, and approving it starts the agent
   await page.goto('/#/tasks/chg-1');
   const plan = page.getByRole('region', { name: 'Proposed plan' });
   await expect(plan.getByText('Needs your decision')).toBeVisible();
-  // Problem and approach read at a glance; the reasoning folds behind "Why this plan".
-  await expect(plan.getByText('Nested asset paths reach the embedded read and return 500 instead of 404.')).toBeVisible();
+  // The plan reads as one decision: the claim in plain words, the cited lines
+  // as code with the step that changes them, then the approach.
+  await expect(plan.getByText('Asking for an asset inside a folder fails with a server error instead of "not found".')).toBeVisible();
+  const cited = plan.getByRole('figure');
+  await expect(cited).toHaveCount(1);
+  await expect(cited.getByRole('button', { name: 'webui.go:41–42' })).toBeVisible();
+  await expect(cited).toContainText('The name is trimmed but never checked for a slash.');
+  await expect(cited).toContainText('Step 1 changes these lines');
+  await expect(cited.locator('.plan-code-line')).toHaveCount(2);
+  await expect(cited.locator('.plan-code-line').first()).toContainText('41');
+  await expect(cited.locator('.plan-code-line').first()).toContainText('name := trim(r)');
+  await expect(plan.getByRole('listitem').filter({ hasText: 'Reject names with a slash or a parent segment before reading the embedded files.' })).toBeVisible();
+  // The reasoning folds behind "Why this plan": the problem in the code's terms, the root cause, the citation without lines, alternatives, risks and files.
   await expect(plan.getByText('ServeAsset trims the name but never rejects a slash, so fs.ReadFile gets a nested path and fails.')).toBeHidden();
   await plan.getByText('Why this plan').click();
-  await expect(plan.getByText('ServeAsset trims the name but never rejects a slash, so fs.ReadFile gets a nested path and fails.')).toBeVisible();
-  await expect(plan.getByRole('button', { name: 'webui.go:41–42' })).toBeVisible();
-  await expect(plan.getByText('— The bundle has no nested files; allowing them widens what the handler serves.')).toBeVisible();
+  await expect(plan.getByText('Nested asset paths reach the embedded read and return 500 instead of 404.')).toBeVisible();
+  await expect(plan.getByText('trims the name but never rejects a slash', { exact: false })).toBeVisible();
+  await expect(plan.getByRole('button', { name: 'mime.go:3' })).toBeVisible();
+  await expect(plan.getByText('The bundle has no nested files; allowing them widens what the handler serves.', { exact: false })).toBeVisible();
   await expect(plan.getByText('A client that relied on the 500 now sees 404.')).toBeVisible();
-  // The investigation is its own timeline entry, with its model and tool calls.
-  const run = page.getByRole('region', { name: 'Agent run' });
-  await expect(run.getByText('Investigate & plan')).toBeVisible();
-  await expect(run.getByText('Worked with tools: 9 calls in 11 turns (read_file 5, search 3, plan 1)')).toBeVisible();
-  await expect(page.locator('header.task-header').getByText('Plan ready')).toBeVisible();
-  // The page is about the decision: the header's next step approves the plan,
-  // the review gate puts the plan first, and nothing offers to generate code.
-  const header = page.locator('header.task-header');
-  await expect(header.getByRole('button', { name: 'Approve & run agents' })).toBeVisible();
-  await expect(header.getByRole('button', { name: /Start agents|Investigate & plan/ })).toHaveCount(0);
-  const gate = page.getByRole('complementary', { name: 'Review gate' });
-  await expect(gate.getByText('Needs your approval')).toBeVisible();
-  await expect(gate.getByText('After you approve the plan')).toBeVisible();
-  await expect(gate).toContainText('The investigation proposed a plan. Approve it to start the agents, or redirect it with a note.');
+  await expect(plan.getByRole('list', { name: 'Files it changes' })).toContainText('A table test for nested and missing names.');
+  // The decision is the page: no run timeline, no gate rail, no revision
+  // box; the brief folds, and one line says who investigated.
+  await expect(page.getByRole('region', { name: 'Agent run' })).toHaveCount(0);
+  await expect(page.getByRole('complementary', { name: 'Review gate' })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Ask for a revision' })).toHaveCount(0);
+  await expect(page.getByText('Investigated by qwen3-coder', { exact: false })).toContainText('9 calls in 11 turns (read_file 5, search 3, plan 1)');
+  const brief = page.getByRole('group', { name: 'Task brief' });
+  await expect(brief.getByText('Nested asset paths return 404')).toBeHidden();
+  await brief.getByText('Brief').click();
+  await expect(brief.getByText('Nested asset paths return 404')).toBeVisible();
+  // The header holds both decisions, once; nothing offers to generate code.
+  const header = page.locator('header.task-header');
+  await expect(header.getByText('Plan ready')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Approve & run agents' })).toHaveCount(1);
+  await expect(header.getByRole('button', { name: 'Redirect…' })).toBeVisible();
+  await expect(header.getByRole('button', { name: /Start agents|Investigate & plan/ })).toHaveCount(0);
 
   await header.getByRole('button', { name: 'Approve & run agents' }).click();
   const dialog = page.getByRole('alertdialog');
@@ -722,15 +737,28 @@ test('an investigated plan waits for approval, and approving it starts the agent
   await dialog.getByRole('button', { name: 'Approve & run agents' }).click();
   await expect(page.locator('header.task-header').getByRole('button', { name: 'Stop agents' })).toBeVisible();
   expect(daemon.mutations('/workflow')[0].body).toMatchObject({ plan_hash: 'plan-hash-1' });
-  // The approved run keeps the investigation on its timeline.
-  await expect(run.getByText('Investigate & plan')).toBeVisible();
+  // The approved run shows its stages again, the investigation first, and the gate with the plan approved.
+  await expect(page.getByRole('region', { name: 'Agent run' }).getByText('Investigate & plan')).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Review gate' }).getByText('Approved')).toBeVisible();
+});
+
+test('a plan captured before claims and excerpts still reads', async ({ page, daemon }) => {
+  const task = planReadyTask();
+  daemon.sessions.set('chg-1', { ...task, plan: { ...task.plan!, claim: undefined, approach: 'Reject names with a slash before the read.', citations: [{ path: 'internal/api/handlers/webui.go', start_line: 41, end_line: 42, quote: 'name := trim(r)', observation: 'The name is trimmed but never checked for a slash.' }] } });
+  await page.goto('/#/tasks/chg-1');
+  const plan = page.getByRole('region', { name: 'Proposed plan' });
+  await expect(plan.getByText('Nested asset paths reach the embedded read and return 500 instead of 404.')).toBeVisible();
+  await expect(plan.getByText('Reject names with a slash before the read.')).toBeVisible();
+  await expect(plan.getByRole('figure')).toHaveCount(0);
+  await plan.getByText('Why this plan').click();
+  await expect(plan.getByRole('button', { name: 'webui.go:41–42' })).toBeVisible();
 });
 
 test('redirecting the plan runs the investigation again with the note', async ({ page, daemon }) => {
   daemon.sessions.set('chg-1', planReadyTask());
   await page.goto('/#/tasks/chg-1');
   const plan = page.getByRole('region', { name: 'Proposed plan' });
-  await plan.getByRole('button', { name: 'Redirect…' }).click();
+  await page.locator('header.task-header').getByRole('button', { name: 'Redirect…' }).click();
   await plan.getByLabel('Redirect note').fill('Keep the 500 for nested paths; only missing assets become 404.');
   await plan.getByRole('button', { name: 'Re-investigate' }).click();
   const dialog = page.getByRole('alertdialog');

@@ -17,10 +17,11 @@ func investigatorScript() []fakePiStep {
 	return []fakePiStep{
 		{Tool: "read_file", Arguments: map[string]any{"path": "calc.go"}},
 		{Tool: "plan", Arguments: map[string]any{
+			"claim":        "The calculator can add but cannot subtract.",
 			"problem":      "calc.go has Add but no Sub, so callers cannot subtract.",
 			"root_cause":   "The package only defines Add; nothing defines Sub.",
 			"approach":     "Add Sub(a, b) beside Add, returning a - b, with a table test.",
-			"citations":    []map[string]any{{"path": "calc.go", "start_line": 4, "end_line": 4, "quote": "func Add(a, b int) int { return a + b }", "observation": "Add exists; Sub does not."}},
+			"citations":    []map[string]any{{"path": "calc.go", "start_line": 4, "end_line": 4, "quote": "func Add(a, b int) int { return a + b }", "observation": "Add exists; Sub does not.", "step": 1, "effect": "changed"}},
 			"alternatives": []map[string]any{{"approach": "Negate b and reuse Add.", "why_not": "An indirection with no gain over a - b."}},
 			"risks":        []any{"None: the change only adds a function."},
 			"touches":      []map[string]any{{"path": "calc.go", "why": "Define Sub beside Add."}},
@@ -71,13 +72,17 @@ func TestThePlanGateInvestigatesAndWaitsForTheHumansApproval(t *testing.T) {
 	if len(plan.Alternatives) != 1 || plan.Alternatives[0].WhyNot == "" || len(plan.Touches) != 1 {
 		t.Fatalf("plan detail = %+v", plan)
 	}
+	// The plan reads as a claim in plain words and the cited line as code, pinned to its step.
+	if cited := plan.Citations[0]; plan.Claim != "The calculator can add but cannot subtract." || cited.Excerpt != "func Add(a, b int) int { return a + b }" || cited.ExcerptLine != 4 || cited.Step != 1 || cited.Effect != "changed" {
+		t.Fatalf("claim %q, citation %+v", plan.Claim, cited)
+	}
 	record := fakePiLog(t, flow.dir, "investigator")
 	if !strings.Contains(record.Prompt, "Task (feature): Add Sub") || !strings.Contains(record.Prompt, "1. Sub returns a minus b.") {
 		t.Fatalf("investigator prompt = %q", record.Prompt)
 	}
 	var reported bool
 	for _, message := range waiting.Messages {
-		reported = reported || strings.Contains(message.Content, "Proposed a plan: calc.go has Add but no Sub")
+		reported = reported || strings.Contains(message.Content, "Proposed a plan: The calculator can add but cannot subtract.")
 	}
 	if !reported {
 		t.Fatalf("messages = %+v", waiting.Messages)
@@ -348,5 +353,37 @@ func TestACoderThatFindsNothingToFixEndsTheRunWithItsReason(t *testing.T) {
 	}
 	if closed, err := flow.service.CloseChange(context.Background(), finished.ID, changeIdentity(finished)); err != nil || closed.DismissedIssues != 1 {
 		t.Fatalf("close = %+v, %v", closed, err)
+	}
+}
+
+func TestAPlanExcerptIsTheFilesOwnLinesWithinTheCitation(t *testing.T) {
+	lines := strings.Split("a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl", "\n")
+	if excerpt, from := planExcerpt(lines, 2, 4, "c"); excerpt != "b\nc\nd" || from != 2 {
+		t.Fatalf("short citation = %q from %d", excerpt, from)
+	}
+	// A long citation shows the lines its quote starts on.
+	if excerpt, from := planExcerpt(lines, 1, 12, "d\ne"); from != 4 || excerpt != "d\ne\nf\ng\nh\ni\nj\nk" {
+		t.Fatalf("long citation = %q from %d", excerpt, from)
+	}
+	if excerpt, from := planExcerpt([]string{strings.Repeat("x", maxPlanExcerptBytes+1)}, 1, 1, "x"); excerpt != "" || from != 0 {
+		t.Fatalf("an over-long line was kept: %d bytes from %d", len(excerpt), from)
+	}
+	source := strings.Join(lines, "\n") + "\n"
+	citation := PlanEvidence{Path: "a.txt", Hash: contentHash([]byte(source)), StartLine: 2, EndLine: 4, Quote: "c", Observation: "The middle.", Step: 1, Effect: planEffectRemoved, Excerpt: "b\nc\nd", ExcerptLine: 2}
+	if err := validatePlanCitation(citation, source); err != nil {
+		t.Fatal(err)
+	}
+	for name, change := range map[string]func(*PlanEvidence){
+		"an excerpt that is not the source":  func(c *PlanEvidence) { c.Excerpt = "b\nX\nd" },
+		"an excerpt outside the cited lines": func(c *PlanEvidence) { c.ExcerptLine = 1 },
+		"an effect without a step":           func(c *PlanEvidence) { c.Step = 0 },
+		"an unknown effect":                  func(c *PlanEvidence) { c.Effect = "moved" },
+		"a step the approach cannot have":    func(c *PlanEvidence) { c.Step = maxPlanSteps + 1 },
+	} {
+		changed := citation
+		change(&changed)
+		if err := validatePlanCitation(changed, source); err == nil {
+			t.Fatalf("accepted %s", name)
+		}
 	}
 }

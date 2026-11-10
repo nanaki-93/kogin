@@ -12,6 +12,8 @@ import { applyEvent, finishedRun, parseFrames } from '@/api/events';
 import { QueryClient } from '@tanstack/react-query';
 import { costCaveat, costLabel, formatTokens, usageLabel } from './usage';
 import { issueSteps } from './issues';
+import { approachSteps, dedent } from '@/features/tasks/PlanReview';
+import { shortName } from '@/features/docs/DocText';
 import { closeDismissals, closeLabel, planFindsNothingToFix } from './readiness';
 import { ApiError, createApi, documentWriteToken, errorMessage, query, withWorktree } from '@/api/client';
 
@@ -423,5 +425,24 @@ describe('a plan that finds nothing to fix', () => {
     expect(closeLabel(0)).toBe('Close task');
     expect(closeLabel(1)).toBe('Dismiss the issue');
     expect(closeLabel(3)).toBe('Dismiss 3 issues');
+  });
+});
+
+describe('plan text', () => {
+  it('starts a nested excerpt at the margin and keeps its shape', () => {
+    expect(dedent('\t\tif x {\n\t\t\treturn\n\n\t\t}')).toBe('if x {\n\treturn\n\n}');
+    expect(dedent('a\n  b')).toBe('a\n  b');
+    expect(dedent('')).toBe('');
+  });
+
+  it('reads the approach as steps without their numbers', () => {
+    expect(approachSteps('1. Delete the guard.\n\n2) Stub the reader.\n  ')).toEqual(['Delete the guard.', 'Stub the reader.']);
+    expect(approachSteps('Reject nested names.')).toEqual(['Reject nested names.']);
+  });
+
+  it('keeps both ends of a long name', () => {
+    expect(shortName('TestGetPwdObjAfterCheckMasterRejectsMismatchedMasterPassword')).toBe('TestGetPwdObjAfterC…MasterPassword');
+    expect(shortName('setUtilsReadPassword')).toBe('setUtilsReadPassword');
+    expect(shortName('t.Cleanup(func() { utils.SetMasterKey(nil) })')).toBe('t.Cleanup(func() { utils.SetMasterKey(nil) })');
   });
 });

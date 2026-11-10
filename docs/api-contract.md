@@ -962,13 +962,19 @@ approval. Empty fields preserve existing plan hashes.
 Legacy API conversations and schema-1 history without `plan` retain their direct
 message flow. Planned sessions reject generation without current approval.
 
-A plan can also carry investigation fields: `root_cause` (at most 8192 bytes),
+A plan can also carry investigation fields: `claim` (the problem in one plain
+sentence without identifiers, at most 8192 bytes), `root_cause` (at most 8192 bytes),
 `alternatives` (at most 4, each `approach` and `why_not` of at most 512 bytes),
 `risks` (at most 6 of 512 bytes), `touches` (files the change is expected to
 edit or create, each `path` and `why`) and, for a task that links issues,
 `issue_verdicts` (one per linked issue: `holds`, `already_fixed`,
 `does_not_hold` or `needs_own_task`, with a `note` required for anything but
-`holds`). A task fixing several issues one at a time gets a verdict for each;
+`holds`). A citation may also carry `step` (1 to 3: the approach step that
+changes the cited lines) with `effect` (`removed` or `changed`; an effect needs
+a step), and `excerpt` with `excerpt_line`: at most 8 of the cited lines as
+the captured source holds them, starting at that line, at most 1600 bytes; a
+stored excerpt that is not the source's own lines within the citation is
+rejected like a quote that does not match. A task fixing several issues one at a time gets a verdict for each;
 a task that links exactly one issue may get one (never `needs_own_task`), and
 none means it holds. All are optional and empty ones preserve existing plan
 hashes. An investigator plan names its `touches` unless its verdicts say no
@@ -982,7 +988,11 @@ creation model reads the task's worktree through the read-only task tools and
 ends with a `plan` call whose citations are checked against the files (quote
 in the cited lines) at call time. Cited files outside the task's targets
 become the plan's `read_paths` (at most 8), so the citations stay verifiable.
+The investigator must give a `claim`, and its citations get their excerpt at
+call time: the whole range when it is at most 8 lines, else the 8 lines from
+where the quote starts (none when those lines exceed 1600 bytes).
 The investigator's prose is clipped to word budgets before it is stored: the
+claim to 160 characters (≈ 20 words), the
 problem to 200 characters (≈ 25 words), the root cause to 300, the approach
 to its first three non-empty lines and 400 characters, each alternative's
 approach and why_not and each risk to 120, each citation's observation to

@@ -22,7 +22,14 @@ export function DocRefsProvider({ docs, children }: { docs: ProjectDocs; childre
   return <RefsContext.Provider value={refs}>{children}</RefsContext.Provider>;
 }
 
-export function DocText({ text }: { text: string }) {
+/** A long identifier in a sentence reads as a wall: keep its two ends, the whole name on hover. */
+export function shortName(name: string, max = 34): string {
+  if (name.length <= max || /\s/.test(name)) return name;
+  const head = Math.ceil((max - 1) * 0.55);
+  return `${name.slice(0, head)}…${name.slice(name.length - (max - 1 - head))}`;
+}
+
+export function DocText({ text, shorten }: { text: string; shorten?: boolean }) {
   const refs = useContext(RefsContext);
   const parts = useMemo(() => docTextParts(text, refs), [text, refs]);
   return (
@@ -32,7 +39,7 @@ export function DocText({ text }: { text: string }) {
           case 'text':
             return <span key={index}>{part.text}</span>;
           case 'code':
-            return <code key={index} className="doc-code">{part.text}</code>;
+            return <code key={index} className="doc-code" title={shorten && shortName(part.text) !== part.text ? part.text : undefined}>{shorten ? shortName(part.text) : part.text}</code>;
           case 'component':
             return <button key={index} type="button" className="link-btn doc-ref mono" onClick={() => navigate('/docs/components', { path: part.path })} title={`Open the ${part.path} component`}>{part.text}</button>;
           default:

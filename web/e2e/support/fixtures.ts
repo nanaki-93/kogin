@@ -107,10 +107,14 @@ export function planReadyTask(): ChangeSession {
     file_review_hash: undefined,
     messages: [{ role: 'assistant', content: 'Proposed a plan: Nested asset paths reach the embedded read and return 500.\n\nTools: 9 calls (read_file 5, search 3, plan 1) in 11 model turns.' }],
     plan: {
+      claim: 'Asking for an asset inside a folder fails with a server error instead of "not found".',
       problem: 'Nested asset paths reach the embedded read and return 500 instead of 404.',
       root_cause: 'ServeAsset trims the name but never rejects a slash, so fs.ReadFile gets a nested path and fails.',
-      approach: 'Reject names with a slash or a parent segment before reading the embedded files, and return 404.',
-      citations: [{ path: 'internal/api/handlers/webui.go', start_line: 41, end_line: 42, quote: 'name := trim(r)', observation: 'The name is trimmed but never checked for a slash.' }],
+      approach: '1. Reject names with a slash or a parent segment before reading the embedded files.\n2. Return 404 for them, with a table test.',
+      citations: [
+        { path: 'internal/api/handlers/webui.go', start_line: 41, end_line: 42, quote: 'name := trim(r)', observation: 'The name is trimmed but never checked for a slash.', step: 1, effect: 'changed', excerpt: 'name := trim(r)\nif name == "" {', excerpt_line: 41 },
+        { path: 'internal/api/handlers/mime.go', start_line: 3, end_line: 3, quote: 'func contentType', observation: 'Content types are looked up after the read.' },
+      ],
       alternatives: [{ approach: 'Clean the path and allow nested assets.', why_not: 'The bundle has no nested files; allowing them widens what the handler serves.' }],
       risks: ['A client that relied on the 500 now sees 404.'],
       touches: [

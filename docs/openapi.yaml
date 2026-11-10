@@ -2544,6 +2544,10 @@ components:
         end_line: {type: integer, minimum: 1}
         quote: {type: string, minLength: 1, maxLength: 1024}
         observation: {type: string, minLength: 1, maxLength: 512, description: Model interpretation; validated source provenance does not verify the interpretation.}
+        step: {type: integer, minimum: 1, maximum: 3, description: The approach step that changes the cited lines.}
+        effect: {type: string, enum: [removed, changed], description: What that step does to the cited lines; needs step.}
+        excerpt: {type: string, maxLength: 1600, description: At most 8 of the cited lines as the captured source holds them.}
+        excerpt_line: {type: integer, minimum: 1, description: The line the excerpt starts at, within the cited range.}
     ChangePlanInput:
       type: object
       required: [problem, approach]
@@ -2555,6 +2559,7 @@ components:
         read_paths: {type: array, maxItems: 8, uniqueItems: true, items: {type: string}, description: Existing context paths distinct from write targets; policy and size limits apply.}
         citations: {type: array, maxItems: 8, items: {$ref: '#/components/schemas/PlanEvidence'}}
         assumptions: {type: array, maxItems: 8, items: {type: string, minLength: 1, maxLength: 512}}
+        claim: {type: string, maxLength: 8192, description: The problem in one plain sentence without identifiers; an investigator plan always has one.}
         root_cause: {type: string, maxLength: 8192, description: Why the problem happens, naming the code; the citations show it.}
         alternatives:
           type: array

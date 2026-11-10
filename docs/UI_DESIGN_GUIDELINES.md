@@ -177,10 +177,18 @@ modifier (`usePageKeys` and `useShortcuts` own those rules).
   set by hand, nothing is smaller than `--text-xs`, and only a label inside
   a fixed-size drawing (the component graph) pins a pixel size. Prose — plans,
   notes, answers, docs — runs no wider than `--measure` (68ch); labels over a
-  block are quiet (`.label-row`: muted, weight 500, tracked) so the content
-  below them is what the eye lands on.
+  block are quiet (`.label-row`: muted, sentence case, never uppercase) so the
+  content below them is what the eye lands on, and a card states a fact once:
+  what the header or another card on the page already says is not repeated.
   `--faint` text keeps at least 4.5:1 on its palette's background.
-- Text budgets: the daemon clips model prose at the source (a plan's problem
+- Code before prose: where model text is about lines of code, the lines
+  themselves are on the page (a plan's cited lines with the step that changes
+  them, a review note on its hunk) and the sentence beside them is short. A
+  name in backticks renders as code everywhere model prose is shown
+  (`DocText`), and a long identifier inside a sentence keeps its two ends
+  with the whole name on hover (`shorten`).
+- Text budgets: the daemon clips model prose at the source (a plan's claim
+  ≈ 20 words without identifiers, problem
   ≈ 25 words, approach 1–3 steps ≈ 40 words, root cause ≈ 40, each
   alternative and risk ≈ 15, a verdict note ≈ 20, a reviewer item's detail ≈
   30); the UI does not truncate on its own. Reasoning sits behind a

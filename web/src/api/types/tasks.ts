@@ -85,6 +85,12 @@ export interface PlanEvidence {
   quote?: string;
   /** The model's reading of the cited lines; provenance, not a verified finding. */
   observation?: string;
+  /** The approach step (from 1) that changes the cited lines, and what it does to them. */
+  step?: number;
+  effect?: 'removed' | 'changed';
+  /** The cited lines as the file holds them, from excerpt_line; absent on a plan captured before excerpts. */
+  excerpt?: string;
+  excerpt_line?: number;
 }
 
 /** An approach the plan rejected, and why. */
@@ -107,6 +113,8 @@ export interface PlanIssueVerdict {
 }
 
 export interface ChangePlan {
+  /** The problem in one plain sentence, without identifiers; absent on older plans. */
+  claim?: string;
   problem?: string;
   approach?: string;
   evidence?: string;

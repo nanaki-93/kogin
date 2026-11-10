@@ -92,23 +92,33 @@ every guard when the action arrives.
 - **The plan gate.** With the project profile's **Plan approval** on (every
   task by default, or only grouped fixes), a run that starts from Create on a
   fresh proposal first investigates: the creation model reads the code with
-  the read-only tools and proposes a plan — the problem, its root cause with
-  cited lines (each a link to the code), the approach, the files it touches,
-  rejected alternatives, risks and, for a grouped fix, a verdict per issue.
-  The run stops at **Plan ready** (the task list shows it under Needs you,
-  the Inbox's Next up reads "Decide on the plan" with **Open the plan**) and
-  the task page is about that decision: the header's primary action is
-  **Approve & run agents**, the **Proposed plan** card above the brief
-  carries the same button and **Redirect…** in its head (the note box opens
-  under it), the review gate puts a **Plan — Needs your approval** step
-  first with "After you approve the plan" under Agents finished, and the
-  revision box is not offered. Approving approves that exact plan and starts
-  the run (the confirmation says the approval covers the displayed plan);
-  redirecting takes a note and runs the investigation again, proposing a
-  revised plan that waits again. No code is written, nothing to roll back:
-  rejecting a plan costs one read-only run. The Investigation appears as its
-  own timeline entry (Investigate & plan) with its model, usage and tool
-  calls, and stays there on the approved run; while it runs, the gate reads
+  the read-only tools and proposes a plan. The run stops at **Plan ready**
+  (the task list shows it under Needs you, the Inbox's Next up reads "Decide
+  on the plan" with **Open the plan**) and the task page is that one
+  decision. The **Plan** card reads top to bottom: the claim (what is wrong
+  in one plain sentence, without identifiers), then the lines that show it
+  as code — each cited excerpt under its file and line range (a link to the
+  code), the investigation's short reading of it, and, when an approach step
+  removes or rewrites those lines, **Step N removes these lines** / **changes
+  these lines** with the lines tinted accordingly — then the approach as
+  numbered steps and, for a task that links issues, the verdicts. **Why
+  this plan** folds the rest: the problem in the code's terms, the root
+  cause, citations without an excerpt, rejected alternatives, risks and the
+  files it changes. The task header holds both decisions, once: **Redirect…**
+  (the note box opens at the top of the card) and **Approve & run agents**.
+  While the plan waits the page shows nothing else of the pipeline: no review
+  gate, no run timeline, no conversation and no revision box; the brief the
+  plan was investigated from folds into one line (**Brief · done when N
+  criteria · N files**), and one faint line says which model investigated,
+  for how long and with which tool calls. Approving approves that exact plan
+  and starts the run (the confirmation says the approval covers the displayed
+  plan); redirecting takes a note and runs the investigation again, proposing
+  a revised plan that waits again. No code is written, nothing to roll back:
+  rejecting a plan costs one read-only run. Once decided, the page shows the
+  run again: the Investigation is its own timeline entry (Investigate & plan)
+  with its model, usage and tool calls, the review gate puts a **Plan —
+  Approved** step first, and the plan card stays above the folded brief.
+  While the investigation runs, the gate reads
   "The investigation is reading the code to propose a plan." The composer
   and a fresh task's **Investigate & plan** button say the plan comes first
   whenever the profile's gate applies, and the composer's **Skip the plan
