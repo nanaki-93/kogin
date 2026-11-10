@@ -1,7 +1,8 @@
-// A layered layout for the components diagram: importers above (or, for a
-// long chain, left of) what they import, nodes in a layer ordered to keep
-// edges short. Small graphs only (the
-// docs show at most 16 components), so the simple passes are enough.
+// A layered layout for the components diagram: importers above what they
+// import, nodes in a layer ordered to keep edges short, and each import
+// routed as a path. A node is a card wide enough for a line on what the
+// component does, so layers stack down the page. Small graphs only (the docs
+// show at most 16 components), so the simple passes are enough.
 
 export interface LayoutEdge {
   from: string;
@@ -16,28 +17,38 @@ export interface LayoutNode {
   rank: number;
 }
 
-export interface Layout {
-  nodes: LayoutNode[];
-  width: number;
-  height: number;
-  /** 'down': ranks are rows, importers on top; 'right': ranks are columns, importers on the left. */
-  direction: 'down' | 'right';
+/** An import as drawn: its path, and whether it passes over layers between its ends. */
+export interface RoutedEdge extends LayoutEdge {
+  d: string;
+  skips: boolean;
 }
 
-export const NODE_WIDTH = 156;
-export const NODE_HEIGHT = 46;
-const GAP_X = 28;
-const GAP_Y = 64;
-const MARGIN = 12;
-const GAP_COLUMN = 56;
-const GAP_IN_COLUMN = 16;
+export interface Layout {
+  nodes: LayoutNode[];
+  edges: RoutedEdge[];
+  width: number;
+  height: number;
+  nodeWidth: number;
+}
+
+export const NODE_HEIGHT = 86;
+export const NODE_MIN_WIDTH = 164;
+export const NODE_MAX_WIDTH = 440;
+const GAP_X = 20;
+const GAP_Y = 32;
+const MARGIN = 4;
+/** How far an edge that skips layers bows out beside them, for the first layer skipped and each further one. */
+const BOW = 26;
+const BOW_STEP = 14;
 
 /**
  * Lays nodes out in rows: a node's row is one below the lowest row of the
  * nodes that import it. Cycles are broken where the search meets them;
- * nodes without edges get a row of their own at the bottom.
+ * nodes without edges get a row of their own at the bottom. Nodes are as
+ * wide as `fit` allows for the widest row, within the card's limits; a row
+ * too wide for `fit` makes the drawing wider than it.
  */
-export function layoutGraph(ids: string[], edges: LayoutEdge[]): Layout {
+export function layoutGraph(ids: string[], edges: LayoutEdge[], fit = 720): Layout {
   const known = new Set(ids);
   const links = edges.filter(edge => known.has(edge.from) && known.has(edge.to) && edge.from !== edge.to);
   const acyclic = breakCycles(ids, links);
@@ -47,30 +58,59 @@ export function layoutGraph(ids: string[], edges: LayoutEdge[]): Layout {
   for (const id of ids) if (!connected.has(id)) rank.set(id, bottom);
   const rows = orderRows(ids, rank, acyclic);
   const widest = Math.max(1, ...rows.map(row => row.length));
-  // A long, narrow graph (a chain of layers) reads left to right, so it fits
-  // the page's width instead of running down it.
-  if (rows.length > widest + 1) return columns(rows, widest);
-  // Room on the right for edges that bow around the rows they skip.
-  const width = MARGIN * 2 + widest * NODE_WIDTH + (widest - 1) * GAP_X + 48;
+  const longest = Math.max(0, ...links.map(edge => Math.abs((rank.get(edge.to) ?? 0) - (rank.get(edge.from) ?? 0))));
+  // Room beside the rows for edges that bow around the layers they skip.
+  const room = longest > 1 ? BOW + BOW_STEP * (longest - 2) + 10 : 0;
+  const sides = widest > 1 ? 2 : 1;
+  const free = fit - MARGIN * 2 - room * sides - (widest - 1) * GAP_X;
+  const nodeWidth = Math.round(Math.min(NODE_MAX_WIDTH, Math.max(NODE_MIN_WIDTH, free / widest)));
+  const inner = widest * nodeWidth + (widest - 1) * GAP_X;
+  const left = MARGIN + (sides === 2 ? room : 0);
   const nodes: LayoutNode[] = [];
   rows.forEach((row, r) => {
-    const rowWidth = row.length * NODE_WIDTH + (row.length - 1) * GAP_X;
-    const left = (width - rowWidth) / 2;
-    row.forEach((id, i) => nodes.push({ id, rank: r, x: left + i * (NODE_WIDTH + GAP_X), y: MARGIN + r * (NODE_HEIGHT + GAP_Y) }));
+    const rowWidth = row.length * nodeWidth + (row.length - 1) * GAP_X;
+    const start = left + (inner - rowWidth) / 2;
+    row.forEach((id, i) => nodes.push({ id, rank: r, x: Math.round(start + i * (nodeWidth + GAP_X)), y: MARGIN + r * (NODE_HEIGHT + GAP_Y) }));
   });
-  return { nodes, width, height: MARGIN * 2 + rows.length * NODE_HEIGHT + Math.max(0, rows.length - 1) * GAP_Y, direction: 'down' };
+  const position = new Map(nodes.map(node => [node.id, node]));
+  const centre = left + inner / 2;
+  return {
+    nodes,
+    edges: links.map(edge => routeEdge(edge, position.get(edge.from)!, position.get(edge.to)!, nodeWidth, centre)),
+    width: left + inner + room + MARGIN,
+    height: MARGIN * 2 + rows.length * NODE_HEIGHT + Math.max(0, rows.length - 1) * GAP_Y,
+    nodeWidth,
+  };
 }
 
-/** The layers as columns, each centered, with room below for edges that skip columns. */
-function columns(rows: string[][], tallest: number): Layout {
-  const height = MARGIN * 2 + tallest * NODE_HEIGHT + (tallest - 1) * GAP_IN_COLUMN + 48;
-  const nodes: LayoutNode[] = [];
-  rows.forEach((row, r) => {
-    const columnHeight = row.length * NODE_HEIGHT + (row.length - 1) * GAP_IN_COLUMN;
-    const top = (height - 48 - columnHeight) / 2;
-    row.forEach((id, i) => nodes.push({ id, rank: r, x: MARGIN + r * (NODE_WIDTH + GAP_COLUMN), y: top + i * (NODE_HEIGHT + GAP_IN_COLUMN) }));
-  });
-  return { nodes, width: MARGIN * 2 + rows.length * NODE_WIDTH + (rows.length - 1) * GAP_COLUMN, height, direction: 'right' };
+/**
+ * An import's path. Between neighbouring layers it runs from the bottom of
+ * one card to the top of the other. Over more layers it leaves and enters by
+ * the cards' sides and bows out beside the rows, on the side its start is
+ * nearer, so it never runs under the cards between.
+ */
+function routeEdge(edge: LayoutEdge, from: LayoutNode, to: LayoutNode, nodeWidth: number, centre: number): RoutedEdge {
+  const span = Math.abs(to.rank - from.rank);
+  if (span === 1) {
+    const down = to.rank > from.rank;
+    const x1 = from.x + nodeWidth / 2;
+    const x2 = to.x + nodeWidth / 2;
+    const y1 = down ? from.y + NODE_HEIGHT : from.y;
+    const y2 = down ? to.y : to.y + NODE_HEIGHT;
+    const bend = (y2 - y1) / 2;
+    return { ...edge, skips: false, d: `M ${x1} ${y1} C ${x1} ${y1 + bend}, ${x2} ${y2 - bend}, ${x2} ${y2}` };
+  }
+  const right = from.x + nodeWidth / 2 >= centre;
+  const x1 = right ? from.x + nodeWidth : from.x;
+  const x2 = right ? to.x + nodeWidth : to.x;
+  // Edges that leave one card for different layers leave it apart: the farther the layer, the lower the start.
+  const way = to.rank > from.rank ? 1 : -1;
+  const y1 = from.y + NODE_HEIGHT / 2 + way * Math.min(NODE_HEIGHT / 2 - 10, 14 * (span - 2));
+  const y2 = to.y + NODE_HEIGHT / 2;
+  // A cubic whose two control points sit `reach` out bows three quarters of it.
+  const reach = ((BOW + BOW_STEP * Math.max(0, span - 2)) / 0.75) * (right ? 1 : -1);
+  const out = right ? Math.max(x1, x2) : Math.min(x1, x2);
+  return { ...edge, skips: true, d: `M ${x1} ${y1} C ${out + reach} ${y1}, ${out + reach} ${y2}, ${x2} ${y2}` };
 }
 
 /** The edges with each cycle broken: an edge back to a node on the search path is reversed. */

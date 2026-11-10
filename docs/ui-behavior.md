@@ -117,8 +117,9 @@ every guard when the action arrives.
   from its approved plan — with the concepts its change used as chips; a
   concept chip filters the log to every time it was met, with its count, and
   **Explain “…” in this project** hands Ask the code a question about it. On
-  Ask the code, **Save to log** keeps an answer there. Hunk notes show the
-  same concept chips during review.
+  Ask the code, **Save to log** keeps an answer there. A backticked name in
+  an entry shows as code. Hunk notes show the same concept chips during
+  review.
 - **Your plan first.** When a plan is ready, the task page does not show it
   yet. **Your plan first** asks three things — what is wrong, what you would
   do, and (optional) what could break — with the brief open below to work
@@ -487,14 +488,35 @@ every guard when the action arrives.
   running, missing), **Tasks** (how many tasks changed it) or **Language**.
   Hovering a block names its lines, issues, analysis and tasks; a folder opens
   (zooms) on click, a file opens in Code; the trail and `Backspace` go up.
-- **Docs.** A guide to the project, laid out like a docs site: a nav with
-  Overview, Get started, Architecture, How it works (one page per
-  walkthrough), Where to change (one page per usual change: the files and
-  functions to touch, in order), Components (one page per component),
-  Dependencies and Ask the code, with an ask box on top. The components, the
-  imports between them (the diagram), entry points, commands and dependencies
-  are read from the code on every visit. The overview's purpose and
-  architecture (one `path: role` line per part, shown as a list), the
+- **Docs.** A guide to the project for someone new to it, laid out like a
+  docs site. The nav groups its pages by what a reader comes for:
+  **Understand** (Overview, Architecture, How it works with one page per
+  walkthrough, Components with one page per component, Project map),
+  **Change** (Where to change with one page per usual change, Get started,
+  Dependencies) and **Your notes** (Learning log, Decisions, Ask the code),
+  with an ask box on top. The Overview reads top to bottom in that order:
+  what the project is, the project in numbers and where it starts, **How it
+  is built** (the architecture diagram), **What it does** (a card per
+  walkthrough), **Where to change it** (a card per usual change) and **Run
+  it** (the declared commands, each with a copy button). The diagram draws
+  each component as a card with the line the architecture gives it (else the
+  first sentence of its summary), its file count and a **starts here** mark
+  on the one with an entry point, in layers with importers above what they
+  import and an arrow per import, thicker for more; an import over several
+  layers runs beside the cards. A card opens its component. Architecture
+  shows the same diagram, any architecture line that names no component, and
+  **The parts in numbers**: each component's lines and files as a bar, what
+  it imports, what uses it and how many guides pass through it. A guide's
+  card says what it does in a sentence, the components its steps pass
+  through (each once, in the order first reached) and its step count. A
+  guide's page lists its steps; a step that found its declaration shows the
+  declaration's first line as code, read from the file as it is now, with
+  **Show _name_ (_n_ lines)** for the rest (to the line that closes it, at
+  most 40 lines, then a link to Code) and **Show all the code** for every
+  step at once; a step without a line keeps a link to its file. The
+  components, the imports between them, entry points, commands, dependencies
+  and step code are read from the code on every visit. The overview's
+  purpose and architecture (one `path: role` line per part), the
   walkthroughs, the change guide and component summaries are model-written;
   a page with such prose shows one **AI** mark beside its title. A step keeps
   only a file the project has and a function only where the file declares
@@ -502,9 +524,13 @@ every guard when the action arrives.
   path, a `backticked` file or a component path is a link (to Code, or to
   the component's page), and a backticked name a step found opens its
   declaration in Code; other backticked names show as code. A component
-  page lists its imports, what uses it, the walkthroughs and changes through
-  it and its files, each with the first sentence of its saved summary; a
-  responsibility that only repeats the summary is left out. When the overview
+  page shows what uses it and what it imports either side of its name, the
+  walkthroughs and changes through it, **Start reading here** (the functions
+  the guides stop at in it, most visited first, each with what a step says
+  of it) and its files, each with the first sentence of its saved summary:
+  code first, the longest file first, and the test files in a fold that
+  says how many they are; a responsibility that only repeats the summary is
+  left out. When the overview
   is missing, failed or out of date the model-written pages say so. An
   analysis run ends by summarizing again the components whose files changed
   and writing the overview again; its confirmation counts those requests.

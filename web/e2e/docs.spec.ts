@@ -3,15 +3,26 @@
 
 import { expect, test } from './support/daemon';
 
-test('the docs open on what the project is for, where it starts and how its features run', async ({ page }) => {
+test('the docs open on what the project is, how it is built, what it does and how to run it', async ({ page }) => {
   await page.goto('/#/docs/overview');
   await expect(page.getByText('The overview is out of date')).toBeVisible();
   await expect(page.getByText(/A local-first coding assistant: a Go daemon/)).toBeVisible();
-  await expect(page.getByText('Go 443 · TypeScript 64 · 610 files · 77,400 lines · 5 components')).toBeVisible();
-  const starts = page.getByRole('region', { name: 'Where it starts' });
-  await expect(starts.getByRole('button', { name: 'cmd/daemon/main.go' })).toBeVisible();
+  // The project in numbers and where it starts, read from the code.
+  const facts = page.getByLabel('The project in numbers');
+  await expect(facts).toContainText('Go 443 · TypeScript 64');
+  await expect(facts).toContainText('77,400 lines in 610 files');
+  await expect(facts.getByRole('button', { name: 'cmd/daemon/main.go' })).toBeVisible();
+  // How it is built: the diagram, each component with what it does.
+  const built = page.getByRole('region', { name: 'How it is built' });
+  const diagram = built.getByRole('group', { name: '5 components and the imports between them' });
+  await expect(diagram.getByRole('button', { name: 'cmd/daemon: open its page' })).toContainText('wires the routes in main and starts the loopback server.');
+  await expect(diagram.getByRole('button', { name: 'cmd/daemon: open its page' })).toContainText('starts here');
   await expect(page.getByRole('region', { name: 'Run it' })).toContainText('go test ./...');
-  await page.getByRole('region', { name: 'How it works' }).getByRole('button', { name: 'Serve the Web UI' }).click();
+  // What it does: one card per walkthrough, with the components it passes through.
+  const does = page.getByRole('region', { name: 'What it does' });
+  await expect(does.getByRole('button', { name: /Serve the Web UI/ })).toContainText('2 steps');
+  await expect(does.getByLabel('Passes through cmd/daemon, then internal/api').first()).toBeVisible();
+  await does.getByRole('button', { name: /Serve the Web UI/ }).click();
   await expect(page).toHaveURL(/#\/docs\/flows\?n=1/);
   await expect(page.getByRole('heading', { name: 'Serve the Web UI', level: 1 })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Serve the Web UI' })).toHaveAttribute('aria-current', 'page');
@@ -21,39 +32,69 @@ test('the docs open on what the project is for, where it starts and how its feat
   await expect(page).toHaveURL(/#\/code\?file=internal%2Fapi%2Fhandlers%2Fchange_handler\.go&line=88/);
 });
 
-test('a component page says how it connects, which walkthroughs pass through it and what each file does', async ({ page }) => {
+test('a walkthrough step shows the declaration it stops at, and the rest of it on demand', async ({ page, daemon }) => {
+  const source = ['package handlers', '', 'func ServeAsset(name string) error {', '\tif strings.Contains(name, "/") {', '\t\treturn errNotFound', '\t}', '\treturn nil', '}', '', 'var other = 1'].join('\n');
+  daemon.serve('/api/projects/current/files/info', () => ({ path: 'internal/api/handlers/webui.go', content_hash: 'h', language: 'Go', line_count: 10, content: source }));
+  await page.goto('/#/docs/flows?n=1');
+  const code = page.getByLabel('ServeAsset in internal/api/handlers/webui.go');
+  // The first line of the declaration is on the page; its body waits behind one click.
+  await expect(code).toContainText('func ServeAsset(name string) error {');
+  await expect(code).not.toContainText('errNotFound');
+  await page.getByRole('button', { name: 'Show ServeAsset (6 lines)' }).click();
+  await expect(code).toContainText('return errNotFound');
+  await expect(code).not.toContainText('var other');
+  await page.getByRole('button', { name: 'Fold', exact: true }).click();
+  await expect(code).not.toContainText('errNotFound');
+  // A step whose line the file does not have keeps its link and names its function.
+  await expect(page.getByRole('button', { name: 'cmd/daemon/main.go:40' })).toBeVisible();
+  // The trail names the components the walkthrough passes through; each opens its page.
+  await page.getByLabel('Passes through cmd/daemon, then internal/api').getByRole('button', { name: 'internal/api' }).click();
+  await expect(page.getByRole('heading', { name: 'internal/api', level: 1 })).toBeVisible();
+});
+
+test('a component page says how it connects, where to start reading and what each file does', async ({ page }) => {
   await page.goto('/#/docs/architecture');
-  const lines = page.locator('.doc ul.bulleted li');
-  await expect(lines).toHaveCount(3);
-  await expect(lines.first()).toContainText('cmd/daemon: wires the routes in main and starts the loopback server.');
-  const diagram = page.getByRole('img', { name: '5 components and the imports between them' });
-  await expect(page.getByText('Drawn from the code')).toBeVisible();
+  const diagram = page.getByRole('group', { name: '5 components and the imports between them' });
+  await expect(page.getByText('Read from the code: an arrow goes from a component to one it imports')).toBeVisible();
+  // The parts in numbers: what the diagram does not say.
+  const parts = page.getByRole('region', { name: 'The parts in numbers' });
+  await expect(parts.getByRole('row').filter({ hasText: '50,000 lines · 320 files' })).toContainText('cmd/daemon, internal/api');
+  await expect(parts.getByRole('row').filter({ hasText: '6,000 lines · 40 files' })).toContainText('internal/app');
   await diagram.getByRole('button', { name: 'internal/app: open its page' }).click();
   await expect(page).toHaveURL(/#\/docs\/components\?path=internal%2Fapp/);
   await expect(page.getByRole('heading', { name: 'internal/app', level: 1 })).toBeVisible();
   await expect(page.getByText('Workflow orchestration.')).toBeVisible();
-  const relations = page.locator('.relations');
-  await expect(relations).toContainText('Used by');
-  await expect(relations.getByRole('button', { name: "Start a task's agents" })).toBeVisible();
-  await relations.getByRole('button', { name: 'internal/api' }).click();
+  await expect(page.locator('.relations').getByRole('button', { name: "Start a task's agents" })).toBeVisible();
+  const neighbours = page.getByRole('group', { name: 'What uses internal/app and what it imports' });
+  await expect(neighbours).toContainText('Used by');
+  await neighbours.getByRole('button', { name: 'internal/api' }).click();
   await expect(page.getByRole('heading', { name: 'internal/api', level: 1 })).toBeVisible();
   await expect(page.getByText('Request policy')).toBeVisible();
+  // Where to start reading: the functions the guides stop at in this component.
+  const reading = page.getByRole('region', { name: 'Start reading here' });
+  await expect(reading.getByRole('listitem')).toHaveCount(2);
+  await expect(reading.getByRole('listitem').first()).toContainText('ServeAsset');
+  await expect(reading.getByRole('listitem').first()).toContainText('webui.go:3');
+  // Code before tests: the test files wait in a fold that says how many they are.
   const files = page.getByRole('region', { name: /^Files in internal\/api/ }).first();
   await expect(files).toContainText('Maps app errors to JSON responses');
-  await page.getByRole('button', { name: 'webui.go' }).click();
+  await expect(page.getByRole('button', { name: 'webui_test.go' })).toBeHidden();
+  await page.getByText('1 test file').click();
+  await expect(page.getByRole('button', { name: 'webui_test.go' })).toBeVisible();
+  await page.getByRole('button', { name: 'webui.go', exact: true }).click();
   await expect(page).toHaveURL(/#\/code\?file=internal%2Fapi%2Fhandlers%2Fwebui\.go/);
 });
 
 test('where to change lists the usual changes, and names in docs prose open the code', async ({ page }) => {
   await page.goto('/#/docs/overview');
-  await page.getByRole('region', { name: 'Where to change' }).getByRole('button', { name: 'Add an API route' }).click();
+  await page.getByRole('region', { name: 'Where to change it' }).getByRole('button', { name: /Add an API route/ }).click();
   await expect(page).toHaveURL(/#\/docs\/changes\?n=1/);
   await expect(page.getByRole('heading', { name: 'Add an API route', level: 1 })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Add an API route' })).toHaveAttribute('aria-current', 'page');
-  await page.locator('.doc > p').getByRole('button', { name: 'main' }).click();
+  await page.locator('.doc-head .lead').getByRole('button', { name: 'main' }).click();
   await expect(page).toHaveURL(/#\/code\?file=cmd%2Fdaemon%2Fmain\.go&line=40/);
   await page.goto('/#/docs/architecture');
-  await page.locator('.doc ul.bulleted').getByRole('button', { name: 'internal/project' }).click();
+  await page.getByRole('region', { name: 'The parts in numbers' }).getByRole('button', { name: 'internal/project' }).click();
   await expect(page.getByRole('heading', { name: 'internal/project', level: 1 })).toBeVisible();
 });
 

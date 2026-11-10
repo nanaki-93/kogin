@@ -136,7 +136,7 @@
 }
 
 /* Prose in a doc runs no longer than the measure; tables, code and cards keep their width. */
-.doc p, .doc li, .doc .ask-answer p {
+.doc p, .doc .bulleted > li, .doc .numbered > li, .doc .ask-answer p {
   max-width: var(--measure);
 }
 
@@ -186,73 +186,6 @@
   font-size: var(--text-md);
 }
 
-.component-graph {
-  margin: 8px 0 0;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  overflow-x: auto;
-}
-
-.component-graph svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  margin: 0 auto;
-}
-
-.component-graph figcaption {
-  margin-top: 8px;
-}
-
-.graph-node {
-  cursor: pointer;
-  outline: none;
-}
-
-.graph-node rect {
-  fill: var(--surface-2);
-  stroke: var(--border-strong);
-  stroke-width: 1;
-}
-
-.graph-node.is-active rect,
-.graph-node:focus-visible rect {
-  stroke: var(--accent);
-  stroke-width: 2;
-}
-
-.graph-label {
-  fill: var(--text);
-  font-size: 13px; /* fixed: the node's width is, whatever the density */
-  font-weight: 600;
-}
-
-.graph-meta {
-  fill: var(--muted);
-  font-size: var(--text-xs);
-}
-
-.graph-edge {
-  fill: none;
-  stroke: var(--faint);
-  opacity: 0.8;
-}
-
-.graph-edge.is-active {
-  stroke: var(--accent);
-  opacity: 1;
-}
-
-.graph-edge.is-dim {
-  opacity: 0.25;
-}
-
-.graph-arrow {
-  fill: var(--faint);
-}
-
 .plain-list {
   display: flex;
   flex-direction: column;
@@ -277,16 +210,6 @@
   margin-top: 4px;
 }
 
-.start-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
-}
-
-.start-grid .doc-card {
-  line-height: 1.5;
-}
-
 .doc-title {
   align-items: baseline;
 }
@@ -303,8 +226,7 @@
   font-size: 0.92em;
 }
 
-.component-list,
-.walkthrough-list {
+.component-list {
   display: flex;
   flex-direction: column;
   margin: 0;
@@ -316,14 +238,13 @@
   overflow: hidden;
 }
 
-.component-list li + li,
-.walkthrough-list li + li {
+.component-list li + li {
   border-top: 1px solid var(--border);
 }
 
 .component-row {
   display: grid;
-  grid-template-columns: minmax(120px, 220px) minmax(0, 1fr);
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) auto;
   align-items: baseline;
   gap: 14px;
   width: 100%;
@@ -332,11 +253,6 @@
   background: none;
   color: var(--text);
   text-align: left;
-}
-
-.walkthrough-list .component-row {
-  grid-template-columns: 1fr;
-  gap: 2px;
 }
 
 .component-row:hover {

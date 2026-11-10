@@ -1,11 +1,10 @@
-// The guide pages of the docs: overview, get started, architecture and
-// dependencies, with the pieces the other docs pages share.
+// The guide pages of the docs: get started, architecture and dependencies,
+// with the pieces the other docs pages share.
 
 import type { ReactNode } from 'react';
-import { ArrowRight, Copy, FileCode2, Sparkles } from 'lucide-react';
-import { useProject } from '@/api/hooks';
+import { ArrowRight, ChevronRight, Copy, FileCode2, Sparkles } from 'lucide-react';
 import type { DocsCommand, DocsEntryPoint, ProjectDocs } from '@/api/types';
-import { architectureLines, componentLabel, firstSentence } from '@/lib/docs';
+import { architectureParts, componentLabel, walkthroughsThrough } from '@/lib/docs';
 import { navigate } from '@/lib/router';
 import { plural } from '@/lib/util';
 import { Badge, Callout, IconButton } from '@/components/ui';
@@ -68,7 +67,7 @@ export function EntryPoints({ entries }: { entries: DocsEntryPoint[] }) {
   );
 }
 
-function PageLink({ to, params, children }: { to: string; params?: Record<string, string>; children: ReactNode }) {
+export function PageLink({ to, params, children }: { to: string; params?: Record<string, string>; children: ReactNode }) {
   return (
     <button type="button" className="link-btn small page-link" onClick={() => navigate(to, params)}>
       {children} <ArrowRight size={13} aria-hidden />
@@ -76,124 +75,126 @@ function PageLink({ to, params, children }: { to: string; params?: Record<string
   );
 }
 
-export function OverviewPage({ docs }: { docs: ProjectDocs }) {
-  const project = useProject().data;
-  const overview = docs.overview;
-  const languages = overview?.languages ?? [];
-  const components = docs.components ?? [];
-  const walkthroughs = docs.walkthroughs ?? [];
-  const facts = [
-    languages.slice(0, 3).map(language => `${language.name} ${language.files}`).join(' · '),
-    overview?.files ? plural(overview.files, 'file') : '',
-    overview?.lines ? `${overview.lines.toLocaleString()} lines` : '',
-    plural(components.length, 'component'),
-  ].filter(Boolean);
+/** A section's heading inside a docs page, with a quiet note on what it holds and a link to the page with the rest. */
+export function SectionHead({ title, note, children }: { title: string; note?: ReactNode; children?: ReactNode }) {
   return (
-    <article className="doc">
-      <DocsStatusNote status={docs.status} />
-      <header className="doc-head">
-        <DocTitle ai={Boolean(overview?.purpose)}>{project?.name ?? 'Overview'}</DocTitle>
-        <div className="xs muted">{facts.join(' · ')}</div>
-      </header>
-      {overview?.purpose ? (
-        <p className="lead"><DocText text={overview.purpose} /></p>
-      ) : (
-        <p className="muted">No overview yet.</p>
-      )}
-      <div className="start-grid">
-        <section className="doc-card" aria-label="Where it starts">
-          <h2>Where it starts</h2>
-          <EntryPoints entries={(docs.graph?.entry_points ?? []).slice(0, 5)} />
-        </section>
-        <section className="doc-card" aria-label="How it works">
-          <h2>How it works</h2>
-          <GuideTitles guides={walkthroughs} to="/docs/flows" empty="Comes with the next overview." />
-        </section>
-        <section className="doc-card" aria-label="Where to change">
-          <h2>Where to change</h2>
-          <GuideTitles guides={docs.change_guide ?? []} to="/docs/changes" empty="Comes with the next overview." />
-        </section>
-        <section className="doc-card" aria-label="Run it">
-          <h2>Run it</h2>
-          {docs.commands?.length ? (
-            <>
-              <ul className="plain-list">{docs.commands.slice(0, 3).map(command => <li key={command.command + command.dir}><code className="command">{command.command}</code>{command.dir ? <span className="xs muted"> in {command.dir}/</span> : null}</li>)}</ul>
-              <PageLink to="/docs/start">All commands</PageLink>
-            </>
-          ) : <p className="small muted">No test, lint or run command was found in the project's files.</p>}
-        </section>
-      </div>
-      <section aria-label="Components">
-        <div className="row"><h2 className="grow">Components</h2><PageLink to="/docs/architecture">See how they connect</PageLink></div>
-        <ul className="component-list">
-          {components.map(component => (
-            <li key={component.path}>
-              <button type="button" className="component-row" onClick={() => navigate('/docs/components', { path: component.path })}>
-                <span className="mono small strong">{componentLabel(component)}</span>
-                <span className="small muted truncate">{component.summary ? firstSentence(component.summary) : `${plural(component.files ?? 0, 'file')}${component.languages?.length ? ` · ${component.languages[0]}` : ''}`}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </article>
+    <div className="doc-section-head">
+      <h2>{title}</h2>
+      {note ? <span className="small muted">{note}</span> : null}
+      <span className="spacer" />
+      {children}
+    </div>
+  );
+}
+
+/** The components a guide passes through, in order; each opens its page unless the trail sits inside a link. */
+export function ComponentTrail({ trail, links }: { trail: string[]; links?: boolean }) {
+  if (!trail.length) return null;
+  return (
+    <span className="trail" aria-label={`Passes through ${trail.map(path => componentLabel({ path })).join(', then ')}`}>
+      {trail.map((path, index) => (
+        <span key={index} className="trail-stop">
+          {index ? <ChevronRight size={12} className="faint" aria-hidden /> : null}
+          {links ? (
+            <button type="button" className="chip mono" onClick={() => navigate('/docs/components', { path })}>{trailLabel(path)}</button>
+          ) : <span className="chip mono">{trailLabel(path)}</span>}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function trailLabel(path: string): string {
+  return path === '.' ? 'root' : path;
+}
+
+/** The declared commands, each with where it is declared and a copy button. */
+export function CommandList({ commands, showDir }: { commands: DocsCommand[]; showDir?: boolean }) {
+  const { toast } = useFeedback();
+  return (
+    <div className="command-list">
+      {commands.map(command => (
+        <div key={command.label + command.command + (command.dir ?? '')} className="command-row">
+          <span className="command-label small">{command.label}</span>
+          <code className="command">{command.command}</code>
+          {showDir && command.dir ? <span className="xs muted">in {command.dir}/</span> : null}
+          <span className="spacer" />
+          <span className="xs faint">{command.source}</span>
+          <IconButton icon={Copy} label={`Copy ${command.command}`} size="sm" onClick={() => { void navigator.clipboard?.writeText(command.command); toast('Command copied.', 'success'); }} />
+        </div>
+      ))}
+    </div>
   );
 }
 
 export function StartPage({ docs }: { docs: ProjectDocs }) {
-  const { toast } = useFeedback();
   const groups = new Map<string, DocsCommand[]>();
   for (const command of docs.commands ?? []) groups.set(command.dir ?? '', [...(groups.get(command.dir ?? '') ?? []), command]);
   return (
     <article className="doc">
-      <h1>Get started</h1>
-      <p className="small muted">Read from the project's files: each subproject's test and lint commands and the package scripts that build or start it.</p>
+      <header className="doc-head">
+        <h1>Get started</h1>
+        <p className="small muted">Read from the project's files: each subproject's test and lint commands and the package scripts that build or start it.</p>
+      </header>
       {groups.size ? [...groups.entries()].map(([dir, commands]) => (
         <section key={dir} aria-label={dir ? `Commands in ${dir}` : 'Commands in the project root'}>
-          <h2>{dir ? <span className="mono">{dir}/</span> : 'Project root'}</h2>
-          <div className="command-list">
-            {commands.map(command => (
-              <div key={command.label + command.command} className="command-row">
-                <span className="command-label small">{command.label}</span>
-                <code className="command">{command.command}</code>
-                <span className="spacer" />
-                <span className="xs faint">{command.source}</span>
-                <IconButton icon={Copy} label={`Copy ${command.command}`} size="sm" onClick={() => { void navigator.clipboard?.writeText(command.command); toast('Command copied.', 'success'); }} />
-              </div>
-            ))}
-          </div>
+          <SectionHead title={dir ? `${dir}/` : 'Project root'} />
+          <CommandList commands={commands} />
         </section>
       )) : <p className="muted">No test, lint or run command was found in the project's files.</p>}
       <section aria-label="Where it starts">
-        <h2>Where it starts</h2>
+        <SectionHead title="Where it starts" />
         <EntryPoints entries={docs.graph?.entry_points ?? []} />
       </section>
     </article>
   );
 }
 
-/** The titles of walkthroughs or change-guide entries, each opening its page. */
-function GuideTitles({ guides, to, empty }: { guides: { title: string }[]; to: string; empty: string }) {
-  if (!guides.length) return <p className="small muted">{empty}</p>;
-  return (
-    <ol className="plain-list numbered">
-      {guides.map((guide, index) => (
-        <li key={index}><button type="button" className="link-btn" onClick={() => navigate(to, { n: String(index + 1) })}>{guide.title}</button></li>
-      ))}
-    </ol>
-  );
-}
-
+/** How the project is built: the diagram, with what each part does, then each part's size and ties. */
 export function ArchitecturePage({ docs }: { docs: ProjectDocs }) {
-  const lines = architectureLines(docs.overview?.architecture);
+  const components = docs.components ?? [];
+  const { roles, rest } = architectureParts(docs.overview?.architecture, components);
+  const most = Math.max(1, ...components.map(component => component.lines ?? 0));
   return (
     <article className="doc">
       <DocsStatusNote status={docs.status} />
-      <DocTitle ai={lines.length > 0}>Architecture</DocTitle>
-      {lines.length > 1 ? (
-        <ul className="plain-list bulleted">{lines.map((line, index) => <li key={index}><DocText text={line} /></li>)}</ul>
-      ) : lines.length ? <p><DocText text={lines[0]} /></p> : null}
-      <ComponentGraph components={docs.components ?? []} graph={docs.graph} onOpen={component => navigate('/docs/components', { path: component.path })} />
+      <header className="doc-head">
+        <DocTitle ai={Boolean(docs.overview?.architecture) || components.some(component => component.summary)}>Architecture</DocTitle>
+        <p className="small muted">{plural(components.length, 'component')}, importers above what they import. Open one for its files and the code the guides pass through.</p>
+      </header>
+      <ComponentGraph components={components} graph={docs.graph} roles={roles} onOpen={component => navigate('/docs/components', { path: component.path })} />
+      {rest.length ? (
+        <section aria-label="In words">
+          {rest.length > 1 ? <ul className="plain-list bulleted">{rest.map((line, index) => <li key={index}><DocText text={line} /></li>)}</ul> : <p><DocText text={rest[0]} /></p>}
+        </section>
+      ) : null}
+      {components.length ? (
+        <section aria-label="The parts in numbers">
+          <SectionHead title="The parts in numbers" note="how much code each holds and how it is tied to the rest" />
+          <table className="table part-table">
+            <thead><tr><th>Component</th><th>Code</th><th>Imports</th><th>Used by</th><th>Guides through it</th></tr></thead>
+            <tbody>
+              {components.map(component => {
+                const guides = walkthroughsThrough(component.path, docs.walkthroughs ?? [], components).length + walkthroughsThrough(component.path, docs.change_guide ?? [], components).length;
+                return (
+                  <tr key={component.path}>
+                    <td><button type="button" className="link-btn mono part-name" onClick={() => navigate('/docs/components', { path: component.path })}>{componentLabel(component)}</button></td>
+                    <td>
+                      <span className="part-size" title={`${(component.lines ?? 0).toLocaleString()} lines in ${plural(component.files ?? 0, 'file')}`}>
+                        <span className="part-bar" aria-hidden><span style={{ width: `${Math.max(2, Math.round(((component.lines ?? 0) / most) * 100))}%` }} /></span>
+                        <span className="xs muted">{(component.lines ?? 0).toLocaleString()} lines · {plural(component.files ?? 0, 'file')}</span>
+                      </span>
+                    </td>
+                    <td className="small">{component.imports?.length ? component.imports.map(path => componentLabel({ path })).join(', ') : <span className="faint">nothing</span>}</td>
+                    <td className="small">{component.used_by?.length ? component.used_by.map(path => componentLabel({ path })).join(', ') : <span className="faint">nothing</span>}</td>
+                    <td className="small">{guides || <span className="faint">none</span>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
     </article>
   );
 }

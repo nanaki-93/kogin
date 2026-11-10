@@ -1,5 +1,6 @@
-// The docs: a site-like guide to the project. The nav lists the guide pages,
-// every walkthrough and every component; each opens its own page. What comes
+// The docs: a site-like guide to the project. The nav lists the pages by
+// what a reader comes for (understand the project, change it, their own
+// notes), with every walkthrough and component; each opens its own page. What comes
 // from the code and what a model wrote stay marked apart.
 
 import { useState, type ReactNode } from 'react';
@@ -13,7 +14,8 @@ import { navigate, useRoute } from '@/lib/router';
 import { plural, timeAgo } from '@/lib/util';
 import { Button, EmptyState, Input, Skeleton, Spinner, cx } from '@/components/ui';
 import { AskPanel, handQuestion } from './AskPanel';
-import { ArchitecturePage, DependenciesPage, OverviewPage, StartPage } from './GuidePages';
+import { ArchitecturePage, DependenciesPage, StartPage } from './GuidePages';
+import { OverviewPage } from './OverviewPage';
 import { ComponentPage, ComponentsIndex } from './ComponentPage';
 import { DocRefsProvider } from './DocText';
 import { SidebarPanel } from '@/layout/SidebarPanel';
@@ -102,20 +104,12 @@ function DocsNav({ docs, current }: { docs: ProjectDocs | undefined; current: Do
         <Input icon={MessageCircleQuestion} placeholder="Ask the code…" value={question} onChange={e => setQuestion(e.target.value)} aria-label="Ask the code a question" />
       </form>
       <div className="docs-nav-scroll">
+        <NavLabel>Understand</NavLabel>
         <NavLink to="/docs/overview" icon={Compass} active={current === 'overview'}>Overview</NavLink>
-        <NavLink to="/docs/start" icon={Terminal} active={current === 'start'} count={docs?.commands?.length}>Get started</NavLink>
         <NavLink to="/docs/architecture" icon={Layers} active={current === 'architecture'}>Architecture</NavLink>
-        <NavLink to="/docs/map" icon={MapIcon} active={current === 'map'}>Project map</NavLink>
-        <NavLink to="/docs/log" icon={GraduationCap} active={current === 'log'}>Learning log</NavLink>
-        <NavLink to="/docs/decisions" icon={Scale} active={current === 'decisions'}>Decisions</NavLink>
         <NavGroup title="How it works" icon={RouteIcon} to="/docs/flows" active={current === 'flows' && !n} count={walkthroughs.length}>
           {walkthroughs.map((walkthrough, index) => (
             <NavLink key={index} to="/docs/flows" params={{ n: String(index + 1) }} active={current === 'flows' && n === index + 1} nested>{walkthrough.title}</NavLink>
-          ))}
-        </NavGroup>
-        <NavGroup title="Where to change" icon={Wrench} to="/docs/changes" active={current === 'changes' && !n} count={changes.length}>
-          {changes.map((change, index) => (
-            <NavLink key={index} to="/docs/changes" params={{ n: String(index + 1) }} active={current === 'changes' && n === index + 1} nested>{change.title}</NavLink>
           ))}
         </NavGroup>
         <NavGroup title="Components" icon={Boxes} to="/docs/components" active={current === 'components' && !path} count={components.length}>
@@ -125,7 +119,18 @@ function DocsNav({ docs, current }: { docs: ProjectDocs | undefined; current: Do
             </NavLink>
           ))}
         </NavGroup>
+        <NavLink to="/docs/map" icon={MapIcon} active={current === 'map'}>Project map</NavLink>
+        <NavLabel>Change</NavLabel>
+        <NavGroup title="Where to change" icon={Wrench} to="/docs/changes" active={current === 'changes' && !n} count={changes.length}>
+          {changes.map((change, index) => (
+            <NavLink key={index} to="/docs/changes" params={{ n: String(index + 1) }} active={current === 'changes' && n === index + 1} nested>{change.title}</NavLink>
+          ))}
+        </NavGroup>
+        <NavLink to="/docs/start" icon={Terminal} active={current === 'start'} count={docs?.commands?.length}>Get started</NavLink>
         <NavLink to="/docs/dependencies" icon={Library} active={current === 'dependencies'} count={docs?.dependencies?.length}>Dependencies</NavLink>
+        <NavLabel>Your notes</NavLabel>
+        <NavLink to="/docs/log" icon={GraduationCap} active={current === 'log'}>Learning log</NavLink>
+        <NavLink to="/docs/decisions" icon={Scale} active={current === 'decisions'}>Decisions</NavLink>
         <NavLink to="/docs/ask" icon={MessageCircleQuestion} active={current === 'ask'}>Ask the code</NavLink>
       </div>
       <div className="docs-refresh">
@@ -140,6 +145,11 @@ function DocsNav({ docs, current }: { docs: ProjectDocs | undefined; current: Do
     </nav>
     </SidebarPanel>
   );
+}
+
+/** A quiet label over a group of docs links: what a reader comes to them for. */
+function NavLabel({ children }: { children: ReactNode }) {
+  return <div className="docs-nav-label">{children}</div>;
 }
 
 /** A path with its parent directories dimmed, so the last part reads first. */

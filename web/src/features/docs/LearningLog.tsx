@@ -11,6 +11,7 @@ import { navigate } from '@/lib/router';
 import { plural, timeAgo } from '@/lib/util';
 import { Badge, Button, EmptyState, Skeleton, cx } from '@/components/ui';
 import { handQuestion } from './AskPanel';
+import { DocText } from './DocText';
 
 /** Hands Ask the code a question about the concept, answered from this project's files. */
 function explainConcept(concept: string) {
@@ -78,8 +79,8 @@ function LessonCard({ lesson, onConcept }: { lesson: Lesson; onConcept: (name: s
         <span className="spacer" />
         <span className="xs faint nowrap">{timeAgo(lesson.at)}</span>
       </div>
-      {lesson.problem ? <p className="small"><span className="muted">Problem:</span> {lesson.problem}</p> : null}
-      {lesson.insight ? <p className="small"><span className="muted">{ask ? 'Answer:' : 'Approach:'}</span> {lesson.insight}</p> : null}
+      {lesson.problem ? <p className="small"><span className="muted">Problem:</span> <DocText text={lesson.problem} shorten /></p> : null}
+      {lesson.insight ? <p className="small"><span className="muted">{ask ? 'Answer:' : 'Approach:'}</span> <DocText text={lesson.insight} shorten /></p> : null}
       {lesson.own_plan ? (
         <div className="small lesson-own">
           <span className="muted">You wrote first{lesson.own_match ? ` (${OWN_MATCH[lesson.own_match] ?? lesson.own_match})` : ''}:</span>

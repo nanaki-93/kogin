@@ -1,87 +1,90 @@
-// The components diagram: each component of the project and the imports
-// between them, laid out from the code (importers before what they import).
+// The architecture diagram: each component as a card that says what it does,
+// in layers (importers above what they import), with the imports between
+// them as arrows. The cards and arrows are read from the code; the line on
+// what a component does is model-written.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Play } from 'lucide-react';
 import type { DocsComponent, DocsGraph } from '@/api/types';
-import { NODE_HEIGHT, NODE_WIDTH, layoutGraph, type Layout, type LayoutNode } from '@/lib/graphLayout';
+import { NODE_HEIGHT, layoutGraph } from '@/lib/graphLayout';
 import { cx } from '@/components/ui';
-import { componentLabel } from '@/lib/docs';
+import { componentLabel, firstSentence } from '@/lib/docs';
+import { plural } from '@/lib/util';
 
-export function ComponentGraph({ components, graph, onOpen }: { components: DocsComponent[]; graph: DocsGraph | undefined; onOpen: (component: DocsComponent) => void }) {
+interface Props {
+  components: DocsComponent[];
+  graph: DocsGraph | undefined;
+  /** What each component does, by path, where the architecture says; else its summary's first sentence. */
+  roles?: ReadonlyMap<string, string>;
+  /** The component whose page this is: its card and its imports stand out. */
+  focus?: string;
+  onOpen: (component: DocsComponent) => void;
+}
+
+export function ComponentGraph({ components, graph, roles, focus, onOpen }: Props) {
   const [hover, setHover] = useState<string | null>(null);
+  const frame = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState(720);
+  useEffect(() => {
+    const element = frame.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => { if (entry.contentRect.width > 0) setFit(Math.round(entry.contentRect.width)); });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const edges = useMemo(() => (graph?.edges ?? []).map(edge => ({ from: edge.from, to: edge.to, weight: edge.imports })), [graph]);
-  const layout = useMemo(() => layoutGraph(components.map(c => c.path), edges), [components, edges]);
+  const layout = useMemo(() => layoutGraph(components.map(c => c.path), edges, fit), [components, edges, fit]);
   if (!components.length) return <p className="muted">No components were found in the code yet.</p>;
-  const position = new Map(layout.nodes.map(node => [node.id, node]));
   const byPath = new Map(components.map(c => [c.path, c]));
   const heaviest = Math.max(1, ...edges.map(edge => edge.weight));
+  const lit = hover ?? focus ?? null;
   return (
-    <figure className="component-graph">
-      <svg viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-label={`${components.length} components and the imports between them`} style={{ maxWidth: layout.width }}>
-        <defs>
-          <marker id="graph-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" className="graph-arrow" />
-          </marker>
-        </defs>
-        {edges.map(edge => {
-          const from = position.get(edge.from);
-          const to = position.get(edge.to);
-          if (!from || !to) return null;
-          const active = hover === edge.from || hover === edge.to;
-          return (
-            <path key={`${edge.from}>${edge.to}`} d={edgePath(from, to, layout.direction)} className={cx('graph-edge', active && 'is-active', hover && !active && 'is-dim')}
-              strokeWidth={1 + (2 * edge.weight) / heaviest} markerEnd="url(#graph-arrow)">
-              <title>{`${edge.from} imports ${edge.to} (${edge.weight} ${edge.weight === 1 ? 'import' : 'imports'})`}</title>
-            </path>
-          );
-        })}
-        {layout.nodes.map(node => {
-          const component = byPath.get(node.id)!;
-          const path = componentLabel(component);
-          const label = path.length > 20 ? '…' + path.slice(-19) : path;
-          return (
-            <g key={node.id} className={cx('graph-node', hover === node.id && 'is-active')} transform={`translate(${node.x} ${node.y})`} tabIndex={0} role="button"
-              aria-label={`${path}: open its page`} onClick={() => onOpen(component)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(component); } }}
-              onMouseEnter={() => setHover(node.id)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(node.id)} onBlur={() => setHover(null)}>
-              <title>{`${component.path}${component.summary ? `: ${component.summary}` : ''}`}</title>
-              <rect width={NODE_WIDTH} height={NODE_HEIGHT} rx={8} />
-              <text x={12} y={19} className="graph-label">{label}</text>
-              <text x={12} y={35} className="graph-meta">{`${component.files ?? 0} files${component.languages?.length ? ` · ${component.languages[0]}` : ''}`}</text>
-            </g>
-          );
-        })}
-      </svg>
+    <figure className="component-graph" role="group" aria-label={`${plural(components.length, 'component')} and the imports between them`}>
+      <div className="graph-frame" ref={frame}>
+        <div className="graph-canvas" style={{ width: layout.width, height: layout.height }}>
+          <svg viewBox={`0 0 ${layout.width} ${layout.height}`} width={layout.width} height={layout.height} aria-hidden>
+            <defs>
+              <marker id="graph-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" className="graph-arrow" />
+              </marker>
+              <marker id="graph-arrow-active" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" className="graph-arrow is-active" />
+              </marker>
+            </defs>
+            {layout.edges.map(edge => {
+              const active = lit === edge.from || lit === edge.to;
+              return (
+                <path key={`${edge.from}>${edge.to}`} d={edge.d} className={cx('graph-edge', active && 'is-active', lit && !active && 'is-dim')}
+                  strokeWidth={1.25 + (1.75 * edge.weight) / heaviest} markerEnd={active ? 'url(#graph-arrow-active)' : 'url(#graph-arrow)'} />
+              );
+            })}
+          </svg>
+          {layout.nodes.map(node => {
+            const component = byPath.get(node.id)!;
+            const label = componentLabel(component);
+            const role = firstSentence(roles?.get(component.path) ?? component.summary, 150);
+            const uses = edges.filter(edge => edge.from === node.id).map(edge => `${edge.to} (${plural(edge.weight, 'import')})`);
+            return (
+              <button key={node.id} type="button" className={cx('graph-node', lit === node.id && 'is-active', focus === node.id && 'is-focus')}
+                style={{ left: node.x, top: node.y, width: layout.nodeWidth, height: NODE_HEIGHT }}
+                aria-label={`${label}: open its page`} aria-current={focus === node.id ? 'page' : undefined}
+                title={[component.summary, uses.length ? `Imports ${uses.join(', ')}.` : ''].filter(Boolean).join('\n')}
+                onClick={() => onOpen(component)} onMouseEnter={() => setHover(node.id)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(node.id)} onBlur={() => setHover(null)}>
+                <span className="graph-node-head">
+                  <span className="graph-label mono truncate">{label}</span>
+                  {component.entry_points?.length ? <span className="graph-start" title={`The program starts here: ${component.entry_points.map(entry => entry.path).join(', ')}`}><Play size={10} aria-hidden /> starts here</span> : null}
+                  <span className="spacer" />
+                  <span className="graph-meta">{plural(component.files ?? 0, 'file')}</span>
+                </span>
+                <span className="graph-role">{role || (component.languages ?? []).join(', ')}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <figcaption className="xs muted">
-        Drawn from the code: an arrow goes from a component to one it imports; thicker arrows carry more imports.{graph?.truncated ? ' The project is large: some modules or imports are left out.' : ''}
+        Read from the code: an arrow goes from a component to one it imports, thicker for more imports.{graph?.truncated ? ' The project is large: some modules or imports are left out.' : ''}
       </figcaption>
     </figure>
   );
-}
-
-/**
- * An edge from a component to one it imports. An edge that skips layers
- * leaves and enters off-center and bows out (right of rows, below columns),
- * so it does not run through the nodes between.
- */
-function edgePath(from: LayoutNode, to: LayoutNode, direction: Layout['direction']): string {
-  const span = Math.abs(to.rank - from.rank);
-  const bow = span > 1 ? 36 + 24 * (span - 1) : 0;
-  if (direction === 'right') {
-    const side = span > 1 ? NODE_HEIGHT * 0.8 : NODE_HEIGHT / 2;
-    const forward = to.x > from.x;
-    const x1 = forward ? from.x + NODE_WIDTH : from.x;
-    const x2 = forward ? to.x : to.x + NODE_WIDTH;
-    const y1 = from.y + side;
-    const y2 = to.y + side;
-    const bend = (x2 - x1) / 2 || 40;
-    return `M ${x1} ${y1} C ${x1 + bend} ${y1 + bow}, ${x2 - bend} ${y2 + bow}, ${x2} ${y2}`;
-  }
-  const side = span > 1 ? NODE_WIDTH * 0.8 : NODE_WIDTH / 2;
-  const downward = to.y > from.y;
-  const x1 = from.x + side;
-  const x2 = to.x + side;
-  const y1 = downward ? from.y + NODE_HEIGHT : from.y;
-  const y2 = downward ? to.y : to.y + NODE_HEIGHT;
-  const bend = (y2 - y1) / 2 || 40;
-  return `M ${x1} ${y1} C ${x1 + bow} ${y1 + bend}, ${x2 + bow} ${y2 - bend}, ${x2} ${y2}`;
 }

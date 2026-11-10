@@ -298,7 +298,7 @@ export const overview: Overview = {
     walkthroughs: [
       { title: 'Serve the Web UI', summary: 'The daemon serves the embedded bundle at /ui.', steps: [
         { text: 'main wires the routes and starts the loopback server.', path: 'cmd/daemon/main.go', symbol: 'main', line: 40 },
-        { text: 'The handler returns index.html for client routes and rejects nested asset paths.', path: 'internal/api/handlers/webui.go', symbol: 'ServeAsset', line: 1 },
+        { text: 'The handler returns index.html for client routes and rejects nested asset paths.', path: 'internal/api/handlers/webui.go', symbol: 'ServeAsset', line: 3 },
       ] },
       { title: "Start a task's agents", summary: 'A task runs its agents in its own worktree.', steps: [
         { text: 'The change handler decodes the request.', path: 'internal/api/handlers/change_handler.go', symbol: 'ChangeHandler.Create', line: 88 },
@@ -307,7 +307,7 @@ export const overview: Overview = {
     ],
     change_guide: [
       { title: 'Add an API route', summary: 'Register a handler in `main` that calls the app service.', steps: [
-        { text: 'Add the handler method.', path: 'internal/api/handlers/webui.go', symbol: 'ServeAsset', line: 1 },
+        { text: 'Add the handler method.', path: 'internal/api/handlers/webui.go', symbol: 'ServeAsset', line: 3 },
         { text: 'Register it in `main`.', path: 'cmd/daemon/main.go', symbol: 'main', line: 40 },
       ] },
     ],

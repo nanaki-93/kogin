@@ -177,8 +177,9 @@ modifier (`usePageKeys` and `useShortcuts` own those rules).
   size comes from the scale in `tokens.css` (`--text-xs` 12 px up to
   `--text-2xl`, `--text-code` for code and paths), which `data-density`
   switches between comfortable (15 px body) and compact (14 px); no size is
-  set by hand, nothing is smaller than `--text-xs`, and only a label inside
-  a fixed-size drawing (the component graph) pins a pixel size. Prose — plans,
+  set by hand and nothing is smaller than `--text-xs`; a drawing with text
+  (the architecture diagram) lays its text out as HTML over the drawing, so
+  it follows the scale too. Prose — plans,
   notes, answers, docs — runs no wider than `--measure` (68ch); labels over a
   block are quiet (`.label-row`: muted, sentence case, never uppercase) so the
   content below them is what the eye lands on, and a card states a fact once:
@@ -186,7 +187,8 @@ modifier (`usePageKeys` and `useShortcuts` own those rules).
   `--faint` text keeps at least 4.5:1 on its palette's background.
 - Code before prose: where model text is about lines of code, the lines
   themselves are on the page (a plan's cited lines with the step that changes
-  them, a review note on its hunk) and the sentence beside them is short. A
+  them, a review note on its hunk, a docs walkthrough step's declaration)
+  and the sentence beside them is short. A
   name in backticks renders as code everywhere model prose is shown
   (`DocText`), and a long identifier inside a sentence keeps its two ends
   with the whole name on hover (`shorten`).

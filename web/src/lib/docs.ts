@@ -139,6 +139,108 @@ export function architectureLines(text: string | undefined): string[] {
   return (text ?? '').split('\n').map(line => line.replace(/^\s*[-*•]\s*/, '').trim()).filter(Boolean);
 }
 
+/** The architecture read by component: what each does, and the lines that name no component. */
+export interface ArchitectureParts {
+  roles: Map<string, string>;
+  rest: string[];
+}
+
+/**
+ * What each component does, in the architecture's own words: a "path: role"
+ * line names a component, or a file in one (the first such line wins). A
+ * line that names neither stays as it is, in `rest`.
+ */
+export function architectureParts(text: string | undefined, components: Pick<DocsComponent, 'path'>[]): ArchitectureParts {
+  const paths = new Set(components.map(component => component.path));
+  const roles = new Map<string, string>();
+  const rest: string[] = [];
+  for (const line of architectureLines(text)) {
+    const colon = line.indexOf(': ');
+    const name = colon < 1 ? '' : line.slice(0, colon).replace(/`/g, '').replace(/^\.\//, '').replace(/\/$/, '').trim();
+    const role = colon < 1 ? '' : line.slice(colon + 2).trim();
+    const path = !name ? undefined : paths.has(name) ? name : /\.[A-Za-z0-9]+$/.test(name) ? componentOf(name, components) : undefined;
+    if (path !== undefined && role && !roles.has(path)) roles.set(path, role);
+    else rest.push(line);
+  }
+  return { roles, rest };
+}
+
+export function architectureRoles(text: string | undefined, components: Pick<DocsComponent, 'path'>[]): Map<string, string> {
+  return architectureParts(text, components).roles;
+}
+
+/** The components a guide's steps pass through, each once, in the order the steps first reach them. */
+export function componentTrail(guide: Walkthrough, components: Pick<DocsComponent, 'path'>[]): string[] {
+  const trail: string[] = [];
+  for (const step of guide.steps) {
+    const component = componentOf(step.path, components);
+    if (component !== undefined && !trail.includes(component)) trail.push(component);
+  }
+  return trail;
+}
+
+/** A declaration the guides stop at inside a component, with what a step says of it and the guides that pass it. */
+export interface GuideStop {
+  symbol: string;
+  path: string;
+  line: number;
+  text: string;
+  flows: number[];
+  changes: number[];
+}
+
+/** The declarations in a component that walkthroughs and the change guide stop at, most visited first. */
+export function guideStops(componentPath: string, walkthroughs: Walkthrough[], changes: Walkthrough[], components: Pick<DocsComponent, 'path'>[]): GuideStop[] {
+  const stops = new Map<string, GuideStop>();
+  const collect = (guides: Walkthrough[], key: 'flows' | 'changes') => guides.forEach((guide, index) => {
+    for (const step of guide.steps) {
+      if (!step.symbol || !step.line || componentOf(step.path, components) !== componentPath) continue;
+      const id = `${step.path}#${step.symbol}`;
+      const stop = stops.get(id) ?? { symbol: step.symbol, path: step.path, line: step.line, text: step.text, flows: [], changes: [] };
+      if (!stop[key].includes(index + 1)) stop[key].push(index + 1);
+      stops.set(id, stop);
+    }
+  });
+  collect(walkthroughs, 'flows');
+  collect(changes, 'changes');
+  const visits = (stop: GuideStop) => stop.flows.length + stop.changes.length;
+  return [...stops.values()].sort((a, b) => visits(b) - visits(a) || a.path.localeCompare(b.path) || a.line - b.line);
+}
+
+/** The lines of a declaration, from the line a step found it at. */
+export interface Excerpt {
+  first: number;
+  lines: string[];
+  /** Lines of the declaration left out, past `max`. */
+  more: number;
+}
+
+/**
+ * A declaration's source from its first line: to the line that closes it at
+ * the same indentation (a brace language), or to the last line indented
+ * under it (Python and the like); at most `max` lines, without the
+ * declaration's own indentation.
+ */
+export function declarationExcerpt(content: string, line: number, max = 40): Excerpt | null {
+  const all = content.split('\n');
+  if (line < 1 || line > all.length || !all[line - 1].trim()) return null;
+  const indent = (text: string) => text.length - text.trimStart().length;
+  const base = indent(all[line - 1]);
+  let end = line;
+  for (let at = line; at < all.length; at++) {
+    const text = all[at];
+    if (!text.trim()) continue;
+    if (indent(text) > base) { end = at + 1; continue; }
+    if (indent(text) !== base || !/^[\])}]/.test(text.trimStart())) break;
+    end = at + 1;
+    // ") error {" closes a signature and opens the body: the declaration goes on.
+    if (!/[{(\[]$/.test(text.trimEnd())) break;
+  }
+  const lines = all.slice(line - 1, Math.min(end, line - 1 + max)).map(text => text.slice(Math.min(base, indent(text))));
+  while (lines.length > 1 && !lines[lines.length - 1].trim()) lines.pop();
+  return { first: line, lines, more: Math.max(0, end - (line - 1) - lines.length) };
+}
+
 /** The Docs pages; older links land on the page that replaced theirs. */
 export type DocsSection = 'overview' | 'start' | 'architecture' | 'map' | 'components' | 'flows' | 'changes' | 'dependencies' | 'ask' | 'log' | 'decisions';
 
