@@ -87,12 +87,13 @@ export function planAwaitsDecision(session: Pick<ChangeSession, 'workflow' | 'pl
 }
 
 /**
- * The plan waits for your decision and you have not yet written your own (or
- * skipped it): the agent's plan stays out of sight until you do, so the two
- * are independent answers.
+ * The plan waits for your decision and, in Study mode, you have not yet
+ * written your own (or skipped it): the agent's plan stays out of sight until
+ * you do, so the two are independent answers. Steer mode shows the agent's
+ * plan right away.
  */
-export function ownPlanFirst(session: Pick<ChangeSession, 'workflow' | 'plan' | 'own_plan'> | null | undefined): boolean {
-  return planAwaitsDecision(session) && !session?.own_plan;
+export function ownPlanFirst(session: Pick<ChangeSession, 'workflow' | 'plan' | 'own_plan'> | null | undefined, mode: 'study' | 'steer' = 'study'): boolean {
+  return mode !== 'steer' && planAwaitsDecision(session) && !session?.own_plan;
 }
 
 /** How many issues a plan gives a verdict to: each step of a grouped fix, or the one issue a task links. */

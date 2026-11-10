@@ -39,7 +39,7 @@ func TestIssueTaskTitlesFitTheTaskTitleLimit(t *testing.T) {
 			t.Fatalf("%s: description = %q, want it to start with %q", test.name, task.Description, want)
 		}
 		request := ChangeCreateRequest{Title: task.Title, Kind: task.Kind, Paths: []string{"cmd/master.go"}, AcceptanceCriteria: task.AcceptanceCriteria}
-		if err := validateChangeCreateRequest(request); err != nil {
+		if err := validateChangeCreateRequestFor(request, false); err != nil {
 			t.Fatalf("%s: the drafted task is refused: %v", test.name, err)
 		}
 	}

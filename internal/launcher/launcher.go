@@ -137,6 +137,9 @@ func sameFolder(a, b string) bool {
 	if resolved, err := filepath.EvalSymlinks(a); err == nil {
 		a = resolved
 	}
+	if resolved, err := filepath.EvalSymlinks(b); err == nil {
+		b = resolved
+	}
 	return filepath.Clean(a) == filepath.Clean(b)
 }
 

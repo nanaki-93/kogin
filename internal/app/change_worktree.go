@@ -74,7 +74,7 @@ func (s *Service) OpenChangeInWorktree(ctx context.Context, request ChangeOpenRe
 // branch with a commit, whose files have no uncommitted changes here, since
 // the new worktree starts from HEAD without them.
 func (s *Service) taskWorktreeBase(ctx context.Context, request ChangeOpenRequest) (*GitRepository, error) {
-	if err := validateChangeCreateRequest(request.ChangeCreateRequest); err != nil {
+	if err := validateChangeCreateRequestFor(request.ChangeCreateRequest, true); err != nil {
 		return nil, err
 	}
 	repository, err := s.GitRepository(ctx, request.ProjectID, request.ProjectRevision)
@@ -84,14 +84,16 @@ func (s *Service) taskWorktreeBase(ctx context.Context, request ChangeOpenReques
 	if !repository.Available || repository.Branch == "" || repository.Head == "" {
 		return nil, fmt.Errorf("a task needs its own worktree, which needs a Git repository on a branch with a commit; make a first commit, then create the task")
 	}
-	// Task paths are relative to the project root; the Git runner reads
-	// every pathspec literally.
-	status, err := gitRead(ctx, s.manager.Root(), append([]string{"status", "--porcelain=v1", "-z", "--untracked-files=normal", "--"}, request.Paths...)...)
-	if err != nil {
-		return nil, fmt.Errorf("read the status of the task's files: %w", err)
-	}
-	if entry, _, _ := strings.Cut(status, "\x00"); len(entry) > 3 {
-		return nil, fmt.Errorf("%s has uncommitted changes that the task's new worktree would not have; commit or stash them, then create the task", entry[3:])
+	if len(request.Paths) > 0 {
+		// Task paths are relative to the project root; the Git runner reads
+		// every pathspec literally.
+		status, err := gitRead(ctx, s.manager.Root(), append([]string{"status", "--porcelain=v1", "-z", "--untracked-files=normal", "--"}, request.Paths...)...)
+		if err != nil {
+			return nil, fmt.Errorf("read the status of the task's files: %w", err)
+		}
+		if entry, _, _ := strings.Cut(status, "\x00"); len(entry) > 3 {
+			return nil, fmt.Errorf("%s has uncommitted changes that the task's new worktree would not have; commit or stash them, then create the task", entry[3:])
+		}
 	}
 	return repository, nil
 }

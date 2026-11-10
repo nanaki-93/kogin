@@ -5,20 +5,115 @@
 // awaiting_plan_review the task header approves or redirects; a plan that
 // finds nothing to fix is closed instead.
 
-import { useMemo, useState, type ReactNode } from 'react';
-import { Check, CircleSlash, CornerDownLeft, Map as MapIcon } from 'lucide-react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { Check, CircleSlash, CornerDownLeft, FlaskConical, Map as MapIcon, Plus } from 'lucide-react';
+import { useIndex } from '@/api/hooks';
 import type { LoadedSession, OwnPlan, PlanEvidence, PlanIssueVerdict } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
+import { setUI, useUI, type PlanMode } from '@/app/store';
 import { highlightLines } from '@/lib/highlight';
 import { firstSentence } from '@/lib/docs';
 import { issueTitle, ownPlanFirst, planAwaitsDecision, planFindsNothingToFix } from '@/lib/readiness';
-import { basename, languageOf, plural, timeAgo } from '@/lib/util';
+import { basename, companionTestPath, isTestPath, languageOf, newFilePath, plural, timeAgo, unique } from '@/lib/util';
 import { Badge, Button, Segmented, Textarea, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
 import { DocText } from '@/features/docs/DocText';
+import { MAX_TASK_PATHS } from './NewTaskDialog';
 import { useOpenTaskFile } from './TaskCodePreview';
 
-export function PlanReview({ session, redirecting, onRedirectDone }: { session: LoadedSession; redirecting: boolean; onRedirectDone: () => void }) {
+interface PlanDecisionState {
+  approvedPaths: string[];
+  extraPaths: string[];
+  scopeChanged: boolean;
+  togglePath: (path: string) => void;
+  addPath: (path: string) => boolean;
+  redirecting: boolean;
+  redirectNote: string;
+  setRedirectNote: (note: string) => void;
+  openRedirect: (prefill?: string) => void;
+  closeRedirect: () => void;
+}
+
+const PlanDecisionContext = createContext<PlanDecisionState | null>(null);
+
+function samePaths(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((path, index) => path === b[index]);
+}
+
+function initialApprovedPaths(session: LoadedSession): string[] {
+  const targets = (session.targets ?? []).map(target => target.path);
+  const touches = session.plan?.source === 'investigator' ? (session.plan.touches ?? []).map(touch => touch.path) : [];
+  return unique([...targets, ...touches]).slice(0, MAX_TASK_PATHS);
+}
+
+export function PlanDecisionProvider({ session, children }: { session: LoadedSession; children: ReactNode }) {
+  const targetPaths = useMemo(() => (session.targets ?? []).map(target => target.path), [session.targets]);
+  const [approvedPaths, setApprovedPaths] = useState<string[]>(() => initialApprovedPaths(session));
+  const [extraPaths, setExtraPaths] = useState<string[]>([]);
+  const [redirecting, setRedirecting] = useState(false);
+  const [redirectNote, setRedirectNote] = useState('');
+
+  const togglePath = (path: string) => {
+    setApprovedPaths(current => {
+      if (current.includes(path)) return current.filter(entry => entry !== path);
+      return current.length < MAX_TASK_PATHS ? [...current, path] : current;
+    });
+  };
+
+  const addPath = (path: string): boolean => {
+    if (!path) return false;
+    if (approvedPaths.includes(path)) return true;
+    if (approvedPaths.length >= MAX_TASK_PATHS) return false;
+    setExtraPaths(current => (current.includes(path) ? current : [...current, path]));
+    setApprovedPaths(current => (current.includes(path) ? current : [...current, path]));
+    return true;
+  };
+
+  const openRedirect = (prefill?: string) => {
+    if (prefill !== undefined) setRedirectNote(prefill);
+    setRedirecting(true);
+  };
+
+  const closeRedirect = () => setRedirecting(false);
+  const scopeChanged = targetPaths.length === 0 || !samePaths(approvedPaths, targetPaths);
+
+  return (
+    <PlanDecisionContext.Provider value={{ approvedPaths, extraPaths, scopeChanged, togglePath, addPath, redirecting, redirectNote, setRedirectNote, openRedirect, closeRedirect }}>
+      {children}
+    </PlanDecisionContext.Provider>
+  );
+}
+
+export function usePlanDecision(): PlanDecisionState {
+  const ctx = useContext(PlanDecisionContext);
+  if (ctx) return ctx;
+  return {
+    approvedPaths: [],
+    extraPaths: [],
+    scopeChanged: false,
+    togglePath: () => {},
+    addPath: () => false,
+    redirecting: false,
+    redirectNote: '',
+    setRedirectNote: () => {},
+    openRedirect: () => {},
+    closeRedirect: () => {},
+  };
+}
+
+const PLAN_MODES: { value: PlanMode; label: string }[] = [
+  { value: 'study', label: 'Study' },
+  { value: 'steer', label: 'Steer' },
+];
+
+function PlanModeSwitch() {
+  const planMode = useUI(s => s.planMode);
+  return <Segmented<PlanMode> label="Plan review mode" value={planMode} onChange={value => setUI({ planMode: value })} options={PLAN_MODES} />;
+}
+
+export function PlanReview({ session }: { session: LoadedSession }) {
+  const planMode = useUI(s => s.planMode);
+  const { redirecting, closeRedirect } = usePlanDecision();
   const plan = session.plan;
   if (!plan || plan.source !== 'investigator') return null;
   const waiting = planAwaitsDecision(session);
@@ -29,10 +124,12 @@ export function PlanReview({ session, redirecting, onRedirectDone }: { session: 
   const shown = citations.filter(citation => citation.excerpt);
   const steps = approachSteps(plan.approach ?? '');
   const verdicts = plan.issue_verdicts ?? [];
-  // Your plan first: the agent's stays out of sight until yours is written or skipped.
-  if (ownPlanFirst(session)) return <YourPlanFirst session={session} />;
+  // Your plan first: in Study mode, the agent's stays out of sight until yours is written or skipped.
+  if (ownPlanFirst(session, planMode)) return <YourPlanFirst session={session} />;
   const own = session.own_plan;
   const compared = Boolean(own && !own.skipped);
+  const interactive = waiting && !nothing;
+  const prominentScope = interactive && (session.targets ?? []).length === 0;
   const badgeText = nothing ? 'Nothing to fix' : approved ? 'Approved' : waiting ? 'Needs your decision' : 'Superseded';
   const body = (
     <div className="card-body stack plan-body">
@@ -69,7 +166,8 @@ export function PlanReview({ session, redirecting, onRedirectDone }: { session: 
         </div>
       )}
       {verdicts.length ? <PlanVerdicts session={session} verdicts={verdicts} /> : null}
-      <PlanReasoning session={session} folded={citations.filter(citation => !citation.excerpt)} />
+      {prominentScope ? <PlanTouchesSection session={session} interactive /> : null}
+      <PlanReasoning session={session} folded={citations.filter(citation => !citation.excerpt)} interactive={interactive} showTouches={!prominentScope} />
       {own?.skipped ? <p className="xs faint">You read this plan without writing your own first.</p> : null}
     </div>
   );
@@ -99,8 +197,9 @@ export function PlanReview({ session, redirecting, onRedirectDone }: { session: 
         <span className="spacer" />
         {plan.model ? <span className="xs faint mono">{plan.model}</span> : null}
         {plan.investigated_at ? <span className="xs faint">{timeAgo(plan.investigated_at)}</span> : null}
+        {!own ? <PlanModeSwitch /> : null}
       </div>
-      {redirecting ? <RedirectPlan session={session} onDone={onRedirectDone} /> : null}
+      {redirecting ? <RedirectPlan session={session} onDone={closeRedirect} /> : null}
       {body}
     </section>
   );
@@ -123,6 +222,8 @@ function YourPlanFirst({ session }: { session: LoadedSession }) {
         <MapIcon size={15} aria-hidden />
         <span className="strong">Your plan first</span>
         <Badge tone="accent">The agent’s plan is ready</Badge>
+        <span className="spacer" />
+        <PlanModeSwitch />
       </div>
       <form
         className="card-body stack plan-own"
@@ -131,7 +232,7 @@ function YourPlanFirst({ session }: { session: LoadedSession }) {
           if (ready) void actions.writeOwnPlan(session, { wrong: wrong.trim(), approach: approach.trim(), risk: risk.trim() || undefined });
         }}
       >
-        <p className="small muted">Before you read it, write your own from the brief and the code. It is kept as you wrote it and shown beside the agent’s; where the two differ is what this task can teach you.</p>
+        <p className="small muted">Before you read it, write your own from the brief and the code. Switch to Steer anytime to read the agent’s plan directly.</p>
         <label className="stack-xs">
           <span className="label-row">What is wrong?</span>
           <Textarea rows={2} autoFocus value={wrong} onChange={e => setWrong(e.target.value)} maxLength={600} placeholder="The cause, as far as you can tell: which code, doing what" />
@@ -249,15 +350,130 @@ function CitedLines({ session, citation }: { session: LoadedSession; citation: P
   );
 }
 
-/** Why the plan is this plan: the problem in the code's terms, its root cause, the alternatives it rejected, the risks and the files. */
-function PlanReasoning({ session, folded }: { session: LoadedSession; folded: PlanEvidence[] }) {
+/** The files the plan proposes to change, with checkboxes to confirm or trim scope before code is written. */
+function PlanTouchesSection({ session, interactive }: { session: LoadedSession; interactive: boolean }) {
   const openTaskFile = useOpenTaskFile(session.checkout.worktreePath);
+  const { approvedPaths, extraPaths, togglePath, addPath } = usePlanDecision();
+  const indexed = useIndex().data?.files;
+  const [query, setQuery] = useState('');
+  const plan = session.plan!;
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    const list: { path: string; why: string }[] = [];
+    for (const touch of plan.touches ?? []) {
+      if (!seen.has(touch.path)) {
+        seen.add(touch.path);
+        list.push(touch);
+      }
+    }
+    for (const target of session.targets ?? []) {
+      if (!seen.has(target.path)) {
+        seen.add(target.path);
+        list.push({ path: target.path, why: 'Pinned in task scope' });
+      }
+    }
+    for (const extra of extraPaths) {
+      if (!seen.has(extra)) {
+        seen.add(extra);
+        list.push({ path: extra, why: 'Added by you' });
+      }
+    }
+    return list;
+  }, [plan.touches, session.targets, extraPaths]);
+
+  if (!items.length && !interactive) return null;
+  const hasTest = approvedPaths.some(isTestPath);
+  const companion = !hasTest && approvedPaths.length < MAX_TASK_PATHS ? approvedPaths.map(companionTestPath).find(Boolean) : '';
+  const knownSet = useMemo(() => new Set((indexed ?? []).map(file => file.path)), [indexed]);
+
+  const submitAdd = () => {
+    const trimmed = query.trim().replace(/^(\.\/)+/, '');
+    const valid = knownSet.has(trimmed) ? trimmed : newFilePath(query);
+    if (valid && addPath(valid)) setQuery('');
+  };
+
+  return (
+    <div className="stack-xs">
+      <div className="row">
+        <span className="label-row">Files it changes</span>
+        {interactive ? <span className="xs faint">{plural(approvedPaths.length, 'file')} selected (max {MAX_TASK_PATHS})</span> : null}
+      </div>
+      {items.length ? (
+        <ul className="issue-steps" aria-label="Files it changes">
+          {items.map(touch => {
+            const checked = approvedPaths.includes(touch.path);
+            return (
+              <li key={touch.path} className={cx('issue-step scope-grant', interactive && !checked && 'is-excluded')}>
+                <div className="issue-step-head">
+                  {interactive ? (
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={!checked && approvedPaths.length >= MAX_TASK_PATHS}
+                      onChange={() => togglePath(touch.path)}
+                      aria-label={`Include ${touch.path}`}
+                    />
+                  ) : null}
+                  <button type="button" className="chip chip-file" title={`Inspect ${touch.path}`} onClick={() => openTaskFile(touch.path)}>
+                    <FileIcon path={touch.path} size={12} />
+                    {touch.path}
+                  </button>
+                  <span className="xs muted truncate" title={touch.why}>
+                    {touch.why}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="xs muted">The plan did not list files to change. Add at least one below, or redirect the plan.</p>
+      )}
+      {interactive && companion ? (
+        <button type="button" className="scope-suggest" onClick={() => addPath(companion)}>
+          <FlaskConical size={13} aria-hidden /> Include <span className="mono">{companion}</span> so agents can write tests
+        </button>
+      ) : null}
+      {interactive && approvedPaths.length < MAX_TASK_PATHS ? (
+        <div className="row plan-scope-add">
+          <input
+            className="input input-sm"
+            list={`plan-files-${session.id}`}
+            placeholder="Add another file path to scope…"
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                submitAdd();
+              }
+            }}
+            aria-label="Add file to approved scope"
+          />
+          <datalist id={`plan-files-${session.id}`}>
+            {(indexed ?? []).slice(0, 60).map(file => (
+              <option key={file.path} value={file.path} />
+            ))}
+          </datalist>
+          <Button size="sm" variant="ghost" icon={Plus} onClick={submitAdd} disabled={!query.trim()}>
+            Include
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Why the plan is this plan: the problem in the code's terms, its root cause, the alternatives it rejected, the risks and the files. */
+function PlanReasoning({ session, folded, interactive, showTouches }: { session: LoadedSession; folded: PlanEvidence[]; interactive: boolean; showTouches: boolean }) {
+  const openTaskFile = useOpenTaskFile(session.checkout.worktreePath);
+  const { openRedirect } = usePlanDecision();
   const plan = session.plan!;
   const holds = [
     plan.root_cause ? 'root cause' : '',
     plan.alternatives?.length ? plural(plan.alternatives.length, 'alternative') : '',
     plan.risks?.length ? plural(plan.risks.length, 'risk') : '',
-    plan.touches?.length ? plural(plan.touches.length, 'file') : '',
+    showTouches && plan.touches?.length ? plural(plan.touches.length, 'file') : '',
   ].filter(Boolean);
   if (!holds.length && !folded.length) return null;
   return (
@@ -312,11 +528,21 @@ function PlanReasoning({ session, folded }: { session: LoadedSession; folded: Pl
             <ul className="issue-steps" aria-label="Rejected alternatives">
               {(plan.alternatives ?? []).map(alternative => (
                 <li key={alternative.approach} className="issue-step scope-grant">
-                  <span className="small">
-                    <DocText text={alternative.approach} shorten />
-                  </span>
+                  <div className="issue-step-head">
+                    <span className="small">
+                      <DocText text={alternative.approach} shorten />
+                    </span>
+                    {interactive ? (
+                      <>
+                        <span className="spacer" />
+                        <Button size="sm" variant="ghost" onClick={() => openRedirect(`Use this approach instead: ${alternative.approach}`)}>
+                          Use this approach…
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
                   <span className="xs muted">
-                    {' '}— <DocText text={alternative.why_not} shorten />
+                    <DocText text={alternative.why_not} shorten />
                   </span>
                 </li>
               ))}
@@ -335,26 +561,7 @@ function PlanReasoning({ session, folded }: { session: LoadedSession; folded: Pl
             </ul>
           </div>
         ) : null}
-        {(plan.touches ?? []).length ? (
-          <div>
-            <div className="label-row">Files it changes</div>
-            <ul className="issue-steps" aria-label="Files it changes">
-              {(plan.touches ?? []).map(touch => (
-                <li key={touch.path} className="issue-step scope-grant">
-                  <div className="issue-step-head">
-                    <button type="button" className="chip chip-file" title={`Inspect ${touch.path}`} onClick={() => openTaskFile(touch.path)}>
-                      <FileIcon path={touch.path} size={12} />
-                      {touch.path}
-                    </button>
-                    <span className="xs muted truncate" title={touch.why}>
-                      {touch.why}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+        {showTouches && ((plan.touches ?? []).length || interactive) ? <PlanTouchesSection session={session} interactive={interactive} /> : null}
       </div>
     </details>
   );
@@ -376,8 +583,17 @@ export function approachSteps(approach: string): string[] {
 export function ApprovePlan({ session, size, variant = 'primary' }: { session: LoadedSession; size?: 'sm'; variant?: 'primary' | 'secondary' }) {
   const actions = useActions();
   const busy = Boolean(useBusy());
+  const { approvedPaths, scopeChanged } = usePlanDecision();
+  const missingScope = !planFindsNothingToFix(session) && approvedPaths.length === 0;
   return (
-    <Button size={size} variant={variant} icon={Check} onClick={() => void actions.startAgents(session, { approvePlan: true })} disabled={busy} title="Approves this exact plan and starts the agents from it; nothing is written until then">
+    <Button
+      size={size}
+      variant={variant}
+      icon={Check}
+      onClick={() => void actions.startAgents(session, { approvePlan: true, approvedPaths: scopeChanged ? approvedPaths : undefined })}
+      disabled={busy || missingScope}
+      title={missingScope ? 'Include at least one file the agents may change, or redirect the plan' : 'Approves this exact plan and starts the agents from it; nothing is written until then'}
+    >
       Approve & run agents
     </Button>
   );
@@ -434,19 +650,22 @@ export function RedirectPlanButton({ session, onClick, disabled }: { session: Lo
 function RedirectPlan({ session, onDone }: { session: LoadedSession; onDone: () => void }) {
   const actions = useActions();
   const busy = Boolean(useBusy());
-  const [note, setNote] = useState('');
+  const { redirectNote, setRedirectNote } = usePlanDecision();
   const redirect = async () => {
-    if (await actions.startAgents(session, { planRedirect: note.trim() })) onDone();
+    if (await actions.startAgents(session, { planRedirect: redirectNote.trim() })) {
+      setRedirectNote('');
+      onDone();
+    }
   };
   return (
     <div className="card-body stack plan-redirect">
-      <Textarea rows={2} autoFocus placeholder={planFindsNothingToFix(session) ? 'Why do you think the issue is real? The investigation runs again with this note.' : 'What should the plan do differently? The investigation runs again with this note.'} value={note} onChange={e => setNote(e.target.value)} aria-label="Redirect note" />
+      <Textarea rows={2} autoFocus placeholder={planFindsNothingToFix(session) ? 'Why do you think the issue is real? The investigation runs again with this note.' : 'What should the plan do differently? The investigation runs again with this note.'} value={redirectNote} onChange={e => setRedirectNote(e.target.value)} aria-label="Redirect note" />
       <div className="row">
         <Button size="sm" variant="ghost" icon={CircleSlash} onClick={onDone} disabled={busy}>
           Cancel
         </Button>
         <span className="spacer" />
-        <Button size="sm" variant="secondary" icon={CornerDownLeft} onClick={() => void redirect()} disabled={!note.trim() || busy}>
+        <Button size="sm" variant="secondary" icon={CornerDownLeft} onClick={() => void redirect()} disabled={!redirectNote.trim() || busy}>
           Re-investigate
         </Button>
       </div>

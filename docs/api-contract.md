@@ -949,8 +949,10 @@ workflow.
 
 The client supplies a `plan` with `problem`, `evidence`, `approach`, `non_goals`
 and optional `read_paths`, plus at least one acceptance criterion. Creation captures
-1–8 write paths and up to 8 distinct existing read-only paths. Read context cannot
-become a write target. `plan.hash` binds the intent, criteria, source, instructions
+1–8 write paths (or 0 write paths for a non-`instructions` task in its own worktree
+without `finding_targets`, when the plan gate will investigate first) and up to 8
+distinct existing read-only paths. Read context cannot
+become a write target until explicitly promoted upon plan approval. `plan.hash` binds the intent, criteria, source, instructions
 and workspace identity. Saving a plan makes no provider request and runs no checks.
 Missing scope is never filled from
 an arbitrary index entry; oversized scope must be split explicitly by the user.
@@ -1005,7 +1007,12 @@ plan carries `source: "investigator"`, the `model` and
 investigation's model, usage and tool calls; the model stages stay `pending`.
 Starting the workflow again with `plan_hash` approves that exact plan and the
 run proceeds (the investigation is skipped and `plan_stage` carried over);
-starting it with `plan_redirect` (at most 2000 bytes) runs the investigation
+supplying optional `approved_paths` (`1..8` distinct clean project-relative
+paths) with `plan_hash` confirms or trims the task's write scope (or defaults
+an empty-scope task to the plan's `touches`, up to 8 files), promotes any
+newly included `read_paths` into `targets`, retains dropped cited targets as
+read context, and rebinds `plan.hash` and `plan.approved_hash` to the updated
+scope before coding begins. Starting it with `plan_redirect` (at most 2000 bytes) runs the investigation
 again with the note and the previous plan in its prompt, needing no
 `plan_hash`. An unapproved investigator plan blocks generation like any
 unapproved plan. Approving a plan also accepts its issue verdicts: when the

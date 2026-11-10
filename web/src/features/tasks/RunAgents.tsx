@@ -14,10 +14,10 @@ export function RunAgents({ session, variant = 'secondary', size }: { session: L
   const busy = useBusy();
   const trust = useTrust().data;
   const profile = useProfile().data;
-  const blocker = workflowBlocker(session, Boolean(trust?.trusted));
   const first = !(session.changes ?? []).length;
   // A fresh run under the plan gate investigates first and waits for the plan's approval.
   const investigates = first && session.workflow?.status !== 'paused' && planGateApplies(profile?.plan_gate, session);
+  const blocker = workflowBlocker(session, Boolean(trust?.trusted), investigates);
   if (!session.worktree) return null; // Made in the main checkout: read and delete only.
   return (
     <Tip label={blocker || (investigates ? 'The creation model proposes a plan you approve before any code is written' : first ? 'Agents write the change, tests, and review it' : 'Choose where the agents start: this version as it is, new tests, or the change written again')}>

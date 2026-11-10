@@ -261,7 +261,12 @@ export function planName(provider: string | undefined): string {
   return { claude: 'Claude plan', agy: 'Google AI plan', pi: 'Pi subscription' }[provider ?? ''] ?? 'plan';
 }
 
-export function workflowRequest(identity: ProjectIdentity & { revision: number; hash: string }, message: string, choice: DestinationChoice, options: { autoRepair?: boolean; confirmSecurity?: boolean; planHash?: string; planRedirect?: string; plan?: 'on' | 'off'; includeComments?: boolean; start?: RunStart } = {}) {
+export function workflowRequest(
+  identity: ProjectIdentity & { revision: number; hash: string },
+  message: string,
+  choice: DestinationChoice,
+  options: { autoRepair?: boolean; confirmSecurity?: boolean; planHash?: string; planRedirect?: string; plan?: 'on' | 'off'; approvedPaths?: string[]; includeComments?: boolean; start?: RunStart } = {},
+) {
   return {
     ...identity,
     message,
@@ -272,6 +277,7 @@ export function workflowRequest(identity: ProjectIdentity & { revision: number; 
     plan_hash: options.planHash || undefined,
     plan_redirect: options.planRedirect || undefined,
     plan: options.plan,
+    approved_paths: options.approvedPaths?.length ? options.approvedPaths : undefined,
     include_comments: options.includeComments || undefined,
     resume_from: options.start && options.start !== 'create' ? options.start : undefined,
   };
@@ -414,22 +420,24 @@ export function taskFixingIssue<T extends { state: string; worktreePath: string;
 
 /**
  * Explains why the composer cannot start agents on a new task, or '': the same
- * rules the daemon applies when the run starts.
+ * rules the daemon applies when the run starts. When the plan gate investigates
+ * first, the investigation can find the files to change.
  */
-export function composerStartBlocker(paths: string[], trusted: boolean): string {
-  if (!paths.length) return 'Choose at least one file the agents may change.';
+export function composerStartBlocker(paths: string[], trusted: boolean, investigates = false): string {
+  if (!paths.length && !investigates) return 'Choose at least one file the agents may change.';
   if (!trusted) return 'Allow this project to run checks (Settings → Trust) so agents can verify their work.';
   return '';
 }
 
 /** Explains why the agent workflow cannot start for this task, or ''. */
-export function workflowBlocker(session: { state: string; freshness: string; kind: string; workflow?: ChangeWorkflow; worktree?: unknown } | null, trusted: boolean): string {
+export function workflowBlocker(session: { state: string; freshness: string; kind: string; targets?: unknown[] | null; workflow?: ChangeWorkflow; worktree?: unknown } | null, trusted: boolean, investigates = true): string {
   if (!session) return 'Select a task first.';
   if (session.state === 'applied') return 'This task is already accepted.';
   if (session.freshness && session.freshness !== 'current') return 'Its files changed since this task was captured. Re-analyze it first.';
   if (session.kind === 'instructions') return 'Instruction edits use the manual proposal flow.';
   if (session.workflow && ['running', 'canceling'].includes(session.workflow.status)) return 'Agents are already working on this task.';
   if (!session.worktree) return 'This task was made in the main checkout; Kogin no longer runs agents on it.';
+  if (session.targets && !session.targets.length && !investigates) return 'Choose at least one file the agents may change.';
   if (!trusted) return 'Allow this project to run checks (Settings → Trust) so agents can verify their work.';
   return '';
 }

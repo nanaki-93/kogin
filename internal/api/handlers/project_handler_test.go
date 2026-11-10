@@ -99,6 +99,7 @@ func TestPromptHandlersConfirmOnlyTheirOwnRemoteScope(t *testing.T) {
 
 	root := t.TempDir()
 	writeProjectHandlerFixture(t, root, "main.go", "package main\nfunc Run() {}\n")
+	initGitHandlerRepo(t, root)
 	manager, err := project.NewManager(root)
 	if err != nil {
 		t.Fatal(err)
@@ -118,10 +119,6 @@ func TestPromptHandlersConfirmOnlyTheirOwnRemoteScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	projectHandler := NewProjectHandler(manager, service)
-	index, err := manager.Index()
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	importResponse := httptest.NewRecorder()
 	projectHandler.Import(importResponse, httptest.NewRequest(http.MethodPost, "/api/projects/import", bytes.NewBufferString(`{"project_path":"`+root+`"}`)))
@@ -131,10 +128,25 @@ func TestPromptHandlersConfirmOnlyTheirOwnRemoteScope(t *testing.T) {
 		t.Fatalf("unconfirmed remote import = %d %s, bug calls %d", importResponse.Code, importResponse.Body.String(), bugCalls)
 	}
 
-	session, err := service.OpenChangeSession(context.Background(), app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "feature", Title: "Change Run", Paths: []string{"main.go"}})
+	index, err := manager.Index()
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := service.TrustProjectExecution(context.Background(), index.ProjectRevision, true); err != nil {
+		t.Fatal(err)
+	}
+	opened, err := service.OpenChangeInWorktree(context.Background(), app.ChangeOpenRequest{
+		ChangeCreateRequest: app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "feature", Title: "Change Run", Paths: []string{"main.go"}},
+		ConfirmExecution:    true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wtService, wtManager, err := service.WorktreeService(context.Background(), opened.WorktreePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session := opened.ChangeSession
 	body, err := json.Marshal(app.ChangeMessageRequest{ChangeIdentity: app.ChangeIdentity{ProjectID: session.ProjectID, ProjectRevision: session.ProjectRevision, Revision: session.Revision, Hash: session.Hash}, Message: "Change Run."})
 	if err != nil {
 		t.Fatal(err)
@@ -142,7 +154,7 @@ func TestPromptHandlersConfirmOnlyTheirOwnRemoteScope(t *testing.T) {
 	message := httptest.NewRequest(http.MethodPost, "/api/projects/current/changes/"+session.ID+"/messages", bytes.NewReader(body))
 	message.SetPathValue("sessionID", session.ID)
 	functionResponse := httptest.NewRecorder()
-	NewChangeHandler(service, manager).Message(functionResponse, message)
+	NewChangeHandler(wtService, wtManager).Message(functionResponse, message)
 	if functionResponse.Code != http.StatusBadRequest || strings.Contains(functionResponse.Body.String(), "hidden") || bugCalls != 0 {
 		t.Fatalf("unconfirmed remote function = %d %s, bug calls %d", functionResponse.Code, functionResponse.Body.String(), bugCalls)
 	}

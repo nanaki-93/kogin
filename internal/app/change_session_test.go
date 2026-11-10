@@ -18,6 +18,10 @@ import (
 	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
+func (s *Service) OpenChangeSession(ctx context.Context, request ChangeCreateRequest) (*ChangeSession, error) {
+	return s.openChangeSession(ctx, request, false)
+}
+
 func changeIdentity(session *ChangeSession) ChangeIdentity {
 	return ChangeIdentity{ProjectID: session.ProjectID, ProjectRevision: session.ProjectRevision, Revision: session.Revision, Hash: session.Hash}
 }

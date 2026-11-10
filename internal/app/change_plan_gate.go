@@ -59,6 +59,27 @@ func validateWorkflowPlanRequest(request ChangeWorkflowRequest) error {
 	if redirect := request.PlanRedirect; redirect != "" && !validInvestigationText(redirect, maxPlanRedirectBytes) {
 		return fmt.Errorf("a plan redirect is at most %d bytes of text", maxPlanRedirectBytes)
 	}
+	return validateApprovedPathsRequest(request)
+}
+
+func validateApprovedPathsRequest(request ChangeWorkflowRequest) error {
+	if len(request.ApprovedPaths) == 0 {
+		return nil
+	}
+	if request.PlanHash == "" || request.PlanRedirect != "" {
+		return fmt.Errorf("approved paths apply only when approving a plan")
+	}
+	if len(request.ApprovedPaths) > maxTaskPaths {
+		return fmt.Errorf("approve at most %d paths", maxTaskPaths)
+	}
+	seen := map[string]bool{}
+	for _, file := range request.ApprovedPaths {
+		clean, err := cleanToolPath(file)
+		if err != nil || clean != file || seen[clean] {
+			return fmt.Errorf("approved paths must be distinct project-relative paths")
+		}
+		seen[clean] = true
+	}
 	return nil
 }
 

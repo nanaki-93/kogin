@@ -2769,7 +2769,7 @@ components:
         project_revision: {type: string}
         kind: {type: string, enum: [fix, performance, security, feature, instructions]}
         title: {type: string, minLength: 1, maxLength: 200}
-        paths: {type: array, minItems: 1, maxItems: 8, uniqueItems: true, items: {type: string}}
+        paths: {type: array, minItems: 0, maxItems: 8, uniqueItems: true, items: {type: string}, description: "Files in scope (0..8 for non-instructions tasks in their own worktree without finding_targets when the plan gate investigates first; 1..8 before coding)."}
         acceptance_criteria: {type: array, maxItems: 16, items: {type: string, maxLength: 1024}}
         finding_targets: {type: array, maxItems: 16, uniqueItems: true, items: {$ref: '#/components/schemas/FindingTarget'}}
         issues: {type: array, minItems: 2, maxItems: 5, items: {$ref: '#/components/schemas/ChangeIssue'}, description: Linked issues to fix one at a time when the task has its own worktree; each names one of finding_targets.}
@@ -2830,6 +2830,7 @@ components:
             plan_hash: {type: string, description: Required matching plan.hash for planned sessions; explicitly approves captured intent.}
             plan: {type: string, enum: [on, off], description: Turns the plan gate on or off for this run; omitted follows the project profile's plan_gate. With the gate on, a fresh create run on an agent-capable creation model first proposes a plan and stops at awaiting_plan_review.}
             plan_redirect: {type: string, maxLength: 2000, description: Runs the investigation again with this note, replacing the proposed plan; the old plan needs no plan_hash.}
+            approved_paths: {type: array, minItems: 1, maxItems: 8, uniqueItems: true, items: {type: string}, description: "Optional confirmed write scope (1..8 project-relative paths) applied when approving an investigated plan with plan_hash; rebinds the approved plan hash to the updated targets."}
             resume_from: {type: string, enum: [create, test, checks, review], default: create, description: "Where the run starts: create writes the change again; test keeps the implementation; checks keeps the whole proposal and runs the checks, then the reviewers; review needs live passing checks for this hash."}
             auto_repair: {type: boolean, default: false, description: Opt into up to two automatic repairs within approved scope.}
             message: {type: string, maxLength: 8192, description: Required unless include_comments sends the open line comments.}

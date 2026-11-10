@@ -69,7 +69,7 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
         paths: draft.paths,
         acceptance_criteria: draft.criteria.length ? draft.criteria : ['Changes pass verification checks'],
         plan: draft.description.trim() ? { problem: draft.title.trim(), approach: draft.description.trim() } : undefined,
-        finding_targets: linked,
+        finding_targets: linked?.length ? linked : undefined,
         issues: issueSteps(draft.issues, linked),
         confirm_execution: true,
       };
@@ -97,7 +97,7 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
     return created.id;
   }
 
-  async function startAgents(loaded: LoadedSession, options: { message?: string; approvePlan?: boolean; planRedirect?: string; plan?: 'on' | 'off' } = {}): Promise<boolean> {
+  async function startAgents(loaded: LoadedSession, options: { message?: string; approvePlan?: boolean; planRedirect?: string; plan?: 'on' | 'off'; approvedPaths?: string[] } = {}): Promise<boolean> {
     // The main branch may have changed the task's files since the page
     // loaded: a run would build on code that is gone, so it is retaken.
     const session = (await reload(loaded)) ?? loaded;
@@ -151,7 +151,9 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
               <p className="small muted">Checks run in an isolated copy; nothing is committed until you accept. Failures get up to two automatic repairs.</p>
             </>
           ) : options.approvePlan ? (
-            <p>Approves this exact plan. Agents write, test and review the change from it; nothing reaches your files until you accept.</p>
+            <p>
+              Approves this exact plan{options.approvedPaths?.length ? ` (${plural(options.approvedPaths.length, 'file')} in scope)` : ''}. Agents write, test and review the change from it; nothing reaches your files until you accept.
+            </p>
           ) : options.planRedirect ? (
             <p>The investigation runs again with your note; the revised plan waits for you.</p>
           ) : options.plan !== 'off' && !again && planFirst ? (
@@ -186,7 +188,16 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
           // approval action; a plan the user wrote at creation stays implicit.
           const plan = session.plan;
           const planHash = options.planRedirect ? undefined : options.approvePlan || (plan && plan.source !== 'investigator') ? plan?.hash : undefined;
-          const body = workflowRequest(changeIdentity(session), message, run, { autoRepair: true, confirmSecurity: security, planHash, planRedirect: options.planRedirect, plan: options.plan, includeComments: comments > 0 && start !== 'checks', start });
+          const body = workflowRequest(changeIdentity(session), message, run, {
+            autoRepair: true,
+            confirmSecurity: security,
+            planHash,
+            planRedirect: options.planRedirect,
+            plan: options.plan,
+            approvedPaths: options.approvedPaths,
+            includeComments: comments > 0 && start !== 'checks',
+            start,
+          });
           setSession(await api.post<ChangeSession>(changePath(session, '/workflow'), body), session);
           toast(options.planRedirect ? 'Re-investigating with your note. The revised plan will wait for you.' : 'Agents started. Progress updates live.', 'info');
           return true;

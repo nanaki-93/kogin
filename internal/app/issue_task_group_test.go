@@ -44,7 +44,7 @@ func TestSeveralIssuesOfAFileDraftOneTaskThatLinksThemAll(t *testing.T) {
 	if !slices.Contains(task.AcceptanceCriteria, "The vault is written before the key file is removed") || strings.Count(strings.Join(task.AcceptanceCriteria, "\n"), "Add a regression test that fails before the fix") != 1 {
 		t.Fatalf("criteria = %q", task.AcceptanceCriteria)
 	}
-	if err := validateChangeCreateRequest(ChangeCreateRequest{Title: task.Title, Kind: task.Kind, Paths: task.Paths, AcceptanceCriteria: task.AcceptanceCriteria}); err != nil {
+	if err := validateChangeCreateRequestFor(ChangeCreateRequest{Title: task.Title, Kind: task.Kind, Paths: task.Paths, AcceptanceCriteria: task.AcceptanceCriteria}, false); err != nil {
 		t.Fatalf("the drafted task is refused: %v", err)
 	}
 	if kind := issuesTask(root, []project.UnifiedFinding{groupFinding("a", "x.go", 1, project.FindingCategorySecurity), groupFinding("b", "x.go", 2, project.FindingCategoryBugs)}).Kind; kind != "fix" {

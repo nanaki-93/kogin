@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func TestCleanupMergedHTTPGuardsIdentityAndReturnsRemovalReceipt(t *testing.T) {
@@ -68,12 +69,8 @@ func TestGitMutationsRejectUnconfirmedAndUnknownFields(t *testing.T) {
 	}
 }
 
-// gitChangeHandlerFixture is the change handler fixture as a trusted Git
-// repository with a first commit, where tasks get their own worktrees.
-func gitChangeHandlerFixture(t *testing.T) *ChangeHandler {
+func initGitHandlerRepo(t *testing.T, root string) {
 	t.Helper()
-	fixture := newChangeHandlerFixture(t, "http://127.0.0.1:1")
-	root := fixture.manager.Root()
 	git := func(args ...string) {
 		t.Helper()
 		flags := []string{"-C", root, "-c", "core.hooksPath=" + os.DevNull, "-c", "commit.gpgSign=false", "-c", "user.name=Test", "-c", "user.email=test@example.com"}
@@ -81,12 +78,50 @@ func gitChangeHandlerFixture(t *testing.T) *ChangeHandler {
 			t.Fatalf("git: %v %s", err, out)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kogin/\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".kogin/\n.worktrees/\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	git("init", "-b", "main")
-	git("add", "main.go", ".gitignore")
+	git("add", ".")
 	git("commit", "-m", "Initial")
+}
+
+// openHandlerWorktreeTask creates an untrusted Git fixture backed by baseURL,
+// opens request in its own worktree, and returns a ChangeHandler for that worktree.
+func openHandlerWorktreeTask(t *testing.T, baseURL string, build func(index *project.ProjectIndex) app.ChangeCreateRequest) (*ChangeHandler, *app.ChangeSession) {
+	t.Helper()
+	fixture := newChangeHandlerFixture(t, baseURL)
+	initGitHandlerRepo(t, fixture.manager.Root())
+	index, err := fixture.service.Reindex()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.service.TrustProjectExecution(context.Background(), index.ProjectRevision, true); err != nil {
+		t.Fatal(err)
+	}
+	opened, err := fixture.service.OpenChangeInWorktree(context.Background(), app.ChangeOpenRequest{
+		ChangeCreateRequest: build(index),
+		ConfirmExecution:    true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wtService, wtManager, err := fixture.service.WorktreeService(context.Background(), opened.WorktreePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wtService.TrustProjectExecution(context.Background(), opened.ProjectRevision, false); err != nil {
+		t.Fatal(err)
+	}
+	return NewChangeHandler(wtService, wtManager), opened.ChangeSession
+}
+
+// gitChangeHandlerFixture is the change handler fixture as a trusted Git
+// repository with a first commit, where tasks get their own worktrees.
+func gitChangeHandlerFixture(t *testing.T) *ChangeHandler {
+	t.Helper()
+	fixture := newChangeHandlerFixture(t, "http://127.0.0.1:1")
+	initGitHandlerRepo(t, fixture.manager.Root())
 	if _, err := fixture.service.Reindex(); err != nil {
 		t.Fatal(err)
 	}

@@ -14,6 +14,7 @@ import (
 
 	"github.com/nanaki-93/kogin/v2/internal/app"
 	"github.com/nanaki-93/kogin/v2/internal/llm"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func TestChangeWorkflowHTTPAdmissionProgressAndCancellation(t *testing.T) {
@@ -25,7 +26,9 @@ func TestChangeWorkflowHTTPAdmissionProgressAndCancellation(t *testing.T) {
 	}))
 	defer provider.Close()
 	defer close(release)
-	h := newChangeHandlerFixture(t, provider.URL)
+	h, session := openHandlerWorktreeTask(t, provider.URL, func(index *project.ProjectIndex) app.ChangeCreateRequest {
+		return app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "security", Title: "Fix unsafe input", Paths: []string{"main.go", "main_test.go"}}
+	})
 	defer h.service.CancelChangeWorkflows()
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -35,10 +38,6 @@ func TestChangeWorkflowHTTPAdmissionProgressAndCancellation(t *testing.T) {
 		}
 	})
 	index, _ := h.manager.Index()
-	session, err := h.service.OpenChangeSession(context.Background(), app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "security", Title: "Fix unsafe input", Paths: []string{"main.go", "main_test.go"}})
-	if err != nil {
-		t.Fatal(err)
-	}
 	request := app.ChangeWorkflowRequest{ChangeIdentity: app.ChangeIdentity{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Revision: session.Revision, Hash: session.Hash}, Message: "Fix and test."}
 	for _, handler := range []http.HandlerFunc{h.StartWorkflow, h.CancelWorkflow, h.RespondInput} {
 		for _, body := range []string{`{"unknown":true}`, `{}`, `{} {}`} {
@@ -111,7 +110,30 @@ func TestWorkflowInputHTTPGuardedReceipt(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: output}}}})
 	}))
 	defer provider.Close()
-	h := newChangeHandlerFixture(t, provider.URL)
+	mainFixture := newChangeHandlerFixture(t, provider.URL)
+	if err := os.WriteFile(filepath.Join(mainFixture.manager.Root(), "go.mod"), []byte("module example.test/confirmation\n\ngo 1.22\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	initGitHandlerRepo(t, mainFixture.manager.Root())
+	mainIndex, err := mainFixture.service.Reindex()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mainFixture.service.TrustProjectExecution(t.Context(), mainIndex.ProjectRevision, true); err != nil {
+		t.Fatal(err)
+	}
+	opened, err := mainFixture.service.OpenChangeInWorktree(t.Context(), app.ChangeOpenRequest{
+		ChangeCreateRequest: app.ChangeCreateRequest{ProjectID: mainIndex.ProjectID, ProjectRevision: mainIndex.ProjectRevision, Kind: "feature", Title: "Add Helper", Paths: []string{"new.go", "new_test.go"}},
+		ConfirmExecution:    true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wtService, wtManager, err := mainFixture.service.WorktreeService(t.Context(), opened.WorktreePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := NewChangeHandler(wtService, wtManager)
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -119,20 +141,11 @@ func TestWorkflowInputHTTPGuardedReceipt(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	if err := os.WriteFile(filepath.Join(h.manager.Root(), "go.mod"), []byte("module example.test/confirmation\n\ngo 1.22\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	index, err := h.service.Reindex()
-	if err != nil {
-		t.Fatal(err)
-	}
+	index, _ := h.manager.Index()
 	if _, err := h.service.TrustProjectExecution(t.Context(), index.ProjectRevision, true); err != nil {
 		t.Fatal(err)
 	}
-	initial, err := h.service.OpenChangeSession(t.Context(), app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "feature", Title: "Add Helper", Paths: []string{"new.go", "new_test.go"}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	initial := opened.ChangeSession
 	identity := app.ChangeIdentity{ProjectID: initial.ProjectID, ProjectRevision: initial.ProjectRevision, Revision: initial.Revision, Hash: initial.Hash}
 	if _, err := h.service.StartChangeWorkflow(t.Context(), initial.ID, app.ChangeWorkflowRequest{ChangeIdentity: identity, Message: "Add Helper returning two and a regression test."}); err != nil {
 		t.Fatal(err)
@@ -147,15 +160,15 @@ func TestWorkflowInputHTTPGuardedReceipt(t *testing.T) {
 	for range 2 {
 		response := workflowResponse(t, h.RespondInput, "POST", "/changes/id/workflow/input", ready.ID, request)
 		var approved app.ChangeSession
-		if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &approved) != nil || approved.Workflow.Input.Status != "approved" || approved.ReviewedHash != ready.Hash {
+		if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &approved) != nil || approved.State != "draft" || approved.Workflow.Input.Status != "approved" || approved.ReviewedHash != ready.Hash {
 			t.Fatalf("response: %d %s", response.Code, response.Body)
 		}
 	}
 	if calls.Load() != before {
 		t.Fatal("input response dispatched provider")
 	}
-	if _, err := os.Stat(filepath.Join(h.manager.Root(), "new.go")); !os.IsNotExist(err) {
-		t.Fatal("input response applied source")
+	if _, err := os.Stat(filepath.Join(mainFixture.manager.Root(), "new.go")); !os.IsNotExist(err) {
+		t.Fatal("input response applied source to main checkout")
 	}
 }
 

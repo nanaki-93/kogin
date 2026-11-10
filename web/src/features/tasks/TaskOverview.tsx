@@ -13,7 +13,7 @@ import { firstSentence } from '@/lib/docs';
 import { Badge, Button, Callout, PhaseIcon, Textarea, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
 import { navigate } from '@/lib/router';
-import { openNewTask } from '@/app/store';
+import { openNewTask, useUI } from '@/app/store';
 import { CloseTask } from './CloseTask';
 import { CodeRules } from './CodeRules';
 import { PlanReview } from './PlanReview';
@@ -24,16 +24,18 @@ import { ReviewItems } from './ReviewItems';
 import { LiveRun } from './LiveRun';
 import { useOpenTaskFile } from './TaskCodePreview';
 
-export function TaskOverview({ session, redirecting, onRedirectDone }: { session: LoadedSession; redirecting: boolean; onRedirectDone: () => void }) {
+export function TaskOverview({ session }: { session: LoadedSession }) {
+  const planMode = useUI(s => s.planMode);
+  const ownFirst = ownPlanFirst(session, planMode);
   // A plan that waits for your decision is the whole page: the run's
   // stages, the rules and the conversation come back once it is decided.
   if (planAwaitsDecision(session)) {
     return (
       <div className="page-inner stack-lg">
         <MainChanged session={session} />
-        <PlanReview session={session} redirecting={redirecting} onRedirectDone={onRedirectDone} />
-        <Brief session={session} open={ownPlanFirst(session)} />
-        {ownPlanFirst(session) ? null : <Investigated session={session} />}
+        <PlanReview session={session} />
+        <Brief session={session} open={ownFirst} />
+        {ownFirst ? null : <Investigated session={session} />}
       </div>
     );
   }
@@ -41,7 +43,7 @@ export function TaskOverview({ session, redirecting, onRedirectDone }: { session
     <div className="page-inner stack-lg">
       <MainChanged session={session} />
       {workflowActive(session) && session.workflow ? <LiveRun session={session} /> : null}
-      <PlanReview session={session} redirecting={false} onRedirectDone={onRedirectDone} />
+      <PlanReview session={session} />
       <Brief session={session} />
       <CodeRules session={session} />
       {session.workflow ? <AgentRun session={session} /> : null}
@@ -91,15 +93,19 @@ function Brief({ session, open }: { session: LoadedSession; /** Open while you w
       ) : null}
       <div>
         <div className="label-row">Scope · files agents may change</div>
-        <div className="chips">
-          {targets.map(t => (
-            <button key={t.path} type="button" className="chip chip-file" onClick={() => openTaskFile(t.path)} title={`Inspect ${t.path}`}>
-              <FileIcon path={t.path} size={12} />
-              {t.path}
-              {!t.exists ? <span className="faint">new</span> : null}
-            </button>
-          ))}
-        </div>
+        {targets.length ? (
+          <div className="chips">
+            {targets.map(t => (
+              <button key={t.path} type="button" className="chip chip-file" onClick={() => openTaskFile(t.path)} title={`Inspect ${t.path}`}>
+                <FileIcon path={t.path} size={12} />
+                {t.path}
+                {!t.exists ? <span className="faint">new</span> : null}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="xs muted">Determined by the investigation when you approve the plan.</p>
+        )}
       </div>
     </div>
   );
@@ -109,7 +115,7 @@ function Brief({ session, open }: { session: LoadedSession; /** Open while you w
         <summary className="card-head">
           <FileText size={15} aria-hidden />
           <span className="strong">Brief</span>
-          <span className="xs muted">{[criteria.length ? `done when ${plural(criteria.length, 'criterion', 'criteria')}` : '', plural(targets.length, 'file')].filter(Boolean).join(' · ')}</span>
+          <span className="xs muted">{[criteria.length ? `done when ${plural(criteria.length, 'criterion', 'criteria')}` : '', targets.length ? plural(targets.length, 'file') : 'scope from plan'].filter(Boolean).join(' · ')}</span>
         </summary>
         {body}
       </details>

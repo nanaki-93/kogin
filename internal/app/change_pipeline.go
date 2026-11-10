@@ -114,7 +114,7 @@ func (s *Service) investigationBudget(root string, session *ChangeSession, reque
 // waiting when another task is changing its code and returns the task then.
 // Caller holds changesMu.
 func (s *Service) admitOrQueue(ctx context.Context, root string, session *ChangeSession, request ChangeWorkflowRequest, cleanedMessages []ChangeMessage) (workflowStart, *ChangeSession, error) {
-	start, err := s.admitWorkflowSession(ctx, session, request, len(cleanedMessages))
+	start, err := s.admitWorkflowSession(ctx, root, session, request, len(cleanedMessages))
 	if err != nil {
 		return start, nil, err
 	}
@@ -144,7 +144,7 @@ func (s *Service) queueChangeWorkflow(root string, session *ChangeSession, reque
 
 // admitWorkflowSession checks the session may start this run and returns
 // where it starts.
-func (s *Service) admitWorkflowSession(ctx context.Context, session *ChangeSession, request ChangeWorkflowRequest, messages int) (workflowStart, error) {
+func (s *Service) admitWorkflowSession(ctx context.Context, root string, session *ChangeSession, request ChangeWorkflowRequest, messages int) (workflowStart, error) {
 	if err := s.admitChangeWorkflow(ctx, session, request, messages); err != nil {
 		return workflowStart{}, err
 	}
@@ -153,9 +153,17 @@ func (s *Service) admitWorkflowSession(ctx context.Context, session *ChangeSessi
 		if err := approveWorkflowPlan(session, request.PlanHash); err != nil {
 			return workflowStart{}, err
 		}
+		if request.PlanHash != "" {
+			if err := s.applyApprovedPlanScope(root, session, request.ApprovedPaths); err != nil {
+				return workflowStart{}, err
+			}
+		}
 	}
 	start, err := s.workflowStartFor(session, request.ResumeFrom)
 	if err != nil {
+		return workflowStart{}, err
+	}
+	if err := s.requireWorkflowTargets(root, session, request, start); err != nil {
 		return workflowStart{}, err
 	}
 	if start == startChecks && request.IncludeComments {
@@ -212,16 +220,6 @@ func (s *Service) admitChangeWorkflow(ctx context.Context, session *ChangeSessio
 	if session.Kind == "security" && !request.ConfirmSecurity {
 		return fmt.Errorf("security workflow requires explicit review intent")
 	}
-	// A testing agent with tools creates the test files it needs; a one-shot
-	// one writes only the test files the task holds.
-	testRuntime := s.workflowStageRuntime(1, request.Models.Test)
-	hasTestTarget := toolStageAvailable(session, testRuntime)
-	for _, target := range session.Targets {
-		hasTestTarget = hasTestTarget || isTestTarget(target)
-	}
-	if !hasTestTarget {
-		return fmt.Errorf("include a test path (e.g. _test.go, .test.ts, test_*.py) in the captured scope for the testing agent")
-	}
 	for i, profile := range request.Models.selections() {
 		runtime := s.workflowStageRuntime(i, profile)
 		if request.StreamOutput && !llm.ProviderCapabilities(runtime.profile).Streaming {
@@ -232,6 +230,30 @@ func (s *Service) admitChangeWorkflow(ctx context.Context, session *ChangeSessio
 		}
 	}
 	return s.requireChangeExecutionTrust(ctx, session)
+}
+
+func (s *Service) requireWorkflowTargets(root string, session *ChangeSession, request ChangeWorkflowRequest, start workflowStart) error {
+	if start == startCreate && investigationNeeded(session, workflowPlanMode(root, request), strings.TrimSpace(request.PlanRedirect), s.workflowStageRuntime(0, request.Models.Create)) {
+		return nil
+	}
+	if _, noFix := planNoFix(session); noFix {
+		return nil
+	}
+	if len(session.Targets) == 0 {
+		return fmt.Errorf("choose at least one file for the task, or run the investigation first")
+	}
+	// A testing agent with tools creates the test files it needs; a one-shot
+	// one writes only the test files the task holds.
+	testRuntime := s.workflowStageRuntime(1, request.Models.Test)
+	if toolStageAvailable(session, testRuntime) {
+		return nil
+	}
+	for _, target := range session.Targets {
+		if isTestTarget(target) {
+			return nil
+		}
+	}
+	return fmt.Errorf("include a test path (e.g. _test.go, .test.ts, test_*.py) in the captured scope for the testing agent")
 }
 
 func (s *Service) runChangeWorkflow(ctx context.Context, job *changeWorkflowJob, message string) {

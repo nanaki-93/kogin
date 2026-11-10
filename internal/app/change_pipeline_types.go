@@ -37,10 +37,12 @@ type ChangeWorkflowRequest struct {
 	PlanHash     string `json:"plan_hash,omitempty"`
 	// Plan turns the plan gate on or off for this run; empty follows the
 	// project profile. PlanRedirect runs the investigation again with the
-	// human's note, replacing the proposed plan.
-	Plan         string `json:"plan,omitempty"`
-	PlanRedirect string `json:"plan_redirect,omitempty"`
-	ResumeFrom   string `json:"resume_from,omitempty"`
+	// human's note, replacing the proposed plan. ApprovedPaths locks the
+	// confirmed target scope when approving an investigated plan.
+	Plan          string   `json:"plan,omitempty"`
+	PlanRedirect  string   `json:"plan_redirect,omitempty"`
+	ApprovedPaths []string `json:"approved_paths,omitempty"`
+	ResumeFrom    string   `json:"resume_from,omitempty"`
 	ChangeIdentity
 	Message           string               `json:"message"`
 	Models            ChangeWorkflowModels `json:"models"`

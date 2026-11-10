@@ -8,7 +8,7 @@ import type { UsageTotal } from '@/api/types';
 import { costCaveat, costLabel, formatTokens } from '@/lib/usage';
 import { useActions, useBusy } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
-import { DARK_PALETTES, setUI, useUI, type Density, type Font, type Theme } from '@/app/store';
+import { DARK_PALETTES, setUI, useUI, type Density, type Font, type PlanMode, type Theme } from '@/app/store';
 import { navigate } from '@/lib/router';
 import { plural } from '@/lib/util';
 import { Badge, Button, EmptyState, Segmented, Skeleton, cx } from '@/components/ui';
@@ -268,6 +268,7 @@ function Appearance() {
   const density = useUI(s => s.density);
   const font = useUI(s => s.font);
   const layout = useUI(s => s.diffLayout);
+  const planMode = useUI(s => s.planMode);
   return (
     <>
       <h1 className="page-title">Appearance</h1>
@@ -308,6 +309,10 @@ function Appearance() {
             <Segmented<Font> label="Font" value={font} onChange={value => setUI({ font: value })} options={[{ value: 'inter', label: 'Inter' }, { value: 'system', label: 'System' }]} />
           </div>
           <div className="row"><span className="grow">Diff layout</span><Segmented label="Diff layout" value={layout} onChange={value => setUI({ diffLayout: value })} options={[{ value: 'unified', label: 'Unified' }, { value: 'split', label: 'Split' }]} /></div>
+          <div className="row">
+            <span className="grow stack-xs"><span>Plan review</span><span className="xs muted">Study hides the agent’s plan until you write yours; Steer shows it right away.</span></span>
+            <Segmented<PlanMode> label="Plan review" value={planMode} onChange={value => setUI({ planMode: value })} options={[{ value: 'study', label: 'Study' }, { value: 'steer', label: 'Steer' }]} />
+          </div>
         </div>
       </div>
     </>

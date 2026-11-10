@@ -67,7 +67,7 @@ func (s *Service) mainChange(ctx context.Context, root string, session *ChangeSe
 		return nil, err
 	}
 	main := ChangeMainChange{Branch: strings.TrimSpace(branch), Head: strings.TrimSpace(head)}
-	if main.Head == session.Worktree.Base {
+	if main.Head == session.Worktree.Base || len(session.Targets) == 0 {
 		return nil, nil
 	}
 	paths := make([]string, 0, len(session.Targets))

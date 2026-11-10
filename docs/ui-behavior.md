@@ -29,21 +29,26 @@ every guard when the action arrives.
 - Settings → **Appearance** chooses the theme and dark palette, the
   **Density** (Comfortable, the default, reads a step larger; Compact fits
   more rows and lines), the **Font** (Inter and JetBrains Mono, bundled with
-  the UI by default, or the system's own faces) and the diff layout. Density
+  the UI by default, or the system's own faces), the diff layout and **Plan
+  review** (**Study**, the default, asks for your own plan before showing the
+  agent's; **Steer** shows the agent's plan right away). Density
   and font are applied as `data-density` and `data-font` on the document,
   saved with the other preferences and kept across reloads.
 
 ## Tasks
 
-- **Create.** A task needs a title; scope (up to eight files) and "done when"
+- **Create.** A task needs a title; scope (up to eight files; optional when the
+  plan gate investigates first, so the investigation can find the files to
+  change and you confirm them when approving the plan) and "done when"
   criteria are explicit. A file that does not exist yet joins the scope by
   typing its path (**New file**); agents can write only the files in scope,
   and a run whose proposal writes another file fails naming it. **Save
   draft** stores it without model work. The composer has no kind picker: a
   new task is a feature, and a task drafted from an issue keeps its issue's
   kind (fix, security, performance). Repairs are always on (up to two). When
-  the agents cannot start yet, the reason stands beside **Start agents**, and
-  an empty scope is outlined once the task has a title.
+  the agents cannot start yet (for instance when **Skip the plan this time** is
+  checked with no file chosen), the reason stands beside **Start agents**, and
+  an empty required scope is outlined once the task has a title.
 - **A task from a sentence.** In the command palette, `>` and a sentence
   ("> retry loop in the llm client ignores cancellation") draft a task from
   the words: the open issue it describes (with its file, test file and
@@ -120,10 +125,12 @@ every guard when the action arrives.
   Ask the code, **Save to log** keeps an answer there. A backticked name in
   an entry shows as code. Hunk notes show the same concept chips during
   review.
-- **Your plan first.** When a plan is ready, the task page does not show it
-  yet. **Your plan first** asks three things — what is wrong, what you would
-  do, and (optional) what could break — with the brief open below to work
-  from; no decision is offered. **Show the agent's plan** saves your plan as
+- **Your plan first.** When a plan is ready in **Study** mode (the default),
+  the task page does not show it yet. **Your plan first** asks three things —
+  what is wrong, what you would do, and (optional) what could break — with the
+  brief open below to work from, plus a **Study | Steer** switch in the card
+  header; switching to **Steer** shows the agent's plan immediately without
+  recording a skipped plan and remembers the preference. **Show the agent's plan** saves your plan as
   written (it cannot be edited afterwards) and reveals the agent's; **Skip
   this time** reveals it without one, and the card then says you read it
   without writing your own. With both, the Plan card opens on the two side by
@@ -157,10 +164,16 @@ every guard when the action arrives.
   code), the investigation's short reading of it, and, when an approach step
   removes or rewrites those lines, **Step N removes these lines** / **changes
   these lines** with the lines tinted accordingly — then the approach as
-  numbered steps and, for a task that links issues, the verdicts. **Why
+  numbered steps and, for a task that links issues, the verdicts. On an
+  intent-only task started without pinned files, **Files it changes** stands
+  directly above **Why this plan** with checkboxes to confirm, trim or add
+  files (up to eight) for `approved_paths`; on an already-scoped task it sits
+  inside **Why this plan** with the same checkboxes, and each rejected
+  alternative offers **Use this approach…** to open **Redirect…** pre-filled
+  with that approach. **Why
   this plan** folds the rest: the problem in the code's terms, the root
-  cause, citations without an excerpt, rejected alternatives, risks and the
-  files it changes. The task header holds both decisions, once: **Redirect…**
+  cause, citations without an excerpt, rejected alternatives, risks and (when
+  already scoped) the files it changes. The task header holds both decisions, once: **Redirect…**
   (the note box opens at the top of the card) and **Approve & run agents**.
   While the plan waits the page shows nothing else of the pipeline: no review
   gate, no run timeline, no conversation and no revision box; the brief the

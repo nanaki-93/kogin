@@ -838,6 +838,18 @@
   margin: -8px 2px 0;
 }
 
+.issue-step.is-excluded {
+  opacity: 0.52;
+}
+
+.plan-scope-add {
+  max-width: 460px;
+}
+
+.plan-scope-add .input {
+  flex: 1;
+}
+
 /* A card that opens on demand: its head is the summary. */
 .card-fold > summary {
   cursor: pointer;

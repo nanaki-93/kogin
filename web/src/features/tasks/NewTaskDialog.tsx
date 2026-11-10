@@ -46,14 +46,15 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
   const actions = useActions();
   const busy = useBusy();
   const titleRef = useRef<HTMLTextAreaElement>(null);
-  // Why no task can be made yet (no Git, no commit, no trust), else why the agents cannot start.
-  const worktreeBlocker = git ? ownWorktreeBlocker(git, Boolean(trust?.trusted)) : '';
-  const startBlocker = worktreeBlocker || composerStartBlocker(draft.paths, Boolean(trust?.trusted));
-  const steps = issueSteps(draft.issues, draft.findingTargets?.filter(target => draft.paths.includes(target.path)));
+  const linked = draft.findingTargets?.filter(target => draft.paths.includes(target.path));
+  const steps = issueSteps(draft.issues, linked);
   // The profile's plan gate: a fresh task first gets an investigated plan to approve.
   const gate = useProfile().data?.plan_gate ?? 'always';
-  const planFirst = gate === 'always' || (gate === 'grouped' && (steps?.length ?? 0) >= 2);
+  const planFirst = draft.kind !== 'instructions' && (gate === 'always' || (gate === 'grouped' && (steps?.length ?? 0) >= 2));
   const investigates = planFirst && !draft.skipPlan;
+  // Why no task can be made yet (no Git, no commit, no trust), else why the agents cannot start.
+  const worktreeBlocker = git ? ownWorktreeBlocker(git, Boolean(trust?.trusted)) : '';
+  const startBlocker = worktreeBlocker || composerStartBlocker(draft.paths, Boolean(trust?.trusted), investigates);
 
   useEffect(() => titleRef.current?.focus(), []);
 
@@ -77,7 +78,9 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
   async function submit(start: DraftTask['start']) {
     if (!project) return;
     if (!draft.title.trim()) return setError('Give the task a title.');
-    if (!draft.paths.length) return setError('Choose at least one file the agents may change.');
+    if (!draft.paths.length && (draft.kind === 'instructions' || (start !== 'draft' && !investigates))) {
+      return setError('Choose at least one file the agents may change.');
+    }
     if (worktreeBlocker) return setError(worktreeBlocker);
     if (start === 'agents' && startBlocker) return setError(startBlocker);
     const id = await actions.createTask(project, { ...draft, start });
@@ -114,7 +117,7 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
       <div className="composer-body">
         <Textarea ref={titleRef} className="composer-title" rows={1} placeholder="What should change?" value={draft.title} onChange={e => update({ title: e.target.value.replace(/\n/g, ' ') })} aria-label="Task title" maxLength={200} />
         <Textarea className="composer-desc" rows={4} placeholder="Add context: the bug you see, the behavior you want, constraints the agents must respect…" value={draft.description} onChange={e => update({ description: e.target.value })} aria-label="Description" />
-        <ScopePicker files={files.map(f => f.path)} selected={draft.paths} known={known} onAdd={addPath} onRemove={path => update({ paths: draft.paths.filter(p => p !== path) })} missing={!draft.paths.length && Boolean(draft.title.trim())} />
+        <ScopePicker files={files.map(f => f.path)} selected={draft.paths} known={known} onAdd={addPath} onRemove={path => update({ paths: draft.paths.filter(p => p !== path) })} missing={!draft.paths.length && !investigates && Boolean(draft.title.trim())} optional={investigates} />
         <CriteriaEditor criteria={draft.criteria} onChange={criteria => update({ criteria })} />
         {steps ? (
           <p className="xs muted" role="note">
@@ -157,7 +160,7 @@ function Composer({ prefill }: { prefill: Partial<DraftTask> }) {
   );
 }
 
-function ScopePicker({ files, selected, known, onAdd, onRemove, missing }: { files: string[]; selected: string[]; known: Set<string>; onAdd: (path: string) => void; onRemove: (path: string) => void; missing?: boolean }) {
+function ScopePicker({ files, selected, known, onAdd, onRemove, missing, optional }: { files: string[]; selected: string[]; known: Set<string>; onAdd: (path: string) => void; onRemove: (path: string) => void; missing?: boolean; optional?: boolean }) {
   const [q, setQ] = useState('');
   const [cursor, setCursor] = useState(0);
   const results = useMemo(() => (q.trim() ? rankItems(files.filter(f => !selected.includes(f)), q, f => f, 8) : []), [files, q, selected]);
@@ -180,7 +183,7 @@ function ScopePicker({ files, selected, known, onAdd, onRemove, missing }: { fil
     <div className={cx('scope', missing && 'is-missing')}>
       <div className="scope-head">
         <span className="field-label">Files agents may change</span>
-        <span className="xs faint">{plural(selected.length, 'file')} of {MAX_TASK_PATHS}</span>
+        <span className="xs faint">{selected.length || !optional ? `${plural(selected.length, 'file')} of ${MAX_TASK_PATHS}` : 'Optional — the investigation can find them'}</span>
       </div>
       {selected.length ? (
         <ul className="scope-list">

@@ -56,12 +56,9 @@ func TestChangeHTTPSelectedProfile(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: `{"explanation":"Document the behavior.","changes":[{"path":"README.md","content":"# Behavior\nReturns the result.\n"}]}`}}}})
 	}))
 	defer server.Close()
-	h := newChangeHandlerFixture(t, server.URL)
-	index, _ := h.manager.Index()
-	session, err := h.service.OpenChangeSession(context.Background(), app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Title: "Document behavior", Kind: "fix", Paths: []string{"README.md"}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	h, session := openHandlerWorktreeTask(t, server.URL, func(index *project.ProjectIndex) app.ChangeCreateRequest {
+		return app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Title: "Document behavior", Kind: "fix", Paths: []string{"README.md"}}
+	})
 	request := app.ChangeMessageRequest{ChangeIdentity: app.ChangeIdentity{ProjectID: session.ProjectID, ProjectRevision: session.ProjectRevision, Revision: session.Revision, Hash: session.Hash}, Message: "Document behavior.", Profile: "unknown"}
 	if w := workflowResponse(t, h.Message, "POST", "/changes/id/messages", session.ID, request); w.Code < 400 {
 		t.Fatal("unknown model profile was accepted")
@@ -161,12 +158,9 @@ func TestChangeHTTPClosedRevisionRequestCancelsTheModelCall(t *testing.T) {
 		close(canceled)
 	}))
 	defer provider.Close()
-	h := newChangeHandlerFixture(t, provider.URL)
-	index, _ := h.manager.Index()
-	session, err := h.service.OpenChangeSession(context.Background(), app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Title: "Document behavior", Kind: "fix", Paths: []string{"README.md"}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	h, session := openHandlerWorktreeTask(t, provider.URL, func(index *project.ProjectIndex) app.ChangeCreateRequest {
+		return app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Title: "Document behavior", Kind: "fix", Paths: []string{"README.md"}}
+	})
 	finished := make(chan struct{})
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /changes/{sessionID}/messages", func(w http.ResponseWriter, r *http.Request) {
@@ -204,10 +198,16 @@ func TestChangeHTTPReanalyzeAnswersWithTheDecision(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: `{"still_valid":false,"reason":"Run now handles the case."}`}}}})
 	}))
 	defer provider.Close()
-	h := newChangeHandlerFixture(t, provider.URL)
-	index, _ := h.manager.Index()
-	session, err := h.service.OpenChangeSession(context.Background(), app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Title: "Fix: Run", Kind: "fix", Paths: []string{"main.go"}})
+	h, session := openHandlerWorktreeTask(t, provider.URL, func(index *project.ProjectIndex) app.ChangeCreateRequest {
+		return app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Title: "Fix: Run", Kind: "fix", Paths: []string{"main.go"}}
+	})
+	// Re-analysis applies to tasks stored without their own worktree.
+	session.Worktree = nil
+	stored, err := json.Marshal(session)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(h.manager.Root(), ".kogin", "changes", session.ID+".json"), stored, 0600); err != nil {
 		t.Fatal(err)
 	}
 	request := app.ChangeReanalysisRequest{ChangeIdentity: app.ChangeIdentity{ProjectID: session.ProjectID, ProjectRevision: session.ProjectRevision, Revision: session.Revision, Hash: session.Hash}}

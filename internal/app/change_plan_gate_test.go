@@ -462,3 +462,56 @@ func TestASkippedOwnPlanIsRecordedAndHasNothingToCompare(t *testing.T) {
 		t.Fatal("accepted text with a skip")
 	}
 }
+
+func TestIntentOnlyTaskInvestigatesThenLocksConfirmedScope(t *testing.T) {
+	scripts := map[string][]fakePiStep{"investigator": investigatorScript(), "coder": coderScript(), "tester": testerScript()}
+	flow := startToolFlowScripts(t, scripts, nil, func(open *ChangeOpenRequest) {
+		open.Paths = []string{}
+		open.FindingTargets = nil
+	}, func(request *ChangeWorkflowRequest) {
+		request.Plan = "on"
+	})
+	waiting := flow.finished(t)
+	if waiting.Workflow.Status != "awaiting_plan_review" || len(waiting.Targets) != 0 {
+		t.Fatalf("waiting = %s, targets = %+v", waiting.Workflow.Status, waiting.Targets)
+	}
+	if waiting.Plan == nil || len(waiting.Plan.ReadPaths) != 1 || waiting.Plan.ReadPaths[0] != "calc.go" {
+		t.Fatalf("plan read context = %+v", waiting.Plan)
+	}
+
+	// Skipping the plan without any target file is refused.
+	skip := flow.request
+	skip.ChangeIdentity, skip.Plan = changeIdentity(waiting), "off"
+	if _, err := flow.service.StartChangeWorkflow(context.Background(), flow.id, skip); err == nil {
+		t.Fatal("ran coding without targets or plan approval")
+	}
+
+	// Unsafe or disallowed approved_paths are refused before any stage runs.
+	for _, bad := range [][]string{{"../outside.go"}, {"AGENTS.md"}, {"calc.go", "calc.go"}} {
+		invalid := flow.request
+		invalid.ChangeIdentity, invalid.Plan, invalid.PlanHash, invalid.ApprovedPaths = changeIdentity(waiting), "on", waiting.Plan.Hash, bad
+		if _, err := flow.service.StartChangeWorkflow(context.Background(), flow.id, invalid); err == nil {
+			t.Fatalf("accepted invalid approved_paths %v", bad)
+		}
+	}
+
+	// Confirming calc.go + calc_sub_test.go promotes calc.go out of read_paths
+	// into targets, keeps the plan approved and bound, and runs the agents.
+	approve := flow.request
+	approve.ChangeIdentity, approve.Plan, approve.PlanHash = changeIdentity(waiting), "on", waiting.Plan.Hash
+	approve.ApprovedPaths = []string{"calc.go", "calc_sub_test.go"}
+	if _, err := flow.service.StartChangeWorkflow(context.Background(), flow.id, approve); err != nil {
+		t.Fatal(err)
+	}
+	finished := flow.finished(t)
+	if finished.Workflow.Status != "awaiting_human_review" {
+		t.Fatalf("approved run = %s (%s)", finished.Workflow.Status, finished.Workflow.Reason)
+	}
+	if finished.Plan == nil || finished.Plan.ApprovedHash != finished.Plan.Hash || len(finished.Plan.ReadPaths) != 0 {
+		t.Fatalf("approved plan = %+v", finished.Plan)
+	}
+	got := changeTargetPaths(finished)
+	if len(got) != 2 || got[0] != "calc.go" || got[1] != "calc_sub_test.go" {
+		t.Fatalf("confirmed targets = %v", got)
+	}
+}

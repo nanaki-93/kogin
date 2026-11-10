@@ -89,6 +89,8 @@ describe('util and workflow', () => {
     const s = { state: 'draft', freshness: 'current', kind: 'fix', worktree: { base: 'b', branch: 'orca/x' } };
     expect(workflowBlocker(s, true)).toBe('');
     expect(workflowBlocker(s, false)).toMatch(/Trust/);
+    expect(workflowBlocker({ ...s, targets: [] }, true, true)).toBe('');
+    expect(workflowBlocker({ ...s, targets: [] }, true, false)).toMatch(/at least one file/);
     expect(workflowBlocker({ ...s, workflow: { id: 'w', status: 'paused', stages: [] } as never }, true)).toBe('');
     expect(workflowBlocker({ ...s, worktree: undefined }, true)).toMatch(/made in the main checkout/);
     expect(workflowBlocker(null, true)).toMatch(/Select/);
@@ -96,8 +98,12 @@ describe('util and workflow', () => {
 
   it('says why the composer cannot start agents', () => {
     expect(composerStartBlocker([], true)).toMatch(/at least one file/);
+    expect(composerStartBlocker([], true, true)).toBe('');
+    expect(composerStartBlocker([], false, true)).toMatch(/Trust/);
     expect(composerStartBlocker(['cmd/master.go'], true)).toBe('');
     expect(composerStartBlocker(['cmd/master.go'], false)).toMatch(/Trust/);
+    const req = workflowRequest({ project_id: 'p1', project_revision: 'r1', revision: 1, hash: 'h1' }, 'msg', { selections: { create: 'bug', test: 'code', review: 'analyze' }, destinations: [], confirmed: [], local: [] }, { planHash: 'ph1', approvedPaths: ['a.go', 'a_test.go'] });
+    expect(req.approved_paths).toEqual(['a.go', 'a_test.go']);
   });
 });
 
@@ -569,6 +575,7 @@ describe('your plan first', () => {
     const waiting = { id: 'w', status: 'awaiting_plan_review', stages: [] };
     const plan = { source: 'investigator', hash: 'p1' };
     expect(ownPlanFirst({ workflow: waiting, plan })).toBe(true);
+    expect(ownPlanFirst({ workflow: waiting, plan }, 'steer')).toBe(false);
     expect(ownPlanFirst({ workflow: waiting, plan, own_plan: { skipped: true, plan_hash: 'p1', written_at: '' } })).toBe(false);
     expect(ownPlanFirst({ workflow: waiting, plan, own_plan: { wrong: 'a', approach: 'b', plan_hash: 'p0', written_at: '' } })).toBe(false);
     // A plan you wrote yourself, or one already decided, is not held back.

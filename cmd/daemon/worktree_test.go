@@ -48,13 +48,15 @@ func TestWorktreeRoutesPreserveProjectAndRequireScopedIdentity(t *testing.T) {
 	if _, err := service.TrustProjectExecution(context.Background(), index.ProjectRevision, true); err != nil {
 		t.Fatal(err)
 	}
-	created, err := service.CreateGitWorktree(context.Background(), app.GitMutationRequest{
-		GitIdentity: repository.GitIdentity, ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision,
-		Confirm: true, ConfirmExecution: true, TargetBranch: "codex/fix", Path: filepath.Join(root, ".worktrees", "fix"),
+	opened, err := service.OpenChangeInWorktree(context.Background(), app.ChangeOpenRequest{
+		ChangeCreateRequest: app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "feature", Title: "Document behavior", Paths: []string{"README.md"}},
+		ConfirmExecution:    true,
 	})
-	if err != nil || created.State != "created" || created.Error != "" {
-		t.Fatalf("create: %+v, %v", created, err)
+	if err != nil || opened.WorktreePath == "" {
+		t.Fatalf("open in worktree: %+v, %v", opened, err)
 	}
+	createdPath := opened.WorktreePath
+	createdBranch := opened.Branch
 	mux := testHTTPMux(service, manager)
 	call := func(method, path, body, origin string) *httptest.ResponseRecorder {
 		t.Helper()
@@ -70,17 +72,17 @@ func TestWorktreeRoutesPreserveProjectAndRequireScopedIdentity(t *testing.T) {
 		mux.ServeHTTP(response, request)
 		return response
 	}
-	scope := "?worktree_path=" + url.QueryEscape(created.Path)
+	scope := "?worktree_path=" + url.QueryEscape(createdPath)
 	response := call("GET", "/api/projects/current"+scope, "", "")
 	var child project.Analysis
-	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &child) != nil || child.ProjectID == index.ProjectID || child.Path != created.Path {
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &child) != nil || child.ProjectID == index.ProjectID || child.Path != createdPath {
 		t.Fatalf("scoped project: %d %s", response.Code, response.Body.String())
 	}
 	for _, checkout := range []struct {
 		name, path, id, revision string
 	}{
 		{"current", "", index.ProjectID, index.ProjectRevision},
-		{"worktree", created.Path, child.ProjectID, child.ProjectRevision},
+		{"worktree", createdPath, child.ProjectID, child.ProjectRevision},
 	} {
 		for _, endpoint := range []struct {
 			name   string
@@ -138,7 +140,7 @@ func TestWorktreeRoutesPreserveProjectAndRequireScopedIdentity(t *testing.T) {
 		status       int
 	}{
 		{"/api/projects/current?worktree_path=" + url.QueryEscape(t.TempDir()), "", http.StatusBadRequest},
-		{"/api/projects/current" + scope + "&worktree_path=" + url.QueryEscape(created.Path), "", http.StatusBadRequest},
+		{"/api/projects/current" + scope + "&worktree_path=" + url.QueryEscape(createdPath), "", http.StatusBadRequest},
 		{"/api/projects/current" + scope + "&worktree_path=" + url.QueryEscape(root), "", http.StatusBadRequest},
 		{"/api/projects/current?worktree_path=", "", http.StatusBadRequest},
 		{"/api/projects/current?worktree_path=%ZZ", "", http.StatusBadRequest},
@@ -159,16 +161,7 @@ func TestWorktreeRoutesPreserveProjectAndRequireScopedIdentity(t *testing.T) {
 			t.Fatalf("task from a worktree: %d %s", got.Code, got.Body.String())
 		}
 	}
-	// An unfinished task in the worktree, as one made in its checkout before
-	// tasks got their own worktrees, holds back the merge below.
-	worktreeService, worktreeManager, err := service.WorktreeService(context.Background(), created.Path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	worktreeIndex, _ := worktreeManager.Index()
-	if _, err := worktreeService.OpenChangeSession(context.Background(), app.ChangeCreateRequest{ProjectID: worktreeIndex.ProjectID, ProjectRevision: worktreeIndex.ProjectRevision, Kind: "feature", Title: "Document behavior", Paths: []string{"README.md"}}); err != nil {
-		t.Fatal(err)
-	}
+	// The unfinished task captured in the worktree holds back the merge below.
 	current, _ := manager.Index()
 	if manager.Root() != root || current.ProjectID != index.ProjectID || current.ProjectRevision != index.ProjectRevision {
 		t.Fatal("scoped requests replaced the active project")
@@ -179,7 +172,7 @@ func TestWorktreeRoutesPreserveProjectAndRequireScopedIdentity(t *testing.T) {
 	}
 	merge := app.GitMutationRequest{
 		GitIdentity: repository.GitIdentity, ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision,
-		Path: created.Path, SourceHead: repository.Head, ConfirmExecution: true,
+		Path: createdPath, SourceHead: repository.Head, ConfirmExecution: true,
 	}
 	for _, confirmed := range []bool{false, true} {
 		merge.Confirm = confirmed
@@ -192,7 +185,7 @@ func TestWorktreeRoutesPreserveProjectAndRequireScopedIdentity(t *testing.T) {
 			if got.Code != http.StatusBadRequest {
 				t.Fatalf("unconfirmed merge: %d %s", got.Code, got.Body.String())
 			}
-			if _, err := os.Stat(created.Path); err != nil {
+			if _, err := os.Stat(createdPath); err != nil {
 				t.Fatalf("unconfirmed merge removed worktree: %v", err)
 			}
 			continue
@@ -200,21 +193,21 @@ func TestWorktreeRoutesPreserveProjectAndRequireScopedIdentity(t *testing.T) {
 		if got.Code != http.StatusBadRequest || !strings.Contains(got.Body.String(), "unfinished task") {
 			t.Fatalf("unfinished merge accepted: %d %s", got.Code, got.Body.String())
 		}
-		if _, err := os.Stat(created.Path); err != nil {
+		if _, err := os.Stat(createdPath); err != nil {
 			t.Fatalf("rejected merge lost pending task: %v", err)
 		}
-		merge.SourceBranch = "codex/fix"
+		merge.SourceBranch = createdBranch
 		body, err = json.Marshal(merge)
 		if err != nil {
 			t.Fatal(err)
 		}
 		got = call("POST", "/api/projects/current/git/discard-worktree", string(body), "")
 		var result app.GitMutationResult
-		if got.Code != http.StatusOK || json.Unmarshal(got.Body.Bytes(), &result) != nil || result.State != "discarded" || result.RemovedWorktree != created.Path || result.RemovedBranch != "codex/fix" || len(result.Warnings) != 0 {
+		if got.Code != http.StatusOK || json.Unmarshal(got.Body.Bytes(), &result) != nil || result.State != "discarded" || result.RemovedWorktree != createdPath || result.RemovedBranch != createdBranch || len(result.Warnings) != 0 {
 			// The branch had no commits of its own, so it went with the worktree.
 			t.Fatalf("explicit discard receipt: %d %s", got.Code, got.Body.String())
 		}
-		if _, err := os.Stat(created.Path); !os.IsNotExist(err) {
+		if _, err := os.Stat(createdPath); !os.IsNotExist(err) {
 			t.Fatalf("merged worktree still exists: %v", err)
 		}
 		if reopened := call("GET", "/api/projects/current"+scope, "", ""); reopened.Code != http.StatusBadRequest {
@@ -238,7 +231,7 @@ func TestWorktreeRoutesPreserveProjectAndRequireScopedIdentity(t *testing.T) {
 		Confirm: true, ConfirmExecution: true, TargetBranch: "codex/discard", Path: filepath.Join(root, ".worktrees", "discard"),
 		SourceHead: repository.Head,
 	}
-	created, err = service.CreateGitWorktree(context.Background(), discard)
+	created, err := service.CreateGitWorktree(context.Background(), discard)
 	if err != nil || created.State != "created" || created.Error != "" {
 		t.Fatalf("create for discard: %+v, %v", created, err)
 	}

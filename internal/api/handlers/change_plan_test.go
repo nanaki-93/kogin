@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,17 +8,16 @@ import (
 	"testing"
 
 	"github.com/nanaki-93/kogin/v2/internal/app"
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 func TestChangeFileReviewHTTPGuards(t *testing.T) {
-	h := newChangeHandlerFixture(t, "http://127.0.0.1:1")
-	index, _ := h.manager.Index()
 	plan := app.ChangePlanInput{Problem: "Document behavior", Approach: "Add a concise guide"}
-	// A task in this checkout, as tasks were before each got its own worktree:
-	// the guards are the same.
-	session, err := h.service.OpenChangeSession(context.Background(), app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "feature", Title: "Guide", Paths: []string{"README.md"}, AcceptanceCriteria: []string{"Explain Run"}, Plan: &plan})
-	if err != nil || session.Plan == nil {
-		t.Fatalf("open plan: %+v %v", session, err)
+	h, session := openHandlerWorktreeTask(t, "http://127.0.0.1:1", func(index *project.ProjectIndex) app.ChangeCreateRequest {
+		return app.ChangeCreateRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Kind: "feature", Title: "Guide", Paths: []string{"README.md"}, AcceptanceCriteria: []string{"Explain Run"}, Plan: &plan}
+	})
+	if session.Plan == nil {
+		t.Fatalf("open plan: %+v", session)
 	}
 	identity := app.ChangeIdentity{ProjectID: session.ProjectID, ProjectRevision: session.ProjectRevision, Revision: session.Revision, Hash: session.Hash}
 	proposal := workflowResponse(t, h.Message, "POST", "/changes/id/messages", session.ID, app.ChangeMessageRequest{ChangeIdentity: identity, Changes: []app.ChangeEditInput{{Path: "README.md", Content: "# Run\nA bounded operation.\n", Criteria: []int{1}}}})
@@ -47,5 +45,29 @@ func TestChangeFileReviewHTTPGuards(t *testing.T) {
 		if response.Code != http.StatusBadRequest {
 			t.Fatalf("unknown field accepted: %d", response.Code)
 		}
+	}
+}
+
+func TestIntentOnlyTaskHTTPAdmission(t *testing.T) {
+	h := gitChangeHandlerFixture(t)
+	index, _ := h.manager.Index()
+	request := app.ChangeCreateRequest{
+		ProjectID:          index.ProjectID,
+		ProjectRevision:    index.ProjectRevision,
+		Kind:               "feature",
+		Title:              "Add clipboard flag",
+		Paths:              []string{},
+		AcceptanceCriteria: []string{"Copies selected secret when --copy is passed"},
+	}
+	response := workflowResponse(t, h.Open, "POST", "/changes", "", app.ChangeOpenRequest{ChangeCreateRequest: request, ConfirmExecution: true})
+	var opened openedTask
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &opened) != nil || len(opened.Targets) != 0 || opened.WorktreePath == "" {
+		t.Fatalf("intent-only open: %d %s", response.Code, response.Body)
+	}
+
+	instructions := request
+	instructions.Kind = "instructions"
+	if rejected := workflowResponse(t, h.Open, "POST", "/changes", "", app.ChangeOpenRequest{ChangeCreateRequest: instructions, ConfirmExecution: true}); rejected.Code != http.StatusBadRequest {
+		t.Fatalf("instructions task without paths: %d %s", rejected.Code, rejected.Body)
 	}
 }

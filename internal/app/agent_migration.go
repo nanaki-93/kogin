@@ -37,7 +37,7 @@ func decodeCompatibleChangeHistory(data []byte, id string) (*ChangeSession, erro
 	if session.SchemaVersion > 1 {
 		return nil, errNewerTask
 	}
-	if session.SchemaVersion != 1 || session.ID != id || len(session.Targets) == 0 || len(session.Targets) > maxStoredTaskPaths || len(session.Messages) > maxChangeMessages {
+	if session.SchemaVersion != 1 || session.ID != id || !validStoredTargetCount(&session) || len(session.Messages) > maxChangeMessages {
 		return nil, fmt.Errorf("unsupported or corrupt change history")
 	}
 	if err := validateStoredChange(session); err != nil {

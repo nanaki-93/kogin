@@ -25,6 +25,8 @@ export const DARK_PALETTES = [
 export type DarkPalette = (typeof DARK_PALETTES)[number]['id'];
 export type DiffLayout = 'unified' | 'split';
 export type ReviewMode = 'hunks' | 'file';
+/** Whether a waiting plan asks for your own plan first (study) or shows the agent's immediately (steer). */
+export type PlanMode = 'study' | 'steer';
 
 export interface UIState {
   paletteOpen: boolean;
@@ -39,6 +41,7 @@ export interface UIState {
   diffLayout: DiffLayout;
   /** Files changed shows one hunk at a time with its note, or whole files. */
   reviewMode: ReviewMode;
+  planMode: PlanMode;
   wrapLines: boolean;
   /** Whether the Files tab shows the walkthrough's notes beside the diff. */
   changeNotes: boolean;
@@ -82,6 +85,7 @@ let state: UIState = {
   font: 'inter',
   diffLayout: 'unified',
   reviewMode: 'hunks',
+  planMode: 'study',
   wrapLines: false,
   changeNotes: true,
   removeWorktreeOnMerge: true,
@@ -96,6 +100,7 @@ function pick(prefs: Partial<UIState>): Partial<UIState> {
   if (prefs.font === 'system' || prefs.font === 'inter') out.font = prefs.font;
   if (prefs.diffLayout === 'split' || prefs.diffLayout === 'unified') out.diffLayout = prefs.diffLayout;
   if (prefs.reviewMode === 'hunks' || prefs.reviewMode === 'file') out.reviewMode = prefs.reviewMode;
+  if (prefs.planMode === 'study' || prefs.planMode === 'steer') out.planMode = prefs.planMode;
   if (typeof prefs.wrapLines === 'boolean') out.wrapLines = prefs.wrapLines;
   if (typeof prefs.changeNotes === 'boolean') out.changeNotes = prefs.changeNotes;
   if (typeof prefs.sidebarCollapsed === 'boolean') out.sidebarCollapsed = prefs.sidebarCollapsed;
@@ -112,7 +117,7 @@ export function getUI(): UIState {
 export function setUI(patch: Partial<UIState>): void {
   state = { ...state, ...patch };
   try {
-    localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: state.theme, darkPalette: state.darkPalette, density: state.density, font: state.font, diffLayout: state.diffLayout, reviewMode: state.reviewMode, wrapLines: state.wrapLines, changeNotes: state.changeNotes, sidebarCollapsed: state.sidebarCollapsed, removeWorktreeOnMerge: state.removeWorktreeOnMerge }));
+    localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: state.theme, darkPalette: state.darkPalette, density: state.density, font: state.font, diffLayout: state.diffLayout, reviewMode: state.reviewMode, planMode: state.planMode, wrapLines: state.wrapLines, changeNotes: state.changeNotes, sidebarCollapsed: state.sidebarCollapsed, removeWorktreeOnMerge: state.removeWorktreeOnMerge }));
   } catch {
     // Preferences are a convenience; the UI works without storage.
   }

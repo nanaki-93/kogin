@@ -910,3 +910,45 @@ test('accept, commit and merge completes the task and merges its branch in one c
   expect(daemon.mutations('/git/merge')).toHaveLength(1);
   expect(daemon.mutations('/git/merge')[0].body).toMatchObject({ source_head: 'c0ffee12', source_branch: 'orca/reject-nested-a1b2c3', confirm: true, confirm_execution: true });
 });
+
+test('an intent-only task starts without pinned files and locks confirmed scope when approving the plan', async ({ page, daemon }) => {
+  await page.goto('/#/tasks');
+  await page.keyboard.press('c');
+  const composer = page.getByRole('dialog', { name: 'New task' });
+  await composer.getByLabel('Task title').fill('Copy password to clipboard with --copy');
+  await expect(composer.getByText('Optional — the investigation can find them')).toBeVisible();
+  await composer.getByRole('button', { name: /Investigate & plan/ }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Investigate & plan' }).click();
+  expect(daemon.mutations('/changes')[0].body).toMatchObject({ title: 'Copy password to clipboard with --copy', paths: [] });
+
+  // Simulate the investigation finishing on the intent-only task with discovered touches.
+  const ready = planReadyTask();
+  daemon.sessions.set('chg-100', { ...ready, id: 'chg-100', title: 'Copy password to clipboard with --copy', targets: [] });
+  await page.goto('/#/tasks/chg-100');
+  const plan = page.getByRole('region', { name: 'Proposed plan' });
+  // On an intent-only task, "Files it changes" is surfaced directly with checkboxes.
+  const touches = plan.getByRole('list', { name: 'Files it changes' });
+  await expect(touches).toBeVisible();
+  await touches.getByLabel('Include internal/api/handlers/webui_test.go').uncheck();
+  await page.locator('header.task-header').getByRole('button', { name: 'Approve & run agents' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Approve & run agents' }).click();
+  expect(daemon.mutations('/workflow').at(-1)?.body).toMatchObject({
+    plan_hash: 'plan-hash-1',
+    approved_paths: ['internal/api/handlers/webui.go'],
+  });
+});
+
+test('steer mode reveals the agent plan immediately and rejected alternatives prefill redirect', async ({ page, daemon }) => {
+  daemon.sessions.set('chg-1', { ...planReadyTask(), own_plan: undefined });
+  await page.goto('/#/tasks/chg-1');
+  const first = page.getByRole('region', { name: 'Your plan first' });
+  await expect(first).toBeVisible();
+  await first.getByRole('radio', { name: 'Steer' }).click();
+  // Switching to Steer immediately shows the agent's plan and persists without recording a skipped own_plan.
+  const plan = page.getByRole('region', { name: 'Proposed plan' });
+  await expect(plan).toBeVisible();
+  expect(daemon.mutations('/own-plan')).toHaveLength(0);
+  await plan.getByText('Why this plan').click();
+  await plan.getByRole('button', { name: 'Use this approach…' }).click();
+  await expect(plan.getByLabel('Redirect note')).toHaveValue(/Use this approach instead:/);
+});

@@ -12,14 +12,6 @@ import (
 	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
-// OpenChangeSession captures a task in this checkout, without a worktree of
-// its own, as tasks were before every task got one. The API no longer makes
-// such tasks (POST /changes always calls OpenChangeInWorktree, and Accept
-// refuses them); tests still build fixtures with it.
-func (s *Service) OpenChangeSession(ctx context.Context, request ChangeCreateRequest) (*ChangeSession, error) {
-	return s.openChangeSession(ctx, request, false)
-}
-
 // openChangeSession captures a task. ownWorktree marks a task opened in the
 // worktree created for it: its base is the worktree's current commit.
 func (s *Service) openChangeSession(ctx context.Context, request ChangeCreateRequest, ownWorktree bool) (*ChangeSession, error) {
@@ -30,7 +22,7 @@ func (s *Service) openChangeSession(ctx context.Context, request ChangeCreateReq
 	if index.ProjectID != request.ProjectID || index.ProjectRevision != request.ProjectRevision {
 		return nil, project.ErrRevisionConflict
 	}
-	if err := validateChangeCreateRequest(request); err != nil {
+	if err := validateChangeCreateRequestFor(request, ownWorktree); err != nil {
 		return nil, err
 	}
 	root := s.manager.Root()
@@ -95,8 +87,12 @@ func (s *Service) captureChangeSession(ctx context.Context, root string, index *
 	return session, nil
 }
 
-func validateChangeCreateRequest(request ChangeCreateRequest) error {
-	if len(request.Paths) == 0 || len(request.Paths) > maxTaskPaths || len(request.Title) > maxTaskTitleBytes || strings.TrimSpace(request.Title) == "" || !validChangeKind(request.Kind) {
+func validateChangeCreateRequestFor(request ChangeCreateRequest, ownWorktree bool) error {
+	if len(request.Title) > maxTaskTitleBytes || strings.TrimSpace(request.Title) == "" || !validChangeKind(request.Kind) {
+		return fmt.Errorf("provide a task title, kind and one to %d paths", maxTaskPaths)
+	}
+	allowEmpty := ownWorktree && request.Kind != "instructions" && len(request.FindingTargets) == 0
+	if len(request.Paths) > maxTaskPaths || (!allowEmpty && len(request.Paths) == 0) {
 		return fmt.Errorf("provide a task title, kind and one to %d paths", maxTaskPaths)
 	}
 	return validateChangeCriteria(request.AcceptanceCriteria)

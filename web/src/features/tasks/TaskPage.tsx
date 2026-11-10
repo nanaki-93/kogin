@@ -1,7 +1,7 @@
 // One task, laid out like a pull request: header with the next action, tabs
 // for the conversation, files changed and checks, and a review-gate rail.
 
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import {
   ArrowLeft, Archive, CheckCircle2, Circle, FileDiff, FlaskConical, GitBranch, GitMerge, MessageSquare, ShieldCheck, Square, ThumbsDown, Trash2,
@@ -26,7 +26,7 @@ import { RunAgents } from './RunAgents';
 import { CloseTask } from './CloseTask';
 import { TaskOverview } from './TaskOverview';
 import { AcceptTask } from './AcceptTask';
-import { ApprovePlan, RedirectPlanButton } from './PlanReview';
+import { ApprovePlan, PlanDecisionProvider, RedirectPlanButton, usePlanDecision } from './PlanReview';
 import { ApprovalNotes, OverrideReview } from './ReviewDecision';
 import { TaskCodePane, TaskCodePreviewProvider } from './TaskCodePreview';
 
@@ -34,7 +34,6 @@ export function TaskPage({ id, tab }: { id: string; tab: string }) {
   const route = useRoute();
   const worktreePath = route.params.get('wt') ?? '';
   const { data: session, isLoading, error } = useSession(id, worktreePath, false);
-  const [redirecting, setRedirecting] = useState(false);
   const current = tab === 'files' || tab === 'checks' ? tab : 'overview';
 
   usePageKeys(key => {
@@ -61,42 +60,46 @@ export function TaskPage({ id, tab }: { id: string; tab: string }) {
 
   return (
     <TaskCodePreviewProvider key={session.id}>
-      <div className="task-page">
-        <TaskHeader session={session} onRedirect={() => { setRedirecting(true); if (current !== 'overview') navigate(`/tasks/${id}`); }} redirecting={redirecting} />
-        <Tabs.Root className="task-tabs" value={current} onValueChange={value => navigate(`/tasks/${id}${value === 'overview' ? '' : '/' + value}`, { file: route.params.get('file') ?? undefined })}>
-          <Tabs.List className="tabs" aria-label="Task sections">
-            <Tabs.Trigger value="overview" className="tab">
-              <MessageSquare size={14} aria-hidden /> Conversation
-            </Tabs.Trigger>
-            <Tabs.Trigger value="files" className="tab">
-              <FileDiff size={14} aria-hidden /> Files changed <span className="count">{edits.length}</span>
-            </Tabs.Trigger>
-            <Tabs.Trigger value="checks" className="tab">
-              <FlaskConical size={14} aria-hidden /> Checks <span className={cx('count', `count-${checks.tone}`)}>{checks.total ? checks.label : '—'}</span>
-            </Tabs.Trigger>
-          </Tabs.List>
-          <div className="task-body">
-            <div className="task-main">
-              <Tabs.Content value="overview" className="tab-panel">
-                <TaskOverview session={session} redirecting={redirecting} onRedirectDone={() => setRedirecting(false)} />
-              </Tabs.Content>
-              <Tabs.Content value="files" className="tab-panel tab-panel-fill">
-                <FilesChanged session={session} />
-              </Tabs.Content>
-              <Tabs.Content value="checks" className="tab-panel">
-                <ChecksPanel session={session} />
-              </Tabs.Content>
+      <PlanDecisionProvider key={`${session.id}:${session.plan?.hash ?? ''}`} session={session}>
+        <div className="task-page">
+          <TaskHeader session={session} currentTab={current} />
+          <Tabs.Root className="task-tabs" value={current} onValueChange={value => navigate(`/tasks/${id}${value === 'overview' ? '' : '/' + value}`, { file: route.params.get('file') ?? undefined })}>
+            <Tabs.List className="tabs" aria-label="Task sections">
+              <Tabs.Trigger value="overview" className="tab">
+                <MessageSquare size={14} aria-hidden /> Conversation
+              </Tabs.Trigger>
+              <Tabs.Trigger value="files" className="tab">
+                <FileDiff size={14} aria-hidden /> Files changed <span className="count">{edits.length}</span>
+              </Tabs.Trigger>
+              <Tabs.Trigger value="checks" className="tab">
+                <FlaskConical size={14} aria-hidden /> Checks <span className={cx('count', `count-${checks.tone}`)}>{checks.total ? checks.label : '—'}</span>
+              </Tabs.Trigger>
+            </Tabs.List>
+            <div className="task-body">
+              <div className="task-main">
+                <Tabs.Content value="overview" className="tab-panel">
+                  <TaskOverview session={session} />
+                </Tabs.Content>
+                <Tabs.Content value="files" className="tab-panel tab-panel-fill">
+                  <FilesChanged session={session} />
+                </Tabs.Content>
+                <Tabs.Content value="checks" className="tab-panel">
+                  <ChecksPanel session={session} />
+                </Tabs.Content>
+              </div>
+              <TaskCodePane session={session} />
+              {current !== 'files' && !deciding ? <ReviewRail session={session} /> : null}
             </div>
-            <TaskCodePane session={session} />
-            {current !== 'files' && !deciding ? <ReviewRail session={session} /> : null}
-          </div>
-        </Tabs.Root>
-      </div>
+          </Tabs.Root>
+        </div>
+      </PlanDecisionProvider>
     </TaskCodePreviewProvider>
   );
 }
 
-function TaskHeader({ session, onRedirect, redirecting }: { session: LoadedSession; onRedirect: () => void; redirecting: boolean }) {
+function TaskHeader({ session, currentTab }: { session: LoadedSession; currentTab: string }) {
+  const planMode = useUI(s => s.planMode);
+  const { redirecting, openRedirect } = usePlanDecision();
   const branch = session.git?.branch || (session.checkout.worktreePath ? basename(session.checkout.worktreePath) : '');
   return (
     <header className="task-header">
@@ -114,7 +117,16 @@ function TaskHeader({ session, onRedirect, redirecting }: { session: LoadedSessi
           {session.updated_at ? <span className="xs faint">updated {timeAgo(session.updated_at)}</span> : null}
         </div>
       </div>
-      {planAwaitsDecision(session) && !ownPlanFirst(session) && !workflowActive(session) ? <RedirectPlanButton session={session} onClick={onRedirect} disabled={redirecting} /> : null}
+      {planAwaitsDecision(session) && !ownPlanFirst(session, planMode) && !workflowActive(session) ? (
+        <RedirectPlanButton
+          session={session}
+          onClick={() => {
+            openRedirect();
+            if (currentTab !== 'overview') navigate(`/tasks/${session.id}`);
+          }}
+          disabled={redirecting}
+        />
+      ) : null}
       <PrimaryAction session={session} />
       {offersRunBesidePrimary(session) ? <RunAgents session={session} /> : null}
       <DeleteTask session={session} />
@@ -158,6 +170,7 @@ function PrimaryAction({ session }: { session: LoadedSession }) {
   const trust = useTrust().data;
   const ready = proposalReadiness(session);
   const reviewMode = useUI(state => state.reviewMode);
+  const planMode = useUI(state => state.planMode);
   if (workflowActive(session)) {
     return (
       <Button variant="secondary" icon={Square} onClick={() => void actions.cancelAgents(session)} disabled={session.workflow?.status === 'canceling' || Boolean(busy)}>
@@ -168,7 +181,7 @@ function PrimaryAction({ session }: { session: LoadedSession }) {
   switch (ready.step) {
     case 'plan':
       // Your own plan comes first; the decisions appear with the agent's plan.
-      if (ownPlanFirst(session)) return null;
+      if (ownPlanFirst(session, planMode)) return null;
       return planFindsNothingToFix(session) ? <CloseTask session={session} variant="primary" size="md" /> : <ApprovePlan session={session} />;
     case 'generate':
     case 'agents':

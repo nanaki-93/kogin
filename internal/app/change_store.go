@@ -59,6 +59,16 @@ func readChangeSessionFile(input *os.File, id string) (*ChangeSession, error) {
 	return decodeCompatibleChangeHistory(data, id)
 }
 
+func validStoredTargetCount(session *ChangeSession) bool {
+	if len(session.Targets) > maxStoredTaskPaths {
+		return false
+	}
+	if len(session.Targets) > 0 {
+		return true
+	}
+	return ownsWorktree(session) && session.Kind != "instructions" && len(session.Changes) == 0
+}
+
 func validateStoredChange(session ChangeSession) error {
 	if err := validateStoredPlan(&session); err != nil {
 		return err
@@ -160,6 +170,9 @@ func storeChangeSession(root string, session *ChangeSession) error {
 	refreshChangeReviewDiff(session)
 	settleWorkflowPause(session.Workflow)
 	settleWorkflowWait(session.Workflow)
+	if !validStoredTargetCount(session) {
+		return fmt.Errorf("corrupt captured change target")
+	}
 	if err := validateStoredChange(*session); err != nil {
 		return err
 	}
