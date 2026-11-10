@@ -4,11 +4,11 @@
 import { useMemo, useState } from 'react';
 import { Command } from 'cmdk';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Activity, BookOpen, CircleAlert, Code2, GitMerge, Inbox, Keyboard, ListTodo, MessageCircleQuestion, Moon, Palette as PaletteIcon, Play, Plus, RefreshCw, Settings, ShieldCheck, Sun } from 'lucide-react';
+import { Activity, BookOpen, CircleAlert, Code2, GitMerge, Inbox, Keyboard, ListTodo, Maximize2, MessageCircleQuestion, Minimize2, Moon, Palette as PaletteIcon, Play, Plus, RefreshCw, Settings, ShieldCheck, Sun } from 'lucide-react';
 import { useFindings, useIndex, useProject, useTasks, useTrust } from '@/api/hooks';
 import { useActions } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
-import { DARK_PALETTES, openNewTask, setUI, useUI } from '@/app/store';
+import { DARK_PALETTES, openNewTask, setUI, toggleFocusMode, useUI } from '@/app/store';
 import { navigate } from '@/lib/router';
 import { rankItems } from '@/lib/fuzzy';
 import { basename, dirname } from '@/lib/util';
@@ -45,6 +45,7 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
   const actions = useActions();
   const theme = useUI(s => s.theme);
   const palette = useUI(s => s.darkPalette);
+  const focusMode = useUI(s => s.focusMode);
   const close = () => setUI({ paletteOpen: false });
   const run = (fn: () => void) => () => {
     close();
@@ -73,6 +74,7 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
           { id: 'trust', label: trust?.trusted ? 'Revoke check trust' : 'Allow checks for this project', icon: ShieldCheck, keys: '', run: () => void actions.setTrust(project, worktreePath, trust, !trust?.trusted) },
         ]
       : []),
+    { id: 'focus', label: focusMode ? 'Exit focus mode' : 'Enter focus mode', icon: focusMode ? Minimize2 : Maximize2, keys: 'Z', run: () => toggleFocusMode() },
     { id: 'theme', label: theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme', icon: theme === 'light' ? Moon : Sun, keys: '', run: () => setUI({ theme: theme === 'light' ? 'dark' : 'light' }) },
     { id: 'shortcuts', label: 'Keyboard shortcuts', icon: Keyboard, keys: '?', run: () => setUI({ shortcutsOpen: true }) },
     ...DARK_PALETTES.filter(option => option.id !== palette || theme === 'light').map(option => ({ id: `palette-${option.id}`, label: `Dark theme: ${option.label}`, icon: PaletteIcon, keys: '', run: () => setUI({ theme: 'dark', darkPalette: option.id }) })),

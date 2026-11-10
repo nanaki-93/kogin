@@ -4,14 +4,14 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import * as Menu from '@radix-ui/react-dropdown-menu';
 import {
-  Activity, AlertTriangle, Bot, BookOpen, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Code2, FolderOpen, GitBranch, GitMerge, HeartPulse, Inbox, Keyboard, ListTodo, PanelLeft, Plus, Search, Settings, ShieldCheck, ShieldOff, Sparkles,
+  Activity, AlertTriangle, Bot, BookOpen, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Code2, FolderOpen, GitBranch, GitMerge, HeartPulse, Inbox, Keyboard, ListTodo, Maximize2, Minimize2, PanelLeft, Plus, Search, Settings, ShieldCheck, ShieldOff, Sparkles,
 } from 'lucide-react';
 import { useRoute, navigate } from '@/lib/router';
 import { useFindings, useGitWorkspace, useMainProject, useModels, useOverview, useProject, useSession, useStatus, useTasks, useTrust } from '@/api/hooks';
 import type { Connection } from '@/api/events';
 import { useBusy } from '@/app/actions';
 import { openWorkspace, useCheckout } from '@/app/checkout';
-import { openNewTask, openPalette, setUI, useUI } from '@/app/store';
+import { openNewTask, openPalette, setUI, toggleFocusMode, useUI } from '@/app/store';
 import { taskStatus } from '@/lib/readiness';
 import { runActive, runProgress } from '@/lib/analysis';
 import { basename, plural } from '@/lib/util';
@@ -34,6 +34,7 @@ interface NavItem {
 export function Shell({ children, connection }: { children: ReactNode; connection: Connection }) {
   const route = useRoute();
   const collapsed = useUI(s => s.sidebarCollapsed);
+  const focusMode = useUI(s => s.focusMode);
   const theme = useUI(s => s.theme);
   const palette = useUI(s => s.darkPalette);
   const density = useUI(s => s.density);
@@ -96,7 +97,7 @@ export function Shell({ children, connection }: { children: ReactNode; connectio
 
   return (
     <SidebarSlotContext.Provider value={sidebarSlot}>
-    <div className={cx('shell', collapsed && 'is-collapsed', panel && 'has-panel', drilled && 'is-drilled')}>
+    <div className={cx('shell', collapsed && 'is-collapsed', focusMode && 'is-focus', panel && 'has-panel', drilled && 'is-drilled')}>
       <aside className="sidebar" aria-label="Primary">
         <div className="sidebar-top">
         <div className="sidebar-brand">
@@ -218,6 +219,7 @@ function CheckoutMenu() {
 
 function TopBar() {
   const route = useRoute();
+  const focusMode = useUI(s => s.focusMode);
   const section = route.segments[0] ?? '';
   const title = pageTitle(route.path);
   const taskId = section === 'tasks' && route.segments[1] && route.segments[1] !== 'new' ? route.segments[1] : '';
@@ -243,7 +245,20 @@ function TopBar() {
         <span className="grow">Search files, tasks, commands…</span>
         <span className="row">{formatKeys('mod+k').map(k => <Kbd key={k}>{k}</Kbd>)}</span>
       </button>
-      <div className="row grow topbar-end" />
+      <div className="row grow topbar-end">
+        <Tip label={<span className="row">{focusMode ? 'Exit focus mode' : 'Focus mode'} <Kbd>Z</Kbd></span>} side="bottom">
+          <button
+            type="button"
+            className={cx('focus-btn', focusMode && 'is-on')}
+            aria-label="Focus mode"
+            aria-pressed={focusMode}
+            onClick={() => toggleFocusMode()}
+          >
+            {focusMode ? <Minimize2 size={13} aria-hidden /> : <Maximize2 size={13} aria-hidden />}
+            <span className="focus-btn-label">{focusMode ? 'Focused' : 'Focus'}</span>
+          </button>
+        </Tip>
+      </div>
     </header>
   );
 }

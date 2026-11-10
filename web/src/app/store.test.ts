@@ -64,4 +64,15 @@ describe('density and font', () => {
     expect(saved.density).toBe('compact');
     expect(saved.font).toBe('system');
   });
+
+  it('toggles session focus mode without persisting hidden navigation across reloads', async () => {
+    vi.resetModules();
+    const store = await import('./store');
+    expect(store.getUI().focusMode).toBe(false);
+    store.toggleFocusMode();
+    expect(store.getUI().focusMode).toBe(true);
+    const saved = JSON.parse(localStorage.getItem('kogin.prefs.v2') ?? '{}') as Record<string, unknown>;
+    expect(saved.focusMode).toBeUndefined();
+    expect((await freshUI()).focusMode).toBe(false);
+  });
 });

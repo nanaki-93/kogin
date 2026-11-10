@@ -10,15 +10,8 @@ import { useLessons } from '@/api/hooks';
 import { navigate } from '@/lib/router';
 import { plural, timeAgo } from '@/lib/util';
 import { Badge, Button, EmptyState, Skeleton, cx } from '@/components/ui';
-import { handQuestion } from './AskPanel';
+import { askConceptInProject, ConceptGuideCard } from './ConceptChip';
 import { DocText } from './DocText';
-
-/** Hands Ask the code a question about the concept, answered from this project's files. */
-function explainConcept(concept: string) {
-  const question = `Explain how this project uses ${concept}: where it appears, why it is used there, and what a newcomer should know about it.`;
-  handQuestion(question);
-  navigate('/docs/ask', { q: question });
-}
 
 /** How you marked your own plan against the agent's. */
 const OWN_MATCH: Record<string, string> = { same: 'same cause', partly: 'partly right', missed: 'missed it' };
@@ -52,13 +45,16 @@ export function LearningLog() {
         </div>
       ) : null}
       {concept ? (
-        <div className="row">
-          <span className="xs muted">{plural(shown.length, 'entry', 'entries')} where you met “{concept}”.</span>
-          <span className="spacer" />
-          <Button size="sm" variant="secondary" icon={MessageCircleQuestion} onClick={() => explainConcept(concept)} title="Ask the code agent to explain it with this project's own files">
-            Explain “{concept}” in this project
-          </Button>
-        </div>
+        <>
+          <div className="row">
+            <span className="xs muted">{plural(shown.length, 'entry', 'entries')} where you met “{concept}”.</span>
+            <span className="spacer" />
+            <Button size="sm" variant="secondary" icon={MessageCircleQuestion} onClick={() => askConceptInProject(concept)} title="Ask the code agent to explain it with this project's own files">
+              Explain “{concept}” in this project
+            </Button>
+          </div>
+          <ConceptGuideCard concept={concept} />
+        </>
       ) : null}
       <ol className="lessons" aria-label="Lessons, newest first">
         {shown.map(lesson => (

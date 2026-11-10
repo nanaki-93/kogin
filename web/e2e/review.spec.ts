@@ -952,3 +952,49 @@ test('steer mode reveals the agent plan immediately and rejected alternatives pr
   await plan.getByRole('button', { name: 'Use this approach…' }).click();
   await expect(plan.getByLabel('Redirect note')).toHaveValue(/Use this approach instead:/);
 });
+
+test('concept chips open Go idiom micro-cards in place without calling a model and link to Ask the code', async ({ page, daemon }) => {
+  const guided = guidedReviewTask();
+  guided.walkthrough!.files![0].notes![0].concepts = ['error wrapping'];
+  daemon.sessions.set('chg-1', guided);
+  await page.goto('/#/tasks/chg-1/files');
+  const chip = page.getByRole('button', { name: 'error wrapping' }).first();
+  await expect(chip).toBeVisible();
+  await chip.click();
+  const card = page.getByRole('dialog', { name: 'Concept: Error wrapping (%w)' });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('Go idiom');
+  await expect(card).toContainText('fmt.Errorf("read config %s: %w"');
+  await expect(card).toContainText('Met 2 times in this project');
+  expect(daemon.mutations('/ask')).toHaveLength(0);
+  await card.getByRole('button', { name: 'Ask in project' }).click();
+  await expect(page).toHaveURL(/#\/docs\/ask\?q=Explain\+how\+this\+project\+uses\+error\+wrapping/);
+  await expect(page.getByLabel('Question about the code')).toHaveValue(/Explain how this project uses error wrapping/);
+  expect(daemon.mutations('/ask')).toHaveLength(0);
+});
+
+test('blast radius shows callers, touched modules and dependencies, and focus mode hides navigation chrome', async ({ page, daemon }) => {
+  daemon.sessions.set('chg-1', planReadyTask());
+  await page.goto('/#/tasks/chg-1');
+  const sidebar = page.getByRole('complementary', { name: 'Primary' });
+  await expect(sidebar).toBeVisible();
+
+  const radius = page.getByRole('region', { name: 'Blast radius' });
+  await expect(radius).toBeVisible();
+  await expect(radius).toContainText('1 caller · 1 touched module · 1 dependency');
+  await expect(radius.getByRole('button', { name: 'cmd/daemon' })).toBeVisible();
+  await expect(radius.getByRole('button', { name: /internal\/api/ })).toBeVisible();
+  await expect(radius.getByRole('button', { name: 'internal/app' })).toBeVisible();
+
+  // Pressing z enters distraction-free Focus mode; clicking the topbar pill exits it.
+  await page.keyboard.press('z');
+  const focusBtn = page.getByRole('button', { name: 'Focus mode' });
+  await expect(focusBtn).toHaveAttribute('aria-pressed', 'true');
+  await expect(sidebar).toBeHidden();
+  await focusBtn.click();
+  await expect(focusBtn).toHaveAttribute('aria-pressed', 'false');
+  await expect(sidebar).toBeVisible();
+
+  await radius.getByRole('button', { name: 'internal/app' }).click();
+  await expect(page).toHaveURL(/#\/docs\/components\?path=internal%2Fapp/);
+});

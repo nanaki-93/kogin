@@ -19,6 +19,7 @@ import { Badge, Button, Segmented, Textarea, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
 import { DocText } from '@/features/docs/DocText';
 import { MAX_TASK_PATHS } from './NewTaskDialog';
+import { TaskBlastRadius } from './TaskBlastRadius';
 import { useOpenTaskFile } from './TaskCodePreview';
 
 interface PlanDecisionState {
@@ -113,7 +114,7 @@ function PlanModeSwitch() {
 
 export function PlanReview({ session }: { session: LoadedSession }) {
   const planMode = useUI(s => s.planMode);
-  const { redirecting, closeRedirect } = usePlanDecision();
+  const { approvedPaths, redirecting, closeRedirect } = usePlanDecision();
   const plan = session.plan;
   if (!plan || plan.source !== 'investigator') return null;
   const waiting = planAwaitsDecision(session);
@@ -130,6 +131,7 @@ export function PlanReview({ session }: { session: LoadedSession }) {
   const compared = Boolean(own && !own.skipped);
   const interactive = waiting && !nothing;
   const prominentScope = interactive && (session.targets ?? []).length === 0;
+  const blastPaths = interactive && approvedPaths.length ? approvedPaths : unique([...(session.targets ?? []).map(target => target.path), ...(plan.touches ?? []).map(touch => touch.path)]);
   const badgeText = nothing ? 'Nothing to fix' : approved ? 'Approved' : waiting ? 'Needs your decision' : 'Superseded';
   const body = (
     <div className="card-body stack plan-body">
@@ -167,6 +169,7 @@ export function PlanReview({ session }: { session: LoadedSession }) {
       )}
       {verdicts.length ? <PlanVerdicts session={session} verdicts={verdicts} /> : null}
       {prominentScope ? <PlanTouchesSection session={session} interactive /> : null}
+      {nothing ? null : <TaskBlastRadius paths={blastPaths} />}
       <PlanReasoning session={session} folded={citations.filter(citation => !citation.excerpt)} interactive={interactive} showTouches={!prominentScope} />
       {own?.skipped ? <p className="xs faint">You read this plan without writing your own first.</p> : null}
     </div>
@@ -189,7 +192,7 @@ export function PlanReview({ session }: { session: LoadedSession }) {
     );
   }
   return (
-    <section className="card plan-card" aria-label="Proposed plan">
+    <section className="card plan-card is-waiting" aria-label="Proposed plan">
       <div className="card-head">
         <MapIcon size={15} aria-hidden />
         <span className="strong">Plan</span>

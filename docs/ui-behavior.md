@@ -170,7 +170,10 @@ every guard when the action arrives.
   files (up to eight) for `approved_paths`; on an already-scoped task it sits
   inside **Why this plan** with the same checkboxes, and each rejected
   alternative offers **Use this approach…** to open **Redirect…** pre-filled
-  with that approach. **Why
+  with that approach. When the project's component graph resolves at least two
+  modules, a read-only **Blast radius** strip shows callers (**Used by**),
+  touched modules (**Touches**) and dependencies (**Imports**), each opening
+  its component page in **Docs**. **Why
   this plan** folds the rest: the problem in the code's terms, the root
   cause, citations without an excerpt, rejected alternatives, risks and (when
   already scoped) the files it changes. The task header holds both decisions, once: **Redirect…**
@@ -191,6 +194,13 @@ every guard when the action arrives.
   read-only **Code preview** drawer beside the task (with its cached 1-line
   file role, highlighted lines, Current/Proposed toggle when edited, and
   `Escape` to close) without leaving the task or dispatching any model call.
+  Clicking any concept tag on a hunk opens an interactive Go / engineering
+  micro-card popover (what it is, how Go expresses it, code idiom, review
+  pitfall, how many times this project's Learning log met it, and a read-only
+  link to **Ask the code** pre-filled with that concept) without calling a
+  model on open. Pressing `z` (or the top-bar **Focus** toggle) enters
+  session-scoped Focus mode, hiding sidebar and status-bar chrome while
+  reading plans, diffs or docs.
   While the investigation runs, the gate reads
   "The investigation is reading the code to propose a plan." The composer
   and a fresh task's **Investigate & plan** button say the plan comes first

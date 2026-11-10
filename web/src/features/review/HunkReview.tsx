@@ -19,6 +19,7 @@ import { basename, languageOf, plural } from '@/lib/util';
 import { Badge, Button, IconButton, Kbd, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
 import { DocText } from '@/features/docs/DocText';
+import { ConceptChip } from '@/features/docs/ConceptChip';
 import { useOpenTaskFile } from '@/features/tasks/TaskCodePreview';
 import { ReviewItems } from '@/features/tasks/ReviewItems';
 import { ChangeNotes, goalLabel } from './ChangeNotes';
@@ -298,9 +299,7 @@ function BlockNote({ session, note }: { session: LoadedSession; note: Walkthroug
       {concepts.length ? (
         <div className="rv-concepts">
           {concepts.map(concept => (
-            <span key={concept} className="chip chip-concept" title="A concept this hunk is a worked example of; accepted tasks collect them in Docs → Learning log">
-              {concept}
-            </span>
+            <ConceptChip key={concept} concept={concept} />
           ))}
         </div>
       ) : null}

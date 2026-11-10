@@ -193,3 +193,151 @@
   color: var(--muted);
   font-size: var(--text-sm);
 }
+
+/* Reviewed hunks recede gently so remaining hunks hold the eye. */
+.rv-block.is-right:not(.is-current) {
+  opacity: 0.78;
+  transition: opacity 0.14s var(--ease);
+}
+
+.rv-block.is-right:not(.is-current):hover {
+  opacity: 1;
+}
+
+.rv-note p {
+  line-height: 1.52;
+}
+
+.rv-note p + p {
+  margin-top: 4px;
+}
+
+/* ---- Interactive Go & engineering concept micro-cards ---- */
+
+.chip-concept-btn {
+  border-color: color-mix(in srgb, var(--nav-accent) 28%, var(--border));
+  background: color-mix(in srgb, var(--nav-accent-soft) 52%, var(--surface));
+  color: var(--nav-accent-text);
+  transition: border-color 0.12s var(--ease), background 0.12s var(--ease);
+}
+
+.chip-concept-btn:hover,
+.chip-concept-btn.is-on {
+  border-color: var(--nav-accent);
+  background: var(--nav-accent-soft);
+  color: var(--text);
+}
+
+.concept-popover {
+  z-index: 65;
+  display: flex;
+  flex-direction: column;
+  width: min(392px, calc(100vw - 24px));
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: fade 0.12s var(--ease);
+}
+
+.concept-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.concept-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.concept-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 13px;
+}
+
+.concept-what {
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.concept-ingo {
+  color: var(--text-2);
+  line-height: 1.48;
+}
+
+.concept-code {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-sunken);
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  tab-size: 4;
+  overflow-x: auto;
+}
+
+.concept-code code {
+  white-space: pre;
+}
+
+.concept-watch {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, var(--border));
+  border-radius: 7px;
+  background: var(--warning-soft);
+  color: var(--text-2);
+  line-height: 1.42;
+}
+
+.concept-watch svg {
+  margin-top: 2px;
+}
+
+.concept-seen {
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  line-height: 1.42;
+}
+
+.concept-seen-titles {
+  color: var(--text-2);
+}
+
+.concept-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.concept-inline-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px 4px;
+  border: 1px solid color-mix(in srgb, var(--nav-accent) 32%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--nav-accent-soft) 35%, var(--surface));
+}
+
+.concept-inline-card .concept-body {
+  padding: 6px 0 8px;
+}

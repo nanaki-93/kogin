@@ -11,7 +11,7 @@ import { setTestPatterns } from '@/lib/rules';
 import { Shell } from '@/layout/Shell';
 import { navigate, useRoute } from '@/lib/router';
 import { openWorkspace } from '@/app/checkout';
-import { openNewTask, openPalette, setUI, useUI } from '@/app/store';
+import { openNewTask, openPalette, setUI, toggleFocusMode, useUI } from '@/app/store';
 import { formatKeys, useShortcuts, type Shortcut } from '@/app/shortcuts';
 import { InboxPage } from '@/features/inbox/InboxPage';
 import { TaskListPage } from '@/features/tasks/TaskListPage';
@@ -62,6 +62,7 @@ function Workspace() {
       { keys: 'mod+k', label: 'Command palette', group: 'General', run: () => openPalette() },
       { keys: 'mod+p', label: 'Go to file', group: 'General', run: () => openPalette('files') },
       { keys: 'c', label: 'New task', group: 'General', run: () => openNewTask() },
+      { keys: 'z', label: 'Toggle focus mode', group: 'General', run: () => toggleFocusMode() },
       { keys: '?', label: 'Keyboard shortcuts', group: 'General', run: () => setUI({ shortcutsOpen: true }) },
       { keys: '/', label: 'Search', group: 'General', run: () => openPalette() },
       { keys: 'g h', label: 'Inbox', group: 'Go to', run: () => openWorkspace('/') },
@@ -146,6 +147,9 @@ const EXTRA: { group: string; keys: string; label: string }[] = [
   { group: 'Lists', keys: 'k', label: 'Previous item' },
   { group: 'Lists', keys: 'Enter', label: 'Open' },
   { group: 'Lists', keys: 'Delete', label: 'Delete task' },
+  { group: 'Review', keys: '1', label: 'Task Overview tab' },
+  { group: 'Review', keys: '2', label: 'Task Files changed tab' },
+  { group: 'Review', keys: '3', label: 'Task Checks tab' },
   { group: 'Review', keys: 'ArrowRight', label: 'Next hunk (j in whole file: next file)' },
   { group: 'Review', keys: 'ArrowLeft', label: 'Previous hunk (k in whole file: previous file)' },
   { group: 'Review', keys: 'a', label: 'Hunk looks right' },

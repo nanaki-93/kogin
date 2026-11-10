@@ -34,6 +34,8 @@ export interface UIState {
   newTask: Partial<DraftTask> | null;
   shortcutsOpen: boolean;
   sidebarCollapsed: boolean;
+  /** Distraction-free reading and review canvas: hides navigation and status chrome. */
+  focusMode: boolean;
   theme: Theme;
   darkPalette: DarkPalette;
   density: Density;
@@ -79,6 +81,7 @@ let state: UIState = {
   newTask: null,
   shortcutsOpen: false,
   sidebarCollapsed: false,
+  focusMode: false,
   theme: 'system',
   darkPalette: 'kogin',
   density: 'comfortable',
@@ -140,4 +143,8 @@ export function openNewTask(prefill: Partial<DraftTask> = {}): void {
 
 export function openPalette(mode: UIState['paletteMode'] = 'all'): void {
   setUI({ paletteOpen: true, paletteMode: mode });
+}
+
+export function toggleFocusMode(): void {
+  setUI({ focusMode: !state.focusMode });
 }

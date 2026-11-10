@@ -22,6 +22,7 @@ import { MainChanged } from './RetakeTask';
 import { RunAgents } from './RunAgents';
 import { ReviewItems } from './ReviewItems';
 import { LiveRun } from './LiveRun';
+import { TaskBlastRadius } from './TaskBlastRadius';
 import { useOpenTaskFile } from './TaskCodePreview';
 
 export function TaskOverview({ session }: { session: LoadedSession }) {
@@ -107,6 +108,7 @@ function Brief({ session, open }: { session: LoadedSession; /** Open while you w
           <p className="xs muted">Determined by the investigation when you approve the plan.</p>
         )}
       </div>
+      {!investigated && targets.length ? <TaskBlastRadius paths={targets.map(t => t.path)} /> : null}
     </div>
   );
   if (investigated) {

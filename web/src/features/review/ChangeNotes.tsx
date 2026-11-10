@@ -12,6 +12,7 @@ import { HUNK_KINDS } from '@/lib/hunks';
 import { workflowActive } from '@/lib/readiness';
 import { Badge, Button, IconButton, Spinner } from '@/components/ui';
 import { DocText } from '@/features/docs/DocText';
+import { ConceptChip } from '@/features/docs/ConceptChip';
 import type { DiffNote } from './DiffView';
 
 /** The walkthrough's entry for a file, if the change was explained. */
@@ -105,7 +106,7 @@ export function HunkNote({ note, goal, hideKind }: { note: WalkthroughNote; goal
       {note.concepts?.length ? (
         <div className="chips">
           {note.concepts.map(concept => (
-            <span key={concept} className="chip" title="A concept this hunk is a worked example of; accepted tasks collect them in Docs → Learning log">{concept}</span>
+            <ConceptChip key={concept} concept={concept} />
           ))}
         </div>
       ) : null}

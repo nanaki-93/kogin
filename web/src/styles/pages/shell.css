@@ -621,3 +621,72 @@
   color: var(--text-2);
   line-height: 1.5;
 }
+
+/* ---------------------------------------------------------- focus mode (z) */
+
+.focus-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  transition: border-color 0.14s var(--ease), background 0.14s var(--ease), color 0.14s var(--ease);
+}
+
+.focus-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.focus-btn.is-on {
+  border-color: color-mix(in srgb, var(--nav-accent) 52%, var(--border));
+  background: var(--nav-accent-soft);
+  color: var(--nav-accent-text);
+}
+
+.shell.is-focus {
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--bg);
+}
+
+.shell.is-focus > .sidebar,
+.shell.is-focus .statusbar {
+  display: none;
+}
+
+.shell.is-focus > .main {
+  grid-template-rows: var(--topbar) minmax(0, 1fr);
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.shell.is-focus .topbar {
+  padding: 0 20px;
+  border-bottom-color: color-mix(in srgb, var(--border) 75%, transparent);
+}
+
+.shell.is-focus .search-trigger {
+  opacity: 0.72;
+  transition: opacity 0.14s var(--ease);
+}
+
+.shell.is-focus .search-trigger:hover,
+.shell.is-focus .search-trigger:focus-visible {
+  opacity: 1;
+}
+
+.shell.is-focus .page-inner {
+  max-width: 1200px;
+  padding-top: 28px;
+}
+
+.shell.is-focus .page-inner.page-narrow {
+  max-width: 840px;
+}
