@@ -73,6 +73,24 @@ func (c *Client) Version(ctx context.Context) (string, error) {
 	return health.Version, nil
 }
 
+// CurrentProject is the folder the daemon currently has open, when it answers
+// and the folder still exists.
+func (c *Client) CurrentProject(ctx context.Context) string {
+	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer cancel()
+	var current struct {
+		Path string `json:"path"`
+	}
+	if err := c.call(ctx, http.MethodGet, "/api/projects/current", nil, &current); err != nil || current.Path == "" {
+		return ""
+	}
+	folder, err := Folder(current.Path)
+	if err != nil {
+		return ""
+	}
+	return folder
+}
+
 // OpenProject makes folder the daemon's project unless it already is:
 // restore saved data for a known path, otherwise import it.
 func (c *Client) OpenProject(ctx context.Context, folder string) error {

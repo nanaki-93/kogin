@@ -85,6 +85,7 @@ type Service struct {
 	executionTrust       *executionTrustStore
 	checkBaselines       checkBaselines
 	events               *eventBroker
+	onProjectActivated   func(string)
 	// activity is the latest tool calls of each task's running agents.
 	activity                        activityLog
 	buildDeclarationContext         func(string, project.FunctionContextOptions) (string, project.ContextManifest, error)

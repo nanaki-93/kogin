@@ -83,6 +83,7 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	defer session.Stop()
+	_ = launcher.RememberProject(opts.project)
 	page := session.Page()
 	if opts.open {
 		if err := openBrowser(page); err != nil {

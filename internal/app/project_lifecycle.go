@@ -25,6 +25,14 @@ func (s *Service) reindexActiveProject(reason string) (*project.ProjectIndex, er
 	return index, err
 }
 
+// OnProjectActivated registers a callback run whenever the active main
+// project changes through import or restore.
+func (s *Service) OnProjectActivated(fn func(string)) {
+	s.jobLifecycleMu.Lock()
+	defer s.jobLifecycleMu.Unlock()
+	s.onProjectActivated = fn
+}
+
 func (s *Service) ActivateProject(root string, analysis *project.Analysis) error {
 	return s.replaceActiveProject(func() error {
 		if err := s.manager.Set(root, analysis); err != nil {
@@ -48,8 +56,13 @@ func (s *Service) replaceActiveProject(activate func() error) error {
 	if err := activate(); err != nil {
 		return err
 	}
-	s.loadProjectConfiguration(s.manager.Root())
+	root := s.manager.Root()
+	s.loadProjectConfiguration(root)
 	s.resetExecutionTrust(true)
+	if s.owner == nil && s.onProjectActivated != nil {
+		s.onProjectActivated(root)
+	}
+	s.notifyEvent("project_index")
 	s.scheduleResume() // Tasks whose blocker was merged or deleted meanwhile continue.
 	return nil
 }

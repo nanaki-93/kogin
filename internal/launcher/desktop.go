@@ -1,34 +1,35 @@
 package launcher
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 
-	"github.com/nanaki-93/kogin/v2/internal/brand"
-	"github.com/nanaki-93/kogin/v2/internal/storage"
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 // DesktopState is what the desktop app keeps between launches.
-type DesktopState struct {
-	// Project is the folder it opened last.
-	Project string `json:"project"`
-}
+type DesktopState = config.DesktopState
 
-func desktopStatePath() (string, error) {
-	directory, err := brand.UserConfigDir()
-	if err != nil {
-		return "", fmt.Errorf("locate the desktop app's settings: %w", err)
+// StartupProject is the folder the desktop app opens on launch: a running
+// daemon's active project when one already answers at url, otherwise
+// LastProject.
+func StartupProject(ctx context.Context, url string) string {
+	if url == "" {
+		url = DefaultURL
 	}
-	return filepath.Join(directory, "desktop.json"), nil
+	if current := NewClient(url).CurrentProject(ctx); current != "" {
+		return current
+	}
+	return LastProject()
 }
 
 // LastProject is the folder the desktop app opened last, when it still exists.
 func LastProject() string {
-	path, err := desktopStatePath()
+	path, err := config.DesktopStateFile()
 	if err != nil {
 		return ""
 	}
@@ -49,18 +50,7 @@ func LastProject() string {
 
 // RememberProject saves the folder the desktop app opens next time.
 func RememberProject(folder string) error {
-	path, err := desktopStatePath()
-	if err != nil {
-		return err
-	}
-	data, err := json.Marshal(DesktopState{Project: folder})
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	return storage.WriteFile(path, data, 0o600)
+	return config.RememberProject(folder)
 }
 
 // DesktopLogFolder is where the desktop app writes the daemon's log:

@@ -54,6 +54,11 @@ func main() {
 		logging.Error("Failed to initialize application service", "error", err)
 		os.Exit(1)
 	}
+	application.OnProjectActivated(func(root string) {
+		if err := config.RememberProject(root); err != nil {
+			logging.Warn("Could not remember active project", "project", root, "error", err)
+		}
+	})
 
 	// Log successful startup
 	logging.Info("Kogin daemon started successfully")

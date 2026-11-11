@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"net/http/httptest"
+
+	"github.com/nanaki-93/kogin/v2/internal/config"
 )
 
 func TestOpenAttachesToARunningDaemonAndSwitchesItsProject(t *testing.T) {
@@ -156,6 +158,7 @@ func TestTheDesktopAppRemembersAnExistingProject(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
+	t.Setenv("APPDATA", filepath.Join(home, "appdata"))
 	if LastProject() != "" {
 		t.Fatal("a project before any was opened")
 	}
@@ -172,12 +175,41 @@ func TestTheDesktopAppRemembersAnExistingProject(t *testing.T) {
 	if got := LastProject(); got != "" {
 		t.Fatalf("a removed folder came back: %q", got)
 	}
-	path, _ := desktopStatePath()
+	path, _ := config.DesktopStateFile()
 	if err := os.WriteFile(path, []byte("{"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if got := LastProject(); got != "" {
 		t.Fatalf("a corrupt file gave %q", got)
+	}
+}
+
+func TestStartupProjectPrefersARunningDaemonsProjectOverLastProject(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
+	t.Setenv("APPDATA", filepath.Join(home, "appdata"))
+	previous, _ := filepath.EvalSymlinks(t.TempDir())
+	active, _ := filepath.EvalSymlinks(t.TempDir())
+	if err := RememberProject(previous); err != nil {
+		t.Fatal(err)
+	}
+	if got := StartupProject(t.Context(), "http://127.0.0.1:1"); got != previous {
+		t.Fatalf("no daemon: got %q, want %q", got, previous)
+	}
+	daemon := &fakeDaemon{}
+	server := httptest.NewServer(daemon)
+	defer server.Close()
+	if got := StartupProject(t.Context(), server.URL); got != previous {
+		t.Fatalf("daemon with no active project: got %q, want %q", got, previous)
+	}
+	daemon.current = filepath.Join(t.TempDir(), "missing")
+	if got := StartupProject(t.Context(), server.URL); got != previous {
+		t.Fatalf("daemon with missing project folder: got %q, want %q", got, previous)
+	}
+	daemon.current = active
+	if got := StartupProject(t.Context(), server.URL); got != active {
+		t.Fatalf("running daemon project: got %q, want %q", got, active)
 	}
 }
 

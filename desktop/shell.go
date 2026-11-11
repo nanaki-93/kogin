@@ -68,7 +68,7 @@ func (s *shell) openWindow() {
 // start opens the last project, or asks for one, in the daemon and shows the
 // Web UI. Failures are shown and end the app.
 func (s *shell) start() {
-	project := launcher.LastProject()
+	project := launcher.StartupProject(s.app.Context(), brand.Getenv("KOGIN_URL"))
 	if project == "" {
 		folder, err := s.firstProject()
 		if err != nil {

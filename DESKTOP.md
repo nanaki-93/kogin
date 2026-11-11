@@ -38,8 +38,9 @@ the repository's `config.yaml` there once), and each project's own
 - **Your PATH.** An app opened from the Finder or the Dock gets a minimal
   `PATH`. The app starts its daemon with the `PATH` of your login shell, so the
   agent CLIs (`claude`, `agy`, `pi`), Git, Go and Node are found as in a terminal.
-- **Open another project.** File → Open Project… (Cmd+O) picks a folder and
-  switches the daemon to it; the app reopens that project next time.
+- **Open another project.** File → Open Project… (Cmd+O), the Project folder
+  field in the Web UI, or `kogin` in a folder switches the daemon to that
+  project; the app reopens that project next time.
 - **Quit.** Closing the window or Cmd+Q quits. A daemon the app started gets the
   same graceful stop as Ctrl+C on `kogin`: running workflows are stopped and
   the daemon exits.

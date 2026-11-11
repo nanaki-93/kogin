@@ -2,10 +2,14 @@ package app
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
 // The Web UI listens to the active project only, so a task's progress in a
@@ -32,6 +36,49 @@ func TestWorkflowEventsOfAWorktreeReachTheActiveProject(t *testing.T) {
 	case event := <-events:
 		t.Fatalf("another worktree event reached the active project: %+v", event)
 	default:
+	}
+}
+
+func TestActivatingOrRestoringAProjectNotifiesListenersAndEvents(t *testing.T) {
+	s, first := newSemanticAnalysisService(t, "http://127.0.0.1:1", 0)
+	var activated []string
+	s.OnProjectActivated(func(root string) {
+		activated = append(activated, root)
+	})
+	events, unsubscribe := s.SubscribeEvents()
+	defer unsubscribe()
+
+	second := t.TempDir()
+	if err := os.WriteFile(filepath.Join(second, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ActivateProject(second, &project.Analysis{Name: "second", Path: second}); err != nil {
+		t.Fatal(err)
+	}
+	secondRoot := s.manager.Root()
+	select {
+	case event := <-events:
+		if event.Kind != "project_index" {
+			t.Fatalf("activate event = %+v", event)
+		}
+	default:
+		t.Fatal("ActivateProject did not publish a project_index event")
+	}
+
+	if err := s.RestoreActiveProject(first, &project.Analysis{Name: "fixture", Path: first}); err != nil {
+		t.Fatal(err)
+	}
+	firstRoot := s.manager.Root()
+	select {
+	case event := <-events:
+		if event.Kind != "project_index" {
+			t.Fatalf("restore event = %+v", event)
+		}
+	default:
+		t.Fatal("RestoreActiveProject did not publish a project_index event")
+	}
+	if !slices.Equal(activated, []string{secondRoot, firstRoot}) {
+		t.Fatalf("activated = %v, want [%s %s]", activated, secondRoot, firstRoot)
 	}
 }
 

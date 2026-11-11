@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,5 +33,40 @@ func TestProjectFolderDefaultsToTheCurrentFolder(t *testing.T) {
 		if _, err := parseOptions(args, io.Discard); err == nil {
 			t.Fatalf("accepted %v", args)
 		}
+	}
+}
+
+func TestRunRemembersTheOpenedProject(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
+	t.Setenv("APPDATA", filepath.Join(home, "appdata"))
+	token := filepath.Join(t.TempDir(), "daemon-token")
+	t.Setenv("KOGIN_TOKEN_FILE", token)
+	if err := os.WriteFile(token, []byte("launch-token\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	previous, _ := filepath.EvalSymlinks(t.TempDir())
+	next, _ := filepath.EvalSymlinks(t.TempDir())
+	if err := launcher.RememberProject(previous); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/health":
+			_, _ = io.WriteString(w, `{"status":"ok","version":"dev"}`)
+		case "/api/models":
+			_, _ = io.WriteString(w, `{"scopes":{},"config_file":""}`)
+		default:
+			_ = json.NewEncoder(w).Encode(map[string]string{"path": next})
+		}
+	}))
+	defer server.Close()
+	var out bytes.Buffer
+	if err := run(t.Context(), []string{"--no-open", "--url", server.URL, next}, &out); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if got := launcher.LastProject(); got != next {
+		t.Fatalf("last project = %q, want %q", got, next)
 	}
 }
