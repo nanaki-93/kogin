@@ -56,6 +56,8 @@ func TestRunCheckCommandCancellationDoesNotWaitForInheritedOutputPipe(t *testing
 func TestRunCheckCommandUsesAllowlistedChildEnvironment(t *testing.T) {
 	t.Setenv("OPENAI_API_KEY", "openai-must-not-reach-child")
 	t.Setenv("ANTHROPIC_API_KEY", "anthropic-must-not-reach-child")
+	t.Setenv("JAVA_HOME", "/opt/jdk-21")
+	t.Setenv("GRADLE_USER_HOME", "/tmp/gradle-cache")
 	t.Setenv("PATH", os.Getenv("PATH"))
 	result, err := RunCommand(context.Background(), t.TempDir(), checkHelperCommand("environment"))
 	if err != nil {
@@ -64,8 +66,8 @@ func TestRunCheckCommandUsesAllowlistedChildEnvironment(t *testing.T) {
 	if strings.Contains(result.Output, "must-not-reach-child") {
 		t.Fatalf("child inherited sentinel: %q", result.Output)
 	}
-	if !strings.Contains(result.Output, "path-present") {
-		t.Fatalf("child lost toolchain path: %q", result.Output)
+	if !strings.Contains(result.Output, "path-present") || !strings.Contains(result.Output, "java=/opt/jdk-21") || !strings.Contains(result.Output, "gradle=/tmp/gradle-cache") {
+		t.Fatalf("child lost toolchain environment: %q", result.Output)
 	}
 }
 
@@ -169,6 +171,7 @@ func TestCheckCommandHelperProcess(t *testing.T) {
 		} else {
 			fmt.Fprint(os.Stdout, "path-present")
 		}
+		fmt.Fprintf(os.Stdout, " java=%s gradle=%s ", os.Getenv("JAVA_HOME"), os.Getenv("GRADLE_USER_HOME"))
 		fmt.Fprint(os.Stdout, os.Getenv("OPENAI_API_KEY"))
 		fmt.Fprint(os.Stdout, os.Getenv("ANTHROPIC_API_KEY"))
 	case "huge-output":

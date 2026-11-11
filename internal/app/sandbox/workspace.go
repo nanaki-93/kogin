@@ -105,7 +105,7 @@ func (copier *checkWorkspaceCopier) copyFile(path, relative string, info os.File
 		_ = input.Close()
 		return err
 	}
-	output, err := os.OpenFile(outputPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	output, err := os.OpenFile(outputPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, copiedFileMode(relative, info))
 	if err != nil {
 		_ = input.Close()
 		return err
@@ -132,6 +132,21 @@ func (copier *checkWorkspaceCopier) copyFile(path, relative string, info os.File
 
 func isRegularCheckWorkspaceFile(info os.FileInfo) bool {
 	return info.Mode()&os.ModeSymlink == 0 && info.Mode().IsRegular()
+}
+
+// copiedFileMode keeps executable scripts runnable in the check copy, and
+// marks Maven and Gradle wrapper scripts executable even when a checkout
+// lost their execute bit.
+func copiedFileMode(relative string, info os.FileInfo) os.FileMode {
+	if info.Mode()&0o111 != 0 {
+		return 0o700
+	}
+	switch filepath.Base(relative) {
+	case "gradlew", "mvnw":
+		return 0o700
+	default:
+		return 0o600
+	}
 }
 
 func validateCheckWorkspaceFile(path string, expected os.FileInfo, input *os.File) error {

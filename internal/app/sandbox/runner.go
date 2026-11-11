@@ -124,7 +124,9 @@ func runCommandWithEnvironment(ctx context.Context, directory string, command []
 var checkEnvironmentAllowlist = map[string]bool{
 	"PATH": true, "HOME": true, "TMPDIR": true, "TMP": true, "TEMP": true,
 	"LANG": true, "LC_ALL": true, "LC_CTYPE": true,
-	"GOROOT": true, "GOPATH": true, "GOCACHE": true, "GOENV": true,
+	"GOROOT": true, "GOPATH": true, "GOCACHE": true, "GOMODCACHE": true, "GOENV": true,
+	"JAVA_HOME": true, "GRADLE_USER_HOME": true, "ANDROID_HOME": true, "ANDROID_SDK_ROOT": true,
+	"CARGO_HOME": true, "RUSTUP_HOME": true, "DOTNET_ROOT": true,
 	"CGO_ENABLED": true, "CC": true, "CXX": true, "PKG_CONFIG": true,
 	"SYSTEMROOT": true, "SystemRoot": true, "COMSPEC": true, "ComSpec": true,
 }

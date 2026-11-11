@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -239,5 +240,52 @@ func TestAnalysisRunRunsTheChecksBeforeTheDocs(t *testing.T) {
 	stored, err := s.currentTestAnalysisRun(context.Background())
 	if err != nil || stored.Checks == nil || stored.Checks.Issues != 1 {
 		t.Fatalf("stored checks = %+v, %v", stored, err)
+	}
+}
+
+func TestProjectChecksRunKotlinGradleWrapper(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX gradlew wrapper")
+	}
+	s, root, revision := newTrustedService(t, map[string]string{
+		"build.gradle.kts":            "plugins { kotlin(\"jvm\") version \"2.0.0\" }\n",
+		"gradlew":                     "#!/bin/sh\nif grep -q 'broken' src/main/kotlin/Calc.kt; then\n  echo 'CalcTest > adds() FAILED'\n  echo '    at CalcTest.kt:6'\n  exit 1\nfi\nexit 0\n",
+		"src/main/kotlin/Calc.kt":     "fun add(a: Int, b: Int): Int = a - b // broken\n",
+		"src/test/kotlin/CalcTest.kt": "class CalcTest {\n    fun adds() {\n        assert(add(1, 2) == 3)\n    }\n}\n",
+	})
+	if err := os.Chmod(filepath.Join(root, "gradlew"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	preview := &AnalysisRunPreview{Files: []AnalysisPlannedFile{{}}}
+	s.planAnalysisChecks(context.Background(), root, revision, preview)
+	if preview.Checks == nil || len(preview.Checks.Commands) != 1 || strings.Join(preview.Checks.Commands[0].Command, " ") != "./gradlew test" {
+		t.Fatalf("plan = %+v", preview.Checks)
+	}
+	checks := s.runProjectChecks(context.Background(), revision, *preview.Checks)
+	var testCheck AnalysisCheckResult
+	for _, check := range checks.Checks {
+		if check.Name == "tests" {
+			testCheck = check
+		}
+	}
+	if checks.Status != "completed" || testCheck.State != CheckFailed || strings.Contains(testCheck.Output, "permission denied") {
+		t.Fatalf("checks = %+v", checks)
+	}
+	tests := issuesBySource(t, s, revision)[project.FindingSourceTest]
+	if len(tests) != 1 || tests[0].Title != "Test fails: CalcTest > adds()" || tests[0].Location.Path != "src/test/kotlin/CalcTest.kt" {
+		t.Fatalf("test issues = %+v", tests)
+	}
+
+	writeFixtureFiles(t, root, map[string]string{"src/main/kotlin/Calc.kt": "fun add(a: Int, b: Int): Int = a + b\n"})
+	index, err := s.Reindex()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.TrustProjectExecution(context.Background(), index.ProjectRevision, true); err != nil {
+		t.Fatal(err)
+	}
+	checks = s.runProjectChecks(context.Background(), index.ProjectRevision, *preview.Checks)
+	if checks.Issues != 0 {
+		t.Fatalf("checks after fix = %+v", checks)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -58,6 +59,62 @@ func TestCopyCheckWorkspaceExcludesCachesAndIgnoredOutputAndKeepsTrackedOutput(t
 		if _, err := os.Lstat(filepath.Join(destination, path)); !os.IsNotExist(err) {
 			t.Fatalf("excluded path %q has error %v", path, err)
 		}
+	}
+}
+
+func TestCopyCheckWorkspacePreservesExecutablesAndBuildWrappers(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX wrapper permissions")
+	}
+	source := t.TempDir()
+	destination := filepath.Join(t.TempDir(), "workspace")
+	for _, file := range []struct {
+		path    string
+		content string
+		mode    os.FileMode
+	}{
+		{"gradlew", "#!/bin/sh\necho gradle-ok:$1\n", 0o755},
+		{"sub/gradlew", "#!/bin/sh\necho sub-gradle-ok:$1\n", 0o644},
+		{"java/mvnw", "#!/bin/sh\necho maven-ok:$1\n", 0o644},
+		{"scripts/check.sh", "#!/bin/sh\necho script-ok\n", 0o755},
+		{"src/main/kotlin/App.kt", "fun main() = Unit\n", 0o644},
+	} {
+		full := filepath.Join(source, file.path)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(file.content), file.mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := CopyWorkspace(context.Background(), source, destination); err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Stat(filepath.Join(destination, "src/main/kotlin/App.kt")); err != nil || info.Mode()&0o111 != 0 {
+		t.Fatalf("regular source became executable: %v, %v", info, err)
+	}
+	for _, check := range []struct {
+		dir     string
+		command []string
+		want    string
+	}{
+		{destination, []string{"./gradlew", "test"}, "gradle-ok:test"},
+		{filepath.Join(destination, "sub"), []string{"./gradlew", "test"}, "sub-gradle-ok:test"},
+		{filepath.Join(destination, "java"), []string{"./mvnw", "test"}, "maven-ok:test"},
+		{destination, []string{"./scripts/check.sh"}, "script-ok"},
+	} {
+		result, err := RunCommand(context.Background(), check.dir, check.command)
+		if err != nil || strings.TrimSpace(result.Output) != check.want {
+			t.Fatalf("%v in %s = %+v, %v; want %q", check.command, check.dir, result, err, check.want)
+		}
+	}
+	direct, err := WorkspaceFingerprint(context.Background(), source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	copied, err := FingerprintWorkspace(context.Background(), destination)
+	if err != nil || direct != copied {
+		t.Fatalf("fingerprints = %q vs %q, err = %v", direct, copied, err)
 	}
 }
 
