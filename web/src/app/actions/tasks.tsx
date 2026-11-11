@@ -184,10 +184,11 @@ export function taskActions(context: ActionContext, { removeEmptyWorktrees, disc
       await guarded('Starting agents…', async () => {
         try {
           const run = models ? chooseRunModels(choice, picked, start, session.workflow, models.modelOf) : choice;
-          // A plan the investigation proposed is approved only by the explicit
-          // approval action; a plan the user wrote at creation stays implicit.
+          // A plan the investigation proposed is approved by the explicit
+          // approval action, and keeps that approval on later runs of the plan.
           const plan = session.plan;
-          const planHash = options.planRedirect ? undefined : options.approvePlan || (plan && plan.source !== 'investigator') ? plan?.hash : undefined;
+          const planApproved = Boolean(plan?.hash && (plan.source !== 'investigator' || plan.approved_hash === plan.hash));
+          const planHash = options.planRedirect ? undefined : options.approvePlan || planApproved ? plan?.hash : undefined;
           const body = workflowRequest(changeIdentity(session), message, run, {
             autoRepair: true,
             confirmSecurity: security,

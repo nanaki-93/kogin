@@ -113,15 +113,22 @@ func reconcileManualCheckStages(wf *ChangeWorkflow, hash string, checks []CheckR
 	if len(wf.Stages) > 1 {
 		wf.Stages[1].Status, wf.Stages[1].Reason = "completed", ""
 	}
-	restoreReviewOutcome(wf, hash)
+	restoreReviewOutcome(wf, hash, checksComplete(checks))
 	return true
 }
 
 // restoreReviewOutcome returns a workflow whose checks pass again to the state
 // its review at hash established: human review after approval or an override,
-// otherwise the reviewers' requested changes that a failed recheck hid.
-func restoreReviewOutcome(wf *ChangeWorkflow, hash string) {
-	if !inputAllowsReview(wf) || wf.Review == nil || wf.Review.ProposalHash != hash {
+// otherwise the reviewers' requested changes that a failed recheck hid. When no
+// review has run on hash yet, it clears an earlier check-failure reason.
+func restoreReviewOutcome(wf *ChangeWorkflow, hash string, complete bool) {
+	if !inputAllowsReview(wf) {
+		return
+	}
+	if wf.Review == nil || wf.Review.ProposalHash != hash {
+		if complete && pendingSpecialistReview(wf) {
+			wf.Reason = "Checks passed on this version. Run the agents again to complete specialist review."
+		}
 		return
 	}
 	switch {
@@ -130,6 +137,10 @@ func restoreReviewOutcome(wf *ChangeWorkflow, hash string) {
 	case wf.Status == "failed" && wf.Input == nil:
 		wf.Status, wf.Reason = "changes_requested", ""
 	}
+}
+
+func pendingSpecialistReview(wf *ChangeWorkflow) bool {
+	return wf.Status == "failed" && len(wf.Stages) > 2 && (wf.Stages[2].Status == "pending" || wf.Stages[2].Status == "skipped")
 }
 
 func markLeadingWorkflowStagesCompleted(wf *ChangeWorkflow) {

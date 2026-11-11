@@ -149,7 +149,7 @@ function ResultSummary({ session, result, right, onOpen }: { session: LoadedSess
         <span className="spacer" />
         {checks.total ? (
           <button type="button" className={cx('badge', `badge-${checks.tone}`)} onClick={() => navigate(`/tasks/${session.id}/checks`)} title="Open the checks">
-            {checks.tone === 'success' ? `${plural(checks.total, 'check')} passed` : `Checks: ${checks.label.toLowerCase()}`}
+            {checks.tone === 'success' ? `${plural(checks.passed, 'check')} passed` : `Checks: ${checks.label.toLowerCase()}`}
           </button>
         ) : null}
         {verdict === 'approve' || verdict === 'changes_requested' ? <Badge tone={verdict === 'approve' ? 'success' : 'danger'}>{verdict === 'approve' ? 'Reviewers approved' : 'Reviewers asked for changes'}</Badge> : null}

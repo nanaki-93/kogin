@@ -285,11 +285,25 @@ func requireApprovedChangePlan(session *ChangeSession) error {
 	return nil
 }
 
+func (s *Service) approveRunPlan(root string, session *ChangeSession, request ChangeWorkflowRequest) error {
+	alreadyApproved := session.Plan != nil && session.Plan.ApprovedHash != "" && session.Plan.ApprovedHash == session.Plan.Hash
+	if err := approveWorkflowPlan(session, request.PlanHash); err != nil {
+		return err
+	}
+	if (!alreadyApproved && request.PlanHash != "") || len(request.ApprovedPaths) > 0 {
+		return s.applyApprovedPlanScope(root, session, request.ApprovedPaths)
+	}
+	return nil
+}
+
 func approveWorkflowPlan(session *ChangeSession, hash string) error {
 	if session.Plan == nil {
 		if hash != "" {
 			return fmt.Errorf("this conversation has no captured plan")
 		}
+		return nil
+	}
+	if hash == "" && session.Plan.ApprovedHash != "" && session.Plan.ApprovedHash == session.Plan.Hash {
 		return nil
 	}
 	if hash == "" || hash != session.Plan.Hash {

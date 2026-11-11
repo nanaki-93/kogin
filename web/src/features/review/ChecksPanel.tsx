@@ -58,7 +58,7 @@ export function ChecksPanel({ session }: { session: LoadedSession }) {
           <div className="card-head">
             <span className={cx('strong', `tone-${summary.tone}`)}>{summary.label}</span>
             <span className="muted small">
-              {summary.passed} passed · {summary.failed} failed · {checks.filter(c => c.required).length} required
+              {summary.passed} passed · {summary.failed} failed{summary.skipped ? ` · ${summary.skipped} skipped` : ''} · {checks.filter(c => c.required).length} required
             </span>
           </div>
           <CheckList checks={checks} />
@@ -80,13 +80,26 @@ export function CheckList({ checks }: { checks: Check[] }) {
 }
 
 function order(a: Check, b: Check): number {
-  const rank = (c: Check) => (c.state === 'failed' ? 0 : c.state === 'running' ? 1 : c.state === 'unavailable' ? 2 : 3);
+  const rank = (c: Check) =>
+    c.state === 'failed'
+      ? 0
+      : c.required && c.state !== 'passed' && c.state !== 'running'
+        ? 1
+        : c.state === 'running'
+          ? 2
+          : c.state === 'unavailable' || c.state === 'canceled'
+            ? 3
+            : c.state === 'skipped'
+              ? 5
+              : 4;
   return rank(a) - rank(b) || Number(b.required) - Number(a.required);
 }
 
 function CheckRow({ check }: { check: Check }) {
-  const [open, setOpen] = useState(check.state === 'failed');
-  const tone = phaseTone(check.state);
+  const incompleteRequired = check.required && check.state !== 'passed' && check.state !== 'running';
+  const [open, setOpen] = useState(check.state === 'failed' || incompleteRequired);
+  const rawTone = phaseTone(check.state);
+  const tone = incompleteRequired && rawTone === 'idle' ? 'failed' : rawTone;
   const hasDetail = Boolean(check.output || check.command?.length);
   return (
     <li className={cx('check', open && 'is-open')}>

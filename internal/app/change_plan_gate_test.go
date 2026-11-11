@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nanaki-93/kogin/v2/internal/config"
 	"github.com/nanaki-93/kogin/v2/internal/project"
 )
 
@@ -513,5 +514,78 @@ func TestIntentOnlyTaskInvestigatesThenLocksConfirmedScope(t *testing.T) {
 	got := changeTargetPaths(finished)
 	if len(got) != 2 || got[0] != "calc.go" || got[1] != "calc_sub_test.go" {
 		t.Fatalf("confirmed targets = %v", got)
+	}
+}
+
+func TestApprovedInvestigatorPlanRerunsAfterIncompleteChecks(t *testing.T) {
+	ctx := context.Background()
+	slowTest := "package main\n\nimport (\n\t\"testing\"\n\t\"time\"\n)\n\nfunc TestSub(t *testing.T) {\n\ttime.Sleep(1200 * time.Millisecond)\n\tif Sub(5, 2) != 3 {\n\t\tt.Fatal(\"bad sub\")\n\t}\n}\n"
+	scripts := map[string][]fakePiStep{
+		"investigator": investigatorScript(),
+		"coder":        coderScript(),
+		"tester": {
+			{Tool: "create_file", Arguments: map[string]any{"path": "calc_sub_test.go", "content": slowTest}},
+			{Tool: "finish", Arguments: map[string]any{"summary": "Tested Sub."}},
+			{Text: "Done."},
+		},
+	}
+	flow := startToolFlowScripts(t, scripts, func(cfg *config.Config) { cfg.Timeouts.FocusedCheckSeconds = 1 }, nil, func(request *ChangeWorkflowRequest) {
+		request.Plan, request.AutoRepair = "on", false
+	})
+	waiting := flow.finished(t)
+	approved := flow.request
+	approved.ChangeIdentity, approved.Plan, approved.PlanHash, approved.AutoRepair = changeIdentity(waiting), "on", waiting.Plan.Hash, false
+	if _, err := flow.service.StartChangeWorkflow(ctx, flow.id, approved); err != nil {
+		t.Fatal(err)
+	}
+	failed := flow.finished(t)
+	if failed.Workflow.Status != "failed" || !strings.Contains(failed.Workflow.Reason, "Required checks did not complete") || !strings.Contains(failed.Workflow.Reason, "timed out after 1s") {
+		t.Fatalf("incomplete check run = %s (%s)", failed.Workflow.Status, failed.Workflow.Reason)
+	}
+	raiseTestCheckTimeout(t, flow.service.owner)
+	child, _, err := flow.service.owner.WorktreeService(ctx, flow.worktree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(child.CancelChangeWorkflows)
+	flow.service = child
+	checked, err := flow.service.CheckChange(ctx, flow.id, ChangeCheckRequest{ChangeIdentity: changeIdentity(failed), CheckOptions: CheckOptions{RunTests: true, RunLint: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if checked.Workflow.Status != "failed" || !strings.Contains(checked.Workflow.Reason, "Checks passed on this version") {
+		t.Fatalf("manual check reconciliation = %s (%s)", checked.Workflow.Status, checked.Workflow.Reason)
+	}
+	assertApprovedPlanRerun(t, flow, checked)
+}
+
+func raiseTestCheckTimeout(t *testing.T, owner *Service) {
+	t.Helper()
+	index, err := owner.manager.Index()
+	if err != nil {
+		t.Fatal(err)
+	}
+	timeouts := config.TimeoutConfig{ImportSeconds: 300, AnalysisSeconds: 300, GenerationSeconds: 300, WorkflowModelSeconds: 900, FocusedCheckSeconds: 30}
+	if _, err := owner.SaveProjectTimeouts(context.Background(), ProjectTimeoutsRequest{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, Timeouts: timeouts}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func assertApprovedPlanRerun(t *testing.T, flow *toolFlow, checked *ChangeSession) {
+	t.Helper()
+	ctx := context.Background()
+	stale := flow.request
+	stale.ChangeIdentity, stale.PlanHash, stale.ResumeFrom = changeIdentity(checked), "stale-plan-hash", "checks"
+	if _, err := flow.service.StartChangeWorkflow(ctx, flow.id, stale); err == nil {
+		t.Fatal("accepted mismatched plan_hash on rerun")
+	}
+	rerun := flow.request
+	rerun.ChangeIdentity, rerun.PlanHash, rerun.ResumeFrom = changeIdentity(checked), "", "checks"
+	if _, err := flow.service.StartChangeWorkflow(ctx, flow.id, rerun); err != nil {
+		t.Fatalf("rerun approved investigator plan failed: %v", err)
+	}
+	finished := flow.finished(t)
+	if finished.Workflow.Status != "awaiting_human_review" || finished.Plan == nil || finished.Plan.ApprovedHash != finished.Plan.Hash {
+		t.Fatalf("rerun outcome = %s (%s), plan = %+v", finished.Workflow.Status, finished.Workflow.Reason, finished.Plan)
 	}
 }

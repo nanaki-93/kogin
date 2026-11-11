@@ -94,9 +94,12 @@ describe('review helpers', () => {
   it('summarizes checks', () => {
     expect(checkSummary([])).toMatchObject({ label: 'Not run', tone: 'neutral' });
     expect(checkSummary([check('a', 'passed'), check('b', 'failed')])).toMatchObject({ label: '1 required failed', tone: 'danger' });
+    expect(checkSummary([check('a', 'passed'), check('b', 'canceled')])).toMatchObject({ label: '1 required incomplete', tone: 'danger' });
     expect(checkSummary([check('a', 'passed'), { ...check('lint', 'failed'), required: false }])).toMatchObject({ label: '1 optional failed', tone: 'warning' });
     expect(checkSummary([check('a', 'passed'), check('b', 'running')])).toMatchObject({ label: 'Running', tone: 'info' });
     expect(checkSummary([check('a', 'passed')])).toMatchObject({ label: '1/1 passed', tone: 'success' });
+    expect(checkSummary([check('a', 'passed'), check('other subprojects', 'skipped', false)])).toMatchObject({ label: '1/1 passed', tone: 'success', skipped: 1 });
+    expect(checkSummary([check('other subprojects', 'skipped', false)])).toMatchObject({ label: 'Skipped', tone: 'neutral', skipped: 1 });
     expect(phaseTone(' Approved ')).toBe('passed');
     expect(phaseTone('mystery')).toBe('idle');
     // Waiting on a person or a plan's reset is not work in progress.

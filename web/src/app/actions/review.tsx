@@ -113,8 +113,12 @@ export function reviewActions(context: ActionContext, git?: { mergeTaskWorktree:
       try {
         const updated = await api.post<ChangeSession>(changePath(session, '/checks'), { ...changeIdentity(session), run_lint: true, run_tests: true });
         setSession(updated, session);
-        const failed = (updated.checks ?? []).filter(check => check.state === 'failed').length;
-        toast(failed ? `${plural(failed, 'check')} failed.` : 'All checks passed.', failed ? 'warning' : 'success');
+        const list = updated.checks ?? [];
+        const failed = list.filter(check => check.state === 'failed').length;
+        const incomplete = list.filter(check => check.required && check.state !== 'passed' && check.state !== 'failed').length;
+        if (failed) toast(`${plural(failed, 'check')} failed.`, 'warning');
+        else if (incomplete) toast(`${plural(incomplete, 'required check')} did not complete.`, 'warning');
+        else toast('All checks passed.', 'success');
       } catch (err) {
         fail('Checks could not run', err);
       }

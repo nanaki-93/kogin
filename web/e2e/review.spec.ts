@@ -511,6 +511,41 @@ test('line comments go to the agents only with a start that writes code', async 
   expect(daemon.mutations('/workflow')[0].body).toMatchObject({ resume_from: 'test', include_comments: true });
 });
 
+test('an approved investigator plan reruns after incomplete checks without re-asking for plan approval', async ({ page, daemon }) => {
+  const guided = guidedReviewTask();
+  daemon.sessions.set('chg-1', {
+    ...guided,
+    checks: [
+      { name: 'go vet', required: true, state: 'passed', command: ['go', 'vet', './...'], duration_ms: 4200 },
+      { name: 'go test', required: true, state: 'passed', command: ['go', 'test', './...'], duration_ms: 18_350 },
+      { name: 'other subprojects', required: false, state: 'skipped', outcome: 'not_affected', output: 'Not run, since no changed file is in them: telemetry-service.' },
+    ],
+    workflow: {
+      ...guided.workflow!,
+      status: 'failed',
+      reason: 'Checks passed on this version. Run the agents again to complete specialist review.',
+      review: undefined,
+      stages: [
+        { ...guided.workflow!.stages[0], status: 'completed' },
+        { ...guided.workflow!.stages[1], status: 'completed' },
+        { ...guided.workflow!.stages[2], status: 'skipped' },
+        { name: 'human_review', status: 'blocked' },
+      ],
+    },
+  });
+  await page.goto('/#/tasks/chg-1/checks');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.getByRole('tab', { name: /Checks/ })).toContainText('2/2 passed');
+  await expect(page.getByText('2 passed · 0 failed · 1 skipped · 2 required')).toBeVisible();
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.getByText('2 passed · 0 failed · 1 skipped · 2 required')).toBeVisible();
+  await page.locator('header.task-header').getByRole('button', { name: 'Run agents again' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Run agents' }).click();
+  await expect(page.locator('header.task-header').getByRole('button', { name: 'Stop agents' })).toBeVisible();
+  expect(daemon.mutations('/workflow')[0].body).toMatchObject({ plan_hash: 'plan-hash-1', resume_from: 'checks' });
+});
+
 test('a comment can be deleted before it is sent', async ({ page, daemon }) => {
   const session = daemon.sessions.get('chg-1')!;
   daemon.sessions.set('chg-1', { ...session, comments: [{ id: 'cm-1', path: 'internal/api/handlers/webui.go', side: 'new', line: 42, excerpt: 'if name == "" || strings.Contains(name, "/") {', text: 'Prefer path.Clean.', hash: session.hash, created_at: session.updated_at }] });

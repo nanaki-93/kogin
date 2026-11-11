@@ -65,10 +65,13 @@ export function startRun(s: ChangeSession, body: Record<string, unknown>): Chang
     plan = undefined;
     planStage = { name: 'plan', status: 'running', started_at: new Date().toISOString() };
   } else if (s.plan?.source === 'investigator') {
-    if (body.plan_hash !== s.plan.hash) throw new Error('approve the displayed plan and captured source before generation');
+    const alreadyApproved = Boolean(s.plan.hash) && s.plan.approved_hash === s.plan.hash;
+    if (body.plan_hash ? body.plan_hash !== s.plan.hash : !alreadyApproved) {
+      throw new Error('approve the displayed plan and captured source before generation');
+    }
     plan = { ...s.plan, approved_hash: s.plan.hash };
     const approvedPaths = Array.isArray(body.approved_paths) ? (body.approved_paths as string[]) : [];
-    const nextPaths = approvedPaths.length ? approvedPaths : targets.length ? [] : (s.plan.touches ?? []).map(touch => touch.path);
+    const nextPaths = approvedPaths.length ? approvedPaths : !alreadyApproved && !targets.length ? (s.plan.touches ?? []).map(touch => touch.path) : [];
     if (nextPaths.length) {
       targets = nextPaths.map(path => ({ path, hash: '', exists: data.indexedPaths.includes(path) }));
     }

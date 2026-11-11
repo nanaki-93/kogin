@@ -47,32 +47,39 @@ export interface CheckSummary {
   failed: number;
   running: number;
   idle: number;
+  skipped: number;
   label: string;
   tone: Tone;
 }
 
 /**
- * Summarizes checks; only a failed required check blocks Apply, so optional
- * failures read as a warning. Outdated checks ran on an earlier project tree.
+ * Summarizes checks; any required check that did not pass blocks Apply, while
+ * optional failures read as a warning and skipped optional checks stay out of
+ * the pass denominator. Outdated checks ran on an earlier project tree.
  */
 export function checkSummary(checks: Check[] | undefined, outdated = false): CheckSummary {
   const list = checks ?? [];
-  const counts = { total: list.length, passed: 0, failed: 0, running: 0, idle: 0 };
+  const counts = { total: list.length, passed: 0, failed: 0, running: 0, idle: 0, skipped: 0 };
   for (const check of list) {
+    if (!check.required && check.state === 'skipped') counts.skipped++;
     const tone = phaseTone(check.state);
     counts[tone === 'waiting' ? 'running' : tone]++;
   }
   const requiredFailed = list.filter(check => check.required && phaseTone(check.state) === 'failed').length;
+  const requiredIncomplete = list.filter(check => check.required && check.state !== 'passed' && phaseTone(check.state) !== 'failed' && phaseTone(check.state) !== 'running').length;
   const optionalFailed = counts.failed - requiredFailed;
+  const ran = list.length - counts.skipped;
   let label: string;
   let tone: Tone;
   if (!list.length) [label, tone] = ['Not run', 'neutral'];
   else if (outdated) [label, tone] = ['Outdated', 'warning'];
   else if (requiredFailed) [label, tone] = [`${requiredFailed} required failed`, 'danger'];
   else if (counts.running) [label, tone] = ['Running', 'info'];
+  else if (requiredIncomplete) [label, tone] = [`${requiredIncomplete} required incomplete`, 'danger'];
   else if (optionalFailed) [label, tone] = [`${optionalFailed} optional failed`, 'warning'];
-  else if (counts.passed === list.length) [label, tone] = [`${counts.passed}/${list.length} passed`, 'success'];
-  else [label, tone] = [`${counts.passed}/${list.length} passed`, 'warning'];
+  else if (!ran) [label, tone] = ['Skipped', 'neutral'];
+  else if (counts.passed === ran) [label, tone] = [`${counts.passed}/${ran} passed`, 'success'];
+  else [label, tone] = [`${counts.passed}/${ran} passed`, 'warning'];
   return { ...counts, label, tone };
 }
 

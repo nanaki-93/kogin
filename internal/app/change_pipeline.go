@@ -150,13 +150,8 @@ func (s *Service) admitWorkflowSession(ctx context.Context, root string, session
 	}
 	// A redirected run replaces the plan, so the old one needs no approval.
 	if request.PlanRedirect == "" {
-		if err := approveWorkflowPlan(session, request.PlanHash); err != nil {
+		if err := s.approveRunPlan(root, session, request); err != nil {
 			return workflowStart{}, err
-		}
-		if request.PlanHash != "" {
-			if err := s.applyApprovedPlanScope(root, session, request.ApprovedPaths); err != nil {
-				return workflowStart{}, err
-			}
 		}
 	}
 	start, err := s.workflowStartFor(session, request.ResumeFrom)
