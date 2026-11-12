@@ -724,6 +724,42 @@
   margin-bottom: 2px;
 }
 
+.socratic-lens {
+  padding: 8px 11px;
+  border: 1px solid color-mix(in srgb, var(--nav-accent) 32%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--nav-accent-soft) 38%, var(--bg-sunken));
+}
+
+.socratic-lens > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.socratic-lens > summary::-webkit-details-marker {
+  display: none;
+}
+
+.socratic-lens-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--text-2);
+  line-height: 1.48;
+}
+
+.socratic-prompt-row {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
 .lesson-own {
   padding-left: 10px;
   border-left: 2px solid var(--border-strong);

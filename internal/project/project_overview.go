@@ -17,6 +17,7 @@ import (
 	"github.com/nanaki-93/kogin/v2/internal/project/handbook"
 	"github.com/nanaki-93/kogin/v2/internal/project/projectmap"
 	"github.com/nanaki-93/kogin/v2/internal/project/symbols"
+	"github.com/nanaki-93/kogin/v2/internal/project/syntax"
 )
 
 const (
@@ -51,16 +52,19 @@ type Analysis = handbook.Analysis
 
 // FileInfo describes one selected project file.
 type FileInfo struct {
-	Path        string    `json:"path"`
-	ContentHash string    `json:"content_hash"`
-	Name        string    `json:"name"`
-	Extension   string    `json:"extension"`
-	Language    string    `json:"language"`
-	SizeBytes   int64     `json:"size_bytes"`
-	LineCount   int       `json:"line_count"`
-	ModifiedAt  time.Time `json:"modified_at"`
-	Binary      bool      `json:"binary"`
-	Content     string    `json:"content,omitempty"`
+	Path        string            `json:"path"`
+	ContentHash string            `json:"content_hash"`
+	Name        string            `json:"name"`
+	Extension   string            `json:"extension"`
+	Language    string            `json:"language"`
+	SizeBytes   int64             `json:"size_bytes"`
+	LineCount   int               `json:"line_count"`
+	ModifiedAt  time.Time         `json:"modified_at"`
+	Binary      bool              `json:"binary"`
+	Content     string            `json:"content,omitempty"`
+	Outline     []syntax.Symbol   `json:"outline,omitempty"`
+	Functions   []syntax.Function `json:"functions,omitempty"`
+	Imports     []string          `json:"imports,omitempty"`
 }
 
 // Analyzer scans projects and asks the configured model for an architectural summary.
@@ -367,6 +371,23 @@ func GetFileInfo(root, relative string) (*FileInfo, error) {
 		info.Content = string(data)
 	}
 	info.ContentHash = contentHash(data)
+	return info, nil
+}
+
+// GetFileInfoWithSyntax reads file metadata and source text like GetFileInfo,
+// and enriches non-binary files with their deterministic AST outline,
+// per-function complexity spans, and extracted imports.
+func GetFileInfoWithSyntax(root, relative string) (*FileInfo, error) {
+	info, err := GetFileInfo(root, relative)
+	if err != nil || info.Binary || info.Content == "" {
+		return info, err
+	}
+	data := []byte(info.Content)
+	info.Outline = syntax.Outline(info.Path, data)
+	info.Functions = syntax.Analyze(info.Path, data).Functions
+	if _, imports := symbols.ExtractFileFacts(info.Path, data); len(imports) > 0 {
+		info.Imports = imports
+	}
 	return info, nil
 }
 

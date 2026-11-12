@@ -53,8 +53,11 @@
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
   --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
   --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 12px rgba(0, 0, 0, 0.35);
-  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --overlay: rgba(4, 5, 6, 0.62);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  --surface-glass: color-mix(in srgb, var(--surface) 88%, transparent);
+  --glow-accent: 0 0 20px rgba(52, 211, 153, 0.16);
+  --glow-nav: 0 0 18px rgba(155, 123, 255, 0.16);
+  --overlay: rgba(4, 5, 8, 0.64);
   --focus: 0 0 0 2px var(--bg), 0 0 0 4px rgba(155, 123, 255, 0.6);
 
   --syntax-keyword: #c792ea;
@@ -260,7 +263,10 @@
   --shadow-md: 0 8px 24px rgba(20, 22, 30, 0.1), 0 0 0 1px rgba(20, 22, 30, 0.06);
   --shadow-lg: 0 24px 64px rgba(20, 22, 30, 0.16), 0 0 0 1px rgba(20, 22, 30, 0.07);
   --shadow-panel: 0 0 0 1px rgba(20, 22, 30, 0.08), 0 1px 3px rgba(20, 22, 30, 0.05);
-  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  --surface-glass: color-mix(in srgb, var(--surface) 92%, transparent);
+  --glow-accent: 0 0 18px rgba(15, 122, 75, 0.12);
+  --glow-nav: 0 0 16px rgba(75, 47, 184, 0.12);
   --overlay: rgba(15, 17, 20, 0.32);
   --focus: 0 0 0 2px var(--bg), 0 0 0 4px rgba(75, 47, 184, 0.45);
 

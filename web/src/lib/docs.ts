@@ -242,10 +242,10 @@ export function declarationExcerpt(content: string, line: number, max = 40): Exc
 }
 
 /** The Docs pages; older links land on the page that replaced theirs. */
-export type DocsSection = 'overview' | 'start' | 'architecture' | 'map' | 'components' | 'flows' | 'changes' | 'dependencies' | 'ask' | 'log' | 'decisions';
+export type DocsSection = 'overview' | 'start' | 'architecture' | 'map' | 'components' | 'flows' | 'changes' | 'dependencies' | 'ask' | 'log' | 'atlas' | 'decisions';
 
 const SECTIONS: Record<string, DocsSection> = {
-  overview: 'overview', start: 'start', architecture: 'architecture', map: 'map', components: 'components', flows: 'flows', changes: 'changes', dependencies: 'dependencies', ask: 'ask', log: 'log',
+  overview: 'overview', start: 'start', architecture: 'architecture', map: 'map', components: 'components', flows: 'flows', changes: 'changes', dependencies: 'dependencies', ask: 'ask', log: 'log', atlas: 'atlas',
   runbook: 'start', scenarios: 'flows', decisions: 'decisions', glossary: 'overview',
 };
 

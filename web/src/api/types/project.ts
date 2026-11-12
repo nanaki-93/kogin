@@ -39,6 +39,22 @@ export interface ProjectIndex extends ProjectIdentity {
   files: IndexedFile[];
 }
 
+export interface FileOutlineSymbol {
+  kind: string;
+  name: string;
+  line: number;
+  signature: string;
+}
+
+export interface FileFunctionMetric {
+  name: string;
+  kind: string;
+  start_line: number;
+  end_line: number;
+  complexity: number;
+  hash?: string;
+}
+
 export interface FileInfo {
   path: string;
   content_hash: string;
@@ -48,6 +64,9 @@ export interface FileInfo {
   line_count?: number;
   binary?: boolean;
   content: string;
+  outline?: FileOutlineSymbol[];
+  functions?: FileFunctionMetric[];
+  imports?: string[];
 }
 
 export interface ExecutionTrust extends ProjectIdentity {

@@ -117,18 +117,27 @@ every guard when the action arrives.
   decision** shows the next file name and what goes in it, to commit like any
   file. Each investigation is told which records exist. A project without
   records says where they go.
-- **Learning log.** Docs → Learning log is what the project has taught so
-  far: one entry per accepted task — the problem it removed and the approach,
-  from its approved plan — with the concepts its change used as chips; a
+- **Learning log & Engineering Atlas.** Docs → Learning log is what the project
+  has taught so far: one entry per accepted task — the problem it removed and
+  the approach, from its approved plan — with the concepts its change used as
+  chips, plus a **Senior systems breadth** mastery summary across the seven
+  **Engineering Atlas** domains and Study-mode diagnostic calibration; a
   concept chip filters the log to every time it was met, with its count, and
-  **Explain “…” in this project** hands Ask the code a question about it. On
+  **Explain “…” in this project** hands Ask the code a question about it. Docs
+  → **Engineering Atlas** (`/docs/atlas`, also reachable from the command
+  palette) presents curated computer science, distributed systems, storage,
+  architecture and Go systems mental models with complexity/trade-off/failure
+  specs, offline **Socratic self-check** disclosures, local mastery tracking
+  and **Trace in this codebase** (pre-filling Ask the code without sending). On
   Ask the code, **Save to log** keeps an answer there. A backticked name in
-  an entry shows as code. Hunk notes show the same concept chips during
-  review.
+  an entry shows as code. Hunk notes show the same concept chips (plus
+  deterministic **Senior check** disclosures when concurrency, storage, HTTP or
+  error patterns appear in the hunk) during review.
 - **Your plan first.** When a plan is ready in **Study** mode (the default),
   the task page does not show it yet. **Your plan first** asks three things —
-  what is wrong, what you would do, and (optional) what could break — with the
-  brief open below to work from, plus a **Study | Steer** switch in the card
+  what is wrong, what you would do, and (optional) what could break — guided by
+  a collapsible **Senior Socratic lens** tailored to the task kind and target
+  files, with the brief open below to work from, plus a **Study | Steer** switch in the card
   header; switching to **Steer** shows the agent's plan immediately without
   recording a skipped plan and remembers the preference. **Show the agent's plan** saves your plan as
   written (it cannot be edited afterwards) and reveals the agent's; **Skip
@@ -528,7 +537,8 @@ every guard when the action arrives.
   **Understand** (Overview, Architecture, How it works with one page per
   walkthrough, Components with one page per component, Project map),
   **Change** (Where to change with one page per usual change, Get started,
-  Dependencies) and **Your notes** (Learning log, Decisions, Ask the code),
+  Dependencies) and **Your notes** (Learning log, Engineering Atlas, Decisions,
+  Ask the code),
   with an ask box on top. The Overview reads top to bottom in that order:
   what the project is, the project in numbers and where it starts, **How it
   is built** (the architecture diagram), **What it does** (a card per
@@ -539,8 +549,11 @@ every guard when the action arrives.
   on the one with an entry point, in layers with importers above what they
   import and an arrow per import, thicker for more; an import over several
   layers runs beside the cards. A card opens its component. Architecture
-  shows the same diagram, any architecture line that names no component, and
-  **The parts in numbers**: each component's lines and files as a bar, what
+  adds **Topology | Coupling (I) | Boundaries** lenses (Martin instability
+  `I = Ce / (Ca + Ce)`, transitive blast-radius component inspection, and
+  `AGENTS.md` `never`-import highlighting), a live **Trace execution flow**
+  stepper across walkthroughs and change guides, any architecture line that
+  names no component, and **The parts in numbers**: each component's lines and files as a bar, what
   it imports, what uses it and how many guides pass through it. A guide's
   card says what it does in a sentence, the components its steps pass
   through (each once, in the order first reached) and its step count. A
@@ -641,8 +654,14 @@ every guard when the action arrives.
   (with its count), where **Open task** replaces Fix with agents; it is marked
   fixed when the task is merged and returns to Open when the task is deleted or
   its worktree discarded. The Code page keeps marking it until then.
-- **Ask about it.** The Code inspector's question about a file opens Docs →
-  Ask the code with the question filled in; nothing is sent until it is asked.
+- **Code X-Ray & Ask about it.** The Code inspector defaults to **X-Ray**,
+  listing the file's parsed AST symbols with cyclomatic complexity badges
+  against its `AGENTS.md` budget and its imports above **About this file**,
+  open issues and analysis stages (**Overview** folds the AST sections away).
+  Clicking or `Shift+Click`ing line numbers selects a line range with
+  **Explain**, **Senior critique** and **Scope task** actions; **Ask about it**,
+  **Explain** and **Senior critique** open Docs → Ask the code with the
+  question filled in, sending nothing until asked.
 
 ## Branches
 

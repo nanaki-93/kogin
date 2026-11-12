@@ -50,7 +50,7 @@ func TestProjectRestoreActivatesStoredAnalysisWithoutModelAccess(t *testing.T) {
 
 func TestProjectIndexAndSymbolAPIs(t *testing.T) {
 	root := t.TempDir()
-	writeProjectHandlerFixture(t, root, "main.go", "package main\n\nfunc Run(name string) string { return name }\n")
+	writeProjectHandlerFixture(t, root, "main.go", "package main\n\nimport \"strings\"\n\nfunc Run(name string) string {\n\tif name == \"\" {\n\t\treturn \"anon\"\n\t}\n\treturn strings.TrimSpace(name)\n}\n")
 	writeProjectHandlerFixture(t, root, ".env", "TOKEN=must-not-expose")
 	writeProjectHandlerFixture(t, root, "asset.bin", string([]byte{0, 1, 2}))
 	handler := newIndexedProjectHandler(t, root)
@@ -66,6 +66,32 @@ func TestProjectIndexAndSymbolAPIs(t *testing.T) {
 	}
 	if len(index.Files) != 2 || index.Files[0].Path != "asset.bin" || index.Files[1].Path != "main.go" {
 		t.Fatalf("unsafe or unexpected index paths: %+v", index.Files)
+	}
+
+	goFileResponse := httptest.NewRecorder()
+	handler.FileInfo(goFileResponse, httptest.NewRequest(http.MethodGet, "/api/projects/current/files/info?path=main.go", nil))
+	if goFileResponse.Code != http.StatusOK {
+		t.Fatalf("main.go file-info status = %d: %s", goFileResponse.Code, goFileResponse.Body.String())
+	}
+	var goInfo project.FileInfo
+	if err := json.NewDecoder(goFileResponse.Body).Decode(&goInfo); err != nil {
+		t.Fatal(err)
+	}
+	if len(goInfo.Outline) != 1 || goInfo.Outline[0].Name != "Run" || len(goInfo.Functions) != 1 || goInfo.Functions[0].Complexity != 2 || len(goInfo.Imports) != 1 || goInfo.Imports[0] != "strings" {
+		t.Fatalf("unexpected FileInfo X-Ray facts: %+v", goInfo)
+	}
+
+	binFileResponse := httptest.NewRecorder()
+	handler.FileInfo(binFileResponse, httptest.NewRequest(http.MethodGet, "/api/projects/current/files/info?path=asset.bin", nil))
+	if binFileResponse.Code != http.StatusOK {
+		t.Fatalf("asset.bin file-info status = %d: %s", binFileResponse.Code, binFileResponse.Body.String())
+	}
+	var binInfo project.FileInfo
+	if err := json.NewDecoder(binFileResponse.Body).Decode(&binInfo); err != nil {
+		t.Fatal(err)
+	}
+	if !binInfo.Binary || len(binInfo.Outline) != 0 || len(binInfo.Functions) != 0 || len(binInfo.Imports) != 0 {
+		t.Fatalf("binary FileInfo must omit X-Ray facts: %+v", binInfo)
 	}
 
 	envFileResponse := httptest.NewRecorder()

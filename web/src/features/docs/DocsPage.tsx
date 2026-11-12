@@ -22,6 +22,7 @@ import { SidebarPanel } from '@/layout/SidebarPanel';
 import { ProjectMap } from './ProjectMap';
 import { ChangeGuideIndex, ChangeGuidePage, WalkthroughPage, WalkthroughsIndex } from './WalkthroughPage';
 import { DecisionLog } from './DecisionLog';
+import { EngineeringAtlas } from './EngineeringAtlas';
 import { LearningLog } from './LearningLog';
 
 export function DocsPage({ section }: { section: string }) {
@@ -36,9 +37,11 @@ export function DocsPage({ section }: { section: string }) {
     <div className="docs">
       <DocsNav docs={docs} current={current} />
       <div className="docs-body page-scroll">
-        <div className={current === 'map' ? 'page-inner' : 'page-inner page-narrow'}>
+        <div className={current === 'map' || current === 'atlas' ? 'page-inner' : 'page-inner page-narrow'}>
           {current === 'map' ? (
             <ProjectMap />
+          ) : current === 'atlas' ? (
+            <EngineeringAtlas />
           ) : current === 'ask' ? (
             <AskPanel project={project} worktreePath={worktreePath} />
           ) : current === 'log' ? (
@@ -129,6 +132,7 @@ function DocsNav({ docs, current }: { docs: ProjectDocs | undefined; current: Do
         <NavLink to="/docs/start" icon={Terminal} active={current === 'start'} count={docs?.commands?.length}>Get started</NavLink>
         <NavLink to="/docs/dependencies" icon={Library} active={current === 'dependencies'} count={docs?.dependencies?.length}>Dependencies</NavLink>
         <NavLabel>Your notes</NavLabel>
+        <NavLink to="/docs/atlas" icon={BookOpen} active={current === 'atlas'}>Engineering Atlas</NavLink>
         <NavLink to="/docs/log" icon={GraduationCap} active={current === 'log'}>Learning log</NavLink>
         <NavLink to="/docs/decisions" icon={Scale} active={current === 'decisions'}>Decisions</NavLink>
         <NavLink to="/docs/ask" icon={MessageCircleQuestion} active={current === 'ask'}>Ask the code</NavLink>

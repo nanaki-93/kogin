@@ -225,3 +225,87 @@ test('Docs lists the decisions the project records, and says how to record one',
   await page.getByText('Record a decision').click();
   await expect(page.locator('.decision-template')).toContainText('# 1. <the decision in a few words>');
 });
+
+test('Engineering Atlas filters CS & System Design domains, runs offline Socratic checks, and traces concepts without calling a model', async ({ page, daemon }) => {
+  await page.goto('/#/docs/overview');
+  await page.getByRole('link', { name: 'Engineering Atlas' }).click();
+  await expect(page).toHaveURL(/#\/docs\/atlas/);
+
+  const atlas = page.getByRole('article', { name: 'Engineering Atlas' });
+  await expect(atlas.getByRole('heading', { name: 'Engineering Atlas', level: 1 })).toBeVisible();
+  await expect(atlas.getByRole('region', { name: 'Engineering domains' }).getByRole('button')).toHaveCount(7);
+
+  // Filter to Distributed Systems and reveal a Socratic self-check offline.
+  await atlas.getByRole('region', { name: 'Engineering domains' }).getByRole('button', { name: /Distributed/ }).click();
+  const card = atlas.getByRole('listitem', { name: 'Idempotency & guarded optimistic concurrency' });
+  await expect(card).toBeVisible();
+  const socratic = page.getByRole('region', { name: 'Socratic check for Idempotency & guarded optimistic concurrency' });
+  await socratic.getByRole('button', { name: 'Reveal senior answer' }).click();
+  await expect(socratic).toContainText('last-write-wins');
+  expect(daemon.mutations('/ask')).toHaveLength(0);
+
+  // Mark mastered and trace in codebase -> pre-fills Ask the code without sending.
+  await card.getByRole('button', { name: 'Mark mastered' }).click();
+  await expect(card.getByRole('button', { name: 'Mastered' })).toHaveAttribute('aria-pressed', 'true');
+  await card.getByRole('button', { name: 'Trace in this codebase' }).click();
+  await expect(page).toHaveURL(/#\/docs\/ask\?q=/);
+  await expect(page.getByLabel('Question about the code')).toHaveValue(/Idempotency & guarded optimistic concurrency/);
+  expect(daemon.mutations('/ask')).toHaveLength(0);
+});
+
+test('Architecture Studio inspects Martin instability, AGENTS.md boundaries, and live execution flow steps', async ({ page }) => {
+  await page.goto('/#/docs/architecture');
+  const lenses = page.getByRole('region', { name: 'Architecture lenses' });
+  await lenses.getByRole('radio', { name: 'Coupling (I)' }).click();
+  const diagram = page.getByRole('group', { name: '5 components and the imports between them' });
+  await expect(diagram.getByRole('button', { name: 'internal/app: open its page' })).toContainText('I=0.33');
+  await expect(diagram.getByRole('button', { name: 'internal/project: open its page' })).toContainText('I=0.00');
+
+  // Inspect internal/app and switch to Boundaries to verify AGENTS.md never-import highlight.
+  await lenses.getByRole('group', { name: 'Inspect component' }).getByRole('button', { name: 'internal/app' }).click();
+  const inspector = page.getByRole('region', { name: 'Component coupling inspector' });
+  await expect(inspector).toContainText('I = 0.33');
+  await expect(inspector).toContainText('2 callers');
+  await expect(inspector).toContainText('internal/api');
+
+  await lenses.getByRole('radio', { name: 'Boundaries' }).click();
+  await expect(diagram.getByRole('button', { name: 'internal/api: open its page' })).toContainText('forbidden');
+
+  // Step through an execution flow live on the graph.
+  const stepper = page.getByRole('region', { name: 'Execution flow stepper' });
+  await stepper.getByRole('button', { name: 'Serve the Web UI' }).click();
+  await expect(stepper).toContainText('Walkthrough · Step 1 of 2');
+  await stepper.getByRole('button', { name: 'Next step' }).click();
+  await expect(stepper).toContainText('Walkthrough · Step 2 of 2');
+  await expect(stepper).toContainText('ServeAsset');
+});
+
+test('Code X-Ray defaults to AST symbol & complexity inspection and supports line-range senior critique across dark and light themes', async ({ page, daemon }) => {
+  await page.goto('/#/code?file=internal%2Fapi%2Fhandlers%2Fwebui.go');
+  const inspector = page.getByRole('complementary', { name: 'File inspector' });
+  await expect(inspector.getByRole('radio', { name: /X-Ray/ })).toHaveAttribute('aria-checked', 'true');
+
+  const outline = inspector.getByRole('region', { name: 'Symbol outline' });
+  await expect(outline.getByRole('button', { name: /ServeAsset/ })).toContainText('C2');
+  await expect(inspector.getByRole('region', { name: 'File imports' })).toContainText('net/http');
+
+  await outline.getByRole('button', { name: /ServeAsset/ }).click();
+  await expect(page).toHaveURL(/line=3/);
+
+  // Click line 1, Shift+Click line 3 -> range selection bar -> Senior critique pre-fills Ask without calling a model.
+  const source = page.getByLabel('Source of internal/api/handlers/webui.go');
+  await source.locator('.code-ln').filter({ hasText: /^1$/ }).click();
+  await source.locator('.code-ln').filter({ hasText: /^3$/ }).click({ modifiers: ['Shift'] });
+  const bar = page.getByRole('region', { name: 'Selected lines' });
+  await expect(bar).toContainText('L1–3');
+
+  // Verify light theme toggle renders cleanly before navigating to Ask.
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+  await expect(bar).toBeVisible();
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+
+  await bar.getByRole('button', { name: 'Senior critique' }).click();
+  await expect(page).toHaveURL(/#\/docs\/ask\?q=/);
+  await expect(page.getByLabel('Question about the code')).toHaveValue(/senior systems engineering critique of internal\/api\/handlers\/webui\.go lines 1–3/);
+  expect(daemon.mutations('/ask')).toHaveLength(0);
+});

@@ -6,12 +6,20 @@ export interface RulesProblem {
   message: string;
 }
 
-/** GET /rules: how the daemon tells test files apart, for the Web UI to match. */
+export interface DeclaredImportRule {
+  from: string;
+  never: string[];
+  source: string;
+}
+
+/** GET /rules: how the daemon tells test files apart, plus root budgets and declared import boundaries. */
 export interface ProjectRules {
   project_id: string;
   project_revision: string;
   test_patterns: string[];
   guides: string[];
+  budgets?: CodeBudgets;
+  imports?: DeclaredImportRule[];
   problems: RulesProblem[];
 }
 

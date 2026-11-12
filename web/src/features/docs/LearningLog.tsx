@@ -1,15 +1,15 @@
 // The learning log: what each accepted task taught — the problem it removed,
-// the approach and the concepts its change used — and the Ask the code
-// answers saved to it. It accumulates per project, so meeting a concept
-// again links back to where it was met before.
+// the approach and the concepts its change used — plus Study-mode diagnostic
+// calibration and 7-domain Engineering Atlas coverage.
 
-import { useState } from 'react';
-import { FileCode2, GraduationCap, MessageCircleQuestion, Wrench } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Compass, FileCode2, GraduationCap, MessageCircleQuestion, Wrench } from 'lucide-react';
 import type { Lesson } from '@/api/types';
 import { useLessons } from '@/api/hooks';
+import { computeAtlasMastery } from '@/lib/concepts';
 import { navigate } from '@/lib/router';
 import { plural, timeAgo } from '@/lib/util';
-import { Badge, Button, EmptyState, Skeleton, cx } from '@/components/ui';
+import { Badge, Button, EmptyState, Progress, Skeleton, cx } from '@/components/ui';
 import { askConceptInProject, ConceptGuideCard } from './ConceptChip';
 import { DocText } from './DocText';
 
@@ -19,12 +19,22 @@ const OWN_MATCH: Record<string, string> = { same: 'same cause', partly: 'partly 
 export function LearningLog() {
   const { data, isLoading } = useLessons();
   const [concept, setConcept] = useState('');
-  if (isLoading) return <Skeleton lines={8} />;
   const lessons = data?.lessons ?? [];
   const concepts = data?.concepts ?? [];
+  const mastery = useMemo(() => computeAtlasMastery(lessons), [lessons]);
+
+  if (isLoading) return <Skeleton lines={8} />;
   if (!lessons.length) {
     return (
-      <EmptyState icon={GraduationCap} title="Nothing learned yet">
+      <EmptyState
+        icon={GraduationCap}
+        title="Nothing learned yet"
+        action={
+          <Button variant="secondary" icon={Compass} onClick={() => navigate('/docs/atlas')}>
+            Explore Engineering Atlas
+          </Button>
+        }
+      >
         Each task you accept leaves an entry here: the problem it removed, the approach, and the concepts its change used. Answers from Ask the code can be saved here too.
       </EmptyState>
     );
@@ -32,8 +42,44 @@ export function LearningLog() {
   const shown = concept ? lessons.filter(lesson => lesson.concepts?.includes(concept)) : lessons;
   return (
     <article className="doc" aria-label="Learning log">
-      <h1>Learning log</h1>
+      <div className="row">
+        <h1 className="grow">Learning log</h1>
+        <Button size="sm" variant="secondary" icon={Compass} onClick={() => navigate('/docs/atlas')}>
+          Engineering Atlas
+        </Button>
+      </div>
       <p className="small muted">What this project has taught you so far: one entry per accepted task, plus the answers you saved from Ask the code. Pick a concept to see every time you met it.</p>
+
+      <section className="mastery-panel" aria-label="Engineering mastery">
+        <div className="row-wrap xs">
+          <span className="strong">Senior systems breadth</span>
+          <span className="muted">
+            {mastery.metCurated} of {mastery.totalCurated} Atlas models encountered across {plural(lessons.length, 'entry', 'entries')}
+          </span>
+          <span className="spacer" />
+          {mastery.calibration.written > 0 ? (
+            <span className="muted" title="Your Study-mode hypotheses written before reading the agent's plan">
+              Diagnostic calibration: <span className="strong">{mastery.calibration.same}</span> same · <span className="strong">{mastery.calibration.partly}</span> partly · <span className="strong">{mastery.calibration.missed}</span> missed
+            </span>
+          ) : null}
+        </div>
+        <Progress value={(mastery.metCurated / Math.max(1, mastery.totalCurated)) * 100} tone="accent" label="Atlas models encountered" />
+        <div className="mastery-domains">
+          {mastery.domains.map(({ domain, metCount, totalCount }) => (
+            <button
+              key={domain.id}
+              type="button"
+              className={cx('mastery-domain-pill', metCount > 0 && 'has-met')}
+              onClick={() => navigate('/docs/atlas', { domain: domain.id })}
+              title={`Open ${domain.id} in Engineering Atlas`}
+            >
+              <span className="truncate">{domain.short}</span>
+              <span className="mono faint">{metCount}/{totalCount}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       {concepts.length ? (
         <div className="chips" role="group" aria-label="Concepts">
           {concepts.map(entry => (

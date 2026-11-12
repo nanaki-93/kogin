@@ -46,6 +46,26 @@
   background: var(--bg-sunken);
 }
 
+.task-code-symbols {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.task-code-symbols .chip {
+  flex: none;
+  cursor: pointer;
+}
+
+.task-code-symbols .chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
 .task-code-scroll {
   flex: 1;
   min-height: 0;
@@ -212,6 +232,50 @@
   margin-top: 4px;
 }
 
+.rv-senior-check {
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.rv-senior-check > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.rv-senior-check > summary::-webkit-details-marker {
+  display: none;
+}
+
+.rv-senior-check > summary:hover {
+  color: var(--text);
+}
+
+.rv-senior-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.rv-senior-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  line-height: 1.45;
+}
+
+.rv-senior-item p {
+  margin: 0;
+}
+
 /* ---- Interactive Go & engineering concept micro-cards ---- */
 
 .chip-concept-btn {
@@ -232,12 +296,15 @@
   z-index: 65;
   display: flex;
   flex-direction: column;
-  width: min(392px, calc(100vw - 24px));
+  width: min(412px, calc(100vw - 24px));
+  max-height: min(76vh, 640px);
   border: 1px solid var(--border-strong);
   border-radius: 12px;
-  background: var(--surface);
+  background: var(--surface-glass);
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
   color: var(--text);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--highlight), var(--shadow-lg);
   overflow: hidden;
   animation: fade 0.12s var(--ease);
 }
@@ -261,12 +328,54 @@
   flex-direction: column;
   gap: 8px;
   padding: 11px 13px;
+  overflow-y: auto;
 }
 
 .concept-what {
   color: var(--text);
   font-size: var(--text-sm);
   line-height: 1.5;
+}
+
+.concept-model {
+  padding: 6px 9px;
+  border-left: 2px solid var(--nav-accent);
+  border-radius: 0 5px 5px 0;
+  background: color-mix(in srgb, var(--nav-accent-soft) 45%, var(--bg-sunken));
+  color: var(--text-2);
+  line-height: 1.45;
+}
+
+.concept-deep {
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.concept-deep > summary {
+  color: var(--text-2);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.concept-deep-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--text-2);
+  line-height: 1.45;
+}
+
+.concept-selfcheck {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-sunken);
 }
 
 .concept-ingo {

@@ -9,6 +9,7 @@ import type { LoadedSession } from '@/api/types';
 import { usePageKeys } from '@/app/shortcuts';
 import { highlightLines } from '@/lib/highlight';
 import { navigate } from '@/lib/router';
+import { mergeOutlineWithComplexity, symbolKindShort } from '@/lib/symbols';
 import { basename, dirname, languageOf } from '@/lib/util';
 import { Badge, IconButton, Segmented, Skeleton, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
@@ -132,8 +133,16 @@ function PaneBody({ target, proposedContent }: { target: TaskCodeTarget; propose
   const scroller = useRef<HTMLDivElement>(null);
   const content = proposedContent ?? info?.content ?? '';
   const html = useMemo(() => (content ? highlightLines(content, languageOf(target.path)) : []), [content, target.path]);
+  const symbols = useMemo(
+    () => (proposedContent === undefined ? mergeOutlineWithComplexity(info?.outline, info?.functions) : []),
+    [info?.functions, info?.outline, proposedContent],
+  );
   const start = target.startLine ?? 0;
   const end = target.endLine ?? start;
+
+  const jumpToLine = (lineNo: number) => {
+    scroller.current?.querySelector(`[data-line="${lineNo}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  };
 
   useEffect(() => {
     if (!start || !html.length) return;
@@ -147,6 +156,22 @@ function PaneBody({ target, proposedContent }: { target: TaskCodeTarget; propose
         <div className="task-code-purpose xs muted">
           <Badge tone="neutral">Role</Badge>
           <span className="truncate" title={summary.purpose}>{summary.purpose}</span>
+        </div>
+      ) : null}
+      {symbols.length ? (
+        <div className="task-code-symbols" aria-label="Symbols in file">
+          {symbols.map(sym => (
+            <button
+              key={`${sym.kind}:${sym.name}:${sym.start_line}`}
+              type="button"
+              className="chip mono xs"
+              onClick={() => jumpToLine(sym.start_line)}
+              title={`Jump to ${sym.kind} ${sym.name} (line ${sym.start_line})`}
+            >
+              <span className="faint">{symbolKindShort(sym.kind)}</span> {sym.name}
+              {sym.complexity !== undefined ? <span className="faint">C{sym.complexity}</span> : null}
+            </button>
+          ))}
         </div>
       ) : null}
       <div className="task-code-scroll" ref={scroller}>

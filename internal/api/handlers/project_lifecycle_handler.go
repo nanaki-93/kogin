@@ -145,7 +145,7 @@ func (h *ProjectHandler) FileInfo(w http.ResponseWriter, r *http.Request) {
 		writeProjectError(w, "file information failed", err)
 		return
 	}
-	info, err := project.GetFileInfo(h.manager.Root(), path)
+	info, err := project.GetFileInfoWithSyntax(h.manager.Root(), path)
 	if err != nil {
 		api.WriteAppError(w, api.BadRequest("file information failed", "Choose an eligible project file and try again.", err))
 		return

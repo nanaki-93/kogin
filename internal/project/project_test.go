@@ -117,6 +117,24 @@ func TestGetFileInfoRejectsLargeAndBinaryFiles(t *testing.T) {
 	if _, err := GetFileInfo(root, "large.txt"); err == nil {
 		t.Fatal("expected oversized file to be rejected")
 	}
+	src := "package sample\n\nimport \"strings\"\n\nfunc Normalize(v string) string {\n\tif v == \"\" {\n\t\treturn \"default\"\n\t}\n\treturn strings.TrimSpace(v)\n}\n"
+	if err := os.WriteFile(filepath.Join(root, "sample.go"), []byte(src), 0644); err != nil {
+		t.Fatal(err)
+	}
+	plain, err := GetFileInfo(root, "sample.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plain.Outline) != 0 || len(plain.Functions) != 0 {
+		t.Fatalf("GetFileInfo must stay syntax-free for bulk callers, got %+v", plain)
+	}
+	rich, err := GetFileInfoWithSyntax(root, "sample.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rich.Outline) == 0 || len(rich.Functions) == 0 || len(rich.Imports) != 1 || rich.Imports[0] != "strings" {
+		t.Fatalf("expected outline, functions and imports on GetFileInfoWithSyntax, got %+v", rich)
+	}
 }
 
 func TestContextPolicyExcludesSecretsIgnoredAndGeneratedFiles(t *testing.T) {

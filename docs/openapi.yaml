@@ -1875,6 +1875,36 @@ components:
         modified_at: {type: string, format: date-time}
         binary: {type: boolean}
         content: {type: string}
+        outline:
+          type: array
+          description: Top-level and nested AST declarations in source order for text files covered by a parser.
+          items: {$ref: '#/components/schemas/FileOutlineSymbol'}
+        functions:
+          type: array
+          description: Measured functions and methods with 1-based line spans and cyclomatic complexity.
+          items: {$ref: '#/components/schemas/FileFunctionMetric'}
+        imports:
+          type: array
+          description: Extracted import targets for text source files.
+          items: {type: string}
+    FileOutlineSymbol:
+      type: object
+      required: [kind, name, line, signature]
+      properties:
+        kind: {type: string}
+        name: {type: string}
+        line: {type: integer}
+        signature: {type: string}
+    FileFunctionMetric:
+      type: object
+      required: [name, kind, start_line, end_line, complexity, hash]
+      properties:
+        name: {type: string}
+        kind: {type: string}
+        start_line: {type: integer}
+        end_line: {type: integer}
+        complexity: {type: integer}
+        hash: {type: string}
     ProjectIndex:
       type: object
       required: [schema_version, project_id, project_revision, generated_at, files]
@@ -2688,7 +2718,19 @@ components:
         project_revision: {type: string}
         test_patterns: {type: array, items: {type: string}, description: "Project-relative, case-insensitive globs: * stays within a path segment, ** spans segments, a glob without a slash matches the file name anywhere."}
         guides: {type: array, items: {type: string}, description: Indexed AGENTS.md files.}
+        budgets: {$ref: '#/components/schemas/CodeBudgets'}
+        imports:
+          type: array
+          description: Declared directory-level never-import boundary rules across indexed AGENTS.md files.
+          items: {$ref: '#/components/schemas/DeclaredImportRule'}
         problems: {type: array, items: {$ref: '#/components/schemas/RulesProblem'}}
+    DeclaredImportRule:
+      type: object
+      required: [from, never, source]
+      properties:
+        from: {type: string}
+        never: {type: array, items: {type: string}}
+        source: {type: string}
     RulesProblem:
       type: object
       required: [path, message]

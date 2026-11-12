@@ -42,10 +42,10 @@ this document owns how the interface is organized, looks and responds.
 | --- | --- | --- |
 | **Inbox** | `g h` | What you want next, then housekeeping to accept together, needs your review, agents working, failed or stale, ready to merge, recently applied; what analysis found and its coverage beside them. |
 | **Tasks** | `g t` | Every task grouped by what it needs, with filters and `j`/`k`/`Enter`. A task opens on its own page. |
-| **Code** | `g c` | A read-only explorer: file tree, editor tabs, highlighted source with issue markers, an inspector. |
+| **Code** | `g c` | A read-only explorer and X-Ray workbench: file tree, editor tabs, highlighted source with enclosing scope, issue markers and line-range selection actions, and an X-Ray / Overview inspector. |
 | **Issues** | `g i` | Findings grouped by file (or by severity) with status, severity and category filters, and a file's open issues fixed in one task; the selected finding's problem, source and actions, then its evidence as short sections (preconditions, fix, how to verify). |
 | **Analysis** | `g a` | The last or running analysis: progress, why stages failed, results per section, the models used and each file's stages; analyze, retry failed, pause, resume and cancel. |
-| **Docs** | `g d` | A guide to the project: overview, get started (commands, entry points), architecture (components diagram), how it works (walkthroughs), a page per component with its files, dependencies, the decisions the project records, the learning log, and Ask the code. |
+| **Docs** | `g d` | A guide to the project: overview, get started (commands, entry points), architecture (components diagram with Topology, Coupling and Boundaries lenses and flow stepper), how it works (walkthroughs), a page per component with its files, dependencies, the decisions the project records, the learning log, the Engineering Atlas (CS & System Design mental models), and Ask the code. |
 | **Branches** | `g b` | The main checkout and task worktrees with their tasks, integration state, merge preview and merge (removing the worktree and branch unless switched off), and removal of a worktree with nothing left to merge. |
 | **Setup** | — | The project's first-run wizard: models, agents & budget, checks, analysis. Opens once for a project without its own configuration; Settings → Project reopens it. |
 | **Settings** | `g s` | Project, trust, models and agents, usage, appearance. |
@@ -127,9 +127,12 @@ accent stays readable.
   (results with output), an inline read-only Code preview pane on demand (`Escape` closes), and the Ready to accept? rail with Accept & commit
   (with an opt-in checkbox to merge into the clean main branch immediately, or Merge from Branches afterwards).
 - **Code** — virtualized file tree, editor tabs per checkout, highlighted
-  source with issue markers and line links, an inspector with Ask about it, "New
-  task with this file", one sentence on what the file does (the rest of its
-  summary on demand) and the docs component it belongs to.
+  source with enclosing AST declaration scope, issue markers, `Click` /
+  `Shift+Click` line-range actions (**Explain**, **Senior critique**, **Scope
+  task**), and an inspector defaulting to **X-Ray** (filterable AST symbol
+  outline with cyclomatic complexity badges and file imports above **About this
+  file**, open issues and analysis stages; **Overview** folds the AST sections
+  away).
 - **Issues**, **Docs**, **Branches** (merge preview with commits and diff, merge
   and abort; a worktree that cannot merge yet says why) and **Settings** follow
   the same list-and-detail structure.

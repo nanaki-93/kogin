@@ -1,15 +1,17 @@
 // The guide pages of the docs: get started, architecture and dependencies,
 // with the pieces the other docs pages share.
 
-import type { ReactNode } from 'react';
-import { ArrowRight, ChevronRight, Copy, FileCode2, Sparkles } from 'lucide-react';
-import type { DocsCommand, DocsEntryPoint, ProjectDocs } from '@/api/types';
-import { architectureParts, componentLabel, walkthroughsThrough } from '@/lib/docs';
+import { useMemo, useState, type ReactNode } from 'react';
+import { ArrowRight, ChevronLeft, ChevronRight, Compass, Copy, FileCode2, Layers, Route as RouteIcon, ShieldCheck, Sparkles } from 'lucide-react';
+import { useProjectRules } from '@/api/hooks';
+import type { DocsCommand, DocsEntryPoint, ProjectDocs, Walkthrough } from '@/api/types';
+import { analyzeArchitecture } from '@/lib/architectureLens';
+import { architectureParts, componentLabel, componentOf, componentTrail, walkthroughsThrough } from '@/lib/docs';
 import { navigate } from '@/lib/router';
 import { plural } from '@/lib/util';
-import { Badge, Callout, IconButton } from '@/components/ui';
+import { Badge, Button, Callout, IconButton, Segmented, cx } from '@/components/ui';
 import { useFeedback } from '@/components/overlays';
-import { ComponentGraph } from './ComponentGraph';
+import { ComponentGraph, type GraphLens } from './ComponentGraph';
 import { DocText } from './DocText';
 
 /** Marks a page whose prose a model wrote, once in its header, so it is never read as a fact from the code. */
@@ -150,11 +152,39 @@ export function StartPage({ docs }: { docs: ProjectDocs }) {
   );
 }
 
-/** How the project is built: the diagram, with what each part does, then each part's size and ties. */
+/** How the project is built: the diagram, interactive coupling & boundary lenses, flow stepper, then each part's size and ties. */
 export function ArchitecturePage({ docs }: { docs: ProjectDocs }) {
-  const components = docs.components ?? [];
-  const { roles, rest } = architectureParts(docs.overview?.architecture, components);
+  const components = useMemo(() => docs.components ?? [], [docs.components]);
+  const rules = useProjectRules().data;
+  const [lens, setLens] = useState<GraphLens>('topology');
+  const [inspected, setInspected] = useState<string>('');
+  const [flowKey, setFlowKey] = useState<string>('');
+  const [stepIdx, setStepIdx] = useState(0);
+
+  const { roles, rest } = useMemo(() => architectureParts(docs.overview?.architecture, components), [docs.overview?.architecture, components]);
+  const analysis = useMemo(
+    () => analyzeArchitecture(components, docs.graph, rules?.imports ?? []),
+    [components, docs.graph, rules?.imports],
+  );
+
+  const allFlows = useMemo(() => {
+    const out: { key: string; kind: 'Walkthrough' | 'Change guide'; guide: Walkthrough }[] = [];
+    (docs.walkthroughs ?? []).forEach((guide, idx) => out.push({ key: `w:${idx}`, kind: 'Walkthrough', guide }));
+    (docs.change_guide ?? []).forEach((guide, idx) => out.push({ key: `c:${idx}`, kind: 'Change guide', guide }));
+    return out;
+  }, [docs.change_guide, docs.walkthroughs]);
+
+  const activeFlow = allFlows.find(f => f.key === flowKey);
+  const activeStep = activeFlow?.guide.steps[stepIdx];
+  const activeStepComponent = activeStep ? componentOf(activeStep.path, components) : undefined;
+  const activeTrail = useMemo(
+    () => (activeFlow ? componentTrail(activeFlow.guide, components) : []),
+    [activeFlow, components],
+  );
+
+  const inspectedMetric = inspected ? analysis.byPath.get(inspected) : undefined;
   const most = Math.max(1, ...components.map(component => component.lines ?? 0));
+
   return (
     <article className="doc">
       <DocsStatusNote status={docs.status} />
@@ -162,7 +192,159 @@ export function ArchitecturePage({ docs }: { docs: ProjectDocs }) {
         <DocTitle ai={Boolean(docs.overview?.architecture) || components.some(component => component.summary)}>Architecture</DocTitle>
         <p className="small muted">{plural(components.length, 'component')}, importers above what they import. Open one for its files and the code the guides pass through.</p>
       </header>
-      <ComponentGraph components={components} graph={docs.graph} roles={roles} onOpen={component => navigate('/docs/components', { path: component.path })} />
+
+      {components.length > 1 ? (
+        <div className="arch-studio-bar" role="region" aria-label="Architecture lenses">
+          <Segmented
+            label="Architecture lens"
+            value={lens}
+            onChange={setLens}
+            options={[
+              { value: 'topology', label: 'Topology', icon: Layers },
+              { value: 'coupling', label: 'Coupling (I)', icon: Compass },
+              { value: 'boundaries', label: 'Boundaries', icon: ShieldCheck },
+            ]}
+          />
+          <div className="chips arch-inspect-chips" role="group" aria-label="Inspect component">
+            <span className="xs faint">Inspect:</span>
+            {components.map(comp => (
+              <button
+                key={comp.path}
+                type="button"
+                className={cx('chip', 'mono', inspected === comp.path && 'is-on')}
+                aria-pressed={inspected === comp.path}
+                onClick={() => setInspected(prev => (prev === comp.path ? '' : comp.path))}
+              >
+                {componentLabel(comp)}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <ComponentGraph
+        components={components}
+        graph={docs.graph}
+        roles={roles}
+        lens={lens}
+        metrics={analysis.byPath}
+        inversions={analysis.inversions}
+        focus={activeStepComponent ?? (inspected || undefined)}
+        activeTrail={activeTrail}
+        onOpen={component => navigate('/docs/components', { path: component.path })}
+      />
+
+      {inspectedMetric ? (
+        <section className="arch-inspector-card" aria-label="Component coupling inspector">
+          <div className="row">
+            <span className="mono strong small">{componentLabel({ path: inspectedMetric.path })}</span>
+            <Badge tone="accent">{inspectedMetric.roleLabel}</Badge>
+            {inspectedMetric.instability !== null ? (
+              <Badge tone="neutral" title="Martin Instability I = Ce / (Ca + Ce)">
+                I = {inspectedMetric.instability.toFixed(2)}
+              </Badge>
+            ) : null}
+            <span className="spacer" />
+            <Button size="sm" variant="ghost" icon={Compass} onClick={() => navigate('/docs/atlas', { concept: 'acyclic-dependencies-instability' })}>
+              Instability (I) in Atlas
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => navigate('/docs/components', { path: inspectedMetric.path })}>
+              Open component
+            </Button>
+          </div>
+          <div className="arch-metrics-grid xs">
+            <div>
+              <span className="faint">Fan-in (Ca): </span>
+              <span className="strong">{plural(inspectedMetric.ca, 'caller')}</span>
+              {inspectedMetric.transitiveCallers.length > inspectedMetric.ca
+                ? ` (${inspectedMetric.transitiveCallers.length} transitive)`
+                : ''}
+            </div>
+            <div>
+              <span className="faint">Fan-out (Ce): </span>
+              <span className="strong">{plural(inspectedMetric.ce, 'import')}</span>
+              {inspectedMetric.transitiveDependencies.length > inspectedMetric.ce
+                ? ` (${inspectedMetric.transitiveDependencies.length} transitive)`
+                : ''}
+            </div>
+            <div>
+              <span className="faint">Contract blast radius: </span>
+              {inspectedMetric.transitiveCallers.length
+                ? inspectedMetric.transitiveCallers.map(p => componentLabel({ path: p })).join(', ')
+                : 'none (top-level or standalone)'}
+            </div>
+          </div>
+          {inspectedMetric.forbiddenImports.length ? (
+            <div className="xs arch-rules-row">
+              <span className="strong">AGENTS.md boundary rules (never import): </span>
+              {inspectedMetric.forbiddenImports.map(rule => (
+                <code key={`${rule.never}@${rule.source}`} className="arch-rule-chip">{rule.never}</code>
+              ))}
+            </div>
+          ) : (
+            <div className="xs faint">No explicit never-import rules declared for this directory in AGENTS.md.</div>
+          )}
+        </section>
+      ) : null}
+
+      {allFlows.length ? (
+        <section className="arch-flow-stepper" aria-label="Execution flow stepper">
+          <div className="row-wrap">
+            <RouteIcon size={14} className="tone-accent" aria-hidden />
+            <span className="strong small">Trace execution flow</span>
+            <span className="xs muted">Step through a real path live across the component graph:</span>
+          </div>
+          <div className="chips">
+            {allFlows.map(flow => (
+              <button
+                key={flow.key}
+                type="button"
+                className={cx('chip', flowKey === flow.key && 'is-on')}
+                aria-pressed={flowKey === flow.key}
+                onClick={() => {
+                  if (flowKey === flow.key) {
+                    setFlowKey('');
+                  } else {
+                    setFlowKey(flow.key);
+                    setStepIdx(0);
+                  }
+                }}
+              >
+                {flow.guide.title}
+              </button>
+            ))}
+          </div>
+          {activeFlow && activeStep ? (
+            <div className="arch-flow-stage">
+              <div className="row">
+                <Badge tone="info">{activeFlow.kind} · Step {stepIdx + 1} of {activeFlow.guide.steps.length}</Badge>
+                {activeStepComponent ? <span className="mono xs muted">in {componentLabel({ path: activeStepComponent })}</span> : null}
+                <span className="spacer" />
+                <IconButton
+                  icon={ChevronLeft}
+                  label="Previous step"
+                  size="sm"
+                  disabled={stepIdx === 0}
+                  onClick={() => setStepIdx(i => Math.max(0, i - 1))}
+                />
+                <IconButton
+                  icon={ChevronRight}
+                  label="Next step"
+                  size="sm"
+                  disabled={stepIdx >= activeFlow.guide.steps.length - 1}
+                  onClick={() => setStepIdx(i => Math.min(activeFlow.guide.steps.length - 1, i + 1))}
+                />
+              </div>
+              <p className="small"><DocText text={activeStep.text} /></p>
+              <div className="row xs">
+                <FileLink path={activeStep.path} line={activeStep.line} />
+                {activeStep.symbol ? <code className="muted">{activeStep.symbol}</code> : null}
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       {rest.length ? (
         <section aria-label="In words">
           {rest.length > 1 ? <ul className="plain-list bulleted">{rest.map((line, index) => <li key={index}><DocText text={line} /></li>)}</ul> : <p><DocText text={rest[0]} /></p>}

@@ -178,7 +178,7 @@ func TestAFileAlreadyOverBudgetMayChangeWithoutGrowingAndOpensOneIssue(t *testin
 	if err := os.WriteFile(filepath.Join(root, "legacy.py"), []byte(legacy), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("```kogin\nbudgets:\n  file_lines: 3\n```\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("```kogin\nbudgets:\n  file_lines: 3\nimports:\n  - from: core\n    never: [ui]\n```\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	manager, err := project.NewManager(root)
@@ -204,7 +204,8 @@ func TestAFileAlreadyOverBudgetMayChangeWithoutGrowingAndOpensOneIssue(t *testin
 		}
 	}
 	projectRules, err := service.ProjectCodeRules()
-	if err != nil || !slices.Contains(projectRules.Guides, "AGENTS.md") || !slices.Contains(projectRules.TestPatterns, "test_*.py") || len(projectRules.Problems) != 0 {
+	if err != nil || !slices.Contains(projectRules.Guides, "AGENTS.md") || !slices.Contains(projectRules.TestPatterns, "test_*.py") ||
+		projectRules.Budgets.FileLines != 3 || len(projectRules.Imports) != 1 || projectRules.Imports[0].From != "core" || projectRules.Imports[0].Source != "AGENTS.md" || len(projectRules.Problems) != 0 {
 		t.Fatalf("project rules = %+v, %v", projectRules, err)
 	}
 	findings, err := service.ListFindings(FindingFilter{})

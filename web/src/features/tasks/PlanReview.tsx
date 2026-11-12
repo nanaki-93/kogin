@@ -6,7 +6,7 @@
 // finds nothing to fix is closed instead.
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
-import { Check, CircleSlash, CornerDownLeft, FlaskConical, Map as MapIcon, Plus } from 'lucide-react';
+import { Check, CircleSlash, Compass, CornerDownLeft, FlaskConical, GraduationCap, Map as MapIcon, Plus } from 'lucide-react';
 import { useIndex } from '@/api/hooks';
 import type { LoadedSession, OwnPlan, PlanEvidence, PlanIssueVerdict } from '@/api/types';
 import { useActions, useBusy } from '@/app/actions';
@@ -14,6 +14,8 @@ import { setUI, useUI, type PlanMode } from '@/app/store';
 import { highlightLines } from '@/lib/highlight';
 import { firstSentence } from '@/lib/docs';
 import { issueTitle, ownPlanFirst, planAwaitsDecision, planFindsNothingToFix } from '@/lib/readiness';
+import { navigate } from '@/lib/router';
+import { socraticPlanPrompts } from '@/lib/socraticCoach';
 import { basename, companionTestPath, isTestPath, languageOf, newFilePath, plural, timeAgo, unique } from '@/lib/util';
 import { Badge, Button, Segmented, Textarea, cx } from '@/components/ui';
 import { FileIcon } from '@/components/domain';
@@ -219,6 +221,10 @@ function YourPlanFirst({ session }: { session: LoadedSession }) {
   const [approach, setApproach] = useState('');
   const [risk, setRisk] = useState('');
   const ready = wrong.trim() && approach.trim();
+  const socratic = useMemo(
+    () => socraticPlanPrompts(session.kind, (session.targets ?? []).map(t => t.path)),
+    [session.kind, session.targets],
+  );
   return (
     <section className="card plan-card" aria-label="Your plan first">
       <div className="card-head">
@@ -236,6 +242,23 @@ function YourPlanFirst({ session }: { session: LoadedSession }) {
         }}
       >
         <p className="small muted">Before you read it, write your own from the brief and the code. Switch to Steer anytime to read the agent’s plan directly.</p>
+        <details className="socratic-lens" open>
+          <summary className="xs strong">
+            <GraduationCap size={13} className="tone-accent" aria-hidden />
+            <span>Senior Socratic lens · {socratic.lens}</span>
+          </summary>
+          <div className="socratic-lens-body xs">
+            {socratic.prompts.map((prompt, idx) => (
+              <div key={idx} className="socratic-prompt-row">
+                <span className="mono faint">{idx + 1}.</span>
+                <span>{prompt}</span>
+              </div>
+            ))}
+            <button type="button" className="link-btn xs" onClick={() => navigate('/docs/atlas', { concept: socratic.conceptId })}>
+              <Compass size={11} aria-hidden /> {socratic.conceptLabel} in Engineering Atlas
+            </button>
+          </div>
+        </details>
         <label className="stack-xs">
           <span className="label-row">What is wrong?</span>
           <Textarea rows={2} autoFocus value={wrong} onChange={e => setWrong(e.target.value)} maxLength={600} placeholder="The cause, as far as you can tell: which code, doing what" />

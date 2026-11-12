@@ -208,3 +208,14 @@ func TestCompanionTestsFollowEachLanguageAndPreferExistingFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestDeclaredImportsResolveRelativeToGuideDirectory(t *testing.T) {
+	root := t.TempDir()
+	writeGuide(t, root, "", "```kogin\nimports:\n  - from: internal/app\n    never: [internal/api]\n```\n")
+	writeGuide(t, root, "sub", "```kogin\nimports:\n  - from: domain\n    never: [adapters/http]\n```\n")
+	resolver := NewResolver(root)
+	got := resolver.DeclaredImports("AGENTS.md", "sub/AGENTS.md")
+	if len(got) != 2 || got[0].From != "internal/app" || got[0].Source != "AGENTS.md" || got[1].From != "sub/domain" || got[1].Source != "sub/AGENTS.md" {
+		t.Fatalf("DeclaredImports = %+v", got)
+	}
+}

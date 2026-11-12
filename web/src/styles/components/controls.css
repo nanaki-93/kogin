@@ -14,7 +14,11 @@
   line-height: 1;
   white-space: nowrap;
   user-select: none;
-  transition: background 0.12s var(--ease), border-color 0.12s var(--ease), color 0.12s var(--ease), box-shadow 0.12s var(--ease);
+  transition: background 0.12s var(--ease), border-color 0.12s var(--ease), color 0.12s var(--ease), box-shadow 0.12s var(--ease), transform 0.08s var(--ease);
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(0.5px);
 }
 
 .btn-sm {
@@ -42,6 +46,7 @@
 
 .btn-primary:not(:disabled):hover {
   background: var(--accent-strong);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, var(--shadow-sm), var(--glow-accent);
 }
 
 .btn-primary .kbd {
@@ -125,6 +130,19 @@
 }
 
 .link-btn:hover {
+  text-decoration: underline;
+}
+
+.link-inline {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.link-inline:hover {
   text-decoration: underline;
 }
 
@@ -494,7 +512,7 @@
 .segmented-item.is-active {
   background: var(--surface-3);
   color: var(--text);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--highlight), var(--shadow-sm);
 }
 
 /* Compact filters: "Status Open ▾", and a chip for each filter that is on. */

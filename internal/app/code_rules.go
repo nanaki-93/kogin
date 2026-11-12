@@ -13,14 +13,17 @@ import (
 // ProjectRules is what the Web UI needs to apply the project's code rules on
 // its own: which files are tests, and which AGENTS.md files declare rules.
 type ProjectRules struct {
-	ProjectID       string          `json:"project_id"`
-	ProjectRevision string          `json:"project_revision"`
-	TestPatterns    []string        `json:"test_patterns"`
-	Guides          []string        `json:"guides"`
-	Problems        []rules.Problem `json:"problems"`
+	ProjectID       string                     `json:"project_id"`
+	ProjectRevision string                     `json:"project_revision"`
+	TestPatterns    []string                   `json:"test_patterns"`
+	Guides          []string                   `json:"guides"`
+	Budgets         rules.Budgets              `json:"budgets"`
+	Imports         []rules.DeclaredImportRule `json:"imports,omitempty"`
+	Problems        []rules.Problem            `json:"problems"`
 }
 
-// ProjectCodeRules reads every indexed AGENTS.md for its test file patterns.
+// ProjectCodeRules reads every indexed AGENTS.md for its test file patterns,
+// root budgets and declared import boundaries.
 func (s *Service) ProjectCodeRules() (*ProjectRules, error) {
 	index, err := s.manager.Index()
 	if err != nil {
@@ -35,11 +38,21 @@ func (s *Service) ProjectCodeRules() (*ProjectRules, error) {
 	sort.Strings(guides)
 	resolver := rules.NewResolver(s.manager.Root())
 	patterns := resolver.TestPatterns(guides...)
+	budgets := resolver.For("AGENTS.md").Budgets
+	imports := resolver.DeclaredImports(guides...)
 	problems := resolver.Problems()
 	if problems == nil {
 		problems = []rules.Problem{}
 	}
-	return &ProjectRules{ProjectID: index.ProjectID, ProjectRevision: index.ProjectRevision, TestPatterns: patterns, Guides: guides, Problems: problems}, nil
+	return &ProjectRules{
+		ProjectID:       index.ProjectID,
+		ProjectRevision: index.ProjectRevision,
+		TestPatterns:    patterns,
+		Guides:          guides,
+		Budgets:         budgets,
+		Imports:         imports,
+		Problems:        problems,
+	}, nil
 }
 
 // ChangeRulesFile is how one file of a task stands against its rules: the

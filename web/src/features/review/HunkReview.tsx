@@ -6,7 +6,7 @@
 // first changed line; ← → (or j k) move between hunks.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Check, CircleCheck, MessageSquare, Minus } from 'lucide-react';
+import { AlertTriangle, Check, CircleCheck, Compass, GraduationCap, MessageSquare, Minus } from 'lucide-react';
 import type { DiffLine, FileChange, LoadedSession, WalkthroughNote } from '@/api/types';
 import { useActions } from '@/app/actions';
 import { usePageKeys } from '@/app/shortcuts';
@@ -14,6 +14,7 @@ import type { DiffLayout } from '@/app/store';
 import { HUNK_KINDS, hunkAnchor, hunkHasLine, hunkKey, loadVerdicts, mergedReviewNotes, planResult, reviewHunks, saveVerdicts, type Hunk, type PlanResult, type ReviewBlock } from '@/lib/hunks';
 import { behaviorChanges, checkSummary, isFileReviewed } from '@/lib/readiness';
 import { navigate, useRoute } from '@/lib/router';
+import { seniorHunkChecks } from '@/lib/socraticCoach';
 import { reviewVerdict } from '@/lib/workflow';
 import { basename, languageOf, plural } from '@/lib/util';
 import { Badge, Button, IconButton, Kbd, cx } from '@/components/ui';
@@ -243,6 +244,8 @@ function ReviewHunk({ session, change, block, lines, mapped, current, right, lay
     : mapped && !block.exception ? { text: 'Proof', tone: 'info' as const }
     : kind ? { text: kind.label, tone: kind.tone } : null;
   const firstLine = notes.find(note => note.line)?.line ?? hunkAnchor(lines, hunk)?.line;
+  const hunkSlice = useMemo(() => lines.slice(hunk.start, hunk.end), [hunk.end, hunk.start, lines]);
+  const seniorChecks = useMemo(() => seniorHunkChecks(hunk.path, hunkSlice), [hunk.path, hunkSlice]);
   return (
     <li className={cx('rv-block', layout === 'split' && 'is-split-layout', current && 'is-current', block.exception && 'is-exception', right && 'is-right')} aria-current={current ? 'step' : undefined} onClick={onSelect}>
       <div className="rv-main">
@@ -256,7 +259,7 @@ function ReviewHunk({ session, change, block, lines, mapped, current, right, lay
           {canComment ? <IconButton icon={MessageSquare} label="Comment on this hunk (M)" size="sm" onClick={event => { event.stopPropagation(); const anchor = hunkAnchor(lines, hunk); if (anchor) comments.onAdd?.(anchor); }} /> : null}
         </div>
         <div className="rv-code">
-          <DiffView lines={lines.slice(hunk.start, hunk.end)} language={languageOf(hunk.path)} layout={layout} wrap={wrap} anchorPrefix={`h-${hunkKey(hunk)}`} comments={comments} focus={focus} />
+          <DiffView lines={hunkSlice} language={languageOf(hunk.path)} layout={layout} wrap={wrap} anchorPrefix={`h-${hunkKey(hunk)}`} comments={comments} focus={focus} />
         </div>
       </div>
       <aside className="rv-margin" aria-label="Hunk note">
@@ -276,6 +279,24 @@ function ReviewHunk({ session, change, block, lines, mapped, current, right, lay
         ) : (
           <p className="small muted rv-notes">{block.exception === 'unexplained' ? 'The explainer left no note on this hunk: read it yourself.' : 'No note for this hunk.'}</p>
         )}
+        {seniorChecks.length ? (
+          <details className="rv-senior-check xs" onClick={event => event.stopPropagation()}>
+            <summary>
+              <GraduationCap size={12} className="tone-accent" aria-hidden />
+              <span>Senior check · {seniorChecks[0].label}</span>
+            </summary>
+            <div className="rv-senior-body">
+              {seniorChecks.map(check => (
+                <div key={check.label} className="rv-senior-item">
+                  <p className="muted">{check.question}</p>
+                  <button type="button" className="link-btn xs" onClick={() => navigate('/docs/atlas', { concept: check.conceptId })}>
+                    <Compass size={11} aria-hidden /> Open in Atlas
+                  </button>
+                </div>
+              ))}
+            </div>
+          </details>
+        ) : null}
       </aside>
     </li>
   );

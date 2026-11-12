@@ -1,9 +1,11 @@
 // The landing page: what needs you now, what agents are doing, and the state
 // of the project, so a glance answers "what should I do next?".
 
-import { Bot, CircleAlert, FolderOpen, GitMerge, Inbox, Plus, ShieldOff, Sparkles, Wrench } from 'lucide-react';
-import { useFindings, useGitWorkspace, useMainProject, useOverview, useSetup, useTasks, useTrust } from '@/api/hooks';
+import { useMemo } from 'react';
+import { Bot, CircleAlert, FolderOpen, GitMerge, GraduationCap, Inbox, Plus, ShieldOff, Sparkles, Wrench } from 'lucide-react';
+import { useFindings, useGitWorkspace, useLessons, useMainProject, useOverview, useSetup, useTasks, useTrust } from '@/api/hooks';
 import { openNewTask } from '@/app/store';
+import { computeAtlasMastery } from '@/lib/concepts';
 import { navigate } from '@/lib/router';
 import { ownFirst, taskStatus } from '@/lib/readiness';
 import { plural, severityRank, timeAgo } from '@/lib/util';
@@ -204,7 +206,44 @@ export function InboxPage() {
                 )}
               </div>
             </div>
+            <EngineeringGrowthCard />
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EngineeringGrowthCard() {
+  const lessons = useLessons().data?.lessons ?? [];
+  const mastery = useMemo(() => computeAtlasMastery(lessons), [lessons]);
+  return (
+    <div className="card">
+      <div className="card-head">
+        <GraduationCap size={15} aria-hidden />
+        <span className="strong">Engineering growth</span>
+        <span className="spacer" />
+        <button type="button" className="link-btn small" onClick={() => navigate('/docs/atlas')}>
+          Atlas
+        </button>
+      </div>
+      <div className="card-body stack">
+        <div className="row xs">
+          <span className="muted">CS & system design models met</span>
+          <span className="spacer" />
+          <span className="mono strong">{mastery.metCurated} / {mastery.totalCurated}</span>
+        </div>
+        <Progress value={(mastery.metCurated / Math.max(1, mastery.totalCurated)) * 100} tone="accent" label="Engineering Atlas breadth" />
+        <div className="row xs muted">
+          <button type="button" className="link-btn xs" onClick={() => navigate('/docs/log')}>
+            {plural(lessons.length, 'log entry', 'log entries')}
+          </button>
+          {mastery.calibration.written > 0 ? (
+            <>
+              <span>·</span>
+              <span>{plural(mastery.calibration.written, 'own plan')} calibrated</span>
+            </>
+          ) : null}
         </div>
       </div>
     </div>

@@ -4,11 +4,12 @@
 import { useMemo, useState } from 'react';
 import { Command } from 'cmdk';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Activity, BookOpen, CircleAlert, Code2, GitMerge, Inbox, Keyboard, ListTodo, Maximize2, MessageCircleQuestion, Minimize2, Moon, Palette as PaletteIcon, Play, Plus, RefreshCw, Settings, ShieldCheck, Sun } from 'lucide-react';
+import { Activity, BookOpen, CircleAlert, Code2, GitMerge, GraduationCap, Inbox, Keyboard, ListTodo, Maximize2, MessageCircleQuestion, Minimize2, Moon, Palette as PaletteIcon, Play, Plus, RefreshCw, Settings, ShieldCheck, Sun } from 'lucide-react';
 import { useFindings, useIndex, useProject, useTasks, useTrust } from '@/api/hooks';
 import { useActions } from '@/app/actions';
 import { useCheckout } from '@/app/checkout';
 import { DARK_PALETTES, openNewTask, setUI, toggleFocusMode, useUI } from '@/app/store';
+import { allCuratedConcepts } from '@/lib/concepts';
 import { navigate } from '@/lib/router';
 import { rankItems } from '@/lib/fuzzy';
 import { basename, dirname } from '@/lib/util';
@@ -55,6 +56,11 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
   const fileHits = useMemo(() => rankItems(files, search, f => f.path, mode === 'files' ? 50 : 8), [files, search, mode]);
   const taskHits = useMemo(() => (mode === 'files' ? [] : rankItems(tasks, search, t => t.title || t.id, 6)), [tasks, search, mode]);
   const issueHits = useMemo(() => (mode === 'files' || !search.trim() ? [] : rankItems(findings, search, f => f.title, 5)), [findings, search, mode]);
+  const atlasConcepts = useMemo(() => allCuratedConcepts(), []);
+  const conceptHits = useMemo(
+    () => (mode !== 'all' || search.trim().length < 2 ? [] : rankItems(atlasConcepts, search, c => `${c.title} ${c.domain}`, 4)),
+    [atlasConcepts, mode, search],
+  );
 
   const commands = [
     { id: 'new', label: 'New task', icon: Plus, keys: 'C', run: () => openNewTask() },
@@ -64,6 +70,7 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
     { id: 'issues', label: 'Go to Issues', icon: CircleAlert, keys: 'G I', run: () => navigate('/issues') },
     { id: 'analysis', label: 'Go to Analysis', icon: Activity, keys: 'G A', run: () => navigate('/analysis') },
     { id: 'docs', label: 'Go to Docs', icon: BookOpen, keys: 'G D', run: () => navigate('/docs') },
+    { id: 'atlas', label: 'Go to Engineering Atlas', icon: GraduationCap, keys: '', run: () => navigate('/docs/atlas') },
     { id: 'git', label: 'Go to Branches', icon: GitMerge, keys: 'G B', run: () => navigate('/git') },
     { id: 'settings', label: 'Open Settings', icon: Settings, keys: 'G S', run: () => navigate('/settings') },
     { id: 'ask', label: 'Ask the codebase', icon: MessageCircleQuestion, keys: '', run: () => navigate('/docs/ask') },
@@ -134,6 +141,17 @@ function Palette({ mode }: { mode: 'all' | 'files' | 'commands' }) {
                 <CircleAlert size={15} aria-hidden />
                 <span className="grow truncate"><Highlight text={item.title} positions={positions} /></span>
                 <span className="xs muted">{item.severity}</span>
+              </Command.Item>
+            ))}
+          </Command.Group>
+        ) : null}
+        {!asking && conceptHits.length ? (
+          <Command.Group heading="Engineering Atlas">
+            {conceptHits.map(({ item, positions }) => (
+              <Command.Item key={item.id} value={`concept-${item.id}`} onSelect={run(() => navigate('/docs/atlas', { concept: item.id }))} className="palette-item">
+                <GraduationCap size={15} aria-hidden />
+                <span className="grow truncate"><Highlight text={item.title} positions={positions.filter(p => p < item.title.length)} /></span>
+                <span className="xs muted">{item.domain}</span>
               </Command.Item>
             ))}
           </Command.Group>

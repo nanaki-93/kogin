@@ -275,6 +275,7 @@
   font-weight: 500;
   text-decoration: none;
   text-align: left;
+  transition: background 0.12s var(--ease), color 0.12s var(--ease);
 }
 
 .nav-item:hover {
@@ -286,7 +287,7 @@
 .nav-item.is-active {
   background: var(--nav-accent-soft, var(--active));
   color: var(--text);
-  box-shadow: var(--highlight);
+  box-shadow: inset 2.5px 0 0 var(--nav-accent), var(--highlight);
 }
 
 .nav-item svg {
@@ -419,10 +420,13 @@
   color: var(--faint);
   font-size: var(--text-sm);
   text-align: left;
+  box-shadow: var(--highlight);
+  transition: border-color 0.14s var(--ease), background 0.14s var(--ease), color 0.14s var(--ease);
 }
 
 .search-trigger:hover {
   border-color: var(--border-strong);
+  background: var(--surface-3);
   color: var(--muted);
 }
 

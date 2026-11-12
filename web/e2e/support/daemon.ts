@@ -302,7 +302,7 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/git\/workspace$/, () => this.gitWorkspace()],
     [/^\/api\/projects\/current\/changes$/, () => this.tasks()],
     [/^\/api\/projects\/current\/findings$/, () => this.findings()],
-    [/^\/api\/projects\/current\/rules$/, () => ({ ...data.project, test_patterns: ['*_test.go', '*.test.ts', '**/tests/**'], guides: ['AGENTS.md'], problems: [] })],
+    [/^\/api\/projects\/current\/rules$/, () => ({ ...data.project, test_patterns: ['*_test.go', '*.test.ts', '**/tests/**'], guides: ['AGENTS.md'], budgets: { file_lines: 800, function_complexity: 15 }, imports: [{ from: 'internal/app', never: ['internal/api'], source: 'AGENTS.md' }, { from: 'internal/project', never: ['internal/app', 'internal/api'], source: 'AGENTS.md' }], problems: [] })],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/rules$/, () => ({ session_id: 'chg-1', revision: 3, files: [], problems: [] })],
     [/^\/api\/projects\/current\/changes\/([^/]+)\/activity$/, () => ({ entries: [] })],
     [/^\/api\/projects\/current\/overview$/, () => ({ ...data.overview, analysis_run: this.run ?? data.overview.analysis_run, docs_refresh: this.docsRefresh })],
@@ -315,7 +315,7 @@ export class FakeDaemon {
     [/^\/api\/projects\/current\/analysis\/selection$/, () => this.selection],
     [/^\/api\/projects\/current\/usage$/, () => data.usage(this.sessions.get('chg-1')!)],
     [/^\/api\/projects\/current\/quarantine$/, () => this.quarantine],
-    [/^\/api\/projects\/current\/files\/info$/, () => ({ path: 'internal/api/handlers/webui.go', content_hash: 'h', language: 'Go', line_count: 3, content: data.fileSource })],
+    [/^\/api\/projects\/current\/files\/info$/, () => ({ path: 'internal/api/handlers/webui.go', content_hash: 'h', language: 'Go', line_count: 3, content: data.fileSource, outline: [{ kind: 'function', name: 'ServeAsset', line: 3, signature: 'func ServeAsset()' }], functions: [{ name: 'ServeAsset', kind: 'function', start_line: 3, end_line: 3, complexity: 2 }], imports: ['embed', 'net/http', 'strings'] })],
     [/^\/api\/projects\/current\/files\/analysis$/, () => ({ path: 'internal/api/handlers/webui.go', status: 'fresh', purpose: 'Serves the embedded Web UI bundle.', responsibilities: ['Return index.html for client routes'], side_effects: ['Reads the embedded files'], generated_at: new Date().toISOString() })],
   ];
 

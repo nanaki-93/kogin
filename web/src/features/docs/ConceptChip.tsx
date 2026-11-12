@@ -1,11 +1,11 @@
-// Interactive Go & software-engineering micro-card for concept chips surfaced
+// Interactive Go, CS & System Design micro-card for concept chips surfaced
 // on hunks and in the Learning log. Opening a card never calls a model;
 // exploring how this project uses the concept hands a pre-filled question to
-// Ask the code.
+// Ask the code, or opens the full entry in Docs → Engineering Atlas.
 
 import { useMemo, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
-import { AlertTriangle, BookOpen, GraduationCap, MessageCircleQuestion, X } from 'lucide-react';
+import { AlertTriangle, BookOpen, Compass, GraduationCap, MessageCircleQuestion, X } from 'lucide-react';
 import { useLessons } from '@/api/hooks';
 import { conceptQuestion, lookupConcept, type ConceptCategory } from '@/lib/concepts';
 import { highlightLines } from '@/lib/highlight';
@@ -14,7 +14,7 @@ import { plural } from '@/lib/util';
 import { Badge, Button, cx } from '@/components/ui';
 import { handQuestion } from './AskPanel';
 
-const CATEGORY_TONE: Record<ConceptCategory, 'accent' | 'info' | 'warning' | 'success' | 'neutral'> = {
+export const CATEGORY_TONE: Record<ConceptCategory, 'accent' | 'info' | 'warning' | 'success' | 'neutral'> = {
   'Go idiom': 'accent',
   Concurrency: 'info',
   Safety: 'warning',
@@ -33,15 +33,26 @@ function ConceptBody({ concept, showProjectHistory = true }: { concept: string; 
   const guide = useMemo(() => lookupConcept(concept), [concept]);
   const highlighted = useMemo(() => (guide.code ? highlightLines(guide.code, 'go') : []), [guide.code]);
   const lessons = useLessons().data?.lessons;
+  const [revealAnswer, setRevealAnswer] = useState(false);
+
   const matching = useMemo(() => {
     if (!showProjectHistory || !lessons?.length) return [];
     const needle = concept.trim().toLowerCase();
-    return lessons.filter(entry => (entry.concepts ?? []).some(tag => tag.trim().toLowerCase() === needle));
-  }, [concept, lessons, showProjectHistory]);
+    return lessons.filter(entry => (entry.concepts ?? []).some(tag => {
+      const normalized = tag.trim().toLowerCase();
+      return normalized === needle || (guide.curated && lookupConcept(tag).id === guide.id);
+    }));
+  }, [concept, guide.curated, guide.id, lessons, showProjectHistory]);
 
   return (
     <div className="concept-body">
       <p className="concept-what">{guide.what}</p>
+      {guide.curated && guide.mentalModel ? (
+        <p className="concept-model xs">
+          <span className="strong">Mental model: </span>
+          {guide.mentalModel}
+        </p>
+      ) : null}
       <p className="concept-ingo small">
         <span className="strong">In Go: </span>
         {guide.inGo}
@@ -58,6 +69,27 @@ function ConceptBody({ concept, showProjectHistory = true }: { concept: string; 
           <AlertTriangle size={12} className="tone-warning" aria-hidden />
           <span>{guide.watchOut}</span>
         </div>
+      ) : null}
+      {guide.tradeOffs || guide.selfCheck ? (
+        <details className="concept-deep xs">
+          <summary>Senior trade-offs & self-check</summary>
+          <div className="concept-deep-body">
+            {guide.complexity ? <div><span className="strong">Cost: </span>{guide.complexity}</div> : null}
+            {guide.tradeOffs ? <div><span className="strong">Trade-offs: </span>{guide.tradeOffs}</div> : null}
+            {guide.selfCheck ? (
+              <div className="concept-selfcheck">
+                <div className="strong">{guide.selfCheck.prompt}</div>
+                {revealAnswer ? (
+                  <p className="muted">{guide.selfCheck.answer}</p>
+                ) : (
+                  <button type="button" className="link-inline xs" onClick={() => setRevealAnswer(true)}>
+                    Reveal answer
+                  </button>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </details>
       ) : null}
       {showProjectHistory ? (
         <div className="concept-seen xs muted">
@@ -85,7 +117,12 @@ export function ConceptGuideCard({ concept }: { concept: string }) {
     <section className="concept-inline-card" aria-label={`Guide for ${guide.title}`}>
       <div className="row">
         <Badge tone={CATEGORY_TONE[guide.category]} icon={GraduationCap}>{guide.category}</Badge>
+        <Badge tone="neutral">{guide.domain}</Badge>
         <span className="strong small">{guide.title}</span>
+        <span className="spacer" />
+        <Button size="sm" variant="ghost" icon={Compass} onClick={() => navigate('/docs/atlas', { concept: guide.id })}>
+          Open in Atlas
+        </Button>
       </div>
       <ConceptBody concept={concept} showProjectHistory={false} />
     </section>
@@ -131,6 +168,17 @@ export function ConceptChip({ concept }: { concept: string }) {
           </div>
           <ConceptBody concept={concept} />
           <div className="concept-foot">
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Compass}
+              onClick={() => {
+                setOpen(false);
+                navigate('/docs/atlas', guide.curated ? { concept: guide.id } : undefined);
+              }}
+            >
+              Atlas
+            </Button>
             <Button size="sm" variant="ghost" icon={BookOpen} onClick={() => { setOpen(false); navigate('/docs/log'); }}>
               Learning log
             </Button>

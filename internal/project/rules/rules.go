@@ -37,6 +37,13 @@ type ImportRule struct {
 	Never []string `json:"never"`
 }
 
+// DeclaredImportRule pairs an ImportRule with the AGENTS.md file that declared it.
+type DeclaredImportRule struct {
+	From   string   `json:"from"`
+	Never  []string `json:"never"`
+	Source string   `json:"source"`
+}
+
 // Rules are the rules that apply to one file.
 type Rules struct {
 	Budgets Budgets      `json:"budgets"`
@@ -201,6 +208,27 @@ func (r *Resolver) TestPatterns(guides ...string) []string {
 		}
 	}
 	return patterns
+}
+
+// DeclaredImports lists the project-relative import boundaries declared across
+// the given AGENTS.md files, in the order given.
+func (r *Resolver) DeclaredImports(guides ...string) []DeclaredImportRule {
+	var out []DeclaredImportRule
+	for _, guidePath := range guides {
+		dir := path.Dir(strings.TrimPrefix(filepath.ToSlash(guidePath), "./"))
+		g := r.load(dir)
+		if g == nil {
+			continue
+		}
+		for _, rule := range g.declared.Imports {
+			out = append(out, DeclaredImportRule{
+				From:   joinDir(dir, normalizePrefix(rule.From)),
+				Never:  normalizePaths(rule.Never),
+				Source: g.path,
+			})
+		}
+	}
+	return out
 }
 
 // Problems lists the AGENTS.md files read so far whose rules could not be read.
