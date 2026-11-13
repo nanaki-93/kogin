@@ -9,6 +9,7 @@ import (
 
 const fileAnalysisInsightGuidance = "Ground selected-file behavior and engineering insights in TARGET_SOURCE. Use TARGET_FACTS, PROJECT_FACTS, and CONTEXT_MANIFEST only for the identity and context they supply. Apply these factual boundaries to the whole final response, including purpose, risks, suggestions, explanations, task specs, and engineering insights. " +
 	"State visible behavior as fact only when TARGET_SOURCE demonstrates it. Separate local guarantees from downstream behavior that this file cannot establish, and state conditional concerns as conditions rather than facts. You may explain consequences demonstrated by visible local control or data flow. Do not infer unshown downstream safeguards, callers, implementations, or consequences; do not invent files or source. " +
+	"When DEPENDENCY_CONTRACTS is supplied, check TARGET_SOURCE calls against those shown signatures, parameter semantics, doc comments, state preconditions, and callee chains: passing the wrong value kind (for example a derived key where a raw password is expected) or calling a function without initializing its required state is a demonstrated risk in TARGET_SOURCE, anchored at the call in TARGET_SOURCE. " +
 	"Use the shared four-field contract to explain an observable relationship or invariant, why it matters locally, a real limitation or failure mode, and a concrete test with expected observations. An engineering insight can describe a correct existing behavior and does not require a proposed change or discovered defect. " +
 	"Default to tests that characterize current behavior: state what the code currently does and the expected observation. If you suggest a proposed-change test, label it proposed-change and first state the current behavior it would change; do not portray a failing proposed expectation as a present contract. " +
 	"Prefer one concise file-level insight where it is genuinely useful. Intentionally omit it for trivial code without a meaningful observable relationship or when the evidence cannot support a specific explanation; do not give generic tests or advice. Do not duplicate that lesson in risks or suggestions. "
@@ -52,7 +53,7 @@ func semanticPrompt(source string, analysis project.Analysis, _ *project.Project
 		fileAnalysisInsightSchema + project.EngineeringInsightPromptInstructions +
 		"Risk severity must be low, medium, or high. " +
 		fileAnalysisInsightGuidance +
-		"Every risk must have exactly one category: bugs for incorrect behavior, performance for avoidable resource costs, or security for a trust-boundary weakness. Choose the category from the demonstrated failure mechanism, independently of severity. A risk is four short lines, each one sentence: summary is the problem (which identifier does what wrong, under which condition); impact is what it breaks or costs; fix is the concrete code change; verify is one test or command that shows it fixed. Do not repeat the problem in impact or fix. Give a risk an engineering_insight only when it adds something these four lines do not. Performance concerns are hypotheses unless measurements are supplied; never invent measured impact. For security, identify the visible input and sensitive operation; do not infer missing safeguards in an unseen callee. Omit concerns unsupported by TARGET_SOURCE. General cleanup, explanations and best-practice advice belong in suggestions, not risks; an empty risks array is valid. " +
+		"Every risk must have exactly one category: bugs for incorrect behavior, performance for avoidable resource costs, or security for a trust-boundary weakness. Choose the category from the demonstrated failure mechanism, independently of severity. A risk is four short lines, each one sentence: summary is the problem (which identifier does what wrong, under which condition); impact is what it breaks or costs; fix is the concrete code change; verify is one test or command that shows it fixed. Do not repeat the problem in impact or fix. Give a risk an engineering_insight only when it adds something these four lines do not. Performance concerns are hypotheses unless measurements are supplied; never invent measured impact. For security, identify the visible input and sensitive operation; do not infer missing safeguards in an unseen callee. Omit concerns unsupported by TARGET_SOURCE and any supplied DEPENDENCY_CONTRACTS. General cleanup, explanations and best-practice advice belong in suggestions, not risks; an empty risks array is valid. " +
 		"Keep each insight field at or below 250 Unicode characters. Generic advice to use defer, handle errors, or follow best practices is not an insight. " +
 		"Give each risk an anchor: one line copied exactly from TARGET_SOURCE where the risk shows (the call, condition or statement), so the issue can point at its line; omit it when no single line shows the risk. " +
 		"Include task_spec when a risk has a concrete file-scoped fix; otherwise omit it. If you include one, it must have only these fields: schema_version \"2\", target_path copied exactly from TARGET_FACTS.path, acceptance_criteria (array), non_goals (array), and optional test_candidate {path,name,content}: a regression test that fails on TARGET_SOURCE as it is and passes once the acceptance criteria hold, written as a new test file in the target's language that follows its ecosystem's test conventions (path: project-relative, beside the target or where that ecosystem keeps tests, for example x_test.go in the same Go package, test_x.py, x.test.ts or XTest.java; name: the test's name exactly as content spells it; content: the whole file). Never target another file. " +
@@ -65,7 +66,7 @@ func semanticManifest(target project.IndexFile) project.ContextManifest {
 	return project.ContextManifest{Included: []project.ContextFile{{Path: target.Path, SizeBytes: target.SizeBytes, Hash: target.ContentHash, Tokens: tokens}}, Excluded: []project.ContextDecision{}, EstimatedTokens: tokens, ByteLimit: maxSemanticAnalysisBytes, TokenLimit: maxSemanticAnalysisBytes / 4}
 }
 
-func semanticInstructionManifest(target project.IndexFile, instructions project.EffectiveInstructions) project.ContextManifest {
+func semanticContextManifest(target project.IndexFile, instructions project.EffectiveInstructions, contracts project.DependencyContracts) project.ContextManifest {
 	manifest := semanticManifest(target)
 	for _, file := range instructions.Files {
 		tokens := (len([]rune(file.Content)) + 3) / 4
@@ -75,5 +76,17 @@ func semanticInstructionManifest(target project.IndexFile, instructions project.
 	manifest.Excluded = append(manifest.Excluded, instructions.Excluded...)
 	manifest.ByteLimit += project.MaxInstructionBytes
 	manifest.TokenLimit += project.MaxInstructionBytes / 4
+	for _, file := range contracts.Files {
+		manifest.Included = append(manifest.Included, file)
+		manifest.EstimatedTokens += file.Tokens
+	}
+	manifest.Excluded = append(manifest.Excluded, contracts.Excluded...)
+	if len(contracts.Files) > 0 || len(contracts.Excluded) > 0 {
+		manifest.ByteLimit += project.MaxDependencyContractBytes
+		manifest.TokenLimit += project.MaxDependencyContractBytes / 4
+	}
+	if contracts.Truncated {
+		manifest.Truncated = true
+	}
 	return manifest
 }

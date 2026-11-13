@@ -257,7 +257,7 @@ func generatedOrLockFile(name string) bool {
 		return true
 	}
 	switch name {
-	case "go.sum", "cargo.lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "composer.lock", "gemfile.lock":
+	case "go.sum", "cargo.lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "composer.lock", "gemfile.lock", "poetry.lock", "uv.lock":
 		return true
 	}
 	return false

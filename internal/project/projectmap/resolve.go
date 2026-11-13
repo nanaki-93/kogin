@@ -115,6 +115,40 @@ func (r *resolver) edges(code []symbols.IndexFile) []Edge {
 	return edges
 }
 
+// ResolveImports maps each of target's raw import entries to the sorted unique
+// in-project module directories it resolves to, omitting external or same-module imports.
+func ResolveImports(root string, files []symbols.IndexFile, target symbols.IndexFile) map[string][]string {
+	if len(target.Imports) == 0 || !IsCode(target.Language) {
+		return nil
+	}
+	_, _, _, r, _ := buildProjectResolver(root, files)
+	from := ModuleOf(target.Path)
+	resolved := map[string][]string{}
+	for _, raw := range target.Imports {
+		mods := uniqueResolvedModules(r.resolve(target, raw), from, r.modules)
+		if len(mods) > 0 {
+			resolved[raw] = mods
+		}
+	}
+	if len(resolved) == 0 {
+		return nil
+	}
+	return resolved
+}
+
+func uniqueResolvedModules(candidates []string, from string, modules map[string]bool) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, to := range candidates {
+		if to != from && modules[to] && !seen[to] {
+			seen[to] = true
+			out = append(out, to)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 // resolve returns the modules one import line names.
 func (r *resolver) resolve(file symbols.IndexFile, raw string) []string {
 	switch {

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/nanaki-93/kogin/v2/internal/project/rules"
 	"github.com/nanaki-93/kogin/v2/internal/project/symbols"
 	"github.com/nanaki-93/kogin/v2/internal/textutil"
 )
@@ -17,9 +18,9 @@ const (
 	maxContextBytes           = 512 * 1024
 	maxSnippetBytes           = 24 * 1024
 	maxTargetBytes            = 192 * 1024
-	maxContextTokens          = 12000
+	maxContextTokens          = 32000
 	maxContextInventoryBytes  = maxContextBytes / 4
-	maxContextInventoryTokens = maxContextTokens / 4
+	maxContextInventoryTokens = 3000
 )
 
 // ContextBuilder creates bounded project-wide context for analysis and generation.
@@ -89,7 +90,7 @@ func (b *ContextBuilder) BuildWithExcludedFiles(root, target string, excludedPat
 	if err != nil {
 		return "", manifest, err
 	}
-	emitted, omitted := writeContextInventory(&result, prioritize(files, target))
+	emitted, omitted := writeContextInventory(&result, prioritize(canonical, files, target))
 	if len(omitted) > 0 {
 		manifest.Truncated = true
 		manifest.Excluded = appendContextBudgetExclusions(manifest.Excluded, omitted)
@@ -303,7 +304,7 @@ func min(left, right int) int {
 	return right
 }
 
-func prioritize(files []string, target string) []string {
+func prioritize(root string, files []string, target string) []string {
 	ordered := make([]string, 0, len(files)+1)
 	available := make(map[string]bool, len(files))
 	for _, file := range files {
@@ -321,21 +322,31 @@ func prioritize(files []string, target string) []string {
 			seen[file] = true
 		}
 	}
+	testResolver := rules.NewResolver(root)
+	var tests []string
 	for _, file := range files {
-		if !seen[file] {
+		if seen[file] {
+			continue
+		}
+		seen[file] = true
+		if testResolver.IsTestFile(file) {
+			tests = append(tests, file)
+		} else {
 			ordered = append(ordered, file)
-			seen[file] = true
 		}
 	}
-	return ordered
+	return append(ordered, tests...)
 }
 
 func contextCandidate(path string) bool {
+	if generatedOrLockFile(strings.ToLower(filepath.Base(path))) {
+		return false
+	}
 	if symbols.HasKnownExtension(path) {
 		return true
 	}
 	switch filepath.Base(path) {
-	case "Dockerfile", "Makefile", "go.mod", "go.sum", "Cargo.toml", "package.json", "pyproject.toml", "requirements.txt", "build.gradle", "build.gradle.kts", "settings.gradle.kts":
+	case "Dockerfile", "Makefile", "go.mod", "Cargo.toml", "package.json", "pyproject.toml", "requirements.txt", "build.gradle", "build.gradle.kts", "settings.gradle.kts":
 		return true
 	default:
 		return false

@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	semanticAnalysisPromptVersion = "file-analysis-v19"
+	semanticAnalysisPromptVersion = "file-analysis-v20"
 	maxSemanticAnalysisBytes      = 64 * 1024
 	fileAnalysisInsightFieldCount = 4
 	fileAnalysisInsightMaxChars   = 250
@@ -150,10 +150,20 @@ func (s *Service) requestFileAnalysis(ctx context.Context, prepared preparedFile
 		return nil, err
 	}
 	runtime := prepared.runtime
-	manifest := semanticInstructionManifest(*prepared.indexedFile, prepared.instructions)
+	var contracts project.DependencyContracts
+	if len(prepared.source) <= maxSemanticAnalysisBytes {
+		contracts, err = project.ResolveDependencyContracts(ctx, prepared.root, index, *prepared.indexedFile, prepared.source)
+		if err != nil {
+			return nil, err
+		}
+	}
+	manifest := semanticContextManifest(*prepared.indexedFile, prepared.instructions, contracts)
 	prompt, err := semanticPrompt(prepared.source, *prepared.analysis, index, *prepared.indexedFile, s.contextManifestForRuntime(manifest, runtime))
 	if err != nil {
 		return nil, err
+	}
+	if contracts.Text != "" {
+		prompt += "\n\n" + project.DependencyContractPromptGuidance + contracts.Text
 	}
 	prompt += unusedCodeBrief(unusedByPath(s.unusedCode(index))[prepared.indexedFile.Path])
 	prompt += profileFor(prepared.root).analysisBrief()

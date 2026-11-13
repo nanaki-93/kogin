@@ -132,3 +132,26 @@ func TestComponentsFoldTheDeepestFoldersFirst(t *testing.T) {
 		t.Fatalf("one component = %+v", one)
 	}
 }
+
+func TestResolveImportsMapsInProjectModulesByRawImport(t *testing.T) {
+	root, files := writePolyglot(t)
+	byPath := map[string]symbols.IndexFile{}
+	for _, f := range files {
+		byPath[f.Path] = f
+	}
+	goResolved := ResolveImports(root, files, byPath["cmd/app/main.go"])
+	if len(goResolved) != 1 || !slices.Equal(goResolved["example.test/app/internal/store"], []string{"internal/store"}) {
+		t.Fatalf("go resolved = %+v", goResolved)
+	}
+	if _, hasStdlib := goResolved["fmt"]; hasStdlib {
+		t.Fatalf("unexpected stdlib entry in go resolved: %+v", goResolved)
+	}
+	tsResolved := ResolveImports(root, files, byPath["web/src/main.tsx"])
+	if len(tsResolved) != 1 || !slices.Equal(tsResolved["import { util } from '@/lib/util';"], []string{"web/src/lib"}) {
+		t.Fatalf("ts resolved = %+v, want only @/lib/util -> web/src/lib", tsResolved)
+	}
+	pyResolved := ResolveImports(root, files, byPath["py/tool/cli/main.py"])
+	if len(pyResolved) != 1 || !slices.Equal(pyResolved["from tool.core import run"], []string{"py/tool"}) {
+		t.Fatalf("python resolved = %+v", pyResolved)
+	}
+}

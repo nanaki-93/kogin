@@ -617,6 +617,14 @@ unchanged. Reading saved results never generates titles with a provider call.
 
 `file-analysis-v18` adds two optional parts to each risk, so reports saved with
 earlier versions are stale and their files are analyzed again by the next run.
+
+`file-analysis-v20` extends per-file semantic analysis with bounded
+`DEPENDENCY_CONTRACTS` for in-project symbols referenced by the target file
+(signatures, doc comments, related exported package signatures, and bounded
+internal call/state chains resolved through `ContextPolicy` without leaking
+unreferenced sibling bodies or test files), recording contributing files in
+`CONTEXT_MANIFEST`. Reports saved under `file-analysis-v19` and earlier remain
+readable as `stale` without passive model calls so the next run refreshes them.
 `anchor` is one line the model copies from the source where the risk shows;
 Kogin finds it (whitespace collapsed) and stores `start_line`/`end_line`,
 which the risk's issue points at, or no lines when the copy is not in the file.

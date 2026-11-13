@@ -85,7 +85,7 @@ func TestSemanticStageRefreshClassifiesLegacyCacheWithoutPassiveModelCalls(t *te
 		}
 	}
 	stage, err := semanticStageFor(t, service, "main.go", true)
-	if fresh := stage.Semantic; err != nil || fresh == nil || fresh.Status != project.AnalysisStatusFresh || fresh.PromptVersion != "file-analysis-v19" || len(fresh.Risks) != 1 || fresh.Risks[0].Category != project.FindingCategorySecurity || calls.Load() != 1 {
+	if fresh := stage.Semantic; err != nil || fresh == nil || fresh.Status != project.AnalysisStatusFresh || fresh.PromptVersion != "file-analysis-v20" || len(fresh.Risks) != 1 || fresh.Risks[0].Category != project.FindingCategorySecurity || calls.Load() != 1 {
 		t.Fatalf("explicit refresh = %+v, %v; calls=%d", stage, err, calls.Load())
 	}
 	if _, err := service.CachedFileAnalysis("main.go"); err != nil || calls.Load() != 1 {
@@ -116,8 +116,8 @@ func TestCachedFileAnalysisMarksV11PromptResultsStale(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := EngineeringInsightPromptVersion(); got != "file-analysis-v19" {
-		t.Fatalf("file analysis prompt version = %q, want file-analysis-v19", got)
+	if got := EngineeringInsightPromptVersion(); got != "file-analysis-v20" {
+		t.Fatalf("file analysis prompt version = %q, want file-analysis-v20", got)
 	}
 	legacy := project.FileAnalysis{
 		SchemaVersion: "1", ProjectID: prepared.input.ProjectID, ProjectRevision: prepared.input.ProjectRevision,
@@ -205,6 +205,133 @@ func TestSemanticStageHonorsTimeout(t *testing.T) {
 		t.Fatalf("analysis = %+v, %v; want a failed stage after the deadline", result, err)
 	}
 	waitForTestSignal(t, handlerCanceled, "analysis provider cancellation")
+}
+
+func TestSemanticStageIncludesReferencedCrossPackageContractsWithoutSiblingLeak(t *testing.T) {
+	var capturedPrompt string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request llm.ChatRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		capturedPrompt = request.Messages[0].Content
+		_ = json.NewEncoder(w).Encode(llm.ChatResponse{Model: "fixture-model", Choices: []llm.ChatChoice{{Message: llm.ChatMessage{Content: `{"purpose":"Rotates the master key.","responsibilities":["rotates master key"],"dependencies":["vault"],"side_effects":["saves store"],"risks":[{"category":"bugs","severity":"high","title":"Derived key passed as password","summary":"RotateMaster passes a derived key to SetMasterKey instead of the raw password.","anchor":"vault.SetMasterKey(derived)"}],"suggestions":[]}`}}}})
+	}))
+	defer server.Close()
+
+	root := t.TempDir()
+	files := map[string]string{
+		"go.mod": "module example.test/pwdmgr\n\ngo 1.22\n",
+		"cmd/master.go": `package cmd
+
+import "example.test/pwdmgr/internal/vault"
+
+func RotateMaster(pass []byte) error {
+	derived := vault.DeriveKey(pass)
+	vault.SetMasterKey(derived)
+	if err := vault.Save(nil); err != nil {
+		return err
+	}
+	return vault.Load()
+}
+`,
+		"cmd/unused.go": `package cmd
+
+func Unused() {
+	println("unreferenced sibling literal")
+}
+`,
+		"internal/vault/vault.go": `package vault
+
+var activeSecret []byte
+
+// SetMasterKey stores the raw master password in memory for deriving encryption keys.
+func SetMasterKey(password []byte) {
+	activeSecret = append([]byte(nil), password...)
+}
+
+func DeriveKey(raw []byte) []byte {
+	return append([]byte("dk:"), raw...)
+}
+
+func Save(data []byte) error {
+	return encryptWithSecret(data)
+}
+
+func encryptWithSecret(data []byte) error {
+	_ = DeriveKey(activeSecret)
+	return nil
+}
+
+func Load() error {
+	return decryptStore()
+}
+
+func decryptStore() error {
+	if len(activeSecret) == 0 {
+		return nil
+	}
+	return nil
+}
+`,
+	}
+	for rel, content := range files {
+		full := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	manager, err := project.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Set(root, &project.Analysis{Name: "pwdmgr", Type: "go", Path: root, Summary: "Local vault CLI."}); err != nil {
+		t.Fatal(err)
+	}
+	cfg := scopedTestConfig(server.URL)
+	cfg.ModelScopes.Bug.Model = "analysis-model"
+	service, err := New(cfg, manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify an existing v19 report is treated as stale without contacting the model.
+	prepared, err := service.prepareFileAnalysis("cmd/master.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	v19 := newFileAnalysis(prepared, semanticAnalysisResponse{Purpose: "Old v19 summary."})
+	v19.PromptVersion = "file-analysis-v19"
+	if err := prepared.cache.Store(v19); err != nil {
+		t.Fatal(err)
+	}
+	cached, err := service.CachedFileAnalysis("cmd/master.go")
+	if err != nil || cached.Status != project.AnalysisStatusStale || capturedPrompt != "" {
+		t.Fatalf("v19 cached = %+v, %v; prompt=%q", cached, err, capturedPrompt)
+	}
+
+	stage, err := semanticStageFor(t, service, "cmd/master.go", false)
+	if err != nil || stage.Semantic == nil || stage.Semantic.PromptVersion != "file-analysis-v20" {
+		t.Fatalf("stage = %+v, %v", stage, err)
+	}
+	for _, want := range []string{
+		"DEPENDENCY_CONTRACTS",
+		"SetMasterKey(password []byte)",
+		"encryptWithSecret",
+		"decryptStore",
+		`"path":"internal/vault/vault.go"`,
+	} {
+		if !strings.Contains(capturedPrompt, want) {
+			t.Fatalf("captured prompt missing %q:\n%s", want, capturedPrompt)
+		}
+	}
+	if strings.Contains(capturedPrompt, "unreferenced sibling literal") {
+		t.Fatalf("captured prompt leaked unreferenced sibling body:\n%s", capturedPrompt)
+	}
 }
 
 func findAppIndexFile(index *project.ProjectIndex, path string) *project.IndexFile {

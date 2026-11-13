@@ -84,6 +84,19 @@ func IsCode(language string) bool { return !nonCode[language] }
 // Build maps the project at root from its index. Only files in the index
 // count; manifests are also looked for next to them.
 func Build(root string, files []symbols.IndexFile) Map {
+	code, modules, manifests, r, truncated := buildProjectResolver(root, files)
+	m := Map{Modules: modules, Manifests: manifests, Truncated: truncated}
+	m.Edges = r.edges(code)
+	if len(m.Edges) > maxEdges {
+		m.Edges, m.Truncated = m.Edges[:maxEdges], true
+	}
+	var entryTruncated bool
+	m.EntryPoints, entryTruncated = findEntryPoints(root, code, m.Manifests, r.known)
+	m.Truncated = m.Truncated || entryTruncated
+	return m
+}
+
+func buildProjectResolver(root string, files []symbols.IndexFile) ([]symbols.IndexFile, []Module, []Manifest, *resolver, bool) {
 	known := map[string]bool{}
 	var code []symbols.IndexFile
 	for _, file := range files {
@@ -93,25 +106,17 @@ func Build(root string, files []symbols.IndexFile) Map {
 		}
 	}
 	sort.Slice(code, func(i, j int) bool { return code[i].Path < code[j].Path })
-	m := Map{}
-	m.Modules = modulesOf(code)
-	if len(m.Modules) > maxModules {
-		m.Modules, m.Truncated = m.Modules[:maxModules], true
+	modules := modulesOf(code)
+	truncated := false
+	if len(modules) > maxModules {
+		modules, truncated = modules[:maxModules], true
 	}
 	moduleSet := map[string]bool{}
-	for _, module := range m.Modules {
+	for _, module := range modules {
 		moduleSet[module.Path] = true
 	}
-	m.Manifests = readManifests(root, manifestPaths(root, files, m.Modules))
-	resolver := newResolver(root, known, moduleSet, m.Manifests)
-	m.Edges = resolver.edges(code)
-	if len(m.Edges) > maxEdges {
-		m.Edges, m.Truncated = m.Edges[:maxEdges], true
-	}
-	var truncated bool
-	m.EntryPoints, truncated = findEntryPoints(root, code, m.Manifests, known)
-	m.Truncated = m.Truncated || truncated
-	return m
+	manifests := readManifests(root, manifestPaths(root, files, modules))
+	return code, modules, manifests, newResolver(root, known, moduleSet, manifests), truncated
 }
 
 // ModuleOf is the module a file belongs to: its directory.

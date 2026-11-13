@@ -389,3 +389,59 @@ func contextManifestHasExclusion(manifest ContextManifest, path, reason string) 
 	}
 	return false
 }
+
+func TestContextBuilderPrioritizesProductionFilesBeforeTestsAndSkipsLockfiles(t *testing.T) {
+	root := t.TempDir()
+	files := map[string]string{
+		"go.mod":                  "module example.test/pwdmgr\n\ngo 1.22\n",
+		"go.sum":                  "example.com/dep v1.0.0 h1:locked=\n",
+		"cmd/add_test.go":         "package cmd\n\nimport \"testing\"\n\nfunc TestAddLarge(t *testing.T) {\n" + strings.Repeat("\t// padded test line\n", 150) + "}\n",
+		"cmd/master.go":           "package cmd\n\nfunc RotateMaster() {}\n",
+		"internal/vault/vault.go": "package vault\n\nfunc SetMasterKey() {}\n",
+	}
+	for rel, content := range files {
+		full := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	contextText, manifest, err := NewContextBuilder().BuildWithManifest(root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if contextManifestHasPath(manifest, "go.sum") || strings.Contains(contextText, "h1:locked=") {
+		t.Fatalf("go.sum unexpectedly included in project context")
+	}
+	if !contextManifestHasExclusion(manifest, "go.sum", "lock file") {
+		t.Fatalf("go.sum exclusion missing from manifest: %+v", manifest.Excluded)
+	}
+	masterInv := strings.Index(contextText, "- cmd/master.go\n")
+	vaultInv := strings.Index(contextText, "- internal/vault/vault.go\n")
+	testInv := strings.Index(contextText, "- cmd/add_test.go\n")
+	if masterInv < 0 || vaultInv < 0 || testInv < 0 || masterInv > testInv || vaultInv > testInv {
+		t.Fatalf("inventory order did not prioritize production files before tests: master=%d vault=%d test=%d", masterInv, vaultInv, testInv)
+	}
+	masterSnip := strings.Index(contextText, "## File: cmd/master.go\n")
+	vaultSnip := strings.Index(contextText, "## File: internal/vault/vault.go\n")
+	testSnip := strings.Index(contextText, "## File: cmd/add_test.go\n")
+	if masterSnip < 0 || vaultSnip < 0 || testSnip < 0 || masterSnip > testSnip || vaultSnip > testSnip {
+		t.Fatalf("snippet order did not prioritize production files before tests: master=%d vault=%d test=%d", masterSnip, vaultSnip, testSnip)
+	}
+	if contextCandidate("package-lock.json") || contextCandidate("go.sum") || contextCandidate("uv.lock") {
+		t.Fatalf("lockfiles must not be snippet candidates even if included explicitly")
+	}
+
+	targetedText, _, err := NewContextBuilder().BuildWithManifest(root, "cmd/add_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstTestSnip := strings.Index(targetedText, "## File: cmd/add_test.go\n")
+	targetedMasterSnip := strings.Index(targetedText, "## File: cmd/master.go\n")
+	if firstTestSnip < 0 || targetedMasterSnip < 0 || firstTestSnip > targetedMasterSnip {
+		t.Fatalf("explicit test target was not placed before other files: target=%d master=%d", firstTestSnip, targetedMasterSnip)
+	}
+}
